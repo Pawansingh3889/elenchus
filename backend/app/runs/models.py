@@ -1,0 +1,74 @@
+"""Run, answer, and transcript-message models.
+
+The conduct engine owns run state: ``current_question_index`` is advanced by code,
+never by the model. ``answers.question_id`` refers to a question id inside the frozen
+version definition (not a FK to the mutable ``survey_questions``); follow-up answers
+carry their model-invented ``question_text`` denormalised.
+"""
+
+from datetime import datetime
+from typing import Any
+from uuid import UUID, uuid4
+
+from sqlalchemy import DateTime, ForeignKey, Integer, Text, func
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.db.base import Base
+from app.runs.enums import AnswerKind, MessageRole, RunStatus
+
+
+class SurveyRun(Base):
+    __tablename__ = "survey_runs"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    template_version_id: Mapped[UUID] = mapped_column(ForeignKey("survey_template_versions.id"))
+    respondent_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    status: Mapped[RunStatus] = mapped_column(
+        SAEnum(RunStatus, name="run_status"), default=RunStatus.in_progress
+    )
+    current_question_index: Mapped[int] = mapped_column(Integer, default=0)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    # Stretch: structured AI summary of the completed run.
+    summary: Mapped[dict[str, Any] | None] = mapped_column(JSONB, default=None)
+
+    answers: Mapped[list["Answer"]] = relationship(
+        back_populates="run", cascade="all, delete-orphan"
+    )
+    messages: Mapped[list["RunMessage"]] = relationship(
+        back_populates="run", cascade="all, delete-orphan", order_by="RunMessage.created_at"
+    )
+
+
+class Answer(Base):
+    __tablename__ = "answers"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    run_id: Mapped[UUID] = mapped_column(ForeignKey("survey_runs.id", ondelete="CASCADE"))
+    # Question id from the frozen version definition — intentionally not a FK.
+    question_id: Mapped[UUID] = mapped_column()
+    kind: Mapped[AnswerKind] = mapped_column(SAEnum(AnswerKind, name="answer_kind"))
+    question_text: Mapped[str] = mapped_column(Text)
+    # Shaped per answer_type, e.g. {"option": "..."} or {"rating": 4}.
+    value: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    answered_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    answered_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    run: Mapped["SurveyRun"] = relationship(back_populates="answers")
+
+
+class RunMessage(Base):
+    __tablename__ = "run_messages"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    run_id: Mapped[UUID] = mapped_column(ForeignKey("survey_runs.id", ondelete="CASCADE"))
+    role: Mapped[MessageRole] = mapped_column(SAEnum(MessageRole, name="message_role"))
+    content: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    answer_id: Mapped[UUID | None] = mapped_column(ForeignKey("answers.id"), default=None)
+
+    run: Mapped["SurveyRun"] = relationship(back_populates="messages")
