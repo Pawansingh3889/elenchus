@@ -32,6 +32,31 @@ docker compose up --build
 
 The backend applies Alembic migrations on start, so the schema is ready once it's up.
 
+## Seed data and auth
+
+Dev auth is deliberately thin: every request identifies its caller with an `X-User-Id`
+header, resolved by a single dependency. A real deployment replaces that dependency with
+an identity provider without touching the routes. Requests without the header get a 401.
+
+`python -m app.seed` runs automatically on backend start and is idempotent. It creates
+two authors and three respondents with stable ids:
+
+| Role | Name | Email | `X-User-Id` |
+|---|---|---|---|
+| author | Ava Author | ava@viewops.dev | `00000000-0000-0000-0000-0000000000a1` |
+| author | Arjun Author | arjun@viewops.dev | `00000000-0000-0000-0000-0000000000a2` |
+| respondent | Rosa Respondent | rosa@viewops.dev | `00000000-0000-0000-0000-0000000000b1` |
+| respondent | Ravi Respondent | ravi@viewops.dev | `00000000-0000-0000-0000-0000000000b2` |
+| respondent | Remy Respondent | remy@viewops.dev | `00000000-0000-0000-0000-0000000000b3` |
+
+```bash
+curl -s http://localhost:8000/api/v1/templates \
+  -H "X-User-Id: 00000000-0000-0000-0000-0000000000a1"
+```
+
+In the browser app you pick a user in the top bar and the header is sent for you. When
+trying endpoints from `/docs`, add the header yourself.
+
 ## Layout
 
 ```
@@ -42,7 +67,7 @@ backend/
     users/             User model
     templates/         template, question, immutable version models
     runs/              run, answer, transcript-message models
-    conduct/           the deterministic run engine (Thu)
+    conduct/           the deterministic run engine
     llm/               single Anthropic client + versioned prompts
     auth/              dev-auth dependency
   migrations/          Alembic (async env)

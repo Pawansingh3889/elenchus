@@ -64,3 +64,40 @@ export interface TemplateVersion {
   version: number;
   published_at: string;
 }
+
+export type RunStatus = "in_progress" | "completed" | "abandoned";
+export type AnswerKind = "scripted" | "follow_up";
+export type MessageRole = "assistant" | "user";
+
+export interface RunMessage {
+  role: MessageRole;
+  content: string;
+  created_at: string;
+}
+
+export interface RunAnswer {
+  question_id: string;
+  kind: AnswerKind;
+  question_text: string;
+  value: Record<string, unknown>;
+  answered_at: string;
+}
+
+export interface CurrentQuestion {
+  id: string;
+  text: string;
+  answer_type: AnswerType;
+  options: string[];
+  allow_other: boolean;
+  required: boolean;
+}
+
+export interface Run {
+  id: string;
+  status: RunStatus;
+  current_question: CurrentQuestion | null;
+  answered: number;
+  total: number;
+  messages: RunMessage[];
+  answers: RunAnswer[];
+}

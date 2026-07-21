@@ -65,3 +65,35 @@ export function useGenerateTemplate() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["templates"] }),
   });
 }
+
+export function usePublishedSurveys() {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["published-surveys", userId],
+    queryFn: api.listPublished,
+    enabled: !!userId,
+  });
+}
+
+export function useRun(id: string) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["run", id, userId],
+    queryFn: () => api.getRun(id),
+    enabled: !!userId,
+  });
+}
+
+export function useStartRun() {
+  return useMutation({ mutationFn: (templateId: string) => api.startRun(templateId) });
+}
+
+export function useSendRunMessage(id: string) {
+  const qc = useQueryClient();
+  const userId = useUserStore((s) => s.currentUserId);
+  return useMutation({
+    mutationFn: (content: string) => api.sendRunMessage(id, content),
+    // The turn returns the whole updated run, so seed the cache rather than refetch it.
+    onSuccess: (run) => qc.setQueryData(["run", id, userId], run),
+  });
+}

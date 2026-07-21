@@ -6,10 +6,11 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import HTTP_201_CREATED, HTTP_204_NO_CONTENT
 
-from app.auth.dependencies import require_author
+from app.auth.dependencies import get_current_user, require_author
 from app.db.session import get_session
 from app.templates.enums import TemplateStatus
 from app.templates.generation import GenerationService
+from app.templates.models import SurveyTemplate
 from app.templates.schemas import (
     GenerateRequest,
     TemplateCreate,
@@ -22,6 +23,17 @@ from app.templates.service import TemplateService
 from app.users.models import User
 
 router = APIRouter(prefix="/api/v1/templates", tags=["templates"])
+
+
+def _summary(template: SurveyTemplate, question_count: int) -> TemplateSummary:
+    return TemplateSummary(
+        id=template.id,
+        title=template.title,
+        description=template.description,
+        status=template.status,
+        updated_at=template.updated_at,
+        question_count=question_count,
+    )
 
 
 @router.post("", response_model=TemplateRead, status_code=HTTP_201_CREATED)
@@ -51,17 +63,18 @@ async def list_templates(
     session: AsyncSession = Depends(get_session),
 ) -> list[TemplateSummary]:
     rows = await TemplateService(session).list_drafts(status)
-    return [
-        TemplateSummary(
-            id=t.id,
-            title=t.title,
-            description=t.description,
-            status=t.status,
-            updated_at=t.updated_at,
-            question_count=n,
-        )
-        for t, n in rows
-    ]
+    return [_summary(t, n) for t, n in rows]
+
+
+# Declared before /{template_id} so the literal path wins the match. Open to any
+# signed-in user: a published survey is what a respondent is meant to be able to answer.
+@router.get("/published", response_model=list[TemplateSummary])
+async def list_published(
+    _: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> list[TemplateSummary]:
+    rows = await TemplateService(session).list_drafts(TemplateStatus.published)
+    return [_summary(t, n) for t, n in rows]
 
 
 @router.get("/{template_id}", response_model=TemplateRead)
