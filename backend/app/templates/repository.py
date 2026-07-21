@@ -26,7 +26,7 @@ class TemplateRepository:
         return (await self.session.execute(stmt)).scalar_one_or_none()
 
     async def list_summaries(
-        self, status: TemplateStatus | None
+        self, status: TemplateStatus | None, created_by: UUID | None = None
     ) -> list[tuple[SurveyTemplate, int]]:
         counts = (
             select(SurveyQuestion.template_id, func.count().label("n"))
@@ -40,6 +40,8 @@ class TemplateRepository:
         )
         if status is not None:
             stmt = stmt.where(SurveyTemplate.status == status)
+        if created_by is not None:
+            stmt = stmt.where(SurveyTemplate.created_by == created_by)
         rows = (await self.session.execute(stmt)).all()
         return [(row[0], int(row[1])) for row in rows]
 

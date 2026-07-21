@@ -24,13 +24,13 @@ class ResultsService:
         self.repo = ResultsRepository(session)
         self.templates = TemplateRepository(session)
 
-    async def list_runs(self, template_id: UUID) -> list[RunSummary]:
-        if await self.templates.get(template_id) is None:
-            raise NotFoundError("Template not found.")
+    async def list_runs(self, template_id: UUID, author: User) -> list[RunSummary]:
+        await self._owned_or_404(template_id, author)
         rows = await self.repo.list_for_template(template_id)
         return [_summary(run, version, user) for run, version, user in rows]
 
-    async def get_run(self, template_id: UUID, run_id: UUID) -> RunDetail:
+    async def get_run(self, template_id: UUID, run_id: UUID, author: User) -> RunDetail:
+        await self._owned_or_404(template_id, author)
         row = await self.repo.get_detail(run_id)
         if row is None:
             raise NotFoundError("Run not found.")
@@ -47,6 +47,14 @@ class ResultsService:
             messages=[MessageRead.model_validate(m) for m in run.messages],
             answers=[AnswerRead.model_validate(a) for a in run.answers],
         )
+
+    async def _owned_or_404(self, template_id: UUID, author: User) -> None:
+        """Responses carry respondent names and verbatim transcripts, so they are
+        readable only by the author who created the survey. Someone else's template
+        reads as absent rather than forbidden."""
+        template = await self.templates.get(template_id)
+        if template is None or template.created_by != author.id:
+            raise NotFoundError("Template not found.")
 
 
 def _summary(run: SurveyRun, version: SurveyTemplateVersion, user: User) -> RunSummary:

@@ -20,7 +20,7 @@ async def test_create_and_get_draft(session, author):
     created = await svc.create_draft(
         TemplateCreate(title="T1", questions=[_q("q1"), _q("q2")]), author
     )
-    fetched = await svc.get_draft(created.id)
+    fetched = await svc.get_draft(created.id, author)
     assert fetched.title == "T1"
     assert fetched.status is TemplateStatus.draft
     assert [q.text for q in fetched.questions] == ["q1", "q2"]
@@ -32,7 +32,7 @@ async def test_publish_creates_version_one(session, author):
     t = await svc.create_draft(TemplateCreate(title="T", questions=[_q("q1")]), author)
     version = await svc.publish(t.id, author)
     assert version.version == 1
-    assert (await svc.get_draft(t.id)).status is TemplateStatus.published
+    assert (await svc.get_draft(t.id, author)).status is TemplateStatus.published
 
 
 async def test_republish_increments_and_v1_is_immutable(session, author):
@@ -66,7 +66,7 @@ async def test_publish_empty_template_conflicts(session, author):
 
 async def test_get_missing_template_not_found(session, author):
     with pytest.raises(NotFoundError):
-        await TemplateService(session).get_draft(uuid4())
+        await TemplateService(session).get_draft(uuid4(), author)
 
 
 async def test_update_replaces_questions(session, author):
