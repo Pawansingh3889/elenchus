@@ -39,6 +39,10 @@ export default function Home() {
         </button>
       </div>
 
+      {create.error ? (
+        <div className="error-text">{(create.error as Error).message}</div>
+      ) : null}
+
       <div className="card generate-card">
         <div className="card-label">✦ Draft with AI</div>
         <textarea
