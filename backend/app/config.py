@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     anthropic_model: str = Field("claude-sonnet-5", description="Anthropic model id")
 
     app_env: str = Field("dev", description="dev | prod")
+    frontend_origin: str = Field(
+        "http://localhost:3000", description="Allowed CORS origin for the browser app"
+    )
 
 
 @lru_cache
