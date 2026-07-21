@@ -6,7 +6,7 @@ version definition (not a FK to the mutable ``survey_questions``); follow-up ans
 carry their model-invented ``question_text`` denormalised.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -68,7 +68,11 @@ class RunMessage(Base):
     run_id: Mapped[UUID] = mapped_column(ForeignKey("survey_runs.id", ondelete="CASCADE"))
     role: Mapped[MessageRole] = mapped_column(SAEnum(MessageRole, name="message_role"))
     content: Mapped[str] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Stamped client-side: Postgres now() is transaction time, so a question and the
+    # answer written in the same transaction would tie and the transcript would scramble.
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), default=lambda: datetime.now(UTC)
+    )
     answer_id: Mapped[UUID | None] = mapped_column(ForeignKey("answers.id"), default=None)
 
     run: Mapped["SurveyRun"] = relationship(back_populates="messages")
