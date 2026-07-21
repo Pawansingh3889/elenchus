@@ -6,6 +6,36 @@ import { useState } from "react";
 
 import { useTemplateRun, useTemplateRuns } from "@/lib/queries";
 import { useUserStore } from "@/lib/store";
+import type { RunAnswer } from "@/lib/types";
+
+interface AnswerGroup {
+  questionId: string;
+  scripted: RunAnswer | null;
+  followUps: RunAnswer[];
+}
+
+/** Follow-ups carry the question id of the question they probed, so they group under it. */
+function groupByQuestion(answers: RunAnswer[]): AnswerGroup[] {
+  const groups: AnswerGroup[] = [];
+  for (const answer of answers) {
+    let group = groups.find((g) => g.questionId === answer.question_id);
+    if (!group) {
+      group = { questionId: answer.question_id, scripted: null, followUps: [] };
+      groups.push(group);
+    }
+    if (answer.kind === "scripted") group.scripted = answer;
+    else group.followUps.push(answer);
+  }
+  return groups;
+}
+
+function stamp(answer: RunAnswer, respondent: string, version: number): string {
+  const when = new Date(answer.answered_at).toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+  return `${respondent} · ${when} · v${version}`;
+}
 
 /** Answers are stored shaped per answer type, so read whichever key is present. */
 function readValue(value: Record<string, unknown>): string {
@@ -82,16 +112,48 @@ export default function ResultsPage() {
               <>
                 <div className="card">
                   <div className="card-label">Answers</div>
+                  <div className="detail-head">
+                    <strong>{detail.data.respondent_name}</strong>
+                    <span>version {detail.data.version}</span>
+                    <span>
+                      started {new Date(detail.data.started_at).toLocaleString()}
+                      {detail.data.completed_at
+                        ? `, completed ${new Date(detail.data.completed_at).toLocaleString()}`
+                        : ", still in progress"}
+                    </span>
+                  </div>
                   <div className="answer-list">
-                    {detail.data.answers.map((answer, i) => (
-                      <div key={`${answer.question_id}-${i}`} className="answer">
+                    {groupByQuestion(detail.data.answers).map((group) => (
+                      <div key={group.questionId} className="answer">
                         <div className="answer-q">
-                          {answer.question_text}
-                          {answer.kind === "follow_up" ? (
-                            <span className="chip chip-follow">follow-up</span>
-                          ) : null}
+                          {group.scripted?.question_text ?? "Unanswered question"}
                         </div>
-                        <div className="answer-v">{readValue(answer.value)}</div>
+                        {group.scripted ? (
+                          <>
+                            <div className="answer-v">{readValue(group.scripted.value)}</div>
+                            <div className="answer-stamp">
+                              {stamp(
+                                group.scripted,
+                                detail.data.respondent_name,
+                                detail.data.version,
+                              )}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="muted">Not answered</div>
+                        )}
+                        {group.followUps.map((followUp, i) => (
+                          <div key={`${group.questionId}-${i}`} className="answer-follow">
+                            <div className="answer-q">
+                              {followUp.question_text}
+                              <span className="chip chip-follow">follow-up</span>
+                            </div>
+                            <div className="answer-v">{readValue(followUp.value)}</div>
+                            <div className="answer-stamp">
+                              {stamp(followUp, detail.data.respondent_name, detail.data.version)}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     ))}
                     {detail.data.answers.length === 0 ? (
