@@ -6,6 +6,7 @@ before failing loudly (ARCHITECTURE.md: validate then act). A valid draft is per
 so it lands in the same builder a hand-built one would.
 """
 
+import logging
 from typing import Any
 
 from pydantic import ValidationError as PydanticValidationError
@@ -17,6 +18,8 @@ from app.templates.models import SurveyTemplate
 from app.templates.schemas import TemplateCreate
 from app.templates.service import TemplateService
 from app.users.models import User
+
+logger = logging.getLogger("app.templates.generation")
 
 MAX_GENERATED_QUESTIONS = 20
 
@@ -54,7 +57,11 @@ class GenerationService:
         if error is None:
             return TemplateCreate.model_validate(raw)
         if previous_error is None:
+            logger.warning("generated template rejected, retrying: raw=%r error=%s", raw, error)
             return await self._draft(system, prompt, previous_error=error)
+        # The rejection reason describes the fault but not the draft, so keep the raw
+        # payload before failing (ARCHITECTURE.md 3.3).
+        logger.error("template generation failed after one retry: raw=%r error=%s", raw, error)
         raise LLMError(f"Model returned an invalid template after one retry: {error}")
 
 

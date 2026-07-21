@@ -26,6 +26,7 @@ logger = logging.getLogger("app.conduct")
 
 MAX_FOLLOW_UPS = 2
 MAX_MODEL_TURNS = 3  # per respondent message
+_REJECTED = "run=%s question=%s tool=%s raw_input=%r raw_text=%r error=%s"
 CLOSING_FALLBACK = "That's everything — thank you, your answers are saved."
 
 RECORD = "record_answer"
@@ -127,9 +128,28 @@ class ConductEngine:
         error = _rejection(question, state, tools, turn)
         if error is None:
             return turn
-        logger.warning("rejected model action %s: %s", turn.tool_name, error)
         if previous_error is None:
+            logger.warning(
+                "model action rejected, retrying: " + _REJECTED,
+                run.id,
+                question["id"],
+                turn.tool_name,
+                turn.tool_input,
+                turn.text,
+                error,
+            )
             return await self._decide(run, questions, question, state, tools, error)
+        # Second failure: the raw output is the only thing that explains why, so it is
+        # logged before the turn fails (ARCHITECTURE.md 3.3).
+        logger.error(
+            "conduct turn failed after one retry: " + _REJECTED,
+            run.id,
+            question["id"],
+            turn.tool_name,
+            turn.tool_input,
+            turn.text,
+            error,
+        )
         raise LLMError(f"Model produced an invalid action after one retry: {error}")
 
     async def _apply(
