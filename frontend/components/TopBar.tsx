@@ -12,9 +12,15 @@ export function TopBar() {
 
   return (
     <header className="topbar">
-      <Link href="/" className="topbar-brand">
-        ViewOps <span>Surveys</span>
-      </Link>
+      <div className="topbar-left">
+        <Link href="/" className="topbar-brand">
+          ViewOps <span>Surveys</span>
+        </Link>
+        <nav className="topbar-nav">
+          <Link href="/">Build</Link>
+          <Link href="/respond">Respond</Link>
+        </nav>
+      </div>
       <div className="topbar-user">
         <span className="topbar-user-label">Acting as</span>
         <select
