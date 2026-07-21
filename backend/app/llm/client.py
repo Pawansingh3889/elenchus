@@ -19,6 +19,10 @@ from app.errors import AppError
 
 logger = logging.getLogger("app.llm")
 
+# A survey turn that has not come back inside a minute is not coming back usefully;
+# without this the SDK would sit on its own multi-minute default and hold a worker.
+TIMEOUT_SECONDS = 60.0
+
 
 class LLMError(AppError):
     status_code = 502
@@ -89,7 +93,9 @@ class LLMClient:
         settings = get_settings()
         if not settings.anthropic_api_key:
             raise LLMError("ANTHROPIC_API_KEY is not configured.")
-        self._client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key, max_retries=2)
+        self._client = anthropic.AsyncAnthropic(
+            api_key=settings.anthropic_api_key, max_retries=2, timeout=TIMEOUT_SECONDS
+        )
         self._model = settings.anthropic_model
 
     async def tool_call(
