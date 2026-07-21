@@ -5,7 +5,8 @@ language or a builder UI) and publish immutable versions; respondents complete p
 surveys through a conversational, LLM-driven runner that keeps the model on rails.
 
 Full brief in [`ViewOps_Survey_Trial/`](ViewOps_Survey_Trial/README.md); build conventions
-in [`CLAUDE.md`](CLAUDE.md).
+in [`CLAUDE.md`](CLAUDE.md); working on it in an editor in
+[`docs/DEVELOPING.md`](docs/DEVELOPING.md).
 
 ## Stack
 
