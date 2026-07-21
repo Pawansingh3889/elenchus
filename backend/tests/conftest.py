@@ -21,9 +21,7 @@ TEST_URL = "postgresql+asyncpg://viewops:viewops@localhost:5432/viewops_test"
 async def engine():
     admin = create_async_engine(ADMIN_URL, isolation_level="AUTOCOMMIT")
     async with admin.connect() as conn:
-        found = await conn.scalar(
-            text("SELECT 1 FROM pg_database WHERE datname = 'viewops_test'")
-        )
+        found = await conn.scalar(text("SELECT 1 FROM pg_database WHERE datname = 'viewops_test'"))
         if not found:
             await conn.execute(text("CREATE DATABASE viewops_test"))
     await admin.dispose()
