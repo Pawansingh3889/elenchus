@@ -173,6 +173,19 @@ select {
   border-color: var(--accent);
   color: var(--accent-strong);
 }
+.btn-danger {
+  background: var(--err-fill);
+  border-color: var(--err-border);
+  color: var(--err-text);
+}
+/* Destructive actions stay quiet until asked for, then commit in the error palette. */
+.btn-quiet {
+  background: transparent;
+  color: var(--secondary);
+}
+.btn-quiet:hover {
+  color: var(--err-text);
+}
 
 .field {
   width: 100%;
@@ -297,6 +310,8 @@ textarea {
 .builder-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
 }
 .builder-desc {

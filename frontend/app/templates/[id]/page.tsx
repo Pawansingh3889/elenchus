@@ -1,11 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { use, useState } from "react";
 
 import { LivePreview } from "@/components/LivePreview";
 import { QuestionEditor } from "@/components/QuestionEditor";
-import { usePublishTemplate, useTemplate, useUpdateTemplate } from "@/lib/queries";
+import {
+  useDeleteTemplate,
+  usePublishTemplate,
+  useTemplate,
+  useUpdateTemplate,
+} from "@/lib/queries";
 import { useUserStore } from "@/lib/store";
 import type { QuestionInput } from "@/lib/types";
 
@@ -24,11 +30,14 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
   const { data: template, isLoading, error } = useTemplate(id);
   const update = useUpdateTemplate(id);
   const publish = usePublishTemplate(id);
+  const remove = useDeleteTemplate(id);
+  const router = useRouter();
 
   const [loadedId, setLoadedId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [questions, setQuestions] = useState<QuestionInput[]>([]);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   // Initialise the editable form from the fetched template once, and again if the
   // route id changes — adjusting state during render, not in an effect.
@@ -70,9 +79,14 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
   const body = { title, description: description || null, questions };
   const save = () => update.mutate(body);
   const onPublish = async () => {
-    await update.mutateAsync(body);
-    await publish.mutateAsync();
+    try {
+      await update.mutateAsync(body);
+      await publish.mutateAsync();
+    } catch {
+      // Rendered from update.error / publish.error below.
+    }
   };
+  const onDelete = () => remove.mutate(undefined, { onSuccess: () => router.push("/") });
 
   return (
     <div className="builder">
@@ -99,6 +113,20 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
             >
               {publish.isPending ? "Publishing…" : "Publish"}
             </button>
+            {confirmingDelete ? (
+              <>
+                <button className="btn btn-danger" onClick={onDelete} disabled={remove.isPending}>
+                  {remove.isPending ? "Deleting…" : "Confirm delete"}
+                </button>
+                <button className="btn btn-secondary" onClick={() => setConfirmingDelete(false)}>
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button className="btn btn-quiet" onClick={() => setConfirmingDelete(true)}>
+                Delete
+              </button>
+            )}
           </div>
         </div>
 
@@ -113,6 +141,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
         {publish.error ? (
           <div className="error-text">{(publish.error as Error).message}</div>
         ) : null}
+        {remove.error ? <div className="error-text">{(remove.error as Error).message}</div> : null}
 
         <div className="questions">
           {questions.map((q, i) => (
