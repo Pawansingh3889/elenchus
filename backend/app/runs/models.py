@@ -35,7 +35,7 @@ class SurveyRun(Base):
     summary: Mapped[dict[str, Any] | None] = mapped_column(JSONB, default=None)
 
     answers: Mapped[list["Answer"]] = relationship(
-        back_populates="run", cascade="all, delete-orphan"
+        back_populates="run", cascade="all, delete-orphan", order_by="Answer.answered_at"
     )
     messages: Mapped[list["RunMessage"]] = relationship(
         back_populates="run", cascade="all, delete-orphan", order_by="RunMessage.created_at"
@@ -54,8 +54,10 @@ class Answer(Base):
     # Shaped per answer_type, e.g. {"option": "..."} or {"rating": 4}.
     value: Mapped[dict[str, Any]] = mapped_column(JSONB)
     answered_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    # Client-side for the same reason as the transcript: Postgres now() is transaction
+    # time, so answers written in one turn would tie and order arbitrarily.
     answered_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True), server_default=func.now(), default=lambda: datetime.now(UTC)
     )
 
     run: Mapped["SurveyRun"] = relationship(back_populates="answers")
