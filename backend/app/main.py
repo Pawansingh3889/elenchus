@@ -5,6 +5,7 @@ Routes stay thin and delegate to services; domain routers are mounted here.
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 from app.conduct.router import router as runs_router
 from app.config import get_settings
@@ -26,6 +27,10 @@ app.include_router(templates_router)
 app.include_router(runs_router)
 
 
-@app.get("/api/v1/health", tags=["meta"])
-async def health() -> dict[str, str]:
-    return {"status": "ok"}
+class HealthRead(BaseModel):
+    status: str
+
+
+@app.get("/api/v1/health", response_model=HealthRead, tags=["meta"])
+async def health() -> HealthRead:
+    return HealthRead(status="ok")
