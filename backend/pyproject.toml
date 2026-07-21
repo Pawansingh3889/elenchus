@@ -37,6 +37,10 @@ select = ["E", "F", "I", "UP", "B", "ASYNC"]
 # Keep `class X(str, enum.Enum)` — explicit and behaves identically with SQLAlchemy.
 ignore = ["UP042"]
 
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency-injection markers are meant to be called in argument defaults.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Header", "fastapi.Path", "fastapi.Body"]
+
 [tool.black]
 line-length = 100
 
