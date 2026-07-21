@@ -52,6 +52,15 @@ async def author(session):
 
 
 @pytest_asyncio.fixture
+async def other_author(session):
+    """A second author, for proving one author cannot reach another's work."""
+    user = User(email="other@test.dev", display_name="Other Author", role=UserRole.author)
+    session.add(user)
+    await session.flush()
+    return user
+
+
+@pytest_asyncio.fixture
 async def respondent(session):
     user = User(
         email="respondent@test.dev", display_name="Test Respondent", role=UserRole.respondent
