@@ -27,5 +27,10 @@ npm-debug.log*
 
 # Editor / OS
 .idea/
-.vscode/
+# Share the editor config that helps anyone opening the repo; keep personal
+# workspace state (and whatever extensions write in) out of it.
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
 *.log

@@ -1,0 +1,37 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // Run the API on the host against the compose Postgres, so you can set
+      // breakpoints in the engine. Bring up the database first:
+      //   docker compose up -d postgres
+      "name": "backend: uvicorn",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["app.main:app", "--reload", "--port", "8000"],
+      "cwd": "${workspaceFolder}/backend",
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
+      "env": {
+        "DATABASE_URL": "postgresql+asyncpg://viewops:viewops@localhost:5432/viewops"
+      },
+      "envFile": "${workspaceFolder}/.env",
+      "console": "integratedTerminal"
+    },
+    {
+      // The suite creates and drops its own viewops_test database, so it needs
+      // Postgres up but never touches the development data.
+      "name": "backend: pytest",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["-q"],
+      "cwd": "${workspaceFolder}/backend",
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
+      "env": {
+        "DATABASE_URL": "postgresql+asyncpg://viewops:viewops@localhost:5432/viewops"
+      },
+      "console": "integratedTerminal"
+    }
+  ]
+}
