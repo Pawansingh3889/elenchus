@@ -11,6 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from app.db.base import Base
 from app.runs import models as _runs  # noqa: F401  (register tables on metadata)
 from app.templates import models as _templates  # noqa: F401
+from app.templates.enums import AnswerType
+from app.templates.schemas import QuestionInput, TemplateCreate
+from app.templates.service import TemplateService
 from app.users.models import User, UserRole
 
 ADMIN_URL = "postgresql+asyncpg://viewops:viewops@localhost:5432/viewops"
@@ -56,3 +59,25 @@ async def respondent(session):
     session.add(user)
     await session.flush()
     return user
+
+
+@pytest_asyncio.fixture
+async def published(session, author):
+    """A published two-question survey: q0 permits follow-ups, q1 is a rating that does not."""
+    svc = TemplateService(session)
+    template = await svc.create_draft(
+        TemplateCreate(
+            title="Onboarding check-in",
+            questions=[
+                QuestionInput(
+                    text="What's your role?",
+                    answer_type=AnswerType.short_text,
+                    allow_follow_ups=True,
+                ),
+                QuestionInput(text="Rate your onboarding", answer_type=AnswerType.rating),
+            ],
+        ),
+        author,
+    )
+    await svc.publish(template.id, author)
+    return template

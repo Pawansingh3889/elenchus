@@ -3,79 +3,19 @@ here is about the engine's own decisions: what it offers, what it accepts, what 
 refuses, and where run state lives.
 """
 
-from typing import Any
-
 import pytest
-import pytest_asyncio
 
 from app.conduct.engine import MAX_FOLLOW_UPS, ConductEngine
 from app.errors import ConflictError
 from app.llm.client import LLMError, ToolTurn
 from app.runs.enums import AnswerKind, RunStatus
 from app.templates.enums import AnswerType
-from app.templates.schemas import QuestionInput, TemplateCreate, TemplateUpdate
+from app.templates.schemas import QuestionInput, TemplateUpdate
 from app.templates.service import TemplateService
-
-
-class FakeLLM:
-    """Replays scripted turns and records which tools the engine offered each time."""
-
-    def __init__(self, *turns: ToolTurn) -> None:
-        self._turns = list(turns)
-        self.calls = 0
-        self.offered: list[list[str]] = []
-
-    async def tool_turn(
-        self,
-        *,
-        system: str,
-        messages: list[dict[str, str]],
-        tools: list[dict[str, Any]],
-        max_tokens: int = 1024,
-    ) -> ToolTurn:
-        self.offered.append([t["name"] for t in tools])
-        if not self._turns:
-            raise AssertionError("engine asked for a turn the test did not script")
-        turn = self._turns[min(self.calls, len(self._turns) - 1)]
-        self.calls += 1
-        return turn
-
-    async def tool_call(self, **_: Any) -> dict[str, Any]:
-        raise AssertionError("the conduct engine must not use one-shot tool_call")
-
-
-def _record(value: Any, say: str = "Thanks.") -> ToolTurn:
-    return ToolTurn(text=say, tool_name="record_answer", tool_input={"value": value})
-
-
-def _follow_up(text: str) -> ToolTurn:
-    return ToolTurn(text="", tool_name="ask_follow_up", tool_input={"follow_up_text": text})
-
-
-def _move_on(say: str = "Next question.") -> ToolTurn:
-    return ToolTurn(text=say, tool_name="move_on", tool_input={})
-
-
-@pytest_asyncio.fixture
-async def published(session, author):
-    """A two-question survey: q0 permits follow-ups, q1 is a rating that does not."""
-    svc = TemplateService(session)
-    template = await svc.create_draft(
-        TemplateCreate(
-            title="Onboarding check-in",
-            questions=[
-                QuestionInput(
-                    text="What's your role?",
-                    answer_type=AnswerType.short_text,
-                    allow_follow_ups=True,
-                ),
-                QuestionInput(text="Rate your onboarding", answer_type=AnswerType.rating),
-            ],
-        ),
-        author,
-    )
-    await svc.publish(template.id, author)
-    return template
+from tests.fakes import FakeLLM
+from tests.fakes import follow_up as _follow_up
+from tests.fakes import move_on as _move_on
+from tests.fakes import record as _record
 
 
 async def test_start_opens_with_the_first_question(session, respondent, published):
