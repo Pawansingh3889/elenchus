@@ -1,6 +1,8 @@
 import { useUserStore } from "./store";
 import type {
   Run,
+  RunDetail,
+  RunSummary,
   Template,
   TemplateSummary,
   TemplateVersion,
@@ -60,4 +62,7 @@ export const api = {
   getRun: (id: string) => request<Run>(`/runs/${id}`),
   sendRunMessage: (id: string, content: string) =>
     request<Run>(`/runs/${id}/messages`, { method: "POST", body: JSON.stringify({ content }) }),
+  listTemplateRuns: (templateId: string) => request<RunSummary[]>(`/templates/${templateId}/runs`),
+  getTemplateRun: (templateId: string, runId: string) =>
+    request<RunDetail>(`/templates/${templateId}/runs/${runId}`),
 };
