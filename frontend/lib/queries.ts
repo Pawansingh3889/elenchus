@@ -47,6 +47,14 @@ export function useUpdateTemplate(id: string) {
   });
 }
 
+export function useDeleteTemplate(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.deleteTemplate(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["templates"] }),
+  });
+}
+
 export function usePublishTemplate(id: string) {
   const qc = useQueryClient();
   return useMutation({
