@@ -15,7 +15,7 @@ from app.runs.service import ResultsService
 from app.templates.enums import AnswerType
 from app.templates.schemas import QuestionInput, TemplateCreate, TemplateUpdate
 from app.templates.service import TemplateService
-from tests.fakes import FakeLLM, move_on, record
+from tests.fakes import FakeLLM, follow_up, move_on, record
 
 
 async def _answer_first(session, run, respondent):
@@ -72,6 +72,22 @@ async def test_detail_returns_the_answers_and_the_transcript(session, respondent
     assert [a.question_text for a in detail.answers] == ["What's your role?"]
     assert detail.answers[0].value == {"text": "Line lead"}
     assert [m.role.value for m in detail.messages] == ["assistant", "user", "assistant"]
+
+
+async def test_a_follow_up_is_ordered_under_the_question_it_probed(session, respondent, published):
+    """Results attach a follow-up to its parent, so ordering and the shared id both matter."""
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    probe = FakeLLM(record("Line lead"), follow_up("What does that involve day to day?"))
+    run = await ConductEngine(session, llm=probe).handle_message(run.id, "line lead", respondent)
+    reply = FakeLLM(record("Running the handover"), move_on())
+    await ConductEngine(session, llm=reply).handle_message(run.id, "the handover", respondent)
+
+    answers = (await ResultsService(session).get_run(published.id, run.id)).answers
+
+    assert [a.kind.value for a in answers] == ["scripted", "follow_up"]
+    assert answers[0].question_id == answers[1].question_id  # the follow-up's parent
+    assert answers[0].answered_at < answers[1].answered_at
+    assert answers[1].question_text == "What does that involve day to day?"
 
 
 async def test_a_run_from_another_template_is_not_found(session, author, respondent, published):
