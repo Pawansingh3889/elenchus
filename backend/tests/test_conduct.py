@@ -13,7 +13,7 @@ from app.errors import ConflictError
 from app.llm.client import LLMError, ToolTurn
 from app.runs.enums import AnswerKind, RunStatus
 from app.templates.enums import AnswerType
-from app.templates.schemas import QuestionInput, TemplateCreate
+from app.templates.schemas import QuestionInput, TemplateCreate, TemplateUpdate
 from app.templates.service import TemplateService
 
 
@@ -210,6 +210,45 @@ async def test_run_completes_after_the_final_question(session, respondent, publi
 
     with pytest.raises(ConflictError):  # a finished run takes no more messages
         await ConductEngine(session, llm=FakeLLM()).handle_message(run.id, "more", respondent)
+
+
+async def test_republishing_leaves_an_in_flight_run_alone(session, author, respondent, published):
+    """A run is bound to the version it started on, so authors can keep editing."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+    first = FakeLLM(_record("Line lead"), _move_on())
+    run = await ConductEngine(session, llm=first).handle_message(run.id, "line lead", respondent)
+
+    # The author rewrites the survey and republishes while the respondent is mid-run.
+    svc = TemplateService(session)
+    await svc.update_draft(
+        published.id,
+        TemplateUpdate(
+            title="Something else entirely",
+            questions=[
+                QuestionInput(text="A brand new question", answer_type=AnswerType.long_text)
+            ],
+        ),
+        author,
+    )
+    assert (await svc.publish(published.id, author)).version == 2
+
+    reloaded = ConductEngine(session, llm=FakeLLM())
+    live = await reloaded.load(run.id, respondent)
+    assert [q["text"] for q in await reloaded.questions(live)] == [
+        "What's your role?",
+        "Rate your onboarding",
+    ]
+    assert live.current_question_index == 1  # position untouched by the republish
+
+    # And it still completes against v1's questions, not the new ones.
+    llm = FakeLLM(_record(4, "Thanks, that's everything."))
+    live = await ConductEngine(session, llm=llm).handle_message(live.id, "four", respondent)
+    assert live.status is RunStatus.completed
+    assert [a.value for a in live.answers if a.kind is AnswerKind.scripted] == [
+        {"text": "Line lead"},
+        {"rating": 4},
+    ]
 
 
 async def test_state_survives_a_reload(session, respondent, published):
