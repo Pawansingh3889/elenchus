@@ -1,5 +1,12 @@
 import { useUserStore } from "./store";
-import type { Template, TemplateSummary, TemplateVersion, TemplateWrite, User } from "./types";
+import type {
+  Run,
+  Template,
+  TemplateSummary,
+  TemplateVersion,
+  TemplateWrite,
+  User,
+} from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -36,4 +43,10 @@ export const api = {
     request<TemplateVersion>(`/templates/${id}/publish`, { method: "POST" }),
   generateTemplate: (prompt: string) =>
     request<Template>("/templates/generate", { method: "POST", body: JSON.stringify({ prompt }) }),
+  listPublished: () => request<TemplateSummary[]>("/templates/published"),
+  startRun: (templateId: string) =>
+    request<Run>("/runs", { method: "POST", body: JSON.stringify({ template_id: templateId }) }),
+  getRun: (id: string) => request<Run>(`/runs/${id}`),
+  sendRunMessage: (id: string, content: string) =>
+    request<Run>(`/runs/${id}/messages`, { method: "POST", body: JSON.stringify({ content }) }),
 };
