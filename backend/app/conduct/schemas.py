@@ -1,12 +1,11 @@
 """Request and response schemas for conducting a run."""
 
-from datetime import datetime
-from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
-from app.runs.enums import AnswerKind, MessageRole, RunStatus
+from app.runs.enums import RunStatus
+from app.runs.schemas import AnswerRead, MessageRead
 
 
 class StartRunRequest(BaseModel):
@@ -15,24 +14,6 @@ class StartRunRequest(BaseModel):
 
 class RunMessageRequest(BaseModel):
     content: str = Field(min_length=1, max_length=4000)
-
-
-class MessageRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    role: MessageRole
-    content: str
-    created_at: datetime
-
-
-class AnswerRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    question_id: UUID
-    kind: AnswerKind
-    question_text: str
-    value: dict[str, Any]
-    answered_at: datetime
 
 
 class CurrentQuestion(BaseModel):
