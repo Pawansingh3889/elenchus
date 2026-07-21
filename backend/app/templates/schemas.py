@@ -44,6 +44,10 @@ class TemplateUpdate(TemplateWrite):
     pass
 
 
+class GenerateRequest(BaseModel):
+    prompt: str = Field(min_length=1, max_length=4000)
+
+
 class QuestionRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

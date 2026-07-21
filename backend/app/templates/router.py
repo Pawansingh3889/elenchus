@@ -9,7 +9,9 @@ from starlette.status import HTTP_201_CREATED, HTTP_204_NO_CONTENT
 from app.auth.dependencies import require_author
 from app.db.session import get_session
 from app.templates.enums import TemplateStatus
+from app.templates.generation import GenerationService
 from app.templates.schemas import (
+    GenerateRequest,
     TemplateCreate,
     TemplateRead,
     TemplateSummary,
@@ -29,6 +31,16 @@ async def create_template(
     session: AsyncSession = Depends(get_session),
 ) -> TemplateRead:
     template = await TemplateService(session).create_draft(data, author)
+    return TemplateRead.model_validate(template)
+
+
+@router.post("/generate", response_model=TemplateRead, status_code=HTTP_201_CREATED)
+async def generate_template(
+    data: GenerateRequest,
+    author: User = Depends(require_author),
+    session: AsyncSession = Depends(get_session),
+) -> TemplateRead:
+    template = await GenerationService(session).generate_draft(data.prompt, author)
     return TemplateRead.model_validate(template)
 
 
