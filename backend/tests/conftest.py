@@ -46,3 +46,13 @@ async def author(session):
     session.add(user)
     await session.flush()
     return user
+
+
+@pytest_asyncio.fixture
+async def respondent(session):
+    user = User(
+        email="respondent@test.dev", display_name="Test Respondent", role=UserRole.respondent
+    )
+    session.add(user)
+    await session.flush()
+    return user
