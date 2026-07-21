@@ -162,6 +162,11 @@ class ConductEngine:
     ) -> str | None:
         """Apply a validated action. Returns the assistant's utterance, or None to loop."""
         if turn.tool_name == FOLLOW_UP:
+            # Spend the budget here, when the probe is issued. Reassigned rather than
+            # mutated so SQLAlchemy sees the change to the JSONB column.
+            key = question["id"]
+            run.probes_asked = {**run.probes_asked, key: run.probes_asked.get(key, 0) + 1}
+            await self.session.flush()
             return str(turn.tool_input["follow_up_text"]).strip()
 
         if turn.tool_name == RECORD:
@@ -204,10 +209,11 @@ class ConductEngine:
         return turn.text or questions[run.current_question_index]["text"]
 
     async def _state(self, run: SurveyRun, question: dict[str, Any]) -> dict[str, Any]:
-        question_id = UUID(question["id"])
-        scripted = await self.repo.count_answers(run.id, question_id, AnswerKind.scripted)
-        follow_ups = await self.repo.count_answers(run.id, question_id, AnswerKind.follow_up)
-        return {"scripted_recorded": scripted > 0, "follow_ups_used": follow_ups}
+        scripted = await self.repo.count_answers(run.id, UUID(question["id"]), AnswerKind.scripted)
+        return {
+            "scripted_recorded": scripted > 0,
+            "follow_ups_used": run.probes_asked.get(question["id"], 0),
+        }
 
 
 # ------------------------------------------------------------------- helpers
@@ -349,7 +355,7 @@ def _briefing(
         lines.append(f"- Free-text 'other' allowed: {bool(question.get('allow_other'))}")
     lines.append(f"- Answer already recorded: {state['scripted_recorded']}")
     lines.append(
-        f"- Follow-ups used: {state['follow_ups_used']} of {MAX_FOLLOW_UPS}"
+        f"- Follow-ups asked so far: {state['follow_ups_used']} of {MAX_FOLLOW_UPS}"
         if question.get("allow_follow_ups")
         else "- Follow-ups: not permitted for this question"
     )

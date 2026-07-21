@@ -71,10 +71,45 @@ async def test_follow_up_beyond_the_cap_is_rejected_in_code(session, respondent,
             session, llm=FakeLLM(_record("x"), _follow_up("more?"))
         ).handle_message(run.id, "…", respondent)
 
-    llm = FakeLLM(_record("done"), _follow_up("one more?"), _follow_up("please?"))
+    llm = FakeLLM(_follow_up("one more?"))
     with pytest.raises(LLMError):
         await ConductEngine(session, llm=llm).handle_message(run.id, "no", respondent)
-    assert llm.calls == 3  # record, then the rejected probe and its one retry
+    assert llm.calls == 2  # the rejected probe and its one retry
+
+
+async def test_the_cap_counts_probes_asked_not_answers_recorded(session, respondent, published):
+    """A respondent who never answers a probe must still exhaust the budget.
+
+    The cap is spent when the engine issues a follow-up. Counting recorded answers
+    instead would let a model probe forever as long as no reply was ever recorded,
+    each probe costing another paid call with the whole transcript resent.
+    """
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    # Answer once, then probe — that is probe 1.
+    first = FakeLLM(_record("Line lead"), _follow_up("What does that involve?"))
+    run = await ConductEngine(session, llm=first).handle_message(run.id, "line lead", respondent)
+
+    # Reply evasively; the model probes again without recording anything. Probe 2.
+    second = FakeLLM(_follow_up("Could you say a bit more?"))
+    run = await ConductEngine(session, llm=second).handle_message(
+        run.id, "dunno really", respondent
+    )
+
+    assert run.probes_asked == {published_question_id(run): MAX_FOLLOW_UPS}
+    assert not [a for a in run.answers if a.kind is AnswerKind.follow_up]  # nothing recorded
+
+    # The budget is now spent even though no follow-up answer exists.
+    third = FakeLLM(_follow_up("And anything else?"))
+    with pytest.raises(LLMError):
+        await ConductEngine(session, llm=third).handle_message(run.id, "still dunno", respondent)
+    assert "ask_follow_up" not in third.offered[-1]
+
+
+def published_question_id(run):
+    """The first question's id, as the engine keys probes_asked by."""
+    return next(iter(run.probes_asked))
 
 
 async def test_invalid_value_retries_once_then_fails_loudly(session, respondent, published):

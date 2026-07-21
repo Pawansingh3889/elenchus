@@ -23,11 +23,11 @@ async def _answer_first(session, run, respondent):
     return await ConductEngine(session, llm=llm).handle_message(run.id, "line lead", respondent)
 
 
-async def test_lists_who_answered_and_how_far_they_got(session, respondent, published):
+async def test_lists_who_answered_and_how_far_they_got(session, author, respondent, published):
     run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
     await _answer_first(session, run, respondent)
 
-    summaries = await ResultsService(session).list_runs(published.id)
+    summaries = await ResultsService(session).list_runs(published.id, author)
 
     assert len(summaries) == 1
     summary = summaries[0]
@@ -57,16 +57,18 @@ async def test_a_run_is_reported_against_the_version_it_answered(
     )
     assert (await svc.publish(published.id, author)).version == 2
 
-    summary = (await ResultsService(session).list_runs(published.id))[0]
+    summary = (await ResultsService(session).list_runs(published.id, author))[0]
     assert summary.version == 1
     assert summary.total == 2  # v1's question count, not v2's
 
 
-async def test_detail_returns_the_answers_and_the_transcript(session, respondent, published):
+async def test_detail_returns_the_answers_and_the_transcript(
+    session, author, respondent, published
+):
     run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
     await _answer_first(session, run, respondent)
 
-    detail = await ResultsService(session).get_run(published.id, run.id)
+    detail = await ResultsService(session).get_run(published.id, run.id, author)
 
     assert detail.respondent_name == "Test Respondent"
     assert [a.question_text for a in detail.answers] == ["What's your role?"]
@@ -74,7 +76,9 @@ async def test_detail_returns_the_answers_and_the_transcript(session, respondent
     assert [m.role.value for m in detail.messages] == ["assistant", "user", "assistant"]
 
 
-async def test_a_follow_up_is_ordered_under_the_question_it_probed(session, respondent, published):
+async def test_a_follow_up_is_ordered_under_the_question_it_probed(
+    session, author, respondent, published
+):
     """Results attach a follow-up to its parent, so ordering and the shared id both matter."""
     run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
     probe = FakeLLM(record("Line lead"), follow_up("What does that involve day to day?"))
@@ -82,7 +86,7 @@ async def test_a_follow_up_is_ordered_under_the_question_it_probed(session, resp
     reply = FakeLLM(record("Running the handover"), move_on())
     await ConductEngine(session, llm=reply).handle_message(run.id, "the handover", respondent)
 
-    answers = (await ResultsService(session).get_run(published.id, run.id)).answers
+    answers = (await ResultsService(session).get_run(published.id, run.id, author)).answers
 
     assert [a.kind.value for a in answers] == ["scripted", "follow_up"]
     assert answers[0].question_id == answers[1].question_id  # the follow-up's parent
@@ -102,9 +106,9 @@ async def test_a_run_from_another_template_is_not_found(session, author, respond
     stray = await ConductEngine(session, llm=FakeLLM()).start_run(other.id, respondent)
 
     with pytest.raises(NotFoundError):
-        await ResultsService(session).get_run(published.id, stray.id)
+        await ResultsService(session).get_run(published.id, stray.id, author)
 
 
-async def test_missing_template_is_not_found(session, published):
+async def test_missing_template_is_not_found(session, author, published):
     with pytest.raises(NotFoundError):
-        await ResultsService(session).list_runs(uuid4())
+        await ResultsService(session).list_runs(uuid4(), author)

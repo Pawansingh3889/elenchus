@@ -17,17 +17,17 @@ router = APIRouter(prefix="/api/v1/templates", tags=["results"])
 @router.get("/{template_id}/runs", response_model=list[RunSummary])
 async def list_runs(
     template_id: UUID,
-    _: User = Depends(require_author),
+    author: User = Depends(require_author),
     session: AsyncSession = Depends(get_session),
 ) -> list[RunSummary]:
-    return await ResultsService(session).list_runs(template_id)
+    return await ResultsService(session).list_runs(template_id, author)
 
 
 @router.get("/{template_id}/runs/{run_id}", response_model=RunDetail)
 async def get_run(
     template_id: UUID,
     run_id: UUID,
-    _: User = Depends(require_author),
+    author: User = Depends(require_author),
     session: AsyncSession = Depends(get_session),
 ) -> RunDetail:
-    return await ResultsService(session).get_run(template_id, run_id)
+    return await ResultsService(session).get_run(template_id, run_id, author)

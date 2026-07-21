@@ -30,18 +30,24 @@ class TemplateService:
         template.questions = [_to_question(q, i) for i, q in enumerate(data.questions)]
         self.repo.add(template)
         await self.session.commit()
-        return await self._get_or_404(template.id)
+        return await self._get_or_404(template.id, author)
 
-    async def get_draft(self, template_id: UUID) -> SurveyTemplate:
-        return await self._get_or_404(template_id)
+    async def get_draft(self, template_id: UUID, author: User) -> SurveyTemplate:
+        return await self._get_or_404(template_id, author)
 
-    async def list_drafts(self, status: TemplateStatus | None) -> list[tuple[SurveyTemplate, int]]:
-        return await self.repo.list_summaries(status)
+    async def list_drafts(
+        self, status: TemplateStatus | None, author: User
+    ) -> list[tuple[SurveyTemplate, int]]:
+        return await self.repo.list_summaries(status, created_by=author.id)
+
+    async def list_published(self) -> list[tuple[SurveyTemplate, int]]:
+        """Every published survey, whoever wrote it — this is what respondents answer."""
+        return await self.repo.list_summaries(TemplateStatus.published)
 
     async def update_draft(
         self, template_id: UUID, data: TemplateUpdate, author: User
     ) -> SurveyTemplate:
-        template = await self._get_or_404(template_id)
+        template = await self._get_or_404(template_id, author)
         template.title = data.title
         template.description = data.description
         # Full replace of questions covers add / edit / reorder / delete. Delete the
@@ -51,10 +57,10 @@ class TemplateService:
         for i, q in enumerate(data.questions):
             template.questions.append(_to_question(q, i))
         await self.session.commit()
-        return await self._get_or_404(template_id)
+        return await self._get_or_404(template_id, author)
 
-    async def delete_draft(self, template_id: UUID) -> None:
-        template = await self._get_or_404(template_id)
+    async def delete_draft(self, template_id: UUID, author: User) -> None:
+        template = await self._get_or_404(template_id, author)
         await self.repo.delete(template)
         try:
             await self.session.commit()
@@ -63,7 +69,7 @@ class TemplateService:
             raise ConflictError("Cannot delete a template that has published versions.") from exc
 
     async def publish(self, template_id: UUID, author: User) -> SurveyTemplateVersion:
-        template = await self._get_or_404(template_id)
+        template = await self._get_or_404(template_id, author)
         if not template.questions:
             raise ConflictError("Cannot publish a template with no questions.")
         version = SurveyTemplateVersion(
@@ -78,9 +84,11 @@ class TemplateService:
         await self.session.refresh(version)
         return version
 
-    async def _get_or_404(self, template_id: UUID) -> SurveyTemplate:
+    async def _get_or_404(self, template_id: UUID, author: User) -> SurveyTemplate:
         template = await self.repo.get(template_id)
-        if template is None:
+        # Someone else's template reads as absent rather than forbidden, so the API
+        # can't be used to enumerate which ids exist.
+        if template is None or template.created_by != author.id:
             raise NotFoundError("Template not found.")
         return template
 

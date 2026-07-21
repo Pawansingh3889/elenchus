@@ -59,10 +59,10 @@ async def generate_template(
 @router.get("", response_model=list[TemplateSummary])
 async def list_templates(
     status: TemplateStatus | None = None,
-    _: User = Depends(require_author),
+    author: User = Depends(require_author),
     session: AsyncSession = Depends(get_session),
 ) -> list[TemplateSummary]:
-    rows = await TemplateService(session).list_drafts(status)
+    rows = await TemplateService(session).list_drafts(status, author)
     return [_summary(t, n) for t, n in rows]
 
 
@@ -73,17 +73,17 @@ async def list_published(
     _: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> list[TemplateSummary]:
-    rows = await TemplateService(session).list_drafts(TemplateStatus.published)
+    rows = await TemplateService(session).list_published()
     return [_summary(t, n) for t, n in rows]
 
 
 @router.get("/{template_id}", response_model=TemplateRead)
 async def get_template(
     template_id: UUID,
-    _: User = Depends(require_author),
+    author: User = Depends(require_author),
     session: AsyncSession = Depends(get_session),
 ) -> TemplateRead:
-    template = await TemplateService(session).get_draft(template_id)
+    template = await TemplateService(session).get_draft(template_id, author)
     return TemplateRead.model_validate(template)
 
 
@@ -101,10 +101,10 @@ async def update_template(
 @router.delete("/{template_id}", status_code=HTTP_204_NO_CONTENT)
 async def delete_template(
     template_id: UUID,
-    _: User = Depends(require_author),
+    author: User = Depends(require_author),
     session: AsyncSession = Depends(get_session),
 ) -> None:
-    await TemplateService(session).delete_draft(template_id)
+    await TemplateService(session).delete_draft(template_id, author)
 
 
 @router.post(
