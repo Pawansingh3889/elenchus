@@ -6,6 +6,8 @@ validate — the engine, not this module, decides what to do with them.
 """
 
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any, Protocol, cast
 
@@ -21,6 +23,32 @@ logger = logging.getLogger("app.llm")
 class LLMError(AppError):
     status_code = 502
     code = "llm_error"
+
+
+@asynccontextmanager
+async def _api_errors() -> AsyncIterator[None]:
+    """Map SDK failures to one typed error, so callers never see a raw 500."""
+    try:
+        yield
+    except anthropic.APIStatusError as exc:
+        logger.error("anthropic returned %s: %s", exc.status_code, exc.message)
+        raise LLMError(
+            f"Anthropic rejected the request ({exc.status_code}): {_detail(exc)}"
+        ) from exc
+    except anthropic.APIError as exc:
+        logger.error("anthropic call failed: %s", exc)
+        raise LLMError(f"Could not reach the Anthropic API: {exc}") from exc
+
+
+def _detail(exc: anthropic.APIStatusError) -> str:
+    body = exc.body
+    if isinstance(body, dict):
+        error = body.get("error")
+        if isinstance(error, dict):
+            message = error.get("message")
+            if isinstance(message, str):
+                return message
+    return exc.message
 
 
 @dataclass(frozen=True)
@@ -74,20 +102,21 @@ class LLMClient:
         input_schema: dict[str, Any],
         max_tokens: int = 4096,
     ) -> dict[str, Any]:
-        response = await self._client.messages.create(
-            model=self._model,
-            max_tokens=max_tokens,
-            system=system,
-            messages=[{"role": "user", "content": prompt}],
-            tools=[
-                {
-                    "name": tool_name,
-                    "description": tool_description,
-                    "input_schema": input_schema,
-                }
-            ],
-            tool_choice={"type": "tool", "name": tool_name},
-        )
+        async with _api_errors():
+            response = await self._client.messages.create(
+                model=self._model,
+                max_tokens=max_tokens,
+                system=system,
+                messages=[{"role": "user", "content": prompt}],
+                tools=[
+                    {
+                        "name": tool_name,
+                        "description": tool_description,
+                        "input_schema": input_schema,
+                    }
+                ],
+                tool_choice={"type": "tool", "name": tool_name},
+            )
         logger.info("llm tool_call model=%s usage=%s", self._model, response.usage)
         for block in response.content:
             if isinstance(block, ToolUseBlock) and block.name == tool_name:
@@ -103,14 +132,15 @@ class LLMClient:
         max_tokens: int = 1024,
     ) -> ToolTurn:
         """Force exactly one tool from ``tools`` and return it with any spoken text."""
-        response = await self._client.messages.create(
-            model=self._model,
-            max_tokens=max_tokens,
-            system=system,
-            messages=cast("Any", messages),
-            tools=cast("Any", tools),
-            tool_choice={"type": "any"},
-        )
+        async with _api_errors():
+            response = await self._client.messages.create(
+                model=self._model,
+                max_tokens=max_tokens,
+                system=system,
+                messages=cast("Any", messages),
+                tools=cast("Any", tools),
+                tool_choice={"type": "any"},
+            )
         logger.info("llm tool_turn model=%s usage=%s", self._model, response.usage)
         said: list[str] = []
         name: str | None = None
