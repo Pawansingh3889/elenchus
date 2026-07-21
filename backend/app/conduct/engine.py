@@ -223,8 +223,7 @@ def _may_probe(question: dict[str, Any], follow_ups_used: int) -> bool:
 
 
 def _opening_text(definition: dict[str, Any], first: dict[str, Any]) -> str:
-    title = definition.get("title") or "this survey"
-    return f"Thanks for taking {title}. {first['text']}"
+    return f"Thanks for taking {definition['title']}. {first['text']}"
 
 
 def _last_assistant(run: SurveyRun) -> str:
