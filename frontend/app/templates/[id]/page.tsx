@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { use, useState } from "react";
 
 import { LivePreview } from "@/components/LivePreview";
@@ -85,6 +86,9 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
           />
           <div className="builder-actions">
             <span className={`pill pill-${template.status}`}>{template.status}</span>
+            <Link href={`/templates/${template.id}/results`} className="btn btn-secondary">
+              Responses
+            </Link>
             <button className="btn btn-secondary" onClick={save} disabled={update.isPending}>
               {update.isPending ? "Saving…" : "Save"}
             </button>

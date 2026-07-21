@@ -101,3 +101,25 @@ export interface Run {
   messages: RunMessage[];
   answers: RunAnswer[];
 }
+
+export interface RunSummary {
+  id: string;
+  respondent_name: string;
+  status: RunStatus;
+  version: number;
+  answered: number;
+  total: number;
+  started_at: string;
+  completed_at: string | null;
+}
+
+export interface RunDetail {
+  id: string;
+  respondent_name: string;
+  status: RunStatus;
+  version: number;
+  started_at: string;
+  completed_at: string | null;
+  messages: RunMessage[];
+  answers: RunAnswer[];
+}

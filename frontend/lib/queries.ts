@@ -88,6 +88,24 @@ export function useStartRun() {
   return useMutation({ mutationFn: (templateId: string) => api.startRun(templateId) });
 }
 
+export function useTemplateRuns(templateId: string) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["template-runs", templateId, userId],
+    queryFn: () => api.listTemplateRuns(templateId),
+    enabled: !!userId,
+  });
+}
+
+export function useTemplateRun(templateId: string, runId: string | null) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["template-run", templateId, runId, userId],
+    queryFn: () => api.getTemplateRun(templateId, runId as string),
+    enabled: !!userId && !!runId,
+  });
+}
+
 export function useSendRunMessage(id: string) {
   const qc = useQueryClient();
   const userId = useUserStore((s) => s.currentUserId);

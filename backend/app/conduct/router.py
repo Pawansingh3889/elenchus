@@ -9,9 +9,7 @@ from starlette.status import HTTP_201_CREATED
 from app.auth.dependencies import get_current_user
 from app.conduct.engine import ConductEngine
 from app.conduct.schemas import (
-    AnswerRead,
     CurrentQuestion,
-    MessageRead,
     RunMessageRequest,
     RunRead,
     StartRunRequest,
@@ -19,6 +17,7 @@ from app.conduct.schemas import (
 from app.db.session import get_session
 from app.runs.enums import AnswerKind
 from app.runs.models import SurveyRun
+from app.runs.schemas import AnswerRead, MessageRead
 from app.users.models import User
 
 router = APIRouter(prefix="/api/v1/runs", tags=["runs"])
