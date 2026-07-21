@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Text, func
+from sqlalchemy import DateTime, ForeignKey, Integer, Text, func, text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -29,6 +29,12 @@ class SurveyRun(Base):
         SAEnum(RunStatus, name="run_status"), default=RunStatus.in_progress
     )
     current_question_index: Mapped[int] = mapped_column(Integer, default=0)
+    # Follow-ups *asked* per question id. The cap is spent when the engine issues a
+    # probe, not when a reply to one is recorded — otherwise a respondent who never
+    # answers a probe is never charged for it and can be probed indefinitely.
+    probes_asked: Mapped[dict[str, int]] = mapped_column(
+        JSONB, server_default=text("'{}'::jsonb"), default=dict
+    )
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     # Stretch: structured AI summary of the completed run.
