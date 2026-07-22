@@ -74,6 +74,13 @@ export default function Home() {
               <div className="template-title">{t.title}</div>
               <div className="template-meta">
                 {t.question_count} question{t.question_count === 1 ? "" : "s"}
+                {" · edited "}
+                {new Date(t.updated_at).toLocaleString(undefined, {
+                  day: "numeric",
+                  month: "short",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
               </div>
             </div>
             <span className={`pill pill-${t.status}`}>{t.status}</span>
