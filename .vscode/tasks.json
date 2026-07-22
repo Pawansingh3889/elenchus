@@ -1,0 +1,33 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      // Debugging the API on the host means port 8000 has to be free, so the
+      // containerised backend steps aside. Postgres stays up because the app
+      // and the tests both need it. Both commands are idempotent.
+      "label": "free port 8000 for the debugger",
+      "type": "shell",
+      "command": "docker compose up -d postgres && docker compose stop backend",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": { "reveal": "silent", "panel": "shared", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "restore the backend container",
+      "type": "shell",
+      "command": "docker compose start backend",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": { "reveal": "silent", "panel": "shared" },
+      "problemMatcher": []
+    },
+    {
+      // The suite creates its own viewops_test database but still needs a server.
+      "label": "database up",
+      "type": "shell",
+      "command": "docker compose up -d postgres",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": { "reveal": "silent", "panel": "shared" },
+      "problemMatcher": []
+    }
+  ]
+}

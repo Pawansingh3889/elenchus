@@ -33,4 +33,5 @@ npm-debug.log*
 !.vscode/extensions.json
 !.vscode/settings.json
 !.vscode/launch.json
+!.vscode/tasks.json
 *.log
