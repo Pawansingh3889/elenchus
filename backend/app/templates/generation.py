@@ -37,7 +37,7 @@ class GenerationService:
     async def generate_draft(self, prompt: str, author: User) -> SurveyTemplate:
         system = load_prompt("generate_template_v1")
         template_in = await self._draft(system, prompt, previous_error=None)
-        return await self.templates.create_draft(template_in, author)
+        return await self.templates.create_draft(_without_catch_alls(template_in), author)
 
     async def _draft(self, system: str, prompt: str, previous_error: str | None) -> TemplateCreate:
         user = (
@@ -63,6 +63,34 @@ class GenerationService:
         # payload before failing (ARCHITECTURE.md 3.3).
         logger.error("template generation failed after one retry: raw=%r error=%s", raw, error)
         raise LLMError(f"Model returned an invalid template after one retry: {error}")
+
+
+_CATCH_ALL_OPTIONS = frozenset(
+    {
+        "other",
+        "other (please specify)",
+        "none of the above",
+        "not applicable",
+        "n/a",
+        "prefer not to say",
+    }
+)
+
+
+def _without_catch_alls(template_in: TemplateCreate) -> TemplateCreate:
+    """Turn a literal "Other" option into the ``allow_other`` write-in it should have been.
+
+    The prompt asks for this, but a catch-all silently discards the one part of an answer
+    the author could not anticipate, so it is worth guaranteeing rather than hoping for.
+    A live run recorded ``{'option': 'Other'}`` and lost the respondent's actual team.
+    """
+    for question in template_in.questions:
+        kept = [o for o in question.options if o.strip().lower() not in _CATCH_ALL_OPTIONS]
+        if len(kept) != len(question.options):
+            logger.info("replaced catch-all options with allow_other: %r", question.text)
+            question.options = kept
+            question.allow_other = True
+    return template_in
 
 
 def _validation_error(raw: dict[str, Any]) -> str | None:

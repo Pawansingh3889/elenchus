@@ -377,6 +377,15 @@ def _briefing(
     if question.get("options"):
         lines.append(f"- Options: {question['options']}")
         lines.append(f"- Free-text 'other' allowed: {bool(question.get('allow_other'))}")
+    if question["answer_type"] == "date":
+        # Without this the model has no clock, and resolves "this year" against its
+        # training data. A live run turned "the 3rd of March this year" into 2024-03-03.
+        lines.append(f"- Today's date is {datetime.now(UTC).date().isoformat()}")
+    lines.append(
+        "- This question is required"
+        if question.get("required", True)
+        else "- This question is OPTIONAL: if they deflect, let it go rather than pressing"
+    )
     lines.append(f"- Answer already recorded: {state['scripted_recorded']}")
     lines.append(
         f"- Follow-ups asked so far: {state['follow_ups_used']} of {MAX_FOLLOW_UPS}"

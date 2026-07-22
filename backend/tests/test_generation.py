@@ -46,6 +46,39 @@ async def test_generate_persists_valid_draft(session, author):
     assert [q.text for q in template.questions] == ["Your role?", "Systems used?"]
 
 
+async def test_catch_all_options_become_a_write_in(session, author):
+    """A live run recorded `{'option': 'Other'}` and lost the respondent's actual team."""
+    fake = FakeLLM(
+        {
+            "title": "Onboarding",
+            "questions": [
+                {
+                    "text": "Which team?",
+                    "answer_type": "single_select",
+                    "options": ["Sales", "Engineering", "Other"],
+                },
+                {
+                    "text": "Which tools?",
+                    "answer_type": "multi_select",
+                    "options": ["ERP", "BI", "None of the above", "Prefer not to say"],
+                },
+                {
+                    "text": "Which site?",
+                    "answer_type": "single_select",
+                    "options": ["Hull", "Leeds"],
+                },
+            ],
+        }
+    )
+    template = await GenerationService(session, llm=fake).generate_draft("teams", author)
+
+    team, tools, site = template.questions
+    assert (team.options, team.allow_other) == (["Sales", "Engineering"], True)
+    assert (tools.options, tools.allow_other) == (["ERP", "BI"], True)
+    # Untouched: nothing to strip, so no write-in is silently opened up.
+    assert (site.options, site.allow_other) == (["Hull", "Leeds"], False)
+
+
 async def test_generate_retries_once_then_succeeds(session, author):
     fake = FakeLLM(_INVALID, _VALID)
     template = await GenerationService(session, llm=fake).generate_draft("x", author)
