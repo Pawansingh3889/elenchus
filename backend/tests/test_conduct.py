@@ -3,6 +3,8 @@ here is about the engine's own decisions: what it offers, what it accepts, what 
 refuses, and where run state lives.
 """
 
+from datetime import UTC, datetime
+
 import pytest
 
 from app.conduct.engine import MAX_FOLLOW_UPS, ConductEngine
@@ -10,7 +12,7 @@ from app.errors import ConflictError
 from app.llm.client import LLMError, ToolTurn
 from app.runs.enums import AnswerKind, RunStatus
 from app.templates.enums import AnswerType
-from app.templates.schemas import QuestionInput, TemplateUpdate
+from app.templates.schemas import QuestionInput, TemplateCreate, TemplateUpdate
 from app.templates.service import TemplateService
 from tests.fakes import FakeLLM
 from tests.fakes import follow_up as _follow_up
@@ -262,6 +264,47 @@ async def test_only_one_answer_is_recorded_per_respondent_message(session, respo
 
     assert "record_answer" in llm.offered[0]
     assert "record_answer" not in llm.offered[-1]  # withdrawn after the first record
+
+
+async def test_briefing_dates_the_conversation_and_marks_optional_questions(
+    session, author, respondent
+):
+    """Both found by a live run.
+
+    The model resolved "the 3rd of March this year" against its training data and recorded
+    2024-03-03. Separately, asked an optional question it had no way to know was optional,
+    it turned "hard to say really" into a rating of 3 rather than letting it go.
+    """
+    svc = TemplateService(session)
+    template = await svc.create_draft(
+        TemplateCreate(
+            title="Starters",
+            questions=[
+                QuestionInput(text="When did you start?", answer_type=AnswerType.date),
+                QuestionInput(
+                    text="Still here in two years?",
+                    answer_type=AnswerType.rating,
+                    required=False,
+                ),
+            ],
+        ),
+        author,
+    )
+    await svc.publish(template.id, author)
+
+    fake = FakeLLM(_record("2026-03-03"), _move_on(), _record(3), _move_on())
+    engine = ConductEngine(session, llm=fake)
+    run = await engine.start_run(template.id, respondent)
+    await engine.handle_message(run.id, "3rd of March this year", respondent)
+    await engine.handle_message(run.id, "hard to say really", respondent)
+
+    today = datetime.now(UTC).date().isoformat()
+    assert f"Today's date is {today}" in fake.briefings[0]
+    assert "- This question is required" in fake.briefings[0]
+
+    optional = fake.briefings[-1]
+    assert "Today's date is" not in optional  # only where it can matter
+    assert "This question is OPTIONAL" in optional
 
 
 async def test_can_probe_before_any_answer_is_recorded(session, respondent, published):

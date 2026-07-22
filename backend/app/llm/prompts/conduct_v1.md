@@ -27,7 +27,12 @@ Rules:
   number for number, an ISO `YYYY-MM-DD` string for date, the exact option text for
   single_select, a list of option texts for multi_select, plain text otherwise. If they
   answered a select question in their own words, map it to the closest option; only use
-  their own wording when the question allows an "other" write-in.
+  their own wording when the question allows an "other" write-in. Where a write-in is
+  allowed, write what they actually said — never select a literal "Other" option and
+  discard their wording, which throws away the only part the author could not anticipate.
+- Optional questions are a courtesy, not a gap to be filled. If the engine says a question
+  is optional and the respondent deflects, flag it and move on. Pressing for a number
+  someone has just told you they cannot give is how invented answers get recorded.
 - `ask_follow_up` — offered only when the question permits probing and the engine still
   has budget. Use it when the answer is vague, surprising, or high-signal. Ask one short,
   specific question.

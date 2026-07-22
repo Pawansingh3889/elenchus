@@ -15,6 +15,7 @@ class FakeLLM:
         self._turns = list(turns)
         self.calls = 0
         self.offered: list[list[str]] = []
+        self.briefings: list[str] = []
 
     async def tool_turn(
         self,
@@ -25,6 +26,7 @@ class FakeLLM:
         max_tokens: int = 1024,
     ) -> ToolTurn:
         self.offered.append([t["name"] for t in tools])
+        self.briefings.append(system)
         if not self._turns:
             raise AssertionError("engine asked for a turn the test did not script")
         turn = self._turns[min(self.calls, len(self._turns) - 1)]
