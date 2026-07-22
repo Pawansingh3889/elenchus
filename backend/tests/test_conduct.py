@@ -226,6 +226,70 @@ async def test_republishing_leaves_an_in_flight_run_alone(session, author, respo
     ]
 
 
+def _decline(reason: str = "respondent declined", say: str = "No problem.") -> ToolTurn:
+    return ToolTurn(text=say, tool_name="flag_unanswerable", tool_input={"reason": reason})
+
+
+async def test_declining_a_follow_up_moves_the_survey_on(session, respondent, published):
+    """Found by a live run: "rather not say" to a probe used to exhaust the turn loop.
+
+    flag_unanswerable was only offered before the scripted answer existed, so once a
+    probe was outstanding the model had no way to say the respondent had declined.
+    """
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+    probe = FakeLLM(_record("Line lead"), _follow_up("What does that involve?"))
+    run = await ConductEngine(session, llm=probe).handle_message(run.id, "line lead", respondent)
+
+    llm = FakeLLM(_decline("would rather not say"))
+    run = await ConductEngine(session, llm=llm).handle_message(run.id, "rather not say", respondent)
+
+    assert "flag_unanswerable" in llm.offered[0]  # offered while a probe is outstanding
+    assert run.current_question_index == 1  # the survey moved on rather than stalling
+    declined = [a for a in run.answers if a.kind is AnswerKind.follow_up]
+    assert declined[0].value == {"unanswerable": "would rather not say"}
+    assert declined[0].question_text == "What does that involve?"  # the probe, not the question
+
+
+async def test_only_one_answer_is_recorded_per_respondent_message(session, respondent, published):
+    """Recording neither advances nor spends a probe, so repeats would spin the loop."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    llm = FakeLLM(_record("Line lead"), _record("Line lead again"), _record("and again"))
+    with pytest.raises(LLMError):
+        await ConductEngine(session, llm=llm).handle_message(run.id, "line lead", respondent)
+
+    assert "record_answer" in llm.offered[0]
+    assert "record_answer" not in llm.offered[-1]  # withdrawn after the first record
+
+
+async def test_can_probe_before_any_answer_is_recorded(session, respondent, published):
+    """Found by a live run: the model wrote `"placeholder"` to unlock ask_follow_up.
+
+    Probing used to require a scripted answer to exist, so a model wanting to clarify a
+    vague reply had to invent one first. The reply to such a probe is the scripted answer,
+    since the probe was asking for the question's own answer.
+    """
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    probe = FakeLLM(_follow_up("Which team are you on day to day?"))
+    run = await ConductEngine(session, llm=probe).handle_message(run.id, "hard to say", respondent)
+
+    assert "ask_follow_up" in probe.offered[0]
+    assert not run.answers  # nothing invented to unlock the probe
+    assert run.current_question_index == 0
+    assert run.messages[-1].content == "Which team are you on day to day?"
+
+    answer = FakeLLM(_record("Line lead"), _move_on())
+    run = await ConductEngine(session, llm=answer).handle_message(run.id, "line lead", respondent)
+
+    scripted = [a for a in run.answers if a.kind is AnswerKind.scripted]
+    assert [a.value for a in scripted] == [{"text": "Line lead"}]
+    assert run.current_question_index == 1
+
+
 async def test_state_survives_a_reload(session, respondent, published):
     """Run position lives in the database, not in the model's head or the client's."""
     engine = ConductEngine(session, llm=FakeLLM())

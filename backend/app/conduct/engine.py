@@ -100,11 +100,19 @@ class ConductEngine:
     # ------------------------------------------------------------------- engine
 
     async def _turn_loop(self, run: SurveyRun, questions: list[dict[str, Any]]) -> str:
+        recorded = False
         for _ in range(MAX_MODEL_TURNS):
             question = questions[run.current_question_index]
             state = await self._state(run, question)
+            # One respondent message yields at most one answer, so recording is
+            # withdrawn for the rest of the turn. Without this the model can record
+            # repeatedly, and since recording neither advances nor spends a probe the
+            # loop runs out of turns on a message that was never invalid.
+            state["recorded_this_turn"] = recorded
             tools = _tools_for(question, state)
             turn = await self._decide(run, questions, question, state, tools, None)
+            if turn.tool_name == RECORD:
+                recorded = True
             utterance = await self._apply(run, questions, question, state, turn)
             if utterance is not None:
                 return utterance
@@ -186,11 +194,14 @@ class ConductEngine:
             return self._advance(run, questions, turn)
 
         if turn.tool_name == UNANSWERABLE:
+            # Declining the question itself is a scripted answer; declining a probe is a
+            # follow-up answer, and carries the wording the model invented for it.
+            declined_probe = state["scripted_recorded"]
             run.answers.append(
                 Answer(
                     question_id=UUID(question["id"]),
-                    kind=AnswerKind.scripted,
-                    question_text=question["text"],
+                    kind=AnswerKind.follow_up if declined_probe else AnswerKind.scripted,
+                    question_text=_last_assistant(run) if declined_probe else question["text"],
                     value={"unanswerable": str(turn.tool_input.get("reason", "")).strip()},
                     answered_by=run.respondent_id,
                 )
@@ -249,36 +260,44 @@ def _transcript(run: SurveyRun) -> list[dict[str, str]]:
 def _tools_for(question: dict[str, Any], state: dict[str, Any]) -> list[dict[str, Any]]:
     """Only offer the actions that are legal right now — the engine's first gate."""
     question_id = {"type": "string", "description": "The current question's id."}
-    tools: list[dict[str, Any]] = [
-        {
-            "name": RECORD,
-            "description": "Record the respondent's answer to what you just asked.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "question_id": question_id,
-                    "value": {"description": "The answer, shaped for the question's type."},
-                },
-                "required": ["question_id", "value"],
-            },
-        }
-    ]
-    if state["scripted_recorded"]:
-        if _may_probe(question, state["follow_ups_used"]):
-            tools.append(
-                {
-                    "name": FOLLOW_UP,
-                    "description": "Ask one short follow-up about the answer just given.",
-                    "input_schema": {
-                        "type": "object",
-                        "properties": {
-                            "question_id": question_id,
-                            "follow_up_text": {"type": "string"},
-                        },
-                        "required": ["question_id", "follow_up_text"],
+    tools: list[dict[str, Any]] = []
+    if not state.get("recorded_this_turn"):
+        tools.append(
+            {
+                "name": RECORD,
+                "description": "Record the respondent's answer to what you just asked.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "question_id": question_id,
+                        "value": {"description": "The answer, shaped for the question's type."},
                     },
-                }
-            )
+                    "required": ["question_id", "value"],
+                },
+            }
+        )
+    # Probing is not gated on an answer existing. Requiring one first meant a model that
+    # wanted to clarify a vague reply had to record something to unlock the tool, and it
+    # duly invented plausible values to get there. The cap still bounds it.
+    if _may_probe(question, state["follow_ups_used"]):
+        tools.append(
+            {
+                "name": FOLLOW_UP,
+                "description": (
+                    "Ask one short follow-up: to probe an answer just given, or to ask "
+                    "plainly for an answer the reply did not contain."
+                ),
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "question_id": question_id,
+                        "follow_up_text": {"type": "string"},
+                    },
+                    "required": ["question_id", "follow_up_text"],
+                },
+            }
+        )
+    if state["scripted_recorded"]:
         tools.append(
             {
                 "name": MOVE_ON,
@@ -290,18 +309,23 @@ def _tools_for(question: dict[str, Any], state: dict[str, Any]) -> list[dict[str
                 },
             }
         )
-    else:
-        tools.append(
-            {
-                "name": UNANSWERABLE,
-                "description": "The respondent declined or cannot answer this question.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {"question_id": question_id, "reason": {"type": "string"}},
-                    "required": ["question_id", "reason"],
-                },
-            }
-        )
+    # Always available: a respondent can decline the question itself, and equally can
+    # decline a follow-up. Offering this only before the scripted answer left the model
+    # with no way to say "they declined" once a probe was outstanding.
+    tools.append(
+        {
+            "name": UNANSWERABLE,
+            "description": (
+                "The respondent declined or cannot answer what you just asked, whether "
+                "that was the question itself or a follow-up. The survey moves on."
+            ),
+            "input_schema": {
+                "type": "object",
+                "properties": {"question_id": question_id, "reason": {"type": "string"}},
+                "required": ["question_id", "reason"],
+            },
+        }
+    )
     return tools
 
 
