@@ -2,14 +2,16 @@
   "version": "0.2.0",
   "configurations": [
     {
-      // Run the API on the host against the compose Postgres, so you can set
-      // breakpoints in the engine. Bring up the database first:
-      //   docker compose up -d postgres
+      // Runs the API on the host against the compose Postgres, so you can set
+      // breakpoints in the engine. The pre-launch task stops the containerised
+      // backend so port 8000 is free, and stopping the debugger brings it back.
       "name": "backend: uvicorn",
       "type": "debugpy",
       "request": "launch",
       "module": "uvicorn",
       "args": ["app.main:app", "--reload", "--port", "8000"],
+      "preLaunchTask": "free port 8000 for the debugger",
+      "postDebugTask": "restore the backend container",
       "cwd": "${workspaceFolder}/backend",
       "python": "${workspaceFolder}/backend/.venv/bin/python",
       "env": {
@@ -26,6 +28,7 @@
       "request": "launch",
       "module": "pytest",
       "args": ["-q"],
+      "preLaunchTask": "database up",
       "cwd": "${workspaceFolder}/backend",
       "python": "${workspaceFolder}/backend/.venv/bin/python",
       "env": {

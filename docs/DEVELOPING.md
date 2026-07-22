@@ -51,15 +51,21 @@ Containers hot-reload but you cannot set a breakpoint in them from here. To debu
 conduct engine, run Postgres in Docker and the API on the host.
 
 ```bash
-docker compose up -d postgres      # database only
 cd backend && uv sync              # first time only, creates .venv
 ```
 
-Then **Run and Debug → `backend: uvicorn`**. Breakpoints in `app/conduct/engine.py` will
-hit on the next respondent message.
+Then **Run and Debug → `backend: uvicorn`**. Breakpoints in `app/conduct/engine.py` hit
+on the next respondent message.
 
-Stop the containerised backend first (`docker compose stop backend`) or port 8000 is
-already taken.
+Port 8000 can only be held by one process, so the launch configuration handles the
+swap for you: a pre-launch task brings Postgres up and stops the containerised backend,
+and stopping the debugger starts it again. If you run uvicorn by hand instead, do that
+yourself — otherwise you get `[Errno 98] Address already in use`:
+
+```bash
+docker compose stop backend        # ... debug ... then
+docker compose start backend
+```
 
 ## 4. Run the tests
 
