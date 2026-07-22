@@ -1,6 +1,14 @@
 {
   "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv/bin/python",
 
+  // Discovery runs from backend/, because pytest's testpaths and pythonpath are
+  // configured in backend/pyproject.toml and only resolve from there. With this the
+  // Testing panel and the gutter arrows work; without it neither finds anything.
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+  "python.testing.cwd": "${workspaceFolder}/backend",
+  "python.testing.pytestArgs": [],
+
   "[python]": {
     "editor.defaultFormatter": "charliermarsh.ruff",
     "editor.formatOnSave": true,
