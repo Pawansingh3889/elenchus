@@ -5,6 +5,7 @@
     "charliermarsh.ruff",
     "ms-python.mypy-type-checker",
     "dbaeumer.vscode-eslint",
-    "ms-azuretools.vscode-docker"
+    "ms-azuretools.vscode-docker",
+    "github.vscode-github-actions"
   ]
 }
