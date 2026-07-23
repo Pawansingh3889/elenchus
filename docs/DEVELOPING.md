@@ -79,7 +79,9 @@ DATABASE_URL=postgresql+asyncpg://viewops:viewops@localhost:5432/viewops uv run 
 The suite needs Postgres running but never touches development data — it creates and
 drops its own `viewops_test` database per run. It also needs no `ANTHROPIC_API_KEY`: the
 model is faked at the client wrapper, deliberately, so the tests stay honest about what
-they prove. If a test ever needs a real key, that is the bug.
+they prove. If a test ever needs a real key, that is the bug. The backup-provider tests
+follow the same rule — the OpenAI-compatible client is driven through an in-process mock
+transport, so failover coverage also runs offline.
 
 The same checks CI runs:
 

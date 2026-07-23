@@ -4,27 +4,31 @@ A standalone, embeddable survey service. Authors build survey templates (by natu
 language or a builder UI) and publish immutable versions; respondents complete published
 surveys through a conversational, LLM-driven runner that keeps the model on rails.
 
-Full brief in [`ViewOps_Survey_Trial/`](ViewOps_Survey_Trial/README.md); build conventions
-in [`CLAUDE.md`](CLAUDE.md); working on it in an editor in
-[`docs/DEVELOPING.md`](docs/DEVELOPING.md).
+Full brief in [`ViewOps_Survey_Trial/`](ViewOps_Survey_Trial/README.md); what the app does
+in [`docs/OVERVIEW.md`](docs/OVERVIEW.md); build conventions in [`CLAUDE.md`](CLAUDE.md);
+working on it in an editor in [`docs/DEVELOPING.md`](docs/DEVELOPING.md); project history
+in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Stack
 
 - **Backend** — Python 3.12, FastAPI (async), SQLAlchemy 2.x async + Alembic, PostgreSQL, Pydantic v2
 - **Frontend** — Next.js (App Router) + TypeScript, TanStack Query, Zustand
-- **LLM** — Anthropic Claude via the official SDK
+- **LLM** — Anthropic Claude via the official SDK (primary), with an optional
+  OpenAI-compatible backup (self-hosted Ollama/vLLM/NIM, OpenRouter, …) that the app
+  fails over to when the primary errors — see `LLM_BACKUP_*` in `.env.example`
 - **Dev** — docker-compose (postgres + backend + frontend)
 
 ## Prerequisites
 
-- Docker + Docker Compose
+- Docker + Docker Compose, **or** Podman + podman-compose (verified on Fedora with
+  rootless Podman; the compose file carries the `:z` SELinux mount labels it needs)
 - (For working outside containers) [uv](https://docs.astral.sh/uv/) and Node 22 + pnpm
 
 ## Quick start
 
 ```bash
 cp .env.example .env          # add your ANTHROPIC_API_KEY (only needed for LLM features)
-docker compose up --build
+docker compose up --build     # or: podman compose up --build
 ```
 
 - Backend API → http://localhost:8000 (health: `/api/v1/health`, docs: `/docs`)
@@ -69,7 +73,10 @@ trying endpoints from `/docs`, add the header yourself.
 3. Switch back to an author and open **Responses** on that template to read what came back,
    both the answers and the full transcript. Follow-ups the model chose to ask are marked.
 
-Answering needs `ANTHROPIC_API_KEY` set. Everything else runs without it.
+Answering needs a working model: `ANTHROPIC_API_KEY`, and/or the optional backup LLM
+configured via `LLM_BACKUP_*` (any OpenAI-compatible endpoint — with both set, the app
+uses Claude and falls back to the backup only when Claude errors). Everything else runs
+without a model.
 
 ## Layout
 
@@ -82,7 +89,7 @@ backend/
     templates/         template, question, immutable version models + publishing
     runs/              run, answer and transcript models, and results for authors
     conduct/           the deterministic run engine
-    llm/               single Anthropic client + versioned prompts
+    llm/               Anthropic client, OpenAI-compatible backup + failover, versioned prompts
     auth/              dev-auth dependency
   migrations/          Alembic (async env)
   tests/               pytest against a real Postgres, LLM faked at the client boundary

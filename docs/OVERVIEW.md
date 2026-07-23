@@ -83,3 +83,7 @@ view for a template and see:
   always tied to exactly what the respondent saw.
 - **No silent fallbacks** — missing or invalid data fails loudly with a typed error
   and the correct HTTP status, rather than guessing a default.
+- **Resilient to provider outages** — an optional backup model (any OpenAI-compatible
+  endpoint) can be configured; the app uses the primary and switches to the backup only
+  when the primary actually fails. The backup's answers pass through exactly the same
+  validation as the primary's, so the on-rails guarantees are unchanged.

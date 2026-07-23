@@ -28,6 +28,13 @@ The project is not yet versioned, so entries are grouped by date. Newest first.
 - **Compose bind mounts fail under rootless Podman on Fedora/RHEL** (PR #2). Added the
   `:z` SELinux relabel to the `./backend` and `./frontend` mounts so the containers can
   read them; a no-op on Docker and on hosts without SELinux.
+- **Backup failover could not engage under compose** (PR #6). The backend service only
+  forwarded the Anthropic variables, so the `LLM_BACKUP_*` settings in `.env` never
+  reached the container and a primary failure surfaced as a raw 502 instead of falling
+  back. All four backup variables are now forwarded. Verified end to end: with an
+  invalid primary key and an OpenAI-compatible backup, a full 3-question run completes
+  with every turn logged as `primary LLM failed … using backup`, and the answers land
+  correctly typed (`{"text": …}`, `{"rating": 4}`, `{"option": "Days"}`).
 
 ### Tests
 - Offline coverage for the backup provider: failover selection and the
