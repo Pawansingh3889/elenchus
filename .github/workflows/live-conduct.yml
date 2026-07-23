@@ -14,10 +14,21 @@ on:
   workflow_dispatch:
     inputs:
       scenario:
-        description: "Which conversation to run"
+        description: "Which conversation(s) to run (all = every scenario, ~150 model calls)"
         type: choice
-        default: broad
-        options: [broad, evasive, both]
+        default: all
+        options:
+          - all
+          - max_length
+          - skip_heavy
+          - write_ins
+          - numbers_dates
+          - injection
+          - out_of_order
+          - multi_answer
+          - probe_budget
+          - broad
+          - evasive
       model:
         description: "Anthropic model id (blank = repo default)"
         type: string
@@ -86,13 +97,9 @@ jobs:
           exit 1
 
       - name: Drive the conversation(s)
-        run: |
-          set -e
-          run_one() { echo "::group::scenario $1"; python3 scripts/live_conversation.py "$1"; echo "::endgroup::"; }
-          case "${{ inputs.scenario }}" in
-            both) run_one broad; run_one evasive ;;
-            *)    run_one "${{ inputs.scenario }}" ;;
-          esac
+        # The script prints each transcript and its checks, and exits non-zero on any
+        # hard-check failure, so a real regression turns this step red.
+        run: python3 scripts/live_conversation.py "${{ inputs.scenario }}"
 
       - name: Stop the backend
         if: always()
