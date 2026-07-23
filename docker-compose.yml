@@ -29,7 +29,9 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app
+      # ":z" relabels the bind mount for SELinux (Fedora/RHEL + rootless Podman);
+      # it is a no-op on Docker and on systems without SELinux.
+      - ./backend:/app:z
       - /app/.venv
     command: >
       sh -c "alembic upgrade head &&
@@ -45,7 +47,9 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./frontend:/app
+      # ":z" relabels the bind mount for SELinux (Fedora/RHEL + rootless Podman);
+      # it is a no-op on Docker and on systems without SELinux.
+      - ./frontend:/app:z
       - /app/node_modules
     command: ["pnpm", "dev"]
 
