@@ -12,7 +12,8 @@ from typing import Any
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.llm.client import LLMClient, LLMError, LLMProtocol
+from app.llm.client import LLMError, LLMProtocol
+from app.llm.factory import get_llm
 from app.llm.prompts import load_prompt
 from app.templates.models import SurveyTemplate
 from app.templates.schemas import TemplateCreate
@@ -31,7 +32,7 @@ _TOOL_SCHEMA: dict[str, Any] = TemplateCreate.model_json_schema()
 class GenerationService:
     def __init__(self, session: AsyncSession, llm: LLMProtocol | None = None) -> None:
         self.session = session
-        self.llm: LLMProtocol = llm or LLMClient()
+        self.llm: LLMProtocol = llm or get_llm()
         self.templates = TemplateService(session)
 
     async def generate_draft(self, prompt: str, author: User) -> SurveyTemplate:

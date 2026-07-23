@@ -16,7 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.conduct.repository import RunRepository
 from app.conduct.validation import AnswerValidationError, validate_answer
 from app.errors import ConflictError, ForbiddenError, NotFoundError
-from app.llm.client import LLMClient, LLMError, LLMProtocol, ToolTurn
+from app.llm.client import LLMError, LLMProtocol, ToolTurn
+from app.llm.factory import get_llm
 from app.llm.prompts import load_prompt
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
 from app.runs.models import Answer, RunMessage, SurveyRun
@@ -45,7 +46,7 @@ class ConductEngine:
     def llm(self) -> LLMProtocol:
         """Built on first use: starting and reading a run needs no model at all."""
         if self._llm is None:
-            self._llm = LLMClient()
+            self._llm = get_llm()
         return self._llm
 
     # ---------------------------------------------------------------- lifecycle

@@ -21,6 +21,16 @@ class Settings(BaseSettings):
     anthropic_api_key: str = Field("", description="Anthropic API key")
     anthropic_model: str = Field("claude-sonnet-5", description="Anthropic model id")
 
+    # Optional backup LLM (any OpenAI-compatible endpoint, e.g. a self-hosted Nemotron/
+    # Hermes server). When enabled it is used only if the Anthropic primary fails; if the
+    # primary key is absent it is used on its own. base_url/model are required when enabled.
+    llm_backup_enabled: bool = Field(False, description="Enable the OpenAI-compatible backup LLM")
+    llm_backup_base_url: str = Field(
+        "", description="Backup LLM base URL, e.g. http://localhost:8080/v1"
+    )
+    llm_backup_api_key: str = Field("", description="Backup LLM API key (blank if not required)")
+    llm_backup_model: str = Field("", description="Backup LLM model id, e.g. nemotron-3-super-120b")
+
     app_env: str = Field("dev", description="dev | prod")
     frontend_origin: str = Field(
         "http://localhost:3000", description="Allowed CORS origin for the browser app"
