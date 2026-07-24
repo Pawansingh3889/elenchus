@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.conduct.repository import RunRepository
 from app.conduct.validation import AnswerValidationError, validate_answer
 from app.errors import ConflictError, ForbiddenError, NotFoundError
-from app.llm.client import LLMError, LLMProtocol, ToolTurn
+from app.llm.client import LLMError, LLMProtocol, NoToolCallError, ToolTurn
 from app.llm.factory import get_llm
 from app.llm.prompts import load_prompt
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
@@ -146,11 +146,27 @@ class ConductEngine:
                     ),
                 },
             ]
-        turn = await self.llm.tool_turn(
-            system=load_prompt("conduct_v2") + "\n\n" + briefing,
-            messages=messages,
-            tools=tools,
-        )
+        try:
+            turn = await self.llm.tool_turn(
+                system=load_prompt("conduct_v2") + "\n\n" + briefing,
+                messages=messages,
+                tools=tools,
+            )
+        except NoToolCallError:
+            # The model chatted instead of acting — responsive but off-script, so one
+            # nudged retry is cheap. Timeouts and transport failures deliberately do
+            # NOT retry here: doubling a 120-second wait helps nobody.
+            if previous_error is not None:
+                raise
+            logger.warning("model returned no tool call, retrying: run=%s", run.id)
+            return await self._decide(
+                run,
+                questions,
+                question,
+                state,
+                tools,
+                "no tool was called — you must call exactly one of the offered tools",
+            )
         error = _rejection(question, state, tools, turn)
         if error is None:
             return turn

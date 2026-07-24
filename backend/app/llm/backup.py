@@ -12,13 +12,46 @@ tool call fails loudly rather than degrading.
 
 import json
 import logging
+import re
 from typing import Any, cast
 
 import httpx
 
-from app.llm.client import LLMError, ToolTurn
+from app.llm.client import LLMError, NoToolCallError, ToolTurn
 
 logger = logging.getLogger("app.llm.backup")
+
+
+def _balanced_object(text: str) -> str | None:
+    """The first balanced top-level {...} in the text, or None.
+
+    Brace-counting with string awareness — enough to lift one JSON object out of
+    surrounding prose without a full parser.
+    """
+    start = text.find("{")
+    if start == -1:
+        return None
+    depth, in_string, escaped = 0, False, False
+    for index in range(start, len(text)):
+        char = text[index]
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start : index + 1]
+    return None
+
 
 # A local CPU-served model (the very case the backup exists for) can legitimately take
 # well over a minute on a cold load or a long survey, so the read timeout is generous
@@ -84,25 +117,35 @@ class OpenAICompatibleLLMClient:
     def _salvage_from_content(said: Any) -> list[dict[str, Any]]:
         """Local models often write the tool call INTO the text instead of tool_calls.
 
-        When the content is exactly one JSON object shaped like a tool call
-        ({"name": ..., "arguments"/"parameters": {...}}), recover it; anything less
-        unambiguous stays a hard failure.
+        Recover a tool-call-shaped JSON object ({"name": ..., "arguments"/"parameters":
+        {...}}) from the content: the whole text, a fenced ``` block, or a single JSON
+        object embedded in prose ("Sure! {...}"). Anything that does not yield exactly
+        that shape stays a hard failure.
         """
         if not isinstance(said, str):
             return []
         text = said.strip()
-        if not (text.startswith("{") and text.endswith("}")):
-            return []
-        try:
-            parsed = json.loads(text)
-        except json.JSONDecodeError:
-            return []
-        if not isinstance(parsed, dict) or not isinstance(parsed.get("name"), str):
-            return []
-        arguments = parsed.get("arguments", parsed.get("parameters", {}))
-        if not isinstance(arguments, dict):
-            return []
-        return [{"function": {"name": parsed["name"], "arguments": json.dumps(arguments)}}]
+
+        candidates = [text]
+        fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, flags=re.S)
+        if fence:
+            candidates.append(fence.group(1))
+        embedded = _balanced_object(text)
+        if embedded:
+            candidates.append(embedded)
+
+        for candidate in candidates:
+            try:
+                parsed = json.loads(candidate, strict=False)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(parsed, dict) or not isinstance(parsed.get("name"), str):
+                continue
+            arguments = parsed.get("arguments", parsed.get("parameters", {}))
+            if not isinstance(arguments, dict):
+                continue
+            return [{"function": {"name": parsed["name"], "arguments": json.dumps(arguments)}}]
+        return []
 
     @staticmethod
     def _first_tool_call(data: dict[str, Any]) -> tuple[str, dict[str, Any], str]:
@@ -118,7 +161,7 @@ class OpenAICompatibleLLMClient:
             if tool_calls:
                 said = ""  # the content WAS the tool call; there is nothing spoken
         if not tool_calls:
-            raise LLMError("Backup LLM returned no tool call.")
+            raise NoToolCallError("Backup LLM returned no tool call.")
         function = tool_calls[0].get("function") or {}
         name = function.get("name")
         if not isinstance(name, str):

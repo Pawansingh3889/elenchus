@@ -151,3 +151,22 @@ async def test_a_string_that_is_not_json_still_fails_loudly(session, author):
     with pytest.raises(LLMError):
         await GenerationService(session, llm=fake).generate_draft("x", author)
     assert fake.calls == 2  # one retry, then loud failure
+
+
+async def test_options_on_non_select_questions_are_dropped_not_fatal(session, author):
+    """A live run failed 16 validations because the model decorated rating questions
+    with options [1, 2, 3, 4, 5]. Options mean nothing off the select types, so they
+    are dropped instead of burning the retry."""
+    decorated = {
+        "title": "Engagement",
+        "questions": [
+            {"text": "How satisfied are you?", "answer_type": "rating", "options": [1, 2, 3, 4, 5]},
+            {"text": "Which team?", "answer_type": "single_select", "options": ["A", "B"]},
+        ],
+    }
+    fake = FakeLLM(decorated)
+    template = await GenerationService(session, llm=fake).generate_draft("engagement", author)
+
+    assert fake.calls == 1  # repaired, not retried
+    assert template.questions[0].options == []
+    assert template.questions[1].options == ["A", "B"]  # select options untouched

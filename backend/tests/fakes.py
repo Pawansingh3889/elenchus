@@ -9,9 +9,13 @@ from app.llm.client import ToolTurn
 
 
 class FakeLLM:
-    """Replays scripted turns and records which tools the engine offered each time."""
+    """Replays scripted turns and records which tools the engine offered each time.
 
-    def __init__(self, *turns: ToolTurn) -> None:
+    A scripted entry may be an Exception instance instead of a ToolTurn, in which case
+    that call raises it — for driving the engine's error-handling paths.
+    """
+
+    def __init__(self, *turns: ToolTurn | Exception) -> None:
         self._turns = list(turns)
         self.calls = 0
         self.offered: list[list[str]] = []
@@ -35,6 +39,8 @@ class FakeLLM:
             raise AssertionError("engine asked for a turn the test did not script")
         turn = self._turns[min(self.calls, len(self._turns) - 1)]
         self.calls += 1
+        if isinstance(turn, Exception):
+            raise turn
         return turn
 
     async def tool_call(self, **_: Any) -> dict[str, Any]:

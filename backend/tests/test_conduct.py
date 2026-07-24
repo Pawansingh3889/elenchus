@@ -17,7 +17,7 @@ from app.conduct.engine import (
     _transcript,
 )
 from app.errors import ConflictError
-from app.llm.client import LLMError, ToolTurn
+from app.llm.client import LLMError, NoToolCallError, ToolTurn
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
 from app.runs.models import RunMessage, SurveyRun
 from app.templates.enums import AnswerType
@@ -489,3 +489,22 @@ def test_whitespace_only_messages_are_refused_at_the_boundary():
     assert RunMessageRequest(content="  real words  ").content == "real words"
     with pytest.raises(ValidationError):
         RunMessageRequest(content="   ")
+
+
+async def test_a_chatty_turn_with_no_tool_call_is_retried_once(session, respondent, published):
+    """A live run died mid-survey on 'Backup LLM returned no tool call' — the model was
+    responsive, it just talked instead of acting. That is cheaply retryable with an
+    in-band nudge; a second offence still fails loudly."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    recovers = FakeLLM(NoToolCallError("no tool"), _record("Line lead"), _move_on())
+    run = await ConductEngine(session, llm=recovers).handle_message(run.id, "line lead", respondent)
+    assert recovers.calls == 3  # chatted, nudged retry recorded, then moved on
+    assert "no tool was called" in recovers.messages_seen[1][-1]["content"]
+    assert [a.value for a in run.answers] == [{"text": "Line lead"}]
+
+    stubborn = FakeLLM(NoToolCallError("no tool"), NoToolCallError("still no tool"))
+    with pytest.raises(LLMError):
+        await ConductEngine(session, llm=stubborn).handle_message(run.id, "4", respondent)
+    assert stubborn.calls == 2  # one nudge, then loud failure — never an infinite loop

@@ -29,6 +29,17 @@ class LLMError(AppError):
     code = "llm_error"
 
 
+class NoToolCallError(LLMError):
+    """The model produced a turn with no tool call at all.
+
+    Distinguished from other LLM failures because it is cheaply retryable: the model is
+    responsive, it just chatted instead of acting. Timeouts and transport errors stay
+    plain LLMError so a retry never doubles a 120-second wait.
+    """
+
+    code = "llm_no_tool_call"
+
+
 @asynccontextmanager
 async def _api_errors() -> AsyncIterator[None]:
     """Map SDK failures to one typed error, so callers never see a raw 500."""
@@ -158,5 +169,5 @@ class LLMClient:
                 name = block.name
                 payload = cast("dict[str, Any]", block.input)
         if name is None:
-            raise LLMError("Model returned no tool call.")
+            raise NoToolCallError("Model returned no tool call.")
         return ToolTurn(text="\n".join(said).strip(), tool_name=name, tool_input=payload)

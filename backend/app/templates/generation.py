@@ -105,9 +105,15 @@ def _decode_stringified_fields(raw: dict[str, Any]) -> dict[str, Any]:
 
     def repaired_question(question: Any) -> Any:
         if not isinstance(question, dict):
-            return parsed(question, dict)
-        if "options" not in question:  # leave absent keys absent: the schema defaults
-            return question
+            question = parsed(question, dict)
+        if not isinstance(question, dict) or "options" not in question:
+            return question  # leave absent keys absent: the schema defaults
+        # Options only mean anything on the select types. Small models decorate rating
+        # questions with options like [1, 2, 3, 4, 5], which the schema (list[str])
+        # rightly refuses — dropping them is lossless, so do that instead of burning
+        # the retry.
+        if question.get("answer_type") not in ("single_select", "multi_select"):
+            return {**question, "options": []}
         return {**question, "options": parsed(question["options"], list)}
 
     repaired = dict(raw)

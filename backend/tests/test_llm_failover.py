@@ -236,3 +236,33 @@ def test_timeout_is_configurable_with_a_fast_connect():
     )
     assert client._timeout.read == 300.0
     assert client._timeout.connect == 10.0
+
+
+async def test_tool_call_in_a_fenced_block_or_prose_is_salvaged():
+    """Local models wrap the call in ```json fences or lead-in prose; both recover."""
+    fenced = 'Here you go:\n```json\n{"name": "move_on", "arguments": {"question_id": "q"}}\n```'
+    prose = 'Sure! I will record that. {"name": "record_answer", "arguments": {"value": 4}} Done.'
+
+    def make(content: str):
+        def handler(_: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json={"choices": [{"message": {"content": content}}]})
+
+        return handler
+
+    turn = await _client(make(fenced)).tool_turn(system="s", messages=[], tools=[])
+    assert (turn.tool_name, turn.tool_input) == ("move_on", {"question_id": "q"})
+
+    turn = await _client(make(prose)).tool_turn(system="s", messages=[], tools=[])
+    assert (turn.tool_name, turn.tool_input) == ("record_answer", {"value": 4})
+
+
+async def test_no_tool_call_raises_the_retryable_error_type():
+    """The engine retries a chatty turn but must never retry a timeout — the two need
+    distinguishable types."""
+    from app.llm.client import NoToolCallError
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"choices": [{"message": {"content": "just chat"}}]})
+
+    with pytest.raises(NoToolCallError):
+        await _client(handler).tool_turn(system="s", messages=[], tools=[])
