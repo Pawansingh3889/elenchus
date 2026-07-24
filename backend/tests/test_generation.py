@@ -91,3 +91,41 @@ async def test_generate_fails_loudly_after_retry(session, author):
     with pytest.raises(LLMError):
         await GenerationService(session, llm=fake).generate_draft("x", author)
     assert fake.calls == 2
+
+
+async def test_stringified_questions_are_decoded_before_validation(session, author):
+    """Small backup models emit the right structure JSON-encoded into a string
+    ('"questions": "[{...}]"'). That is a serialization slip, not bad content —
+    decode it instead of burning the retry (a live run 502'd on exactly this)."""
+    import json
+
+    stringified = {
+        "title": "Onboarding",
+        "description": "",
+        "questions": json.dumps(
+            [
+                {"text": "Your role?", "answer_type": "short_text"},
+                {
+                    "text": "Which shift?",
+                    "answer_type": "single_select",
+                    # the same slip one level down
+                    "options": json.dumps(["Days", "Nights"]),
+                },
+            ]
+        ),
+    }
+    fake = FakeLLM(stringified)
+    template = await GenerationService(session, llm=fake).generate_draft("onboarding", author)
+
+    assert fake.calls == 1  # repaired, not retried
+    assert [q.text for q in template.questions] == ["Your role?", "Which shift?"]
+    assert template.questions[1].options == ["Days", "Nights"]
+
+
+async def test_a_string_that_is_not_json_still_fails_loudly(session, author):
+    """The repair only undoes a clean JSON encoding; real junk keeps failing."""
+    junk = {"title": "X", "questions": "just some prose, not a list"}
+    fake = FakeLLM(junk, junk)
+    with pytest.raises(LLMError):
+        await GenerationService(session, llm=fake).generate_draft("x", author)
+    assert fake.calls == 2  # one retry, then loud failure

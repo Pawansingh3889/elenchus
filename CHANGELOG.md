@@ -51,6 +51,18 @@ The project is not yet versioned, so entries are grouped by date. Newest first.
   they reach the transcript or spend a model call.
 
 ### Fixed
+- **Slow local backup models were reported as unreachable.** A CPU-served model can
+  exceed the old fixed 60s read timeout on a cold load; the resulting `ReadTimeout`
+  stringifies to "" and surfaced as a blank "could not reach" while network, server,
+  and model were all fine. The read timeout is now generous and configurable
+  (`LLM_BACKUP_TIMEOUT_SECONDS`, default 120), connect failures still fail fast on a
+  separate 10s connect timeout, and timeout errors are named explicitly (logged with
+  `repr`, never a blank line).
+- **NL template generation failed on small backup models.** Weak models emit the
+  right structure JSON-encoded into a string (`"questions": "[{...}]"`); validation
+  rejected it and a live run 502'd. One level of JSON-encoding on `questions` (and
+  each question's `options`) is now decoded before validation — real junk still
+  fails loudly after the retry.
 - **Backup failover could not engage under compose** (PR #6). The backend service only
   forwarded the Anthropic variables, so the `LLM_BACKUP_*` settings in `.env` never
   reached the container and a primary failure surfaced as a raw 502 instead of falling

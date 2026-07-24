@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     )
     llm_backup_api_key: str = Field("", description="Backup LLM API key (blank if not required)")
     llm_backup_model: str = Field("", description="Backup LLM model id, e.g. nemotron-3-super-120b")
+    # Local CPU-served models can take >60s on a cold load; a genuinely unreachable
+    # endpoint still fails fast via the separate connect timeout.
+    llm_backup_timeout_seconds: float = Field(
+        120.0, gt=0, description="Read timeout for backup LLM calls, in seconds"
+    )
 
     app_env: str = Field("dev", description="dev | prod")
     frontend_origin: str = Field(

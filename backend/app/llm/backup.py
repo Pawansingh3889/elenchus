@@ -20,7 +20,13 @@ from app.llm.client import LLMError, ToolTurn
 
 logger = logging.getLogger("app.llm.backup")
 
-TIMEOUT_SECONDS = 60.0
+# A local CPU-served model (the very case the backup exists for) can legitimately take
+# well over a minute on a cold load or a long survey, so the read timeout is generous
+# and configurable (LLM_BACKUP_TIMEOUT_SECONDS). Connecting, by contrast, should be
+# near-instant — a short connect timeout keeps a *genuinely* unreachable endpoint from
+# stalling a request for the full read window.
+DEFAULT_TIMEOUT_SECONDS = 120.0
+CONNECT_TIMEOUT_SECONDS = 10.0
 
 
 class OpenAICompatibleLLMClient:
@@ -32,6 +38,7 @@ class OpenAICompatibleLLMClient:
         base_url: str,
         api_key: str,
         model: str,
+        timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         if not base_url or not model:
@@ -39,6 +46,7 @@ class OpenAICompatibleLLMClient:
         self._base_url = base_url.rstrip("/")
         self._api_key = api_key
         self._model = model
+        self._timeout = httpx.Timeout(timeout_seconds, connect=CONNECT_TIMEOUT_SECONDS)
         self._transport = transport  # injectable so tests need no network
 
     async def _post(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -47,14 +55,23 @@ class OpenAICompatibleLLMClient:
             headers["Authorization"] = f"Bearer {self._api_key}"
         try:
             async with httpx.AsyncClient(
-                timeout=TIMEOUT_SECONDS, transport=self._transport
+                timeout=self._timeout, transport=self._transport
             ) as client:
                 response = await client.post(
                     f"{self._base_url}/chat/completions", json=payload, headers=headers
                 )
+        except httpx.TimeoutException as exc:
+            # str(ReadTimeout) is usually empty, which once surfaced as a blank
+            # "could not reach" while the model was merely slow — name the failure.
+            logger.error("backup llm timed out: %r", exc)
+            raise LLMError(
+                f"Backup LLM timed out after {self._timeout.read}s — the model may be "
+                "loading or too slow for the configured LLM_BACKUP_TIMEOUT_SECONDS."
+            ) from exc
         except httpx.HTTPError as exc:
-            logger.error("backup llm call failed: %s", exc)
-            raise LLMError(f"Could not reach the backup LLM: {exc}") from exc
+            # repr, not str: several httpx errors stringify to "".
+            logger.error("backup llm call failed: %r", exc)
+            raise LLMError(f"Could not reach the backup LLM: {exc!r}") from exc
         if response.status_code >= 400:
             logger.error("backup llm returned %s: %s", response.status_code, response.text[:200])
             raise LLMError(

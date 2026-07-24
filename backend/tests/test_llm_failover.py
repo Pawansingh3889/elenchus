@@ -208,3 +208,31 @@ async def test_wrong_tool_name_on_forced_call_is_rejected():
             tool_description="d",
             input_schema={},
         )
+
+
+async def test_timeout_produces_a_named_error_not_a_blank_line():
+    """str(ReadTimeout) is empty; a raw format once logged a blank line and surfaced as
+    "could not reach" while the model was merely slow. The error must say timeout."""
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("")
+
+    client = OpenAICompatibleLLMClient(
+        base_url="http://backup.local/v1",
+        api_key="",
+        model="slow-model",
+        timeout_seconds=90.0,
+        transport=httpx.MockTransport(handler),
+    )
+    with pytest.raises(LLMError, match="timed out after 90"):
+        await client.tool_turn(system="s", messages=[], tools=[])
+
+
+def test_timeout_is_configurable_with_a_fast_connect():
+    """A slow local model gets a generous read window; a genuinely unreachable
+    endpoint still fails on the short connect timeout."""
+    client = OpenAICompatibleLLMClient(
+        base_url="http://backup.local/v1", api_key="", model="m", timeout_seconds=300.0
+    )
+    assert client._timeout.read == 300.0
+    assert client._timeout.connect == 10.0

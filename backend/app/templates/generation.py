@@ -6,6 +6,7 @@ before failing loudly (ARCHITECTURE.md: validate then act). A valid draft is per
 so it lands in the same builder a hand-built one would.
 """
 
+import json
 import logging
 from typing import Any
 
@@ -54,6 +55,7 @@ class GenerationService:
             tool_description=_TOOL_DESCRIPTION,
             input_schema=_TOOL_SCHEMA,
         )
+        raw = _decode_stringified_fields(raw)
         error = _validation_error(raw)
         if error is None:
             return TemplateCreate.model_validate(raw)
@@ -64,6 +66,40 @@ class GenerationService:
         # payload before failing (ARCHITECTURE.md 3.3).
         logger.error("template generation failed after one retry: raw=%r error=%s", raw, error)
         raise LLMError(f"Model returned an invalid template after one retry: {error}")
+
+
+def _decode_stringified_fields(raw: dict[str, Any]) -> dict[str, Any]:
+    """Undo one JSON-encoding of the structured fields, a common small-model slip.
+
+    Weaker backup models frequently emit ``"questions": "[{...}]"`` — the right list,
+    wrapped in a string. That is a serialization artifact, not a content problem, so
+    decode it (and the same slip on each question's ``options``) before validation.
+    Anything that does not parse to the expected container type is left untouched for
+    the validator to reject, so real junk still fails loudly.
+    """
+
+    def parsed(value: Any, expected: type) -> Any:
+        if not isinstance(value, str):
+            return value
+        try:
+            decoded = json.loads(value)
+        except json.JSONDecodeError:
+            return value
+        return decoded if isinstance(decoded, expected) else value
+
+    def repaired_question(question: Any) -> Any:
+        if not isinstance(question, dict):
+            return parsed(question, dict)
+        if "options" not in question:  # leave absent keys absent: the schema defaults
+            return question
+        return {**question, "options": parsed(question["options"], list)}
+
+    repaired = dict(raw)
+    if "questions" in repaired:
+        repaired["questions"] = parsed(repaired["questions"], list)
+    if isinstance(repaired.get("questions"), list):
+        repaired["questions"] = [repaired_question(q) for q in repaired["questions"]]
+    return repaired
 
 
 _CATCH_ALL_OPTIONS = frozenset(

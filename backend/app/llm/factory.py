@@ -24,6 +24,7 @@ def get_llm() -> LLMProtocol:
             base_url=settings.llm_backup_base_url,
             api_key=settings.llm_backup_api_key,
             model=settings.llm_backup_model,
+            timeout_seconds=settings.llm_backup_timeout_seconds,
         )
 
     if settings.anthropic_api_key:
