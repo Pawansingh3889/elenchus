@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 
 import { LivePreview } from "@/components/LivePreview";
 import { QuestionEditor } from "@/components/QuestionEditor";
 import {
+  useCurrentUser,
   useDeleteTemplate,
   usePublishTemplate,
   useTemplate,
@@ -27,6 +28,7 @@ const blankQuestion = (): QuestionInput => ({
 export default function BuilderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const currentUserId = useUserStore((s) => s.currentUserId);
+  const currentUser = useCurrentUser();
   const { data: template, isLoading, error } = useTemplate(id);
   const update = useUpdateTemplate(id);
   const publish = usePublishTemplate(id);
@@ -39,10 +41,18 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
   const [questions, setQuestions] = useState<QuestionInput[]>([]);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
+  const isRespondent = currentUser?.role === "respondent";
+  useEffect(() => {
+    if (isRespondent) router.replace("/respond");
+  }, [isRespondent, router]);
+
   // Initialise the editable form from the fetched template once, and again if the
-  // route id changes — adjusting state during render, not in an effect.
-  if (template && template.id !== loadedId) {
-    setLoadedId(template.id);
+  // route id OR the acting user changes — adjusting state during render, not in an
+  // effect. Keying on the user too stops one author's unsaved edits from surviving a
+  // switch and being saved under the next author's identity.
+  const formKey = template ? `${template.id}:${currentUserId}` : null;
+  if (template && formKey !== loadedId) {
+    setLoadedId(formKey);
     setTitle(template.title);
     setDescription(template.description ?? "");
     setQuestions(
@@ -58,6 +68,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
   }
 
   if (!currentUserId) return <div className="empty">Pick a user in the top bar.</div>;
+  if (isRespondent) return <div className="empty">Taking you to Respond…</div>;
   if (isLoading) return <div className="muted">Loading…</div>;
   if (error || !template) {
     return <div className="error-text">{error ? (error as Error).message : "Not found"}</div>;

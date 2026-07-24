@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
-import { useTemplateRun, useTemplateRuns } from "@/lib/queries";
+import { useCurrentUser, useTemplateRun, useTemplateRuns } from "@/lib/queries";
 import { useUserStore } from "@/lib/store";
 import type { RunAnswer } from "@/lib/types";
 
@@ -58,12 +58,22 @@ function readValue(value: Record<string, unknown>): string {
 export default function ResultsPage() {
   const { id } = useParams<{ id: string }>();
   const currentUserId = useUserStore((s) => s.currentUserId);
+  const currentUser = useCurrentUser();
   const { data: runs, isLoading, error } = useTemplateRuns(id);
   const [selected, setSelected] = useState<string | null>(null);
   const detail = useTemplateRun(id, selected);
+  const router = useRouter();
+
+  const isRespondent = currentUser?.role === "respondent";
+  useEffect(() => {
+    if (isRespondent) router.replace("/respond");
+  }, [isRespondent, router]);
 
   if (!currentUserId) {
     return <div className="empty">Pick an author in the top bar to see responses.</div>;
+  }
+  if (isRespondent) {
+    return <div className="empty">Taking you to Respond…</div>;
   }
 
   return (

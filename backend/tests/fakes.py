@@ -16,6 +16,8 @@ class FakeLLM:
         self.calls = 0
         self.offered: list[list[str]] = []
         self.briefings: list[str] = []
+        self.messages_seen: list[list[dict[str, str]]] = []
+        self.tools_seen: list[list[dict[str, Any]]] = []
 
     async def tool_turn(
         self,
@@ -27,6 +29,8 @@ class FakeLLM:
     ) -> ToolTurn:
         self.offered.append([t["name"] for t in tools])
         self.briefings.append(system)
+        self.messages_seen.append(messages)
+        self.tools_seen.append(tools)
         if not self._turns:
             raise AssertionError("engine asked for a turn the test did not script")
         turn = self._turns[min(self.calls, len(self._turns) - 1)]
@@ -43,6 +47,10 @@ def record(value: Any, say: str = "Thanks.") -> ToolTurn:
 
 def follow_up(text: str) -> ToolTurn:
     return ToolTurn(text="", tool_name="ask_follow_up", tool_input={"follow_up_text": text})
+
+
+def reply(text: str) -> ToolTurn:
+    return ToolTurn(text="", tool_name="reply", tool_input={"reply_text": text})
 
 
 def move_on(say: str = "Next question.") -> ToolTurn:

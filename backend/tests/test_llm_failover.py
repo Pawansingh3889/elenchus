@@ -167,6 +167,27 @@ async def test_missing_tool_call_fails_loudly():
         await _client(handler).tool_turn(system="s", messages=[], tools=[])
 
 
+async def test_tool_call_written_into_content_is_salvaged():
+    """Local models often put the tool-call JSON in the text instead of tool_calls."""
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        content = json.dumps({"name": "record_answer", "arguments": {"value": 4}})
+        return httpx.Response(200, json={"choices": [{"message": {"content": content}}]})
+
+    turn = await _client(handler).tool_turn(system="s", messages=[], tools=[])
+    assert turn == ToolTurn(text="", tool_name="record_answer", tool_input={"value": 4})
+
+
+async def test_prose_content_is_not_mistaken_for_a_tool_call():
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200, json={"choices": [{"message": {"content": 'I would call {"name"} here'}}]}
+        )
+
+    with pytest.raises(LLMError, match="no tool call"):
+        await _client(handler).tool_turn(system="s", messages=[], tools=[])
+
+
 async def test_http_error_becomes_a_typed_error():
     def handler(_: httpx.Request) -> httpx.Response:
         return httpx.Response(503, text="upstream unavailable")

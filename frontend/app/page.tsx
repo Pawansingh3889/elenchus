@@ -2,21 +2,32 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { useCreateTemplate, useGenerateTemplate, useTemplates } from "@/lib/queries";
+import { useCreateTemplate, useCurrentUser, useGenerateTemplate, useTemplates } from "@/lib/queries";
 import { useUserStore } from "@/lib/store";
 
 export default function Home() {
   const currentUserId = useUserStore((s) => s.currentUserId);
+  const currentUser = useCurrentUser();
   const { data: templates, isLoading, error } = useTemplates();
   const create = useCreateTemplate();
   const generate = useGenerateTemplate();
   const router = useRouter();
   const [prompt, setPrompt] = useState("");
 
+  // Build is author-only on the backend; a respondent landing here (e.g. after
+  // switching users in the top bar) belongs on Respond, not on a page of 403s.
+  const isRespondent = currentUser?.role === "respondent";
+  useEffect(() => {
+    if (isRespondent) router.replace("/respond");
+  }, [isRespondent, router]);
+
   if (!currentUserId) {
     return <div className="empty">Pick a user in the top bar to start authoring.</div>;
+  }
+  if (isRespondent) {
+    return <div className="empty">Taking you to Respond…</div>;
   }
 
   async function onCreate() {

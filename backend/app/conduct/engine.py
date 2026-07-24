@@ -26,7 +26,9 @@ from app.users.models import User
 logger = logging.getLogger("app.conduct")
 
 MAX_FOLLOW_UPS = 2
+MAX_REPLIES = 2  # conversational replies per question (record nothing, advance nothing)
 MAX_MODEL_TURNS = 3  # per respondent message
+TRANSCRIPT_WINDOW = 12  # messages replayed per turn; the briefing restates the question
 _REJECTED = "run=%s question=%s tool=%s raw_input=%r raw_text=%r error=%s"
 CLOSING_FALLBACK = "That's everything — thank you, your answers are saved."
 
@@ -34,6 +36,7 @@ RECORD = "record_answer"
 FOLLOW_UP = "ask_follow_up"
 UNANSWERABLE = "flag_unanswerable"
 MOVE_ON = "move_on"
+REPLY = "reply"
 
 
 class ConductEngine:
@@ -129,9 +132,23 @@ class ConductEngine:
         previous_error: str | None,
     ) -> ToolTurn:
         briefing = _briefing(questions, run.current_question_index, question, state, previous_error)
+        messages = _transcript(run)
+        if previous_error is not None:
+            # Deliver the correction in-band too: small models weight the last user
+            # message far above a line buried at the tail of the system prompt.
+            messages = [
+                *messages,
+                {
+                    "role": "user",
+                    "content": (
+                        f"[engine] Your previous tool call was rejected: {previous_error}. "
+                        "Choose again — call exactly one tool."
+                    ),
+                },
+            ]
         turn = await self.llm.tool_turn(
-            system=load_prompt("conduct_v1") + "\n\n" + briefing,
-            messages=_transcript(run),
+            system=load_prompt("conduct_v2") + "\n\n" + briefing,
+            messages=messages,
             tools=tools,
         )
         error = _rejection(question, state, tools, turn)
@@ -178,6 +195,14 @@ class ConductEngine:
             await self.session.flush()
             return str(turn.tool_input["follow_up_text"]).strip()
 
+        if turn.tool_name == REPLY:
+            # Speaking costs a reply from the per-question cap but records nothing and
+            # never advances — the current question stays current.
+            key = f"reply:{question['id']}"
+            run.probes_asked = {**run.probes_asked, key: run.probes_asked.get(key, 0) + 1}
+            await self.session.flush()
+            return str(turn.tool_input["reply_text"]).strip()
+
         if turn.tool_name == RECORD:
             scripted = not state["scripted_recorded"]
             run.answers.append(
@@ -197,13 +222,15 @@ class ConductEngine:
         if turn.tool_name == UNANSWERABLE:
             # Declining the question itself is a scripted answer; declining a probe is a
             # follow-up answer, and carries the wording the model invented for it.
+            # A blank reason is pure metadata — default it rather than spend the retry.
             declined_probe = state["scripted_recorded"]
+            reason = str(turn.tool_input.get("reason", "")).strip() or "respondent declined"
             run.answers.append(
                 Answer(
                     question_id=UUID(question["id"]),
                     kind=AnswerKind.follow_up if declined_probe else AnswerKind.scripted,
                     question_text=_last_assistant(run) if declined_probe else question["text"],
-                    value={"unanswerable": str(turn.tool_input.get("reason", "")).strip()},
+                    value={"unanswerable": reason},
                     answered_by=run.respondent_id,
                 )
             )
@@ -225,6 +252,9 @@ class ConductEngine:
         return {
             "scripted_recorded": scripted > 0,
             "follow_ups_used": run.probes_asked.get(question["id"], 0),
+            # Replies share the probes JSONB under a prefixed key — same lifecycle,
+            # no schema change, and question ids (UUIDs) can never collide with it.
+            "replies_used": run.probes_asked.get(f"reply:{question['id']}", 0),
         }
 
 
@@ -240,6 +270,14 @@ def _may_probe(question: dict[str, Any], follow_ups_used: int) -> bool:
     return bool(question.get("allow_follow_ups")) and follow_ups_used < MAX_FOLLOW_UPS
 
 
+def _is_uuid(value: str) -> bool:
+    try:
+        UUID(value)
+    except ValueError:
+        return False
+    return True
+
+
 def _opening_text(definition: dict[str, Any], first: dict[str, Any]) -> str:
     return f"Thanks for taking {definition['title']}. {first['text']}"
 
@@ -252,10 +290,40 @@ def _last_assistant(run: SurveyRun) -> str:
 
 
 def _transcript(run: SurveyRun) -> list[dict[str, str]]:
-    return [
+    """The last TRANSCRIPT_WINDOW messages. Windowing is safe by construction: the
+    briefing restates the current question, type, options, and budgets every turn, so
+    distant history is never needed to act — and an unbounded replay overflows the
+    small context of a local backup model long before a survey ends."""
+    messages = [
         {"role": "assistant" if m.role is MessageRole.assistant else "user", "content": m.content}
         for m in run.messages
     ]
+    if len(messages) <= TRANSCRIPT_WINDOW:
+        return messages
+    head: dict[str, str] = {"role": "user", "content": "[earlier conversation omitted]"}
+    return [head, *messages[-TRANSCRIPT_WINDOW:]]
+
+
+def _value_schema(question: dict[str, Any]) -> dict[str, Any]:
+    """A typed JSON schema for the answer value, so constrained backends get a grammar
+    and weak models see the exact shape instead of guessing from prose."""
+    answer_type = question["answer_type"]
+    options: list[str] = question.get("options") or []
+    if answer_type == "rating":
+        return {"type": "integer", "minimum": 1, "maximum": 5}
+    if answer_type == "yes_no":
+        return {"type": "boolean"}
+    if answer_type == "number":
+        return {"type": "number"}
+    if answer_type == "date":
+        return {"type": "string", "pattern": r"^\d{4}-\d{2}-\d{2}$"}
+    if answer_type == "single_select":
+        if options and not question.get("allow_other"):
+            return {"type": "string", "enum": options}
+        return {"type": "string"}
+    if answer_type == "multi_select":
+        return {"type": "array", "items": {"type": "string"}, "minItems": 1}
+    return {"type": "string"}  # short_text / long_text
 
 
 def _tools_for(question: dict[str, Any], state: dict[str, Any]) -> list[dict[str, Any]]:
@@ -263,6 +331,10 @@ def _tools_for(question: dict[str, Any], state: dict[str, Any]) -> list[dict[str
     question_id = {"type": "string", "description": "The current question's id."}
     tools: list[dict[str, Any]] = []
     if not state.get("recorded_this_turn"):
+        value_schema = {
+            "description": "The answer, shaped for the question's type.",
+            **_value_schema(question),
+        }
         tools.append(
             {
                 "name": RECORD,
@@ -271,7 +343,7 @@ def _tools_for(question: dict[str, Any], state: dict[str, Any]) -> list[dict[str
                     "type": "object",
                     "properties": {
                         "question_id": question_id,
-                        "value": {"description": "The answer, shaped for the question's type."},
+                        "value": value_schema,
                     },
                     "required": ["question_id", "value"],
                 },
@@ -310,6 +382,29 @@ def _tools_for(question: dict[str, Any], state: dict[str, Any]) -> list[dict[str
                 },
             }
         )
+    # A respondent sometimes asks a question back ("what do you mean by onboarding?")
+    # or is plainly confused. Without a way to just speak, the model's only legal moves
+    # are to record something (fabrication) or flag the question unanswerable (wrongly
+    # giving up). Replying records nothing and does not advance; a per-question cap
+    # keeps a stalling model from chatting instead of surveying.
+    if state.get("replies_used", 0) < MAX_REPLIES:
+        tools.append(
+            {
+                "name": REPLY,
+                "description": (
+                    "Answer the respondent's own question or clear up their confusion, "
+                    "then restate the current survey question. Records nothing."
+                ),
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "question_id": question_id,
+                        "reply_text": {"type": "string"},
+                    },
+                    "required": ["question_id", "reply_text"],
+                },
+            }
+        )
     # Always available: a respondent can decline the question itself, and equally can
     # decline a follow-up. Offering this only before the scripted answer left the model
     # with no way to say "they declined" once a probe was outstanding.
@@ -341,11 +436,27 @@ def _rejection(
     if turn.tool_name not in allowed:
         return f"'{turn.tool_name}' is not available now; choose one of {sorted(allowed)}"
 
+    # A tool aimed at a different question is the model answering something the engine
+    # did not ask — two answers at once, or revising an earlier answer. Only a real id
+    # counts as aiming: models that echo a placeholder ("q") are targeting the current
+    # question and pass through, exactly as the engine will apply it.
+    sent_id = str(turn.tool_input.get("question_id", "")).strip()
+    if sent_id and sent_id != str(question["id"]) and _is_uuid(sent_id):
+        return (
+            f"only the current question ({question['id']}) can be acted on; earlier "
+            "answers cannot be changed — acknowledge and continue with the current question"
+        )
+
     if turn.tool_name == FOLLOW_UP:
         if not _may_probe(question, state["follow_ups_used"]):
             return "follow-ups are not permitted for this question, or the limit is spent"
         if not str(turn.tool_input.get("follow_up_text", "")).strip():
             return "follow_up_text must not be empty"
+        return None
+
+    if turn.tool_name == REPLY:
+        if not str(turn.tool_input.get("reply_text", "")).strip():
+            return "reply_text must not be empty"
         return None
 
     if turn.tool_name == RECORD:
@@ -357,8 +468,6 @@ def _rejection(
             return exc.message
         return None
 
-    if turn.tool_name == UNANSWERABLE and not str(turn.tool_input.get("reason", "")).strip():
-        return "flag_unanswerable requires a reason"
     return None
 
 
@@ -373,6 +482,7 @@ def _briefing(
     lines = [
         "ENGINE STATE (authoritative — do not contradict it):",
         f"- Question {index + 1} of {len(questions)}: {question['text']}",
+        f"- Question id: {question['id']}",
         f"- Answer type: {question['answer_type']}",
     ]
     if question.get("options"):
@@ -381,7 +491,10 @@ def _briefing(
     if question["answer_type"] == "date":
         # Without this the model has no clock, and resolves "this year" against its
         # training data. A live run turned "the 3rd of March this year" into 2024-03-03.
-        lines.append(f"- Today's date is {datetime.now(UTC).date().isoformat()}")
+        # The weekday is included because relative dates ("next Tuesday") need it, and
+        # weekday arithmetic is exactly where small models slip.
+        now = datetime.now(UTC)
+        lines.append(f"- Today is {now:%A}, {now.date().isoformat()}")
     lines.append(
         "- This question is required"
         if question.get("required", True)

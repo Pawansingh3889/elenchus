@@ -64,6 +64,30 @@ class OpenAICompatibleLLMClient:
         return cast("dict[str, Any]", response.json())
 
     @staticmethod
+    def _salvage_from_content(said: Any) -> list[dict[str, Any]]:
+        """Local models often write the tool call INTO the text instead of tool_calls.
+
+        When the content is exactly one JSON object shaped like a tool call
+        ({"name": ..., "arguments"/"parameters": {...}}), recover it; anything less
+        unambiguous stays a hard failure.
+        """
+        if not isinstance(said, str):
+            return []
+        text = said.strip()
+        if not (text.startswith("{") and text.endswith("}")):
+            return []
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError:
+            return []
+        if not isinstance(parsed, dict) or not isinstance(parsed.get("name"), str):
+            return []
+        arguments = parsed.get("arguments", parsed.get("parameters", {}))
+        if not isinstance(arguments, dict):
+            return []
+        return [{"function": {"name": parsed["name"], "arguments": json.dumps(arguments)}}]
+
+    @staticmethod
     def _first_tool_call(data: dict[str, Any]) -> tuple[str, dict[str, Any], str]:
         """Pull (tool name, parsed arguments, spoken text) from the first choice."""
         choices = data.get("choices") or []
@@ -72,6 +96,10 @@ class OpenAICompatibleLLMClient:
         message = choices[0].get("message") or {}
         said = message.get("content")
         tool_calls = message.get("tool_calls") or []
+        if not tool_calls:
+            tool_calls = OpenAICompatibleLLMClient._salvage_from_content(said)
+            if tool_calls:
+                said = ""  # the content WAS the tool call; there is nothing spoken
         if not tool_calls:
             raise LLMError("Backup LLM returned no tool call.")
         function = tool_calls[0].get("function") or {}

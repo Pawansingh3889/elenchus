@@ -10,6 +10,13 @@ export function useUsers() {
   return useQuery({ queryKey: ["users"], queryFn: api.listUsers });
 }
 
+/** The acting user's record (id + role), for role-gating nav and pages. */
+export function useCurrentUser() {
+  const { data: users } = useUsers();
+  const userId = useUserStore((s) => s.currentUserId);
+  return users?.find((u) => u.id === userId) ?? null;
+}
+
 export function useTemplates() {
   const userId = useUserStore((s) => s.currentUserId);
   return useQuery({

@@ -4,6 +4,7 @@ This is the engine's gate: nothing reaches the database until it validates here,
 confused model can never corrupt a run.
 """
 
+import re
 from datetime import date
 from typing import Any
 
@@ -15,11 +16,50 @@ class AnswerValidationError(AppError):
     code = "answer_invalid"
 
 
+def _coerce(answer_type: str, raw: Any) -> Any:
+    """Undo pure serialization artifacts, never semantic guesses.
+
+    Weak models habitually stringify tool arguments ('"4"' for 4, '"true"' for true)
+    or emit integral floats (4.0). Those carry the exact same information as the typed
+    value, so coercing them is lossless. Natural language ("four", "yes") stays
+    rejected — mapping words to values is the model's job, checked by the gate below.
+    """
+    if answer_type in ("rating", "number") and isinstance(raw, str):
+        text = raw.strip()
+        try:
+            return int(text)
+        except ValueError:
+            pass
+        try:
+            return float(text)
+        except ValueError:
+            return raw
+    if answer_type == "rating" and isinstance(raw, float) and raw.is_integer():
+        return int(raw)
+    if answer_type == "yes_no" and isinstance(raw, str):
+        lowered = raw.strip().casefold()
+        if lowered == "true":
+            return True
+        if lowered == "false":
+            return False
+    return raw
+
+
+def _canonical_option(raw: str, options: list[str]) -> str | None:
+    """Case/whitespace-insensitive match to an option, returning its canonical text."""
+    key = raw.strip().casefold()
+    for option in options:
+        if option.strip().casefold() == key:
+            return option
+    return None
+
+
 def validate_answer(question: dict[str, Any], raw: Any) -> dict[str, Any]:
     """Return the normalised value to store, or raise AnswerValidationError."""
     answer_type = question["answer_type"]
     options: list[str] = question.get("options") or []
     allow_other = bool(question.get("allow_other"))
+    raw = _coerce(answer_type, raw)
 
     if answer_type == "yes_no":
         if not isinstance(raw, bool):
@@ -44,17 +84,25 @@ def validate_answer(question: dict[str, Any], raw: Any) -> dict[str, Any]:
     if answer_type == "date":
         if not isinstance(raw, str):
             raise AnswerValidationError("date expects an ISO YYYY-MM-DD string")
+        # Enforce the dashed form specifically: fromisoformat also accepts compact
+        # ("20260303") and week-date ("2026-W10-2") forms, which would fragment the
+        # same day across shapes in the results.
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", raw):
+            raise AnswerValidationError("date must be a valid YYYY-MM-DD string")
         try:
-            date.fromisoformat(raw)
+            parsed = date.fromisoformat(raw)
         except ValueError as exc:
             raise AnswerValidationError("date must be a valid YYYY-MM-DD string") from exc
-        return {"date": raw}
+        return {"date": parsed.isoformat()}
 
     if answer_type == "single_select":
         if not isinstance(raw, str):
             raise AnswerValidationError("single_select expects the option text")
-        if raw in options:
-            return {"option": raw}
+        # A case/whitespace near-miss ("days" for "Days") is the option, not a write-in;
+        # matching it canonically keeps the author's results aggregatable.
+        canonical = _canonical_option(raw, options)
+        if canonical is not None:
+            return {"option": canonical}
         if allow_other:
             return {"other": raw}
         raise AnswerValidationError(f"'{raw}' is not one of {options} and 'other' is not allowed")
@@ -67,8 +115,9 @@ def validate_answer(question: dict[str, Any], raw: Any) -> dict[str, Any]:
         for value in raw:
             if not isinstance(value, str):
                 raise AnswerValidationError("multi_select values must be strings")
-            if value in options:
-                chosen.append(value)
+            canonical = _canonical_option(value, options)
+            if canonical is not None:
+                chosen.append(canonical)
             elif allow_other:
                 other.append(value)
             else:

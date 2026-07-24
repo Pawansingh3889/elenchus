@@ -4,13 +4,22 @@ refuses, and where run state lives.
 """
 
 from datetime import UTC, datetime
+from types import SimpleNamespace
+from typing import cast
 
 import pytest
 
-from app.conduct.engine import MAX_FOLLOW_UPS, ConductEngine
+from app.conduct.engine import (
+    MAX_FOLLOW_UPS,
+    MAX_REPLIES,
+    TRANSCRIPT_WINDOW,
+    ConductEngine,
+    _transcript,
+)
 from app.errors import ConflictError
 from app.llm.client import LLMError, ToolTurn
-from app.runs.enums import AnswerKind, RunStatus
+from app.runs.enums import AnswerKind, MessageRole, RunStatus
+from app.runs.models import RunMessage, SurveyRun
 from app.templates.enums import AnswerType
 from app.templates.schemas import QuestionInput, TemplateCreate, TemplateUpdate
 from app.templates.service import TemplateService
@@ -18,6 +27,7 @@ from tests.fakes import FakeLLM
 from tests.fakes import follow_up as _follow_up
 from tests.fakes import move_on as _move_on
 from tests.fakes import record as _record
+from tests.fakes import reply as _reply
 
 
 async def test_start_opens_with_the_first_question(session, respondent, published):
@@ -298,12 +308,12 @@ async def test_briefing_dates_the_conversation_and_marks_optional_questions(
     await engine.handle_message(run.id, "3rd of March this year", respondent)
     await engine.handle_message(run.id, "hard to say really", respondent)
 
-    today = datetime.now(UTC).date().isoformat()
-    assert f"Today's date is {today}" in fake.briefings[0]
+    now = datetime.now(UTC)
+    assert f"Today is {now:%A}, {now.date().isoformat()}" in fake.briefings[0]
     assert "- This question is required" in fake.briefings[0]
 
     optional = fake.briefings[-1]
-    assert "Today's date is" not in optional  # only where it can matter
+    assert "Today is" not in optional  # only where it can matter
     assert "This question is OPTIONAL" in optional
 
 
@@ -345,3 +355,137 @@ async def test_state_survives_a_reload(session, respondent, published):
     assert reloaded.current_question_index == 1
     assert reloaded.status is RunStatus.in_progress
     assert [m.role.value for m in reloaded.messages] == ["assistant", "user", "assistant"]
+
+
+# ---------------------------------------------------------------- tricky input
+
+
+async def test_reply_speaks_without_recording_or_advancing(session, respondent, published):
+    """A respondent asking a question back gets an answer, not a fabricated record."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    llm = FakeLLM(_reply("It just means your job title — whatever you'd call it."))
+    run = await ConductEngine(session, llm=llm).handle_message(
+        run.id, "what do you mean by role?", respondent
+    )
+
+    assert "reply" in llm.offered[0]
+    assert not run.answers
+    assert run.current_question_index == 0
+    assert run.messages[-1].content == "It just means your job title — whatever you'd call it."
+
+
+async def test_reply_cap_withholds_the_tool(session, respondent, published):
+    """Replies are budgeted per question so a chatty model cannot stall the survey."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    for _ in range(MAX_REPLIES):
+        run = await ConductEngine(session, llm=FakeLLM(_reply("Sure —"))).handle_message(
+            run.id, "wait, what?", respondent
+        )
+
+    llm = FakeLLM(_record("Line lead"), _move_on())
+    run = await ConductEngine(session, llm=llm).handle_message(run.id, "line lead", respondent)
+    assert "reply" not in llm.offered[0]
+    assert run.current_question_index == 1  # the survey still moves
+
+
+async def test_cross_question_tool_call_is_rejected(session, respondent, published):
+    """Answering a different question than the current one (two answers at once, or a
+    revision of an earlier answer) is refused; a placeholder id passes through."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+    questions = await ConductEngine(session, llm=FakeLLM()).questions(run)
+    other_id = questions[1]["id"]
+
+    cross = ToolTurn(
+        text="", tool_name="record_answer", tool_input={"question_id": other_id, "value": "4"}
+    )
+    llm = FakeLLM(cross)
+    with pytest.raises(LLMError):
+        await ConductEngine(session, llm=llm).handle_message(run.id, "and I'd say 4", respondent)
+    assert llm.calls == 2  # rejected, retried, failed loudly
+    assert not run.answers
+
+    placeholder = ToolTurn(
+        text="", tool_name="record_answer", tool_input={"question_id": "q", "value": "Line lead"}
+    )
+    run = await ConductEngine(session, llm=FakeLLM(placeholder, _move_on())).handle_message(
+        run.id, "line lead", respondent
+    )
+    assert [a.value for a in run.answers] == [{"text": "Line lead"}]
+
+
+async def test_blank_unanswerable_reason_is_defaulted_not_rejected(session, respondent, published):
+    """The reason is metadata; a weak model omitting it should not burn the retry."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    bare = ToolTurn(text="", tool_name="flag_unanswerable", tool_input={"question_id": "q"})
+    llm = FakeLLM(bare)
+    run = await ConductEngine(session, llm=llm).handle_message(run.id, "skip", respondent)
+
+    assert llm.calls == 1  # no retry spent
+    assert run.current_question_index == 1
+    assert run.answers[0].value == {"unanswerable": "respondent declined"}
+
+
+async def test_record_tool_carries_a_typed_value_schema(session, respondent, published):
+    """Constrained backends get a grammar for the value, not just prose."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    llm = FakeLLM(_record("Line lead"), _move_on())
+    run = await ConductEngine(session, llm=llm).handle_message(run.id, "line lead", respondent)
+
+    record = next(t for t in llm.tools_seen[0] if t["name"] == "record_answer")
+    assert record["input_schema"]["properties"]["value"]["type"] == "string"  # short_text
+
+    rating = FakeLLM(_record(4), _move_on())
+    await ConductEngine(session, llm=rating).handle_message(run.id, "a solid 4", respondent)
+    record = next(t for t in rating.tools_seen[0] if t["name"] == "record_answer")
+    value = record["input_schema"]["properties"]["value"]
+    assert (value["type"], value["minimum"], value["maximum"]) == ("integer", 1, 5)
+
+
+async def test_rejection_feedback_reaches_the_model_in_band(session, respondent, published):
+    """Small models weight the last user message, not a line at the tail of the system
+    prompt — so the retry must carry the correction in the transcript itself."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+    run = await ConductEngine(
+        session, llm=FakeLLM(_record("Line lead"), _move_on())
+    ).handle_message(run.id, "line lead", respondent)
+
+    llm = FakeLLM(_record("eleven"), _record(4), _move_on())
+    await ConductEngine(session, llm=llm).handle_message(run.id, "eleven!", respondent)
+
+    retry_messages = llm.messages_seen[1]
+    assert retry_messages[-1]["role"] == "user"
+    assert "[engine]" in retry_messages[-1]["content"]
+    assert "rejected" in retry_messages[-1]["content"]
+
+
+def test_transcript_is_windowed_for_small_contexts():
+    """A long run must not replay unbounded history: the briefing restates the current
+    question every turn, so only a recent window is needed."""
+    run = SimpleNamespace(
+        messages=[RunMessage(role=MessageRole.user, content=f"message {i}") for i in range(30)]
+    )
+    windowed = _transcript(cast("SurveyRun", run))
+    assert len(windowed) == TRANSCRIPT_WINDOW + 1
+    assert windowed[0]["content"] == "[earlier conversation omitted]"
+    assert windowed[-1]["content"] == "message 29"
+
+
+def test_whitespace_only_messages_are_refused_at_the_boundary():
+    """A blank message must 422 before it reaches the transcript or burns a model turn."""
+    from pydantic import ValidationError
+
+    from app.conduct.schemas import RunMessageRequest
+
+    assert RunMessageRequest(content="  real words  ").content == "real words"
+    with pytest.raises(ValidationError):
+        RunMessageRequest(content="   ")

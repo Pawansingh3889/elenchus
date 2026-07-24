@@ -1,8 +1,9 @@
 """Request and response schemas for conducting a run."""
 
+from typing import Annotated
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, StringConstraints
 
 from app.runs.enums import RunStatus
 from app.runs.schemas import AnswerRead, MessageRead
@@ -13,7 +14,9 @@ class StartRunRequest(BaseModel):
 
 
 class RunMessageRequest(BaseModel):
-    content: str = Field(min_length=1, max_length=4000)
+    # strip_whitespace makes "   " fail min_length: a blank message must 422 here, not
+    # reach the transcript and burn a model turn on nothing.
+    content: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4000)]
 
 
 class CurrentQuestion(BaseModel):

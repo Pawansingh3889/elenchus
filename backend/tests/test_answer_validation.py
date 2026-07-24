@@ -40,15 +40,29 @@ def test_rating_is_a_whole_number_one_to_five():
     rejects(q("rating"), 0)
     rejects(q("rating"), 6)
     rejects(q("rating"), 4.5)
-    rejects(q("rating"), "4")
     rejects(q("rating"), True)  # a bool is an int in Python; it is not a rating
 
 
 def test_number_takes_int_or_float_but_not_a_bool():
     assert validate_answer(q("number"), 12) == {"number": 12}
     assert validate_answer(q("number"), 1.5) == {"number": 1.5}
-    rejects(q("number"), "12")
     rejects(q("number"), True)
+
+
+def test_serialization_artifacts_coerce_but_words_do_not():
+    """Weak models stringify tool arguments ("4") and emit integral floats (4.0). Those
+    are lossless serialization slips, coerced deterministically; natural language stays
+    the model's job and is refused."""
+    assert validate_answer(q("rating"), "4") == {"rating": 4}
+    assert validate_answer(q("rating"), 4.0) == {"rating": 4}
+    assert validate_answer(q("number"), "12") == {"number": 12}
+    assert validate_answer(q("number"), "1.5") == {"number": 1.5}
+    assert validate_answer(q("yes_no"), "true") == {"yes_no": True}
+    assert validate_answer(q("yes_no"), "False") == {"yes_no": False}
+    rejects(q("rating"), "four")
+    rejects(q("rating"), "4.5")
+    rejects(q("number"), "a dozen")
+    rejects(q("yes_no"), "yep")
 
 
 @pytest.mark.parametrize("answer_type", ["short_text", "long_text"])
@@ -67,9 +81,27 @@ def test_date_must_be_a_real_iso_date():
     rejects(q("date"), 20260721)
 
 
+def test_date_requires_the_dashed_form_specifically():
+    """fromisoformat also accepts compact and week-date forms; storing those
+    un-normalised would split the same day across shapes in the results."""
+    rejects(q("date"), "20260721")
+    rejects(q("date"), "2026-W30-2")
+
+
 def test_single_select_takes_an_offered_option():
     question = q("single_select", options=["Days", "Nights"])
     assert validate_answer(question, "Nights") == {"option": "Nights"}
+
+
+def test_select_case_near_miss_lands_on_the_canonical_option():
+    """ "days" for option "Days" is the option, not a write-in: storing the canonical
+    text keeps the author's results aggregatable (a live-style miss put it in the
+    'other' bucket and fragmented the counts)."""
+    single = q("single_select", options=["Days", "Nights"], allow_other=True)
+    assert validate_answer(single, "days") == {"option": "Days"}
+    assert validate_answer(single, " NIGHTS ") == {"option": "Nights"}
+    multi = q("multi_select", options=["Handover", "Rotas"], allow_other=True)
+    assert validate_answer(multi, ["rotas", "handover"]) == {"options": ["Rotas", "Handover"]}
 
 
 def test_single_select_refuses_a_near_miss_when_other_is_not_allowed():

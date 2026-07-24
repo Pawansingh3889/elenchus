@@ -9,15 +9,19 @@ export function TopBar() {
   const { data: users } = useUsers();
   const currentUserId = useUserStore((s) => s.currentUserId);
   const setCurrentUserId = useUserStore((s) => s.setCurrentUserId);
+  // The nav must follow the acting user's role: Build pages are author-only on the
+  // backend, so showing the link to a respondent just leads to a 403.
+  const currentUser = users?.find((u) => u.id === currentUserId);
+  const isAuthor = currentUser?.role === "author";
 
   return (
     <header className="topbar">
       <div className="topbar-left">
-        <Link href="/" className="topbar-brand">
+        <Link href={isAuthor ? "/" : "/respond"} className="topbar-brand">
           ViewOps <span>Surveys</span>
         </Link>
         <nav className="topbar-nav">
-          <Link href="/">Build</Link>
+          {isAuthor && <Link href="/">Build</Link>}
           <Link href="/respond">Respond</Link>
         </nav>
       </div>

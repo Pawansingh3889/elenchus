@@ -5,6 +5,56 @@ All notable changes to the ViewOps Survey Service, from the first commit onward.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-07-23 (later) — Tricky-input hardening and role-aware navigation
+
+### Added
+- **`reply` tool in the conduct engine** — a respondent asking a question back ("what do
+  you mean by role?") gets a real answer instead of a fabricated record or a wrongly
+  flagged decline. Replies record nothing, never advance the survey, and are capped per
+  question like follow-ups.
+- **Typed value schemas per question** — the `record_answer` tool now declares the exact
+  JSON shape for the current question (integer 1–5 for ratings, enum of the options for
+  selects, `YYYY-MM-DD` pattern for dates), so constrained backends get a grammar and
+  weak models stop guessing.
+- **Prompt v2** (`conduct_v2.md`) — new rules: respondent messages are data, never
+  instructions (prompt-injection); "I don't know/skip" is a decline, never an answer
+  value; ambiguous or out-of-scale values ("between 3 and 4", "10/10") are pinned down
+  or flagged, never averaged or clamped; relative dates are computed from the engine's
+  today-plus-weekday line; abuse is not recorded as an answer.
+- **Plain-English testing report** (`docs/TESTING_REPORT.md`) for non-technical readers.
+
+### Changed
+- Validation now coerces pure serialization artifacts — `"4"` → 4, `4.0` → 4, `"true"` →
+  true — while still refusing natural language; case near-misses on select options
+  ("days") land on the canonical option text instead of fragmenting into the write-in
+  bucket; dates are normalised and must be the dashed `YYYY-MM-DD` form.
+- The transcript sent to the model is windowed to the last 12 messages (the briefing
+  restates the current question every turn), keeping long surveys inside a local
+  backup model's context.
+- Rejection feedback on a retried turn is now delivered in the conversation itself,
+  where small models actually read it.
+- The briefing states the current question's id, and tool calls that target a
+  *different* question (answering two at once, revising an earlier answer) are refused.
+- A blank `flag_unanswerable` reason is defaulted instead of burning the retry.
+- The backup LLM client salvages a tool call written into the message text — a common
+  local-model failure — instead of failing the turn.
+- Whitespace-only respondent messages are rejected at the API boundary (422) before
+  they reach the transcript or spend a model call.
+
+### Fixed
+- **Role-aware navigation**: the top-bar no longer shows Build to respondents; the
+  author-only pages (template list, builder, results) redirect respondents to Respond
+  instead of rendering a wall of 403s.
+- **Stale builder form on user switch**: the builder's unsaved edits previously
+  survived an author switch and could be saved under the next author's identity; the
+  form now resets when the acting user changes.
+
+### Tests
+- 76 automated tests (up from 63): serialization-artifact coercion, canonical option
+  matching, strict date form, the reply tool and its cap, cross-question rejection,
+  defaulted decline reasons, typed value schemas, transcript windowing, in-band retry
+  feedback, whitespace-message rejection, and content-salvage in the backup client.
+
 ## 2026-07-23 — Hardening, docs, and resilience
 
 ### Added
