@@ -112,3 +112,63 @@ async def test_a_run_from_another_template_is_not_found(session, author, respond
 async def test_missing_template_is_not_found(session, author, published):
     with pytest.raises(NotFoundError):
         await ResultsService(session).list_runs(uuid4(), author)
+
+
+async def test_export_flattens_every_answer_to_a_row(session, author, respondent, published):
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    await _answer_first(session, run, respondent)
+
+    title, rows = await ResultsService(session).export(published.id, author)
+
+    assert title == "Onboarding check-in"
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["respondent"] == "Test Respondent"
+    assert row["question"] == "What's your role?"
+    assert row["answer"] == "Line lead"
+    assert (row["kind"], row["version"], row["run_status"]) == ("scripted", 1, "in_progress")
+
+
+async def test_export_is_scoped_to_the_owning_author(
+    session, author, other_author, respondent, published
+):
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    await _answer_first(session, run, respondent)
+
+    with pytest.raises(NotFoundError):
+        await ResultsService(session).export(published.id, other_author)
+
+
+def test_csv_export_is_excel_ready():
+    """Header row, one line per answer, and a UTF-8 BOM so Excel decodes it right."""
+    from app.runs.service import EXPORT_COLUMNS, to_csv
+
+    rows = [
+        {
+            "run_id": "r1",
+            "respondent": "Rosa",
+            "run_status": "completed",
+            "version": 1,
+            "question": 'She said "hi", twice',
+            "kind": "scripted",
+            "answer": "Days; Nights",
+            "answered_at": "2026-07-24T12:00:00+00:00",
+        }
+    ]
+    out = to_csv(rows)
+    assert out.startswith("\ufeff")
+    assert out.splitlines()[0] == "\ufeff" + ",".join(EXPORT_COLUMNS)
+    assert '"She said ""hi"", twice"' in out  # embedded quotes survive per RFC 4180
+
+
+def test_every_answer_shape_flattens_to_a_readable_cell():
+    from app.runs.service import flatten_answer
+
+    assert flatten_answer({"text": "Line lead"}) == "Line lead"
+    assert flatten_answer({"rating": 4}) == "4"
+    assert flatten_answer({"yes_no": False}) == "no"
+    assert flatten_answer({"option": "Days"}) == "Days"
+    assert flatten_answer({"options": ["A", "B"], "other": ["C"]}) == "A; B; (other) C"
+    assert flatten_answer({"other": "Split shift"}) == "(other) Split shift"
+    assert flatten_answer({"unanswerable": "declined"}) == "(declined) declined"
+    assert flatten_answer({"mystery": 1}) == '{"mystery": 1}'  # future shapes never crash

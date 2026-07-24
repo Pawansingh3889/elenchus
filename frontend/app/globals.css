@@ -109,6 +109,11 @@ select {
   align-items: center;
   justify-content: space-between;
 }
+.page-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .page-head h1 {
   font-size: 19px;
   font-weight: 800;

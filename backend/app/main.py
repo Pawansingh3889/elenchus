@@ -21,6 +21,8 @@ app.add_middleware(
     allow_origins=[get_settings().frontend_origin],
     allow_methods=["*"],
     allow_headers=["*"],
+    # Without this the browser can read a download's body but not its filename.
+    expose_headers=["Content-Disposition"],
 )
 register_error_handlers(app)
 app.include_router(users_router)

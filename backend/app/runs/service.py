@@ -4,6 +4,10 @@ Deliberately separate from the conduct engine: conducting is respondent-owned an
 refuses anyone else, while results are author-facing and cross-respondent.
 """
 
+import csv
+import io
+import json
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,9 +17,20 @@ from app.runs.enums import AnswerKind
 from app.runs.models import SurveyRun
 from app.runs.repository import ResultsRepository
 from app.runs.schemas import AnswerRead, MessageRead, RunDetail, RunSummary
-from app.templates.models import SurveyTemplateVersion
+from app.templates.models import SurveyTemplate, SurveyTemplateVersion
 from app.templates.repository import TemplateRepository
 from app.users.models import User
+
+EXPORT_COLUMNS = [
+    "run_id",
+    "respondent",
+    "run_status",
+    "version",
+    "question",
+    "kind",
+    "answer",
+    "answered_at",
+]
 
 
 class ResultsService:
@@ -48,13 +63,68 @@ class ResultsService:
             answers=[AnswerRead.model_validate(a) for a in run.answers],
         )
 
-    async def _owned_or_404(self, template_id: UUID, author: User) -> None:
+    async def export(self, template_id: UUID, author: User) -> tuple[str, list[dict[str, Any]]]:
+        """Every answer across every run, flattened to one row each, for download."""
+        template = await self._owned_or_404(template_id, author)
+        rows: list[dict[str, Any]] = []
+        for run, version, user in await self.repo.list_for_template(template_id):
+            for answer in run.answers:
+                rows.append(
+                    {
+                        "run_id": str(run.id),
+                        "respondent": user.display_name,
+                        "run_status": run.status.value,
+                        "version": version.version,
+                        "question": answer.question_text,
+                        "kind": answer.kind.value,
+                        "answer": flatten_answer(answer.value),
+                        "answered_at": answer.answered_at.isoformat(),
+                    }
+                )
+        return template.title, rows
+
+    async def _owned_or_404(self, template_id: UUID, author: User) -> SurveyTemplate:
         """Responses carry respondent names and verbatim transcripts, so they are
         readable only by the author who created the survey. Someone else's template
         reads as absent rather than forbidden."""
         template = await self.templates.get(template_id)
         if template is None or template.created_by != author.id:
             raise NotFoundError("Template not found.")
+        return template
+
+
+def flatten_answer(value: dict[str, Any]) -> str:
+    """One human-readable cell per stored answer value, whatever its shape."""
+    if "text" in value:
+        return str(value["text"])
+    if "rating" in value:
+        return str(value["rating"])
+    if "number" in value:
+        return str(value["number"])
+    if "yes_no" in value:
+        return "yes" if value["yes_no"] else "no"
+    if "date" in value:
+        return str(value["date"])
+    if "option" in value:
+        return str(value["option"])
+    if "options" in value:  # before "other": a multi_select may carry both keys
+        parts = [str(v) for v in value["options"]]
+        parts += [f"(other) {v}" for v in value.get("other", [])]
+        return "; ".join(parts)
+    if "other" in value:
+        return f"(other) {value['other']}"
+    if "unanswerable" in value:
+        return f"(declined) {value['unanswerable']}"
+    return json.dumps(value)  # future shapes export verbatim rather than crash a download
+
+
+def to_csv(rows: list[dict[str, Any]]) -> str:
+    """RFC-4180 CSV with a UTF-8 BOM so Excel opens it with the right encoding."""
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=EXPORT_COLUMNS)
+    writer.writeheader()
+    writer.writerows(rows)
+    return "\ufeff" + buffer.getvalue()
 
 
 def _summary(run: SurveyRun, version: SurveyTemplateVersion, user: User) -> RunSummary:

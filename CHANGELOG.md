@@ -8,6 +8,12 @@ The project is not yet versioned, so entries are grouped by date. Newest first.
 ## 2026-07-24 — Tricky-input hardening, role-aware UI, and the editor cockpit
 
 ### Added
+- **Results export** — authors can download every answer for a survey from the
+  Responses page as **CSV** (one row per answer, UTF-8 BOM so it opens directly in
+  Excel) or **JSON**, via `GET /templates/{id}/runs/export?format=csv|json`. Answer
+  values are flattened to readable cells (multi-selects joined, declines marked),
+  the file is named after the survey, and the endpoint is scoped to the owning
+  author like the rest of results.
 - **`reply` tool in the conduct engine** (PR #7) — a respondent asking a question back ("what do
   you mean by role?") gets a real answer instead of a fabricated record or a wrongly
   flagged decline. Replies record nothing, never advance the survey, and are capped per
