@@ -68,6 +68,25 @@ class GenerationService:
         raise LLMError(f"Model returned an invalid template after one retry: {error}")
 
 
+def _tolerant_json(text: str) -> Any:
+    """Parse model-emitted JSON, absorbing the two classic small-model corruptions.
+
+    Strict first. Then ``strict=False``, which permits literal control characters
+    (a model writing a question across two lines puts a real newline inside the
+    string — invalid in strict JSON). Then repair ``\\'``: escaping an apostrophe is
+    a Python habit, never valid JSON, and replacing it with a bare apostrophe is
+    lossless. Returns None when nothing parses — the caller leaves the original
+    string for the validator to reject loudly.
+    """
+    for candidate in (text, text.replace("\\'", "'")):
+        for strict in (True, False):
+            try:
+                return json.loads(candidate, strict=strict)
+            except json.JSONDecodeError:
+                continue
+    return None
+
+
 def _decode_stringified_fields(raw: dict[str, Any]) -> dict[str, Any]:
     """Undo one JSON-encoding of the structured fields, a common small-model slip.
 
@@ -81,10 +100,7 @@ def _decode_stringified_fields(raw: dict[str, Any]) -> dict[str, Any]:
     def parsed(value: Any, expected: type) -> Any:
         if not isinstance(value, str):
             return value
-        try:
-            decoded = json.loads(value)
-        except json.JSONDecodeError:
-            return value
+        decoded = _tolerant_json(value)
         return decoded if isinstance(decoded, expected) else value
 
     def repaired_question(question: Any) -> Any:

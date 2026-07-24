@@ -122,6 +122,28 @@ async def test_stringified_questions_are_decoded_before_validation(session, auth
     assert template.questions[1].options == ["Days", "Nights"]
 
 
+async def test_almost_json_with_model_corruptions_is_still_decoded(session, author):
+    """Two classic small-model corruptions of an otherwise-correct encoding must not
+    defeat the repair: a literal newline inside a string value (invalid in strict
+    JSON) and the Python-style \\' escape (never valid JSON). A live run failed on a
+    stringified list that plain json.loads refused."""
+    with_newline = '[{"text": "How often do you\nreview dashboards?", "answer_type": "short_text"}]'
+    escaped_quote = (
+        '[{"text": "Does the platform\\\'s feature set meet your needs?",'
+        ' "answer_type": "yes_no"}]'
+    )
+
+    first = await GenerationService(
+        session, llm=FakeLLM({"title": "A", "questions": with_newline})
+    ).generate_draft("a", author)
+    assert first.questions[0].text == "How often do you\nreview dashboards?"
+
+    second = await GenerationService(
+        session, llm=FakeLLM({"title": "B", "questions": escaped_quote})
+    ).generate_draft("b", author)
+    assert second.questions[0].text == "Does the platform's feature set meet your needs?"
+
+
 async def test_a_string_that_is_not_json_still_fails_loudly(session, author):
     """The repair only undoes a clean JSON encoding; real junk keeps failing."""
     junk = {"title": "X", "questions": "just some prose, not a list"}
