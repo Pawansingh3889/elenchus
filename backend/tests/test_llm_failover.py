@@ -81,6 +81,39 @@ async def test_failover_propagates_backup_failure_loudly():
         await failover.tool_call(**_ARGS)
 
 
+async def test_failover_chains_through_to_the_second_backup():
+    """Anthropic -> Cerebras -> Groq: both earlier tiers fail, the third answers."""
+    primary = _StubLLM(fail=True)
+    backup1 = _StubLLM(fail=True)
+    backup2 = _StubLLM(payload={"from": "b2"}, turn=ToolTurn("ok", "move_on", {}))
+    failover = FailoverLLM(primary, backup1, backup2)
+
+    assert await failover.tool_call(**_ARGS) == {"from": "b2"}
+    assert await failover.tool_turn(**_TURN_ARGS) == ToolTurn("ok", "move_on", {})
+    assert primary.tool_call_calls == backup1.tool_call_calls == backup2.tool_call_calls == 1
+
+
+async def test_failover_stops_at_the_first_healthy_tier():
+    primary = _StubLLM(fail=True)
+    backup1 = _StubLLM(payload={"from": "b1"}, turn=ToolTurn("ok", "move_on", {}))
+    backup2 = _StubLLM(payload={"from": "b2"}, turn=ToolTurn("no", "move_on", {}))
+    failover = FailoverLLM(primary, backup1, backup2)
+
+    assert await failover.tool_call(**_ARGS) == {"from": "b1"}
+    assert backup2.tool_call_calls == 0  # the second backup is never reached
+
+
+async def test_failover_propagates_the_last_error_when_every_tier_fails():
+    failover = FailoverLLM(_StubLLM(fail=True), _StubLLM(fail=True), _StubLLM(fail=True))
+    with pytest.raises(LLMError):
+        await failover.tool_turn(**_TURN_ARGS)
+
+
+def test_failover_needs_at_least_one_client():
+    with pytest.raises(ValueError):
+        FailoverLLM()
+
+
 # ---------------------------------------------------------------- OpenAI-compatible client
 
 

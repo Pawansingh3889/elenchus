@@ -1,10 +1,13 @@
-"""Provider failover: try the primary LLM, fall back to the backup on a typed failure.
+"""Provider failover: try each LLM in an ordered chain until one answers.
 
-The primary (Anthropic) stays the default so quality-sensitive flows use the better model
-whenever it is available; the backup is reached only when the primary actually raises an
-``LLMError`` (transport down, rate limited, credit exhausted, malformed tool call). If the
-backup also fails, its ``LLMError`` propagates — the system still fails loudly, never
+The chain runs primary-first (Anthropic), then each configured backup in turn — e.g.
+Cerebras, then Groq. A tier is reached only when every tier before it raises an
+``LLMError`` (transport down, rate limited, credit exhausted, malformed tool call). If
+every tier fails, the last error propagates: the system still fails loudly, never
 silently degrading.
+
+``FailoverLLM`` itself satisfies ``LLMProtocol``, so callers can't tell a chain from a
+single client, and a two-client chain is exactly the old primary/backup pair.
 """
 
 import logging
@@ -16,11 +19,12 @@ logger = logging.getLogger("app.llm.failover")
 
 
 class FailoverLLM:
-    """Wrap two ``LLMProtocol`` clients as primary and backup."""
+    """Chain two or more ``LLMProtocol`` clients as primary then backups, tried in order."""
 
-    def __init__(self, primary: LLMProtocol, backup: LLMProtocol) -> None:
-        self._primary = primary
-        self._backup = backup
+    def __init__(self, *clients: LLMProtocol) -> None:
+        if not clients:
+            raise ValueError("FailoverLLM needs at least one client")
+        self._clients = clients
 
     async def tool_call(
         self,
@@ -32,25 +36,21 @@ class FailoverLLM:
         input_schema: dict[str, Any],
         max_tokens: int = 4096,
     ) -> dict[str, Any]:
-        try:
-            return await self._primary.tool_call(
-                system=system,
-                prompt=prompt,
-                tool_name=tool_name,
-                tool_description=tool_description,
-                input_schema=input_schema,
-                max_tokens=max_tokens,
-            )
-        except LLMError as exc:
-            logger.warning("primary LLM failed on tool_call, using backup: %s", exc)
-            return await self._backup.tool_call(
-                system=system,
-                prompt=prompt,
-                tool_name=tool_name,
-                tool_description=tool_description,
-                input_schema=input_schema,
-                max_tokens=max_tokens,
-            )
+        errors: list[LLMError] = []
+        for tier, client in enumerate(self._clients, start=1):
+            try:
+                return await client.tool_call(
+                    system=system,
+                    prompt=prompt,
+                    tool_name=tool_name,
+                    tool_description=tool_description,
+                    input_schema=input_schema,
+                    max_tokens=max_tokens,
+                )
+            except LLMError as exc:
+                self._note(tier, "tool_call", exc)
+                errors.append(exc)
+        raise errors[-1]
 
     async def tool_turn(
         self,
@@ -60,12 +60,20 @@ class FailoverLLM:
         tools: list[dict[str, Any]],
         max_tokens: int = 1024,
     ) -> ToolTurn:
-        try:
-            return await self._primary.tool_turn(
-                system=system, messages=messages, tools=tools, max_tokens=max_tokens
-            )
-        except LLMError as exc:
-            logger.warning("primary LLM failed on tool_turn, using backup: %s", exc)
-            return await self._backup.tool_turn(
-                system=system, messages=messages, tools=tools, max_tokens=max_tokens
-            )
+        errors: list[LLMError] = []
+        for tier, client in enumerate(self._clients, start=1):
+            try:
+                return await client.tool_turn(
+                    system=system, messages=messages, tools=tools, max_tokens=max_tokens
+                )
+            except LLMError as exc:
+                self._note(tier, "tool_turn", exc)
+                errors.append(exc)
+        raise errors[-1]
+
+    def _note(self, tier: int, op: str, exc: LLMError) -> None:
+        count = len(self._clients)
+        if tier < count:
+            logger.warning("LLM tier %d/%d failed on %s, trying next: %s", tier, count, op, exc)
+        else:
+            logger.warning("LLM tier %d/%d (last) failed on %s: %s", tier, count, op, exc)

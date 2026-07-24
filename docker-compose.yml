@@ -23,12 +23,19 @@ services:
       DATABASE_URL: postgresql+asyncpg://viewops:viewops@postgres:5432/viewops
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-5}
-      # Optional OpenAI-compatible backup LLM (see .env.example). Without these the
-      # container never sees the backup settings and failover silently can't engage.
+      # Optional OpenAI-compatible backup LLMs forming a failover chain after Anthropic
+      # (see .env.example). Without these the container never sees the backup settings and
+      # failover silently can't engage.
       LLM_BACKUP_ENABLED: ${LLM_BACKUP_ENABLED:-false}
       LLM_BACKUP_BASE_URL: ${LLM_BACKUP_BASE_URL:-}
       LLM_BACKUP_API_KEY: ${LLM_BACKUP_API_KEY:-}
       LLM_BACKUP_MODEL: ${LLM_BACKUP_MODEL:-}
+      LLM_BACKUP_TIMEOUT_SECONDS: ${LLM_BACKUP_TIMEOUT_SECONDS:-120}
+      LLM_BACKUP2_ENABLED: ${LLM_BACKUP2_ENABLED:-false}
+      LLM_BACKUP2_BASE_URL: ${LLM_BACKUP2_BASE_URL:-}
+      LLM_BACKUP2_API_KEY: ${LLM_BACKUP2_API_KEY:-}
+      LLM_BACKUP2_MODEL: ${LLM_BACKUP2_MODEL:-}
+      LLM_BACKUP2_TIMEOUT_SECONDS: ${LLM_BACKUP2_TIMEOUT_SECONDS:-120}
     depends_on:
       postgres:
         condition: service_healthy
