@@ -1,26 +1,37 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { AnswerAffordances } from "@/components/AnswerAffordances";
-import { useRun, useSendRunMessage } from "@/lib/queries";
+import { useCurrentUser, useRun, useSendRunMessage } from "@/lib/queries";
 import { useUserStore } from "@/lib/store";
 
 export default function RunPage() {
   const { id } = useParams<{ id: string }>();
   const currentUserId = useUserStore((s) => s.currentUserId);
+  const currentUser = useCurrentUser();
   const { data: run, isLoading, error } = useRun(id);
   const send = useSendRunMessage(id);
   const [draft, setDraft] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [run?.messages.length, send.isPending]);
 
+  // Conducting is respondent-only; an author following a run link is sent to Build.
+  const isAuthor = currentUser?.role === "author";
+  useEffect(() => {
+    if (isAuthor) router.replace("/");
+  }, [isAuthor, router]);
+
   if (!currentUserId) {
     return <div className="empty">Pick a user in the top bar to continue this survey.</div>;
+  }
+  if (isAuthor) {
+    return <div className="empty">Taking you to Build…</div>;
   }
   if (isLoading) return <div className="muted">Loading…</div>;
   if (error) return <div className="error-text">{(error as Error).message}</div>;

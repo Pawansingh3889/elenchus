@@ -1,18 +1,30 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
-import { usePublishedSurveys, useStartRun } from "@/lib/queries";
+import { useCurrentUser, usePublishedSurveys, useStartRun } from "@/lib/queries";
 import { useUserStore } from "@/lib/store";
 
 export default function RespondPage() {
   const currentUserId = useUserStore((s) => s.currentUserId);
+  const currentUser = useCurrentUser();
   const { data: surveys, isLoading, error } = usePublishedSurveys();
   const start = useStartRun();
   const router = useRouter();
 
+  // Taking a survey is respondent-only (the backend refuses authors); send authors
+  // back to Build rather than let them start a run under their own name.
+  const isAuthor = currentUser?.role === "author";
+  useEffect(() => {
+    if (isAuthor) router.replace("/");
+  }, [isAuthor, router]);
+
   if (!currentUserId) {
     return <div className="empty">Pick a user in the top bar to take a survey.</div>;
+  }
+  if (isAuthor) {
+    return <div className="empty">Taking you to Build…</div>;
   }
 
   return (

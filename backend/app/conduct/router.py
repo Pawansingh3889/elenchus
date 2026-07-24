@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import HTTP_201_CREATED
 
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import require_respondent
 from app.conduct.engine import ConductEngine
 from app.conduct.schemas import (
     CurrentQuestion,
@@ -52,7 +52,7 @@ async def _to_read(engine: ConductEngine, run: SurveyRun) -> RunRead:
 @router.post("", response_model=RunRead, status_code=HTTP_201_CREATED)
 async def start_run(
     data: StartRunRequest,
-    respondent: User = Depends(get_current_user),
+    respondent: User = Depends(require_respondent),
     session: AsyncSession = Depends(get_session),
 ) -> RunRead:
     engine = ConductEngine(session)
@@ -63,7 +63,7 @@ async def start_run(
 @router.get("/{run_id}", response_model=RunRead)
 async def get_run(
     run_id: UUID,
-    respondent: User = Depends(get_current_user),
+    respondent: User = Depends(require_respondent),
     session: AsyncSession = Depends(get_session),
 ) -> RunRead:
     engine = ConductEngine(session)
@@ -75,7 +75,7 @@ async def get_run(
 async def post_message(
     run_id: UUID,
     data: RunMessageRequest,
-    respondent: User = Depends(get_current_user),
+    respondent: User = Depends(require_respondent),
     session: AsyncSession = Depends(get_session),
 ) -> RunRead:
     engine = ConductEngine(session)

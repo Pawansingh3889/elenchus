@@ -1,0 +1,338 @@
+[
+  {
+    "key": "batch-code-temperature",
+    "template_id": "460791a5-ca31-485c-991c-0e64762d2222",
+    "title": "Batch Code and Temperature Management Survey",
+    "description": "Understanding team lead's practices for managing batch codes and temperature",
+    "created_by": "arjun",
+    "version": {
+      "version_id": "fde71819-cc8f-4d5c-812a-8275cebc9068",
+      "number": 1,
+      "published_by": "arjun",
+      "definition": {
+        "title": "Batch Code and Temperature Management Survey",
+        "questions": [
+          {
+            "id": "9d54156a-79c0-496c-b076-0fc7af748e27",
+            "text": "What is your primary responsibility in managing batch codes?",
+            "options": [
+              "Production",
+              "Quality Control",
+              "Inventory Management",
+              "Research and Development"
+            ],
+            "position": 0,
+            "required": true,
+            "allow_other": true,
+            "answer_type": "multi_select",
+            "allow_follow_ups": true
+          },
+          {
+            "id": "9e2a1c3b-2b7b-4d5a-83b3-9d456fd9587d",
+            "text": "How often do you review and update batch code records?",
+            "options": [
+              "Daily",
+              "Weekly",
+              "Monthly",
+              "Quarterly"
+            ],
+            "position": 1,
+            "required": true,
+            "allow_other": true,
+            "answer_type": "single_select",
+            "allow_follow_ups": false
+          },
+          {
+            "id": "17dc5808-147e-4bca-94bd-3c37c4aa8e0c",
+            "text": "What is the typical temperature range for storing batches in your facility?",
+            "options": [],
+            "position": 2,
+            "required": true,
+            "allow_other": false,
+            "answer_type": "number",
+            "allow_follow_ups": false
+          },
+          {
+            "id": "ae878942-8de7-48b4-b939-3773b10beaba",
+            "text": "Have you experienced any temperature control issues in the past quarter?",
+            "options": [],
+            "position": 3,
+            "required": true,
+            "allow_other": false,
+            "answer_type": "yes_no",
+            "allow_follow_ups": true
+          },
+          {
+            "id": "66991507-8f46-4bac-a2e9-f911295beb3a",
+            "text": "Can you describe any challenges you face in managing batch codes and temperature?",
+            "options": [],
+            "position": 4,
+            "required": false,
+            "allow_other": false,
+            "answer_type": "long_text",
+            "allow_follow_ups": true
+          }
+        ],
+        "description": "Understanding team lead's practices for managing batch codes and temperature"
+      }
+    }
+  },
+  {
+    "key": "factory-floor-compliance",
+    "template_id": "00e74feb-69c7-4f85-8419-313bd1b96787",
+    "title": "Factory Floor Compliance Survey for Supervisors",
+    "description": "Understanding Compliance on the Factory Floor",
+    "created_by": "arjun",
+    "version": {
+      "version_id": "df422622-99b5-473a-a12e-7e669a529c9c",
+      "number": 2,
+      "published_by": "arjun",
+      "definition": {
+        "title": "Factory Floor Compliance Survey for Supervisors",
+        "questions": [
+          {
+            "id": "8a84f827-dc07-4f9c-bf6e-77173f36ee82",
+            "text": "What is your level of familiarity with current factory floor compliance regulations?",
+            "options": [
+              "Very Familiar",
+              "Somewhat Familiar",
+              "Not Very Familiar",
+              "Not at All Familiar"
+            ],
+            "position": 0,
+            "required": true,
+            "allow_other": true,
+            "answer_type": "single_select",
+            "allow_follow_ups": true
+          },
+          {
+            "id": "eacaac9b-1cd5-461e-828b-73a88157e6ac",
+            "text": "How often do you conduct compliance checks on the factory floor?",
+            "options": [
+              "Daily",
+              "Weekly",
+              "Monthly",
+              "Rarely"
+            ],
+            "position": 1,
+            "required": true,
+            "allow_other": true,
+            "answer_type": "single_select",
+            "allow_follow_ups": false
+          },
+          {
+            "id": "7433f199-b544-40fe-93be-53e3299981ba",
+            "text": "What are the most common compliance issues you encounter on the factory floor?",
+            "options": [
+              "Safety Hazards",
+              "Environmental Violations",
+              "Quality Control Issues",
+              "Employee Misconduct"
+            ],
+            "position": 2,
+            "required": true,
+            "allow_other": true,
+            "answer_type": "multi_select",
+            "allow_follow_ups": true
+          },
+          {
+            "id": "99c36694-134a-4e0b-90f3-8c6f62d73a05",
+            "text": "How effective do you think our current compliance training programs are?",
+            "options": [],
+            "position": 3,
+            "required": true,
+            "allow_other": false,
+            "answer_type": "rating",
+            "allow_follow_ups": false
+          },
+          {
+            "id": "57972934-a599-462c-ac0b-7fabc9e98ab8",
+            "text": "Have you ever reported a compliance issue to management?",
+            "options": [],
+            "position": 4,
+            "required": true,
+            "allow_other": false,
+            "answer_type": "yes_no",
+            "allow_follow_ups": true
+          },
+          {
+            "id": "1930e170-69e7-454d-9da0-7bd55f99292c",
+            "text": "Please describe any challenges you face in ensuring compliance on the factory floor.",
+            "options": [],
+            "position": 5,
+            "required": false,
+            "allow_other": false,
+            "answer_type": "long_text",
+            "allow_follow_ups": true
+          }
+        ],
+        "description": "Understanding Compliance on the Factory Floor"
+      }
+    }
+  },
+  {
+    "key": "new-hire-onboarding",
+    "template_id": "323b17e2-aa57-416a-b87d-81da879f46ca",
+    "title": "New Hire Onboarding Survey",
+    "description": "Your feedback will help us improve our onboarding process",
+    "created_by": "arjun",
+    "version": {
+      "version_id": "1f324ad5-7d06-4bf0-8d9c-47d2863d7fb5",
+      "number": 1,
+      "published_by": "arjun",
+      "definition": {
+        "title": "New Hire Onboarding Survey",
+        "questions": [
+          {
+            "id": "d7221828-651d-484e-a288-f32bed3699b8",
+            "text": "How would you rate your overall onboarding experience?",
+            "options": [],
+            "position": 0,
+            "required": true,
+            "allow_other": false,
+            "answer_type": "rating",
+            "allow_follow_ups": false
+          },
+          {
+            "id": "f8042d0b-c741-4a72-8e5a-c56aaf7f305a",
+            "text": "What did you find most helpful during the onboarding process?",
+            "options": [],
+            "position": 1,
+            "required": true,
+            "allow_other": false,
+            "answer_type": "short_text",
+            "allow_follow_ups": true
+          },
+          {
+            "id": "e98fece5-6e5f-4ab4-855c-68b1a72dcde2",
+            "text": "How would you rate the quality of the training provided?",
+            "options": [],
+            "position": 2,
+            "required": true,
+            "allow_other": false,
+            "answer_type": "rating",
+            "allow_follow_ups": false
+          },
+          {
+            "id": "d9d0b7e9-30cb-425c-8d50-4c35aacad7ca",
+            "text": "What are your expectations for your role and responsibilities?",
+            "options": [],
+            "position": 3,
+            "required": true,
+            "allow_other": false,
+            "answer_type": "long_text",
+            "allow_follow_ups": true
+          },
+          {
+            "id": "b01cc85b-e5c1-42d0-ac1f-6e03441eec67",
+            "text": "How likely are you to recommend our company to friends and family?",
+            "options": [],
+            "position": 4,
+            "required": true,
+            "allow_other": false,
+            "answer_type": "rating",
+            "allow_follow_ups": false
+          },
+          {
+            "id": "43451f9e-c9ef-46d8-a898-f4f668fabc42",
+            "text": "Do you have any suggestions for improving the onboarding process?",
+            "options": [],
+            "position": 5,
+            "required": false,
+            "allow_other": false,
+            "answer_type": "short_text",
+            "allow_follow_ups": true
+          }
+        ],
+        "description": "Your feedback will help us improve our onboarding process"
+      }
+    }
+  },
+  {
+    "key": "team-lead",
+    "template_id": "2bbabbb6-55b6-4a35-b2b9-2dddda78b46c",
+    "title": "Team Lead Survey",
+    "description": "Help us understand your team's dynamics and challenges. ",
+    "created_by": "arjun",
+    "version": {
+      "version_id": "72626247-563d-4f8a-8c70-ba0dea8173f3",
+      "number": 1,
+      "published_by": "arjun",
+      "definition": {
+        "title": "Team Lead Survey",
+        "questions": [
+          {
+            "id": "e13cb8c8-e97b-430e-9809-a18f2a6176fe",
+            "text": "What is your role within the team?",
+            "options": [
+              "Team Lead",
+              "Team Member",
+              "Manager"
+            ],
+            "position": 0,
+            "required": true,
+            "allow_other": false,
+            "answer_type": "single_select",
+            "allow_follow_ups": true
+          },
+          {
+            "id": "e6aef630-db8e-4439-8346-fe5e9bcfb427",
+            "text": "How would you rate your team's communication?",
+            "options": [],
+            "position": 1,
+            "required": true,
+            "allow_other": false,
+            "answer_type": "rating",
+            "allow_follow_ups": true
+          },
+          {
+            "id": "9a68e246-49ff-471d-9831-65e849a28f8e",
+            "text": "What are the biggest challenges your team is facing?",
+            "options": [],
+            "position": 2,
+            "required": false,
+            "allow_other": true,
+            "answer_type": "long_text",
+            "allow_follow_ups": true
+          },
+          {
+            "id": "4fea9ef2-3ad0-4a05-941d-fec98a5cdfba",
+            "text": "How many team members do you have?",
+            "options": [],
+            "position": 3,
+            "required": true,
+            "allow_other": false,
+            "answer_type": "number",
+            "allow_follow_ups": false
+          },
+          {
+            "id": "30cc6b1b-ea58-4b89-b8bd-f88581aafcf1",
+            "text": "What are your team's goals for the next quarter?",
+            "options": [],
+            "position": 4,
+            "required": true,
+            "allow_other": true,
+            "answer_type": "long_text",
+            "allow_follow_ups": true
+          },
+          {
+            "id": "2a51206a-dc5e-44f9-9adb-4b91cee3e933",
+            "text": "How often do you hold team meetings?",
+            "options": [
+              "Daily",
+              "Weekly",
+              "Bi-Weekly",
+              "Monthly"
+            ],
+            "position": 5,
+            "required": true,
+            "allow_other": false,
+            "answer_type": "single_select",
+            "allow_follow_ups": true
+          }
+        ],
+        "description": "Help us understand your team's dynamics and challenges. "
+      }
+    }
+  }
+]

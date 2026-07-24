@@ -7,8 +7,9 @@ provider supplies the caller.
 
 import pytest
 
+from app.auth.dependencies import require_author, require_respondent
 from app.conduct.engine import ConductEngine
-from app.errors import NotFoundError
+from app.errors import ForbiddenError, NotFoundError
 from app.runs.service import ResultsService
 from app.templates.enums import AnswerType, TemplateStatus
 from app.templates.schemas import QuestionInput, TemplateCreate, TemplateUpdate
@@ -68,8 +69,23 @@ async def test_an_author_cannot_read_another_authors_responses(
         await results.get_run(published.id, run.id, other_author)
 
 
+async def test_only_respondents_can_take_surveys(author, respondent):
+    """Taking a survey is respondent-only; an author is refused before a run is created."""
+    assert await require_respondent(user=respondent) is respondent
+    with pytest.raises(ForbiddenError):
+        await require_respondent(user=author)
+
+
+async def test_only_authors_can_build(author, respondent):
+    """The mirror gate: building surveys stays closed to respondents."""
+    assert await require_author(user=author) is author
+    with pytest.raises(ForbiddenError):
+        await require_author(user=respondent)
+
+
 async def test_published_surveys_stay_visible_to_everyone(session, author, other_author):
-    """Answering is open to any signed-in user; only authoring and results are scoped."""
+    """Published surveys aren't scoped per author; only starting a run is role-gated
+    (respondent-only), and authoring/results stay author-scoped."""
     svc = TemplateService(session)
     mine = await svc.create_draft(TemplateCreate(title="Open", questions=[_q("a")]), author)
     await svc.publish(mine.id, author)

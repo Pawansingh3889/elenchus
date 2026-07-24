@@ -33,3 +33,9 @@ async def require_author(user: User = Depends(get_current_user)) -> User:
     if user.role is not UserRole.author:
         raise ForbiddenError("This action requires an author account.")
     return user
+
+
+async def require_respondent(user: User = Depends(get_current_user)) -> User:
+    if user.role is not UserRole.respondent:
+        raise ForbiddenError("Only respondents can take surveys.")
+    return user

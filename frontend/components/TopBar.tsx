@@ -21,8 +21,8 @@ export function TopBar() {
           ViewOps <span>Surveys</span>
         </Link>
         <nav className="topbar-nav">
-          {isAuthor && <Link href="/">Build</Link>}
-          <Link href="/respond">Respond</Link>
+          {/* Roles don't cross: authors build, respondents answer. */}
+          {isAuthor ? <Link href="/">Build</Link> : <Link href="/respond">Respond</Link>}
         </nav>
       </div>
       <div className="topbar-user">

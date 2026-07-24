@@ -1,0 +1,479 @@
+[
+  {
+    "run_id": "040aa432-c8e8-4477-b167-ac2d173d0fa3",
+    "survey_key": "new-hire-onboarding",
+    "respondent": "remy",
+    "status": "completed",
+    "current_question_index": 6,
+    "probes_asked": {},
+    "completed": true,
+    "messages": [
+      {
+        "role": "assistant",
+        "content": "Thanks for taking New Hire Onboarding Survey. How would you rate your overall onboarding experience?"
+      },
+      {
+        "role": "user",
+        "content": "4"
+      },
+      {
+        "role": "assistant",
+        "content": "What did you find most helpful during the onboarding process?"
+      },
+      {
+        "role": "user",
+        "content": "induction"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you rate the quality of the training provided?"
+      },
+      {
+        "role": "user",
+        "content": "4"
+      },
+      {
+        "role": "assistant",
+        "content": "What are your expectations for your role and responsibilities?"
+      },
+      {
+        "role": "user",
+        "content": "training finish in 1 week"
+      },
+      {
+        "role": "assistant",
+        "content": "How likely are you to recommend our company to friends and family?"
+      },
+      {
+        "role": "user",
+        "content": "4"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any suggestions for improving the onboarding process?"
+      },
+      {
+        "role": "user",
+        "content": "no"
+      },
+      {
+        "role": "assistant",
+        "content": "That's everything — thank you, your answers are saved."
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "d7221828-651d-484e-a288-f32bed3699b8",
+        "kind": "scripted",
+        "question_text": "How would you rate your overall onboarding experience?",
+        "value": {
+          "rating": 4
+        }
+      },
+      {
+        "question_id": "f8042d0b-c741-4a72-8e5a-c56aaf7f305a",
+        "kind": "scripted",
+        "question_text": "What did you find most helpful during the onboarding process?",
+        "value": {
+          "text": "induction"
+        }
+      },
+      {
+        "question_id": "e98fece5-6e5f-4ab4-855c-68b1a72dcde2",
+        "kind": "scripted",
+        "question_text": "How would you rate the quality of the training provided?",
+        "value": {
+          "rating": 4
+        }
+      },
+      {
+        "question_id": "d9d0b7e9-30cb-425c-8d50-4c35aacad7ca",
+        "kind": "scripted",
+        "question_text": "What are your expectations for your role and responsibilities?",
+        "value": {
+          "text": "training finish in 1 week"
+        }
+      },
+      {
+        "question_id": "b01cc85b-e5c1-42d0-ac1f-6e03441eec67",
+        "kind": "scripted",
+        "question_text": "How likely are you to recommend our company to friends and family?",
+        "value": {
+          "rating": 4
+        }
+      },
+      {
+        "question_id": "43451f9e-c9ef-46d8-a898-f4f668fabc42",
+        "kind": "scripted",
+        "question_text": "Do you have any suggestions for improving the onboarding process?",
+        "value": {
+          "unanswerable": "no"
+        }
+      }
+    ]
+  },
+  {
+    "run_id": "4b76c9a1-c192-43b2-a4e6-317adb355b25",
+    "survey_key": "team-lead",
+    "respondent": "rosa",
+    "status": "completed",
+    "current_question_index": 6,
+    "probes_asked": {},
+    "completed": true,
+    "messages": [
+      {
+        "role": "assistant",
+        "content": "Thanks for taking Team Lead Survey. What is your role within the team?"
+      },
+      {
+        "role": "user",
+        "content": "Team Lead"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you rate your team's communication?"
+      },
+      {
+        "role": "user",
+        "content": "4"
+      },
+      {
+        "role": "assistant",
+        "content": "What are the biggest challenges your team is facing?"
+      },
+      {
+        "role": "user",
+        "content": "adapting with si integrator"
+      },
+      {
+        "role": "assistant",
+        "content": "How many team members do you have?"
+      },
+      {
+        "role": "user",
+        "content": "1"
+      },
+      {
+        "role": "assistant",
+        "content": "What are your team's goals for the next quarter?"
+      },
+      {
+        "role": "user",
+        "content": "reduce yield to 2%"
+      },
+      {
+        "role": "assistant",
+        "content": "How often do you hold team meetings?"
+      },
+      {
+        "role": "user",
+        "content": "Daily"
+      },
+      {
+        "role": "assistant",
+        "content": "That's everything — thank you, your answers are saved."
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "e13cb8c8-e97b-430e-9809-a18f2a6176fe",
+        "kind": "scripted",
+        "question_text": "What is your role within the team?",
+        "value": {
+          "option": "Team Lead"
+        }
+      },
+      {
+        "question_id": "e6aef630-db8e-4439-8346-fe5e9bcfb427",
+        "kind": "scripted",
+        "question_text": "How would you rate your team's communication?",
+        "value": {
+          "rating": 4
+        }
+      },
+      {
+        "question_id": "9a68e246-49ff-471d-9831-65e849a28f8e",
+        "kind": "scripted",
+        "question_text": "What are the biggest challenges your team is facing?",
+        "value": {
+          "text": "adapting with SI integrator"
+        }
+      },
+      {
+        "question_id": "4fea9ef2-3ad0-4a05-941d-fec98a5cdfba",
+        "kind": "scripted",
+        "question_text": "How many team members do you have?",
+        "value": {
+          "number": 1
+        }
+      },
+      {
+        "question_id": "30cc6b1b-ea58-4b89-b8bd-f88581aafcf1",
+        "kind": "scripted",
+        "question_text": "What are your team's goals for the next quarter?",
+        "value": {
+          "text": "reduce yield to 2%"
+        }
+      },
+      {
+        "question_id": "2a51206a-dc5e-44f9-9adb-4b91cee3e933",
+        "kind": "scripted",
+        "question_text": "How often do you hold team meetings?",
+        "value": {
+          "option": "Daily"
+        }
+      }
+    ]
+  },
+  {
+    "run_id": "9f214941-ac1a-4bba-8a7b-a74dbc121612",
+    "survey_key": "factory-floor-compliance",
+    "respondent": "ravi",
+    "status": "in_progress",
+    "current_question_index": 5,
+    "probes_asked": {
+      "1930e170-69e7-454d-9da0-7bd55f99292c": 1,
+      "57972934-a599-462c-ac0b-7fabc9e98ab8": 2,
+      "reply:99c36694-134a-4e0b-90f3-8c6f62d73a05": 1
+    },
+    "completed": false,
+    "messages": [
+      {
+        "role": "assistant",
+        "content": "Thanks for taking Factory Floor Compliance Survey for Supervisors. What is your level of familiarity with current factory floor compliance regulations?"
+      },
+      {
+        "role": "user",
+        "content": "Somewhat Familiar"
+      },
+      {
+        "role": "assistant",
+        "content": "How often do you conduct compliance checks on the factory floor?"
+      },
+      {
+        "role": "user",
+        "content": "Daily"
+      },
+      {
+        "role": "assistant",
+        "content": "What are the most common compliance issues you encounter on the factory floor?"
+      },
+      {
+        "role": "user",
+        "content": "Quality Control Issues"
+      },
+      {
+        "role": "assistant",
+        "content": "How effective do you think our current compliance training programs are?"
+      },
+      {
+        "role": "user",
+        "content": "needs to improve"
+      },
+      {
+        "role": "assistant",
+        "content": "Thanks for sharing that! To capture it properly, could you give me a rating on a scale of 1 to 5, where 1 means \"not effective at all\" and 5 means \"very effective\"?"
+      },
+      {
+        "role": "user",
+        "content": "4"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you ever reported a compliance issue to management?"
+      },
+      {
+        "role": "user",
+        "content": "couple of time"
+      },
+      {
+        "role": "assistant",
+        "content": "Just to confirm - that means yes, you have reported a compliance issue to management before, correct?"
+      },
+      {
+        "role": "user",
+        "content": "Yes"
+      },
+      {
+        "role": "assistant",
+        "content": "Great, thanks for confirming! Now, could you describe any challenges you face in ensuring compliance on the factory floor?"
+      },
+      {
+        "role": "user",
+        "content": "sometimes product does not follow the spec"
+      },
+      {
+        "role": "assistant",
+        "content": "Please describe any challenges you face in ensuring compliance on the factory floor."
+      },
+      {
+        "role": "user",
+        "content": "temperature not accurate"
+      },
+      {
+        "role": "assistant",
+        "content": "Got it - inaccurate temperature and products not following spec. Are there any other challenges you'd like to mention, or is that the main issue?"
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "8a84f827-dc07-4f9c-bf6e-77173f36ee82",
+        "kind": "scripted",
+        "question_text": "What is your level of familiarity with current factory floor compliance regulations?",
+        "value": {
+          "option": "Somewhat Familiar"
+        }
+      },
+      {
+        "question_id": "eacaac9b-1cd5-461e-828b-73a88157e6ac",
+        "kind": "scripted",
+        "question_text": "How often do you conduct compliance checks on the factory floor?",
+        "value": {
+          "option": "Daily"
+        }
+      },
+      {
+        "question_id": "7433f199-b544-40fe-93be-53e3299981ba",
+        "kind": "scripted",
+        "question_text": "What are the most common compliance issues you encounter on the factory floor?",
+        "value": {
+          "options": [
+            "Quality Control Issues"
+          ]
+        }
+      },
+      {
+        "question_id": "99c36694-134a-4e0b-90f3-8c6f62d73a05",
+        "kind": "scripted",
+        "question_text": "How effective do you think our current compliance training programs are?",
+        "value": {
+          "rating": 4
+        }
+      },
+      {
+        "question_id": "57972934-a599-462c-ac0b-7fabc9e98ab8",
+        "kind": "scripted",
+        "question_text": "Have you ever reported a compliance issue to management?",
+        "value": {
+          "yes_no": true
+        }
+      },
+      {
+        "question_id": "57972934-a599-462c-ac0b-7fabc9e98ab8",
+        "kind": "follow_up",
+        "question_text": "Great, thanks for confirming! Now, could you describe any challenges you face in ensuring compliance on the factory floor?",
+        "value": {
+          "yes_no": true
+        }
+      }
+    ]
+  },
+  {
+    "run_id": "be7a5d58-bda0-401e-912f-94e9d4ae5c52",
+    "survey_key": "batch-code-temperature",
+    "respondent": "ravi",
+    "status": "completed",
+    "current_question_index": 5,
+    "probes_asked": {},
+    "completed": true,
+    "messages": [
+      {
+        "role": "assistant",
+        "content": "Thanks for taking Batch Code and Temperature Management Survey. What is your primary responsibility in managing batch codes?"
+      },
+      {
+        "role": "user",
+        "content": "Production, Quality Control"
+      },
+      {
+        "role": "assistant",
+        "content": "How often do you review and update batch code records?"
+      },
+      {
+        "role": "user",
+        "content": "Daily"
+      },
+      {
+        "role": "assistant",
+        "content": "What is the typical temperature range for storing batches in your facility?"
+      },
+      {
+        "role": "user",
+        "content": "4"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you experienced any temperature control issues in the past quarter?"
+      },
+      {
+        "role": "user",
+        "content": "Yes"
+      },
+      {
+        "role": "assistant",
+        "content": "Can you describe any challenges you face in managing batch codes and temperature?"
+      },
+      {
+        "role": "user",
+        "content": "not as per spec when product arrives"
+      },
+      {
+        "role": "assistant",
+        "content": "That's everything — thank you, your answers are saved."
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "9d54156a-79c0-496c-b076-0fc7af748e27",
+        "kind": "scripted",
+        "question_text": "What is your primary responsibility in managing batch codes?",
+        "value": {
+          "options": [
+            "Production",
+            "Quality Control"
+          ]
+        }
+      },
+      {
+        "question_id": "9e2a1c3b-2b7b-4d5a-83b3-9d456fd9587d",
+        "kind": "scripted",
+        "question_text": "How often do you review and update batch code records?",
+        "value": {
+          "option": "Daily"
+        }
+      },
+      {
+        "question_id": "17dc5808-147e-4bca-94bd-3c37c4aa8e0c",
+        "kind": "scripted",
+        "question_text": "What is the typical temperature range for storing batches in your facility?",
+        "value": {
+          "number": 4
+        }
+      },
+      {
+        "question_id": "ae878942-8de7-48b4-b939-3773b10beaba",
+        "kind": "scripted",
+        "question_text": "Have you experienced any temperature control issues in the past quarter?",
+        "value": {
+          "yes_no": true
+        }
+      },
+      {
+        "question_id": "66991507-8f46-4bac-a2e9-f911295beb3a",
+        "kind": "scripted",
+        "question_text": "Can you describe any challenges you face in managing batch codes and temperature?",
+        "value": {
+          "text": "not as per spec when product arrives"
+        }
+      },
+      {
+        "question_id": "66991507-8f46-4bac-a2e9-f911295beb3a",
+        "kind": "follow_up",
+        "question_text": "Can you describe any challenges you face in managing batch codes and temperature?",
+        "value": {
+          "unanswerable": "not as per spec when product arrives"
+        }
+      }
+    ]
+  }
+]
