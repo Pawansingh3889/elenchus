@@ -19,9 +19,41 @@ in the repository. The Source Control panel is the other tell: it should show a 
 repository on `main`, not "no source control providers".
 
 On first open, VS Code offers the extensions in `.vscode/extensions.json`. Accept them:
-Python, Pylance, Ruff, mypy, ESLint and Docker. The workspace settings wire Ruff to
-`backend/pyproject.toml` and point ESLint at `frontend/`, so formatting and linting
-match what CI runs.
+Claude Code, Python, Pylance, Ruff, mypy, ESLint and Docker. The workspace settings
+wire Ruff to `backend/pyproject.toml` and point ESLint at `frontend/`, so formatting
+and linting match what CI runs.
+
+## 1b. The three-pane cockpit
+
+VS Code can be the whole workbench: assistant, code, and the live app side by side.
+
+```
+┌────────────┬───────────────┬─────────────────────┐
+│ Claude     │  Your code    │  Simple Browser      │
+│ Code       │  (editor)     │  localhost:3000      │
+├────────────┴───────────────┴─────────────────────┤
+│ Terminal: stack up + follow backend logs          │
+└────────────────────────────────────────────────────┘
+```
+
+Set it up once; VS Code remembers the layout per workspace:
+
+1. **Left — Claude Code.** Install the recommended `anthropic.claude-code` extension
+   and click its icon in the Activity Bar (or run `claude` in a terminal and drag the
+   terminal tab into the left editor group). Sign in once.
+2. **Middle — your code.** The normal editor. Split further with `Ctrl+\` if needed.
+3. **Right — the live app.** Command Palette (`Ctrl+Shift+P`) → **Simple Browser:
+   Show** → `http://localhost:3000`, then drag that tab to the right edge until the
+   drop zone splits the editor. The app hot-reloads in place as containers rebuild.
+   (The Ports panel next to the terminal lists 3000/8000 with an open-in-editor globe
+   too.)
+4. **Bottom — the engine's heartbeat.** Terminal → Run Task… → **stack up + follow
+   backend logs**. This starts the whole stack and streams the backend log, so every
+   model turn — including any `primary LLM failed … using backup` failover — scrolls
+   live while you click around the app on the right.
+
+The result: ask Claude Code for a change on the left, watch the diff land in the
+middle, and see the running app react on the right with the engine narrating below.
 
 ## 2. Run everything in Docker
 

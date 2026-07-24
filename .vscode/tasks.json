@@ -30,6 +30,18 @@
       "problemMatcher": []
     },
     {
+      // The cockpit's bottom pane: bring the whole stack up and stream the backend's
+      // logs, so every model turn (and any failover to the backup LLM) scrolls live
+      // while you click around the app. Works with Docker or Podman (docker alias).
+      "label": "stack up + follow backend logs",
+      "type": "shell",
+      "command": "docker compose up -d && docker compose logs -f backend",
+      "options": { "cwd": "${workspaceFolder}" },
+      "isBackground": true,
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
       // Drives a real conversation against the running stack. Costs API credit and
       // needs ANTHROPIC_API_KEY in .env. Brings the container up first so it works
       // whether or not the debugger has freed port 8000. Pick broad/evasive here;
