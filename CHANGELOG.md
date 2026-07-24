@@ -5,10 +5,10 @@ All notable changes to the ViewOps Survey Service, from the first commit onward.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
-## 2026-07-23 (later) — Tricky-input hardening and role-aware navigation
+## 2026-07-24 — Tricky-input hardening, role-aware UI, and the editor cockpit
 
 ### Added
-- **`reply` tool in the conduct engine** — a respondent asking a question back ("what do
+- **`reply` tool in the conduct engine** (PR #7) — a respondent asking a question back ("what do
   you mean by role?") gets a real answer instead of a fabricated record or a wrongly
   flagged decline. Replies record nothing, never advance the survey, and are capped per
   question like follow-ups.
@@ -21,9 +21,18 @@ The project is not yet versioned, so entries are grouped by date. Newest first.
   value; ambiguous or out-of-scale values ("between 3 and 4", "10/10") are pinned down
   or flagged, never averaged or clamped; relative dates are computed from the engine's
   today-plus-weekday line; abuse is not recorded as an answer.
-- **Plain-English testing report** (`docs/TESTING_REPORT.md`) for non-technical readers.
+- **Plain-English testing report** (`docs/TESTING_REPORT.md`, PR #7) for non-technical
+  readers — the deviations we caught, the rules they earned, and the live failover run.
+- **Three-pane editor cockpit** (PR #9) — the Claude Code extension is now a workspace
+  recommendation, a one-click "stack up + follow backend logs" task streams the engine
+  while you use the app, and `docs/DEVELOPING.md` §1b documents the layout (assistant |
+  code | live preview, logs below).
 
 ### Changed
+- **`docs/OVERVIEW.md` rewritten as a plain-English story** (PR #8) — the
+  teacher/quiz analogy for the two roles, the AI-on-rails ride analogy, a dedicated
+  "rules that stop bad answers reaching the database" section, real-life uses, and
+  links threading the reader through the rest of the docs.
 - Validation now coerces pure serialization artifacts — `"4"` → 4, `4.0` → 4, `"true"` →
   true — while still refusing natural language; case near-misses on select options
   ("days") land on the canonical option text instead of fragmenting into the write-in
@@ -42,10 +51,17 @@ The project is not yet versioned, so entries are grouped by date. Newest first.
   they reach the transcript or spend a model call.
 
 ### Fixed
-- **Role-aware navigation**: the top-bar no longer shows Build to respondents; the
-  author-only pages (template list, builder, results) redirect respondents to Respond
-  instead of rendering a wall of 403s.
-- **Stale builder form on user switch**: the builder's unsaved edits previously
+- **Backup failover could not engage under compose** (PR #6). The backend service only
+  forwarded the Anthropic variables, so the `LLM_BACKUP_*` settings in `.env` never
+  reached the container and a primary failure surfaced as a raw 502 instead of falling
+  back. All four backup variables are now forwarded. Verified end to end: with an
+  invalid primary key and an OpenAI-compatible backup, a full 3-question run completes
+  with every turn logged as `primary LLM failed … using backup`, and the answers land
+  correctly typed (`{"text": …}`, `{"rating": 4}`, `{"option": "Days"}`).
+- **Role-aware navigation** (PR #7): the top-bar no longer shows Build to respondents;
+  the author-only pages (template list, builder, results) redirect respondents to
+  Respond instead of rendering a wall of 403s.
+- **Stale builder form on user switch** (PR #7): the builder's unsaved edits previously
   survived an author switch and could be saved under the next author's identity; the
   form now resets when the acting user changes.
 
@@ -69,6 +85,7 @@ The project is not yet versioned, so entries are grouped by date. Newest first.
   what the app does, its two halves (authoring and conducting), and what it outputs.
 - **Manual live-conduct check** — a workflow runnable from GitHub Actions or VS Code.
 - **Scripted stress suite** — the eight conduct stress scenarios as a replayable test.
+- **This changelog** (PR #5) — the project's history recorded from the first commit.
 
 ### Changed
 - The conduct engine and template generator now resolve their LLM through the new
@@ -78,13 +95,6 @@ The project is not yet versioned, so entries are grouped by date. Newest first.
 - **Compose bind mounts fail under rootless Podman on Fedora/RHEL** (PR #2). Added the
   `:z` SELinux relabel to the `./backend` and `./frontend` mounts so the containers can
   read them; a no-op on Docker and on hosts without SELinux.
-- **Backup failover could not engage under compose** (PR #6). The backend service only
-  forwarded the Anthropic variables, so the `LLM_BACKUP_*` settings in `.env` never
-  reached the container and a primary failure surfaced as a raw 502 instead of falling
-  back. All four backup variables are now forwarded. Verified end to end: with an
-  invalid primary key and an OpenAI-compatible backup, a full 3-question run completes
-  with every turn logged as `primary LLM failed … using backup`, and the answers land
-  correctly typed (`{"text": …}`, `{"rating": 4}`, `{"option": "Days"}`).
 
 ### Tests
 - Offline coverage for the backup provider: failover selection and the
