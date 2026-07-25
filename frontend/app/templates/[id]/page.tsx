@@ -14,7 +14,7 @@ import {
   useTemplate,
   useUpdateTemplate,
 } from "@/lib/queries";
-import { useUserStore } from "@/lib/store";
+import { useDraftNoteStore, useUserStore } from "@/lib/store";
 import type { QuestionInput } from "@/lib/types";
 
 const blankQuestion = (): QuestionInput => ({
@@ -43,7 +43,15 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
   const [questions, setQuestions] = useState<QuestionInput[]>([]);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [instruction, setInstruction] = useState("");
-  const [notes, setNotes] = useState<string[]>([]);
+  // Seed the Refine panel with the note from the generate that opened this draft…
+  const [notes, setNotes] = useState<string[]>(() => {
+    const pending = useDraftNoteStore.getState().pending[id];
+    return pending ? [pending] : [];
+  });
+  // …then clear it so revisiting the builder doesn't re-show it.
+  useEffect(() => {
+    useDraftNoteStore.getState().clearPendingNote(id);
+  }, [id]);
 
   const isRespondent = currentUser?.role === "respondent";
   useEffect(() => {
