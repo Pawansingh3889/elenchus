@@ -81,6 +81,17 @@ export function useGenerateTemplate() {
   });
 }
 
+export function useRefineTemplate(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (instruction: string) => api.refineTemplate(id, instruction),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["template", id] });
+      qc.invalidateQueries({ queryKey: ["templates"] });
+    },
+  });
+}
+
 export function usePublishedSurveys() {
   const userId = useUserStore((s) => s.currentUserId);
   return useQuery({

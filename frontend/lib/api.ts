@@ -1,5 +1,6 @@
 import { useUserStore } from "./store";
 import type {
+  GeneratedTemplate,
   Run,
   RunDetail,
   RunSummary,
@@ -65,7 +66,15 @@ export const api = {
   publishTemplate: (id: string) =>
     request<TemplateVersion>(`/templates/${id}/publish`, { method: "POST" }),
   generateTemplate: (prompt: string) =>
-    request<Template>("/templates/generate", { method: "POST", body: JSON.stringify({ prompt }) }),
+    request<GeneratedTemplate>("/templates/generate", {
+      method: "POST",
+      body: JSON.stringify({ prompt }),
+    }),
+  refineTemplate: (id: string, instruction: string) =>
+    request<GeneratedTemplate>(`/templates/${id}/refine`, {
+      method: "POST",
+      body: JSON.stringify({ instruction }),
+    }),
   listPublished: () => request<TemplateSummary[]>("/templates/published"),
   startRun: (templateId: string) =>
     request<Run>("/runs", { method: "POST", body: JSON.stringify({ template_id: templateId }) }),

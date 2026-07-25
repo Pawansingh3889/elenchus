@@ -12,7 +12,9 @@ from app.templates.enums import TemplateStatus
 from app.templates.generation import GenerationService
 from app.templates.models import SurveyTemplate
 from app.templates.schemas import (
+    GeneratedTemplate,
     GenerateRequest,
+    RefineRequest,
     TemplateCreate,
     TemplateRead,
     TemplateSummary,
@@ -46,14 +48,14 @@ async def create_template(
     return TemplateRead.model_validate(template)
 
 
-@router.post("/generate", response_model=TemplateRead, status_code=HTTP_201_CREATED)
+@router.post("/generate", response_model=GeneratedTemplate, status_code=HTTP_201_CREATED)
 async def generate_template(
     data: GenerateRequest,
     author: User = Depends(require_author),
     session: AsyncSession = Depends(get_session),
-) -> TemplateRead:
-    template = await GenerationService(session).generate_draft(data.prompt, author)
-    return TemplateRead.model_validate(template)
+) -> GeneratedTemplate:
+    template, note = await GenerationService(session).generate_draft(data.prompt, author)
+    return GeneratedTemplate(template=TemplateRead.model_validate(template), note=note)
 
 
 @router.get("", response_model=list[TemplateSummary])
@@ -105,6 +107,19 @@ async def delete_template(
     session: AsyncSession = Depends(get_session),
 ) -> None:
     await TemplateService(session).delete_draft(template_id, author)
+
+
+@router.post("/{template_id}/refine", response_model=GeneratedTemplate)
+async def refine_template(
+    template_id: UUID,
+    data: RefineRequest,
+    author: User = Depends(require_author),
+    session: AsyncSession = Depends(get_session),
+) -> GeneratedTemplate:
+    template, note = await GenerationService(session).refine_draft(
+        template_id, data.instruction, author
+    )
+    return GeneratedTemplate(template=TemplateRead.model_validate(template), note=note)
 
 
 @router.post(

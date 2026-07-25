@@ -52,6 +52,12 @@ export interface TemplateSummary {
   question_count: number;
 }
 
+// A drafted or refined template plus the model's short note on what it did.
+export interface GeneratedTemplate {
+  template: Template;
+  note: string;
+}
+
 export interface TemplateWrite {
   title: string;
   description?: string | null;

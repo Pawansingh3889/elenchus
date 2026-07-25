@@ -10,6 +10,7 @@ import {
   useCurrentUser,
   useDeleteTemplate,
   usePublishTemplate,
+  useRefineTemplate,
   useTemplate,
   useUpdateTemplate,
 } from "@/lib/queries";
@@ -33,6 +34,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
   const update = useUpdateTemplate(id);
   const publish = usePublishTemplate(id);
   const remove = useDeleteTemplate(id);
+  const refine = useRefineTemplate(id);
   const router = useRouter();
 
   const [loadedId, setLoadedId] = useState<string | null>(null);
@@ -40,6 +42,8 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
   const [description, setDescription] = useState("");
   const [questions, setQuestions] = useState<QuestionInput[]>([]);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [instruction, setInstruction] = useState("");
+  const [notes, setNotes] = useState<string[]>([]);
 
   const isRespondent = currentUser?.role === "respondent";
   useEffect(() => {
@@ -98,6 +102,31 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
     }
   };
   const onDelete = () => remove.mutate(undefined, { onSuccess: () => router.push("/") });
+  const onRefine = async () => {
+    const text = instruction.trim();
+    if (!text) return;
+    try {
+      // Persist what the author currently sees, so the AI refines that, not a stale draft.
+      await update.mutateAsync(body);
+      const { template: revised, note } = await refine.mutateAsync(text);
+      setTitle(revised.title);
+      setDescription(revised.description ?? "");
+      setQuestions(
+        revised.questions.map((q) => ({
+          text: q.text,
+          answer_type: q.answer_type,
+          options: q.options,
+          allow_other: q.allow_other,
+          required: q.required,
+          allow_follow_ups: q.allow_follow_ups,
+        })),
+      );
+      setNotes((n) => [...n, note || "Updated the draft."]);
+      setInstruction("");
+    } catch {
+      // Surfaced via update.error / refine.error below.
+    }
+  };
 
   return (
     <div className="builder">
@@ -172,7 +201,51 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
         </div>
       </div>
 
-      <LivePreview questions={questions} />
+      <div className="builder-side">
+        <div className="card refine-card">
+          <div className="card-label">✦ Refine with AI</div>
+          <div className="refine-notes">
+            {notes.length === 0 ? (
+              <p className="muted refine-hint">
+                Ask for a change — e.g. “make it shorter”, “add a question about pay”, or
+                “change Q2 to multiple choice”. Your edits are saved first, then revised.
+              </p>
+            ) : (
+              notes.map((note, i) => (
+                <div key={i} className="refine-note">
+                  ✦ {note}
+                </div>
+              ))
+            )}
+          </div>
+          <form
+            className="refine-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              onRefine();
+            }}
+          >
+            <input
+              className="field"
+              value={instruction}
+              placeholder="Describe a change…"
+              disabled={refine.isPending || update.isPending}
+              onChange={(e) => setInstruction(e.target.value)}
+            />
+            <button
+              className="btn btn-ai"
+              type="submit"
+              disabled={refine.isPending || update.isPending || !instruction.trim()}
+            >
+              {refine.isPending ? "Refining…" : "Refine"}
+            </button>
+          </form>
+          {refine.error ? (
+            <div className="error-text">{(refine.error as Error).message}</div>
+          ) : null}
+        </div>
+        <LivePreview questions={questions} />
+      </div>
     </div>
   );
 }

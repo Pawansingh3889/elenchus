@@ -4,22 +4,25 @@ from typing import Any
 
 import pytest
 
-from app.llm.client import LLMError
+from app.errors import NotFoundError
+from app.llm.client import LLMError, ToolTurn
 from app.templates.enums import TemplateStatus
 from app.templates.generation import GenerationService
 
 
 class FakeLLM:
-    """Returns canned tool payloads in order; repeats the last one thereafter."""
+    """Returns canned tool payloads in order (repeating the last), each wrapped in a
+    ToolTurn with the given note — mirroring the real ``tool_turn`` the service now uses."""
 
-    def __init__(self, *payloads: dict[str, Any]) -> None:
+    def __init__(self, *payloads: dict[str, Any], note: str = "Drafted it.") -> None:
         self._payloads = list(payloads)
+        self._note = note
         self.calls = 0
 
-    async def tool_call(self, **_: Any) -> dict[str, Any]:
+    async def tool_turn(self, **_: Any) -> ToolTurn:
         payload = self._payloads[min(self.calls, len(self._payloads) - 1)]
         self.calls += 1
-        return payload
+        return ToolTurn(text=self._note, tool_name="draft_survey_template", tool_input=payload)
 
 
 _VALID: dict[str, Any] = {
@@ -39,11 +42,27 @@ _INVALID: dict[str, Any] = {
 
 async def test_generate_persists_valid_draft(session, author):
     fake = FakeLLM(_VALID)
-    template = await GenerationService(session, llm=fake).generate_draft("onboarding", author)
+    template, _ = await GenerationService(session, llm=fake).generate_draft("onboarding", author)
     assert fake.calls == 1
     assert template.title == "Onboarding"
     assert template.status is TemplateStatus.draft
     assert [q.text for q in template.questions] == ["Your role?", "Systems used?"]
+
+
+async def test_generate_returns_the_models_note(session, author):
+    fake = FakeLLM(_VALID, note="Added a systems question to see what staff actually use.")
+    _, note = await GenerationService(session, llm=fake).generate_draft("onboarding", author)
+    assert note == "Added a systems question to see what staff actually use."
+
+
+async def test_note_from_the_tool_field_is_preferred_over_spoken_text(session, author):
+    """A forced tool call suppresses prose, so the note rides in the schema's note field;
+    it's read from there (and ignored by template validation)."""
+    payload = {**_VALID, "note": "Kept it to two quick questions."}
+    _, note = await GenerationService(session, llm=FakeLLM(payload, note="")).generate_draft(
+        "x", author
+    )
+    assert note == "Kept it to two quick questions."
 
 
 async def test_catch_all_options_become_a_write_in(session, author):
@@ -70,7 +89,7 @@ async def test_catch_all_options_become_a_write_in(session, author):
             ],
         }
     )
-    template = await GenerationService(session, llm=fake).generate_draft("teams", author)
+    template, _ = await GenerationService(session, llm=fake).generate_draft("teams", author)
 
     team, tools, site = template.questions
     assert (team.options, team.allow_other) == (["Sales", "Engineering"], True)
@@ -81,7 +100,7 @@ async def test_catch_all_options_become_a_write_in(session, author):
 
 async def test_generate_retries_once_then_succeeds(session, author):
     fake = FakeLLM(_INVALID, _VALID)
-    template = await GenerationService(session, llm=fake).generate_draft("x", author)
+    template, _ = await GenerationService(session, llm=fake).generate_draft("x", author)
     assert fake.calls == 2
     assert template.title == "Onboarding"
 
@@ -115,7 +134,7 @@ async def test_stringified_questions_are_decoded_before_validation(session, auth
         ),
     }
     fake = FakeLLM(stringified)
-    template = await GenerationService(session, llm=fake).generate_draft("onboarding", author)
+    template, _ = await GenerationService(session, llm=fake).generate_draft("onboarding", author)
 
     assert fake.calls == 1  # repaired, not retried
     assert [q.text for q in template.questions] == ["Your role?", "Which shift?"]
@@ -133,12 +152,12 @@ async def test_almost_json_with_model_corruptions_is_still_decoded(session, auth
         ' "answer_type": "yes_no"}]'
     )
 
-    first = await GenerationService(
+    first, _ = await GenerationService(
         session, llm=FakeLLM({"title": "A", "questions": with_newline})
     ).generate_draft("a", author)
     assert first.questions[0].text == "How often do you\nreview dashboards?"
 
-    second = await GenerationService(
+    second, _ = await GenerationService(
         session, llm=FakeLLM({"title": "B", "questions": escaped_quote})
     ).generate_draft("b", author)
     assert second.questions[0].text == "Does the platform's feature set meet your needs?"
@@ -165,8 +184,46 @@ async def test_options_on_non_select_questions_are_dropped_not_fatal(session, au
         ],
     }
     fake = FakeLLM(decorated)
-    template = await GenerationService(session, llm=fake).generate_draft("engagement", author)
+    template, _ = await GenerationService(session, llm=fake).generate_draft("engagement", author)
 
     assert fake.calls == 1  # repaired, not retried
     assert template.questions[0].options == []
     assert template.questions[1].options == ["A", "B"]  # select options untouched
+
+
+# --- follow-up refinement ------------------------------------------------------
+
+
+async def test_refine_updates_the_draft_in_place_and_returns_a_note(session, author):
+    original, _ = await GenerationService(session, llm=FakeLLM(_VALID)).generate_draft("x", author)
+
+    revised = {
+        "title": "Onboarding (short)",
+        "questions": [{"text": "Your role?", "answer_type": "short_text"}],
+    }
+    fake = FakeLLM(revised, note="Trimmed it to a single question.")
+    updated, note = await GenerationService(session, llm=fake).refine_draft(
+        original.id, "make it shorter", author
+    )
+
+    assert updated.id == original.id  # same draft, revised in place
+    assert updated.title == "Onboarding (short)"
+    assert [q.text for q in updated.questions] == ["Your role?"]
+    assert note == "Trimmed it to a single question."
+
+
+async def test_refine_re_validates_so_a_bad_change_fails_loudly(session, author):
+    original, _ = await GenerationService(session, llm=FakeLLM(_VALID)).generate_draft("x", author)
+
+    fake = FakeLLM(_INVALID, _INVALID)  # every attempt invalid
+    with pytest.raises(LLMError):
+        await GenerationService(session, llm=fake).refine_draft(original.id, "break it", author)
+
+
+async def test_refine_refuses_another_authors_template(session, author, other_author):
+    original, _ = await GenerationService(session, llm=FakeLLM(_VALID)).generate_draft("x", author)
+
+    with pytest.raises(NotFoundError):
+        await GenerationService(session, llm=FakeLLM(_VALID)).refine_draft(
+            original.id, "change it", other_author
+        )

@@ -9,7 +9,9 @@ so it lands in the same builder a hand-built one would.
 import json
 import logging
 from typing import Any
+from uuid import UUID
 
+from pydantic import Field
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,7 +19,7 @@ from app.llm.client import LLMError, LLMProtocol
 from app.llm.factory import get_llm
 from app.llm.prompts import load_prompt
 from app.templates.models import SurveyTemplate
-from app.templates.schemas import TemplateCreate
+from app.templates.schemas import TemplateCreate, TemplateUpdate
 from app.templates.service import TemplateService
 from app.users.models import User
 
@@ -25,9 +27,28 @@ logger = logging.getLogger("app.templates.generation")
 
 MAX_GENERATED_QUESTIONS = 20
 
+
+class _DraftToolInput(TemplateCreate):
+    """The generation tool's input — the template plus a short note. The note is a schema
+    field, not free prose, because a forced tool call suppresses spoken text: asking for a
+    sentence "alongside" the call reliably yields nothing, so it has to be part of the
+    structured output. Validated back as a plain ``TemplateCreate`` (the note is ignored)."""
+
+    note: str = Field(
+        default="",
+        description="One or two sentences for the author: your main design choices, "
+        "or what you changed.",
+    )
+
+
 _TOOL_NAME = "draft_survey_template"
-_TOOL_DESCRIPTION = "Return a complete survey template as structured data."
-_TOOL_SCHEMA: dict[str, Any] = TemplateCreate.model_json_schema()
+_TOOL_DESCRIPTION = "Return a complete survey template as structured data, plus a short note."
+_TOOL_SCHEMA: dict[str, Any] = _DraftToolInput.model_json_schema()
+_TOOL: dict[str, Any] = {
+    "name": _TOOL_NAME,
+    "description": _TOOL_DESCRIPTION,
+    "input_schema": _TOOL_SCHEMA,
+}
 
 
 class GenerationService:
@@ -36,32 +57,63 @@ class GenerationService:
         self.llm: LLMProtocol = llm or get_llm()
         self.templates = TemplateService(session)
 
-    async def generate_draft(self, prompt: str, author: User) -> SurveyTemplate:
-        system = load_prompt("generate_template_v1")
-        template_in = await self._draft(system, prompt, previous_error=None)
-        return await self.templates.create_draft(_without_catch_alls(template_in), author)
+    async def generate_draft(self, prompt: str, author: User) -> tuple[SurveyTemplate, str]:
+        """Draft a new survey from a description. Returns the saved draft and the model's
+        short note on what it built."""
+        system = load_prompt("generate_template_v2")
+        template_in, note = await self._draft(
+            system, [{"role": "user", "content": prompt}], previous_error=None
+        )
+        template = await self.templates.create_draft(_without_catch_alls(template_in), author)
+        return template, note
 
-    async def _draft(self, system: str, prompt: str, previous_error: str | None) -> TemplateCreate:
-        user = (
-            prompt
+    async def refine_draft(
+        self, template_id: UUID, instruction: str, author: User
+    ) -> tuple[SurveyTemplate, str]:
+        """Apply a follow-up instruction to an existing draft and return it revised, plus
+        the model's note on what changed. The whole survey is re-drafted and re-validated,
+        so a follow-up can never leave the draft in an invalid shape."""
+        current = await self.templates.get_draft(template_id, author)
+        system = load_prompt("refine_template_v1")
+        message = (
+            f"{_describe(current)}\n\nRequested change: {instruction}\n\n"
+            "Return the complete revised survey."
+        )
+        template_in, note = await self._draft(
+            system, [{"role": "user", "content": message}], previous_error=None
+        )
+        updated = await self.templates.update_draft(
+            template_id, _to_update(_without_catch_alls(template_in)), author
+        )
+        return updated, note
+
+    async def _draft(
+        self, system: str, messages: list[dict[str, str]], previous_error: str | None
+    ) -> tuple[TemplateCreate, str]:
+        turn_messages = (
+            messages
             if previous_error is None
-            else f"{prompt}\n\nYour previous attempt was rejected: {previous_error}\n"
-            "Return a corrected template."
+            else [
+                *messages,
+                {
+                    "role": "user",
+                    "content": f"Your previous attempt was rejected: {previous_error}\n"
+                    "Return a corrected survey.",
+                },
+            ]
         )
-        raw = await self.llm.tool_call(
-            system=system,
-            prompt=user,
-            tool_name=_TOOL_NAME,
-            tool_description=_TOOL_DESCRIPTION,
-            input_schema=_TOOL_SCHEMA,
+        turn = await self.llm.tool_turn(
+            system=system, messages=turn_messages, tools=[_TOOL], max_tokens=4096
         )
-        raw = _decode_stringified_fields(raw)
+        raw = _decode_stringified_fields(turn.tool_input)
+        # Prefer the schema's note field; fall back to any spoken text a model does emit.
+        note = str(raw.get("note") or turn.text or "").strip()
         error = _validation_error(raw)
         if error is None:
-            return TemplateCreate.model_validate(raw)
+            return TemplateCreate.model_validate(raw), note
         if previous_error is None:
             logger.warning("generated template rejected, retrying: raw=%r error=%s", raw, error)
-            return await self._draft(system, prompt, previous_error=error)
+            return await self._draft(system, messages, previous_error=error)
         # The rejection reason describes the fault but not the draft, so keep the raw
         # payload before failing (ARCHITECTURE.md 3.3).
         logger.error("template generation failed after one retry: raw=%r error=%s", raw, error)
@@ -150,6 +202,32 @@ def _without_catch_alls(template_in: TemplateCreate) -> TemplateCreate:
             question.options = kept
             question.allow_other = True
     return template_in
+
+
+def _to_update(template_in: TemplateCreate) -> TemplateUpdate:
+    """Create and Update share a shape, but the service takes the Update type for edits."""
+    return TemplateUpdate.model_validate(template_in.model_dump())
+
+
+def _describe(template: SurveyTemplate) -> str:
+    """Render the current draft as plain text for the model to revise."""
+    lines = [
+        f"Title: {template.title}",
+        f"Description: {template.description or '(none)'}",
+        "Questions:",
+    ]
+    for i, question in enumerate(sorted(template.questions, key=lambda q: q.position), start=1):
+        parts = [f"{i}. [{question.answer_type.value}] {question.text}"]
+        if question.options:
+            parts.append(f"options: {', '.join(question.options)}")
+        if question.allow_other:
+            parts.append("allows a write-in")
+        if not question.required:
+            parts.append("optional")
+        if question.allow_follow_ups:
+            parts.append("follow-ups on")
+        lines.append("  " + " · ".join(parts))
+    return "\n".join(lines)
 
 
 def _validation_error(raw: dict[str, Any]) -> str | None:

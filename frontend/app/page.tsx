@@ -15,6 +15,7 @@ export default function Home() {
   const generate = useGenerateTemplate();
   const router = useRouter();
   const [prompt, setPrompt] = useState("");
+  const [result, setResult] = useState<{ id: string; title: string; note: string } | null>(null);
 
   // Build is author-only on the backend; a respondent landing here (e.g. after
   // switching users in the top bar) belongs on Respond, not on a page of 403s.
@@ -37,8 +38,9 @@ export default function Home() {
 
   async function onGenerate() {
     if (!prompt.trim()) return;
-    const t = await generate.mutateAsync(prompt.trim());
-    router.push(`/templates/${t.id}`);
+    const { template, note } = await generate.mutateAsync(prompt.trim());
+    setResult({ id: template.id, title: template.title, note });
+    setPrompt("");
   }
 
   return (
@@ -72,6 +74,15 @@ export default function Home() {
         </div>
         {generate.error ? (
           <div className="error-text">{(generate.error as Error).message}</div>
+        ) : null}
+        {result ? (
+          <div className="gen-result">
+            <div className="gen-result-title">✦ Drafted “{result.title}”</div>
+            {result.note ? <p className="gen-result-note">{result.note}</p> : null}
+            <Link href={`/templates/${result.id}`} className="btn btn-primary">
+              Open draft in builder →
+            </Link>
+          </div>
         ) : null}
       </div>
 

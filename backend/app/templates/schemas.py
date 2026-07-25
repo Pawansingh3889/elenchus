@@ -48,6 +48,10 @@ class GenerateRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=4000)
 
 
+class RefineRequest(BaseModel):
+    instruction: str = Field(min_length=1, max_length=4000)
+
+
 class QuestionRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -72,6 +76,13 @@ class TemplateRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     questions: list[QuestionRead]
+
+
+class GeneratedTemplate(BaseModel):
+    """A drafted or refined template plus the model's short note on what it did."""
+
+    template: TemplateRead
+    note: str
 
 
 class TemplateSummary(BaseModel):

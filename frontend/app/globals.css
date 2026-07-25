@@ -323,6 +323,66 @@ textarea {
   min-height: 48px;
 }
 
+/* AI draft result on the home page */
+.gen-result {
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: var(--ai-fill);
+  border: 1px solid var(--ai-border);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.gen-result-title {
+  font-weight: 700;
+  color: var(--accent-strong);
+}
+.gen-result-note {
+  margin: 0;
+  color: var(--secondary);
+  font-size: 13px;
+}
+
+/* Refine-with-AI panel in the builder's right column */
+.builder-side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.refine-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.refine-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.refine-hint {
+  font-size: 12.5px;
+  margin: 0;
+}
+.refine-note {
+  background: var(--ai-fill);
+  border: 1px solid var(--ai-border);
+  border-radius: 9px;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--accent-strong);
+}
+.refine-form {
+  display: flex;
+  gap: 8px;
+}
+.refine-form .field {
+  flex: 1;
+}
+
 .questions {
   display: flex;
   flex-direction: column;
