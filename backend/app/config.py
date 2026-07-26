@@ -22,10 +22,11 @@ class Settings(BaseSettings):
     anthropic_model: str = Field("claude-sonnet-5", description="Anthropic model id")
 
     # Backup LLMs form an ordered failover chain after the Anthropic primary: the first
-    # backup is tried when the primary fails, the second when the first also fails. Each is
-    # any OpenAI-compatible endpoint (Cerebras, Groq, OpenRouter, a self-hosted server…).
-    # If the primary key is absent the first configured backup leads. base_url/model are
-    # required when a tier is enabled; api_key may be blank for keyless local servers.
+    # backup is tried when the primary fails, the second when the first also fails, the
+    # third when both fail. Each is any OpenAI-compatible endpoint (Cerebras, Groq,
+    # OpenRouter, a self-hosted server…). If the primary key is absent the first configured
+    # backup leads. base_url/model are required when a tier is enabled; api_key may be
+    # blank for keyless local servers.
     llm_backup_enabled: bool = Field(False, description="Enable the first backup LLM")
     llm_backup_base_url: str = Field(
         "", description="First backup base URL, e.g. https://api.cerebras.ai/v1"
@@ -51,6 +52,17 @@ class Settings(BaseSettings):
     )
     llm_backup2_timeout_seconds: float = Field(
         120.0, gt=0, description="Read timeout for the second backup, in seconds"
+    )
+
+    # Third backup, tried only when the primary and both prior backups fail.
+    llm_backup3_enabled: bool = Field(False, description="Enable the third backup LLM")
+    llm_backup3_base_url: str = Field(
+        "", description="Third backup base URL, e.g. https://openrouter.ai/api/v1"
+    )
+    llm_backup3_api_key: str = Field("", description="Third backup API key (blank if not required)")
+    llm_backup3_model: str = Field("", description="Third backup model id, e.g. openrouter/free")
+    llm_backup3_timeout_seconds: float = Field(
+        120.0, gt=0, description="Read timeout for the third backup, in seconds"
     )
 
     app_env: str = Field("dev", description="dev | prod")

@@ -1,7 +1,7 @@
 """Build the LLM client the app should use, from settings.
 
 Assembles an ordered failover chain: the Anthropic primary first (when its key is set),
-then each enabled backup — the first backup, then the second. Resolution:
+then each enabled backup in order — first, second, third. Resolution:
 
 - Two or more tiers configured -> a ``FailoverLLM`` chaining them in that order.
 - Exactly one tier configured   -> that client alone.
@@ -38,6 +38,15 @@ def get_llm() -> LLMProtocol:
                 api_key=settings.llm_backup2_api_key,
                 model=settings.llm_backup2_model,
                 timeout_seconds=settings.llm_backup2_timeout_seconds,
+            )
+        )
+    if settings.llm_backup3_enabled:
+        chain.append(
+            OpenAICompatibleLLMClient(
+                base_url=settings.llm_backup3_base_url,
+                api_key=settings.llm_backup3_api_key,
+                model=settings.llm_backup3_model,
+                timeout_seconds=settings.llm_backup3_timeout_seconds,
             )
         )
 

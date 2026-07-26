@@ -31,6 +31,11 @@ _GROQ = {
     "llm_backup2_base_url": "https://api.groq.com/openai/v1",
     "llm_backup2_model": "llama-3.3-70b-versatile",
 }
+_OPENROUTER = {
+    "llm_backup3_enabled": True,
+    "llm_backup3_base_url": "https://openrouter.ai/api/v1",
+    "llm_backup3_model": "openrouter/free",
+}
 
 
 def test_two_backups_chain_in_configured_order(monkeypatch):
@@ -47,20 +52,35 @@ def test_two_backups_chain_in_configured_order(monkeypatch):
     assert llm._clients[1]._base_url == "https://api.groq.com/openai/v1"  # Groq second
 
 
+def test_three_backups_chain_in_configured_order(monkeypatch):
+    monkeypatch.setattr(
+        factory, "get_settings", lambda: _settings(**_CEREBRAS, **_GROQ, **_OPENROUTER)
+    )
+
+    llm = factory.get_llm()
+
+    assert isinstance(llm, FailoverLLM)
+    assert [c._base_url for c in llm._clients] == [
+        "https://api.cerebras.ai/v1",
+        "https://api.groq.com/openai/v1",
+        "https://openrouter.ai/api/v1",  # third backup, tried only if the first two fail
+    ]
+
+
 def test_the_primary_leads_the_chain_when_its_key_is_set(monkeypatch):
     sentinel = object()
     monkeypatch.setattr(
         factory,
         "get_settings",
-        lambda: _settings(anthropic_api_key="sk-ant-x", **_CEREBRAS, **_GROQ),
+        lambda: _settings(anthropic_api_key="sk-ant-x", **_CEREBRAS, **_GROQ, **_OPENROUTER),
     )
     monkeypatch.setattr(factory, "LLMClient", lambda: sentinel)
 
     llm = factory.get_llm()
 
     assert isinstance(llm, FailoverLLM)
-    assert len(llm._clients) == 3
-    assert llm._clients[0] is sentinel  # Anthropic, ahead of both backups
+    assert len(llm._clients) == 4
+    assert llm._clients[0] is sentinel  # Anthropic, ahead of all three backups
 
 
 def test_a_single_configured_tier_is_used_bare(monkeypatch):
