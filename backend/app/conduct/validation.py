@@ -4,6 +4,7 @@ This is the engine's gate: nothing reaches the database until it validates here,
 confused model can never corrupt a run.
 """
 
+import math
 import re
 from datetime import date
 from typing import Any
@@ -16,6 +17,14 @@ class AnswerValidationError(AppError):
     code = "answer_invalid"
 
 
+# What a JSON serializer can actually emit for a number. int()/float() alone are too
+# permissive as a gate: they also parse Python-isms no serializer produces — "4_000",
+# "nan", "Infinity", full-width digits ("４") — which would then sail through the type
+# checks below wearing a numeric disguise. ASCII flag because \d otherwise matches any
+# Unicode decimal digit.
+_JSON_NUMBER = re.compile(r"[+-]?\d+(\.\d+)?([eE][+-]?\d+)?", re.ASCII)
+
+
 def _coerce(answer_type: str, raw: Any) -> Any:
     """Undo pure serialization artifacts, never semantic guesses.
 
@@ -26,14 +35,13 @@ def _coerce(answer_type: str, raw: Any) -> Any:
     """
     if answer_type in ("rating", "number") and isinstance(raw, str):
         text = raw.strip()
-        try:
-            return int(text)
-        except ValueError:
-            pass
-        try:
-            return float(text)
-        except ValueError:
-            return raw
+        if _JSON_NUMBER.fullmatch(text):
+            try:
+                raw = int(text)  # int first: float would round 2**53+1
+            except ValueError:
+                parsed = float(text)
+                # Fall through so "4.0" gets the same integral-float rule as 4.0.
+                raw = int(parsed) if parsed.is_integer() else parsed
     if answer_type == "rating" and isinstance(raw, float) and raw.is_integer():
         return int(raw)
     if answer_type == "yes_no" and isinstance(raw, str):
@@ -74,6 +82,10 @@ def validate_answer(question: dict[str, Any], raw: Any) -> dict[str, Any]:
     if answer_type == "number":
         if isinstance(raw, bool) or not isinstance(raw, (int, float)):
             raise AnswerValidationError("number expects a numeric value")
+        # NaN and infinity pass the isinstance check; stored, they poison every
+        # average on the results page (and NaN is not even legal JSON).
+        if isinstance(raw, float) and not math.isfinite(raw):
+            raise AnswerValidationError("number must be finite")
         return {"number": raw}
 
     if answer_type in ("short_text", "long_text"):
@@ -104,7 +116,11 @@ def validate_answer(question: dict[str, Any], raw: Any) -> dict[str, Any]:
         if canonical is not None:
             return {"option": canonical}
         if allow_other:
-            return {"other": raw}
+            # A write-in is text: same non-empty-and-trimmed rule the text answers enforce.
+            write_in = raw.strip()
+            if not write_in:
+                raise AnswerValidationError("a write-in answer needs text")
+            return {"other": write_in}
         raise AnswerValidationError(f"'{raw}' is not one of {options} and 'other' is not allowed")
 
     if answer_type == "multi_select":
@@ -117,9 +133,16 @@ def validate_answer(question: dict[str, Any], raw: Any) -> dict[str, Any]:
                 raise AnswerValidationError("multi_select values must be strings")
             canonical = _canonical_option(value, options)
             if canonical is not None:
-                chosen.append(canonical)
+                # ["Email", "email"] is Email chosen once; canonicalising and then
+                # storing both would double-count the option in the results.
+                if canonical not in chosen:
+                    chosen.append(canonical)
             elif allow_other:
-                other.append(value)
+                write_in = value.strip()
+                if not write_in:
+                    raise AnswerValidationError("a write-in answer needs text")
+                if write_in not in other:
+                    other.append(write_in)
             else:
                 raise AnswerValidationError(
                     f"'{value}' is not one of {options} and 'other' is not allowed"
