@@ -112,6 +112,17 @@ async def test_generate_fails_loudly_after_retry(session, author):
     assert fake.calls == 2
 
 
+async def test_a_title_with_no_questions_is_rejected_not_persisted(session, author):
+    """A weaker model can return a schema-valid but empty tool call: a title, no
+    questions. Caught live from a free auto-routed backup model — schema-valid,
+    useless, and previously created a survey with nothing to answer."""
+    empty = {"title": "Team Retrospective Survey", "questions": []}
+    fake = FakeLLM(empty, empty)
+    with pytest.raises(LLMError):
+        await GenerationService(session, llm=fake).generate_draft("x", author)
+    assert fake.calls == 2  # one retry, then loud failure
+
+
 async def test_stringified_questions_are_decoded_before_validation(session, author):
     """Small backup models emit the right structure JSON-encoded into a string
     ('"questions": "[{...}]"'). That is a serialization slip, not bad content —

@@ -235,6 +235,11 @@ def _validation_error(raw: dict[str, Any]) -> str | None:
         template_in = TemplateCreate.model_validate(raw)
     except PydanticValidationError as exc:
         return str(exc)
+    if not template_in.questions:
+        # A weaker model (e.g. a free auto-routed one) can return a technically valid,
+        # empty tool call — a title with no questions. Schema-valid, useless; burn the
+        # retry rather than persist a survey with nothing to answer.
+        return "no questions"
     if len(template_in.questions) > MAX_GENERATED_QUESTIONS:
         return f"too many questions (max {MAX_GENERATED_QUESTIONS})"
     return None
