@@ -24,6 +24,7 @@ npm-debug.log*
 .env
 .env.*
 !.env.example
+!.env.encrypted
 
 # Editor / OS
 .idea/
