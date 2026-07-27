@@ -27,7 +27,9 @@ from app.users.models import User
 router = APIRouter(prefix="/api/v1/templates", tags=["templates"])
 
 
-def _summary(template: SurveyTemplate, question_count: int) -> TemplateSummary:
+def _summary(
+    template: SurveyTemplate, question_count: int, estimated_minutes: int | None = None
+) -> TemplateSummary:
     return TemplateSummary(
         id=template.id,
         title=template.title,
@@ -35,6 +37,7 @@ def _summary(template: SurveyTemplate, question_count: int) -> TemplateSummary:
         status=template.status,
         updated_at=template.updated_at,
         question_count=question_count,
+        estimated_minutes=estimated_minutes,
     )
 
 
@@ -76,7 +79,7 @@ async def list_published(
     session: AsyncSession = Depends(get_session),
 ) -> list[TemplateSummary]:
     rows = await TemplateService(session).list_published()
-    return [_summary(t, n) for t, n in rows]
+    return [_summary(t, n, minutes) for t, n, minutes in rows]
 
 
 @router.get("/{template_id}", response_model=TemplateRead)

@@ -147,6 +147,16 @@ export function useSummariseRun(templateId: string, runId: string | null) {
   });
 }
 
+/** The respondent's own unfinished runs, so the home can offer Continue. */
+export function useMyUnfinishedRuns() {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["my-runs", userId],
+    queryFn: api.myUnfinishedRuns,
+    enabled: !!userId,
+  });
+}
+
 export function useSendRunMessage(id: string) {
   const qc = useQueryClient();
   const userId = useUserStore((s) => s.currentUserId);

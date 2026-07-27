@@ -184,6 +184,9 @@ class TemplateSummary(BaseModel):
     status: TemplateStatus
     updated_at: datetime
     question_count: int
+    # Only populated for the published list a respondent chooses from; a draft has no
+    # meaningful estimate because it is not what anyone will be asked.
+    estimated_minutes: int | None = None
 
 
 class TemplateVersionRead(BaseModel):

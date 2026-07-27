@@ -991,3 +991,11 @@ select.field {
   color: inherit;
   font-size: 12.5px;
 }
+
+/* "Finish later" — leaving mid-run is safe because every turn is already persisted. */
+.chat-later {
+  margin-top: 8px;
+  font-size: 12px;
+  text-align: center;
+  color: var(--secondary);
+}

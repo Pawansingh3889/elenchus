@@ -101,6 +101,16 @@ class ConductEngine:
         remaining = remaining_possible(run.current_question_index, questions, answers)
         return answered, answered + remaining
 
+    async def resumable(self, respondent: User) -> list[tuple[SurveyRun, UUID, str, int, int]]:
+        """This respondent's unfinished runs, with the progress each one is at."""
+        out: list[tuple[SurveyRun, UUID, str, int, int]] = []
+        for run, template_id, title in await self.repo.in_progress_for(respondent.id):
+            version = await self.repo.get_version(run.template_version_id)
+            questions = _questions_of(version.definition) if version else []
+            answered, total = self.progress(run, questions)
+            out.append((run, template_id, title, answered, total))
+        return out
+
     async def handle_message(self, run_id: UUID, content: str, respondent: User) -> SurveyRun:
         # One turn at a time per run. Without this, two messages arriving together — a
         # double-clicked send, or a client retrying after a timeout — both read the same

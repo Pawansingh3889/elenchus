@@ -10,6 +10,7 @@ from app.auth.dependencies import require_respondent
 from app.conduct.engine import ConductEngine
 from app.conduct.schemas import (
     CurrentQuestion,
+    ResumableRun,
     RunMessageRequest,
     RunRead,
     StartRunRequest,
@@ -58,6 +59,28 @@ async def start_run(
     engine = ConductEngine(session)
     run = await engine.start_run(data.template_id, respondent)
     return await _to_read(engine, run)
+
+
+# Declared before /{run_id} so the literal path is never parsed as a run id.
+@router.get("", response_model=list[ResumableRun])
+async def my_unfinished_runs(
+    respondent: User = Depends(require_respondent),
+    session: AsyncSession = Depends(get_session),
+) -> list[ResumableRun]:
+    """The respondent's own unfinished runs, so a survey left half-done can be resumed
+    rather than restarted from scratch under a second run."""
+    engine = ConductEngine(session)
+    return [
+        ResumableRun(
+            id=run.id,
+            template_id=template_id,
+            title=title,
+            answered=answered,
+            total=total,
+            started_at=run.started_at,
+        )
+        for run, template_id, title, answered, total in await engine.resumable(respondent)
+    ]
 
 
 @router.get("/{run_id}", response_model=RunRead)

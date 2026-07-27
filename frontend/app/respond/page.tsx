@@ -3,7 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-import { useCurrentUser, usePublishedSurveys, useStartRun } from "@/lib/queries";
+import {
+  useCurrentUser,
+  useMyUnfinishedRuns,
+  usePublishedSurveys,
+  useStartRun,
+} from "@/lib/queries";
 import { useUserStore } from "@/lib/store";
 
 export default function RespondPage() {
@@ -11,6 +16,7 @@ export default function RespondPage() {
   const currentUser = useCurrentUser();
   const { data: surveys, isLoading, error } = usePublishedSurveys();
   const start = useStartRun();
+  const { data: unfinished } = useMyUnfinishedRuns();
   const router = useRouter();
 
   // Taking a survey is respondent-only (the backend refuses authors); send authors
@@ -38,27 +44,47 @@ export default function RespondPage() {
       {start.error ? <div className="error-text">{(start.error as Error).message}</div> : null}
 
       <div className="survey-list">
-        {surveys?.map((survey) => (
-          <div key={survey.id} className="survey-row">
-            <div>
-              <div className="template-title">{survey.title}</div>
-              <div className="template-meta">
-                {survey.question_count} question{survey.question_count === 1 ? "" : "s"}
+        {surveys?.map((survey) => {
+          // An unfinished run on this survey turns Start into Continue. Starting again
+          // would open a second run and strand the first half-answered.
+          const open = unfinished?.find((r) => r.template_id === survey.id);
+          return (
+            <div key={survey.id} className="survey-row">
+              <div>
+                <div className="template-title">{survey.title}</div>
+                <div className="template-meta">
+                  {survey.question_count} question{survey.question_count === 1 ? "" : "s"}
+                  {survey.estimated_minutes
+                    ? ` · about ${survey.estimated_minutes} min${
+                        survey.estimated_minutes === 1 ? "" : "s"
+                      }`
+                    : ""}
+                  {open ? ` · ${open.answered} of ${open.total} answered` : ""}
+                </div>
               </div>
+              {open ? (
+                <button
+                  className="btn btn-primary"
+                  onClick={() => router.push(`/runs/${open.id}`)}
+                >
+                  Continue
+                </button>
+              ) : (
+                <button
+                  className="btn btn-primary"
+                  disabled={start.isPending}
+                  onClick={() =>
+                    start.mutate(survey.id, {
+                      onSuccess: (run) => router.push(`/runs/${run.id}`),
+                    })
+                  }
+                >
+                  {start.isPending ? "Starting…" : "Start"}
+                </button>
+              )}
             </div>
-            <button
-              className="btn btn-primary"
-              disabled={start.isPending}
-              onClick={() =>
-                start.mutate(survey.id, {
-                  onSuccess: (run) => router.push(`/runs/${run.id}`),
-                })
-              }
-            >
-              {start.isPending ? "Starting…" : "Start"}
-            </button>
-          </div>
-        ))}
+          );
+        })}
         {surveys && surveys.length === 0 ? (
           <div className="muted">Nothing published yet. Publish a template to open it here.</div>
         ) : null}

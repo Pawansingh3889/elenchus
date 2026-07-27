@@ -2,6 +2,7 @@ import { useUserStore } from "./store";
 import type {
   GeneratedTemplate,
   Run,
+  ResumableRun,
   RunDetail,
   RunSummary,
   RunSummaryContent,
@@ -104,6 +105,7 @@ export const api = {
   startRun: (templateId: string) =>
     request<Run>("/runs", { method: "POST", body: JSON.stringify({ template_id: templateId }) }),
   getRun: (id: string) => request<Run>(`/runs/${id}`),
+  myUnfinishedRuns: () => request<ResumableRun[]>("/runs"),
   sendRunMessage: (id: string, content: string) =>
     request<Run>(`/runs/${id}/messages`, { method: "POST", body: JSON.stringify({ content }) }),
   listTemplateRuns: (templateId: string) => request<RunSummary[]>(`/templates/${templateId}/runs`),

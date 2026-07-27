@@ -92,5 +92,5 @@ async def test_published_surveys_stay_visible_to_everyone(session, author, other
 
     listed = await svc.list_published()
 
-    assert [t.title for t, _ in listed] == ["Open"]
-    assert all(t.status is TemplateStatus.published for t, _ in listed)
+    assert [t.title for t, _, _ in listed] == ["Open"]
+    assert all(t.status is TemplateStatus.published for t, _, _ in listed)

@@ -110,6 +110,15 @@ export default function RunPage() {
               Send
             </button>
           </form>
+          {/* Nothing to save: every turn is already persisted server-side, so leaving
+              is safe and the run is offered back on the home page. Saying so is the
+              honest version of a "save and exit" button. */}
+          <div className="chat-later">
+            <button className="link-btn" onClick={() => router.push("/respond")}>
+              Finish later
+            </button>
+            <span className="muted"> — your answers so far are saved; pick up where you left off.</span>
+          </div>
         </>
       )}
     </div>

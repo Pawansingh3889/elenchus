@@ -56,6 +56,16 @@ export interface Template {
   questions: Question[];
 }
 
+/** An unfinished run offered back to the respondent who started it. */
+export interface ResumableRun {
+  id: string;
+  template_id: string;
+  title: string;
+  answered: number;
+  total: number;
+  started_at: string;
+}
+
 export interface TemplateSummary {
   id: string;
   title: string;
@@ -63,6 +73,8 @@ export interface TemplateSummary {
   status: TemplateStatus;
   updated_at: string;
   question_count: number;
+  /** Only set on the published list a respondent chooses from. */
+  estimated_minutes: number | null;
 }
 
 // A drafted or refined template plus the model's short note on what it did.

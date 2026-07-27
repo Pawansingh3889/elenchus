@@ -7,7 +7,7 @@ from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.runs.enums import AnswerKind
+from app.runs.enums import AnswerKind, RunStatus
 from app.runs.models import Answer, RunMessage, SurveyRun
 from app.templates.models import SurveyTemplateVersion
 
@@ -80,3 +80,26 @@ class RunRepository:
             .where(Answer.run_id == run_id, Answer.question_id == question_id, Answer.kind == kind)
         )
         return int((await self.session.execute(stmt)).scalar_one())
+
+    async def in_progress_for(self, respondent_id: UUID) -> list[tuple[SurveyRun, UUID, str]]:
+        """This respondent's unfinished runs, newest first, with the survey they belong to.
+
+        Powers "continue where you left off": without it a respondent who closed the tab
+        can only press Start again, which opens a *second* run and leaves the first
+        stranded in the author's results as an abandoned half-answer.
+        """
+        stmt = (
+            select(SurveyRun, SurveyTemplateVersion.template_id, SurveyTemplateVersion.definition)
+            .join(
+                SurveyTemplateVersion,
+                SurveyRun.template_version_id == SurveyTemplateVersion.id,
+            )
+            .where(
+                SurveyRun.respondent_id == respondent_id,
+                SurveyRun.status == RunStatus.in_progress,
+            )
+            .order_by(SurveyRun.started_at.desc())
+            .options(selectinload(SurveyRun.answers))
+        )
+        rows = (await self.session.execute(stmt)).all()
+        return [(r[0], r[1], r[2].get("title", "")) for r in rows]

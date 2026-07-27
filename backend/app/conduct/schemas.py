@@ -1,5 +1,6 @@
 """Request and response schemas for conducting a run."""
 
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -36,3 +37,18 @@ class RunRead(BaseModel):
     total: int
     messages: list[MessageRead]
     answers: list[AnswerRead]
+
+
+class ResumableRun(BaseModel):
+    """An unfinished run on the respondent's own home, so they can pick it back up.
+
+    Without this the only affordance is Start, which opens a *second* run and strands
+    the first in the author's results as an abandoned half-answer.
+    """
+
+    id: UUID
+    template_id: UUID
+    title: str
+    answered: int
+    total: int
+    started_at: datetime

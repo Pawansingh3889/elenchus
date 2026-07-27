@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.errors import ConflictError, NotFoundError
 from app.templates.enums import TemplateStatus
+from app.templates.estimate import estimated_minutes
 from app.templates.models import SurveyQuestion, SurveyTemplate, SurveyTemplateVersion
 from app.templates.repository import TemplateRepository
 from app.templates.schemas import QuestionInput, TemplateCreate, TemplateUpdate
@@ -40,9 +41,18 @@ class TemplateService:
     ) -> list[tuple[SurveyTemplate, int]]:
         return await self.repo.list_summaries(status, created_by=author.id)
 
-    async def list_published(self) -> list[tuple[SurveyTemplate, int]]:
-        """Every published survey, whoever wrote it — this is what respondents answer."""
-        return await self.repo.list_summaries(TemplateStatus.published)
+    async def list_published(self) -> list[tuple[SurveyTemplate, int, int]]:
+        """Every published survey with the count and time estimate a respondent will
+        actually face — read from the published version, never the evolving draft."""
+        rows = await self.repo.list_published_latest()
+        return [
+            (
+                template,
+                len(definition.get("questions") or []),
+                estimated_minutes(definition.get("questions") or []),
+            )
+            for template, definition in rows
+        ]
 
     async def update_draft(
         self, template_id: UUID, data: TemplateUpdate, author: User

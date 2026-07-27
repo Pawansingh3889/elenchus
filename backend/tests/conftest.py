@@ -90,3 +90,12 @@ async def published(session, author):
     )
     await svc.publish(template.id, author)
     return template
+
+
+@pytest_asyncio.fixture
+async def other_respondent(session):
+    """A second respondent, for proving one cannot resume another's run."""
+    user = User(email="second@test.dev", display_name="Second Respondent", role=UserRole.respondent)
+    session.add(user)
+    await session.flush()
+    return user
