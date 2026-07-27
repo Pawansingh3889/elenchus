@@ -346,3 +346,53 @@ async def test_a_malformed_body_falls_through_to_the_next_provider():
     chain = FailoverLLM(_client(broken), _client(working))
     turn = await chain.tool_turn(system="s", messages=[], tools=[])
     assert turn.tool_name == "move_on"
+
+
+@pytest.mark.parametrize(
+    ("label", "content"),
+    [
+        (
+            "a brace inside an earlier quoted string",
+            'The format is "{name}" — here you go: '
+            '{"name": "move_on", "arguments": {"question_id": "q"}}',
+        ),
+        (
+            "a non-tool object emitted first",
+            '{"thinking": "they gave a role"} '
+            '{"name": "move_on", "arguments": {"question_id": "q"}}',
+        ),
+        (
+            "literal braces in the prose first",
+            'Use {curly} braces for JSON. {"name": "move_on", "arguments": {"question_id": "q"}}',
+        ),
+    ],
+)
+async def test_a_call_after_an_earlier_brace_is_still_salvaged(label: str, content: str) -> None:
+    """Salvage used to look at the first balanced {...} only, and started scanning at the
+    first '{' — so a brace inside earlier prose or a leading thinking object swallowed the
+    real call, and a turn the model got right was thrown away as 'no tool call'."""
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"choices": [{"message": {"content": content}}]})
+
+    turn = await _client(handler).tool_turn(system="s", messages=[], tools=[])
+    assert (turn.tool_name, turn.tool_input) == ("move_on", {"question_id": "q"})
+
+
+@pytest.mark.parametrize(
+    ("label", "content"),
+    [
+        ("unclosed object", '{"name": "move_on", "arguments": {'),
+        ("no object at all", "I think they mean the packing line."),
+        ("an object with no name", '{"arguments": {"value": "x"}}'),
+    ],
+)
+async def test_salvage_still_refuses_what_is_not_a_tool_call(label: str, content: str) -> None:
+    """Scanning more candidates must not mean accepting looser ones."""
+    from app.llm.client import NoToolCallError
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"choices": [{"message": {"content": content}}]})
+
+    with pytest.raises(NoToolCallError):
+        await _client(handler).tool_turn(system="s", messages=[], tools=[])

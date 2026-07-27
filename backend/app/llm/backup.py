@@ -13,6 +13,7 @@ tool call fails loudly rather than degrading.
 import json
 import logging
 import re
+from collections.abc import Iterator
 from typing import Any, cast
 
 import httpx
@@ -22,18 +23,21 @@ from app.llm.client import LLMError, NoToolCallError, ToolTurn
 logger = logging.getLogger("app.llm.backup")
 
 
-def _balanced_object(text: str) -> str | None:
-    """The first balanced top-level {...} in the text, or None.
+def _balanced_objects(text: str) -> Iterator[str]:
+    """Every balanced top-level {...} in the text, in order.
 
-    Brace-counting with string awareness — enough to lift one JSON object out of
+    Brace-counting with string awareness — enough to lift JSON objects out of
     surrounding prose without a full parser.
+
+    Two details earn their keep. The scan starts at the beginning of the text rather
+    than at the first ``{``: skipping ahead means a brace inside an earlier quoted
+    string ("the format is \"{name}\"") is mistaken for the start of an object, and the
+    real call after it is never seen. And every object is yielded, not just the first,
+    because models routinely emit something else first — a thinking object, an example —
+    and the caller has no way to know which one is the tool call until it tries.
     """
-    start = text.find("{")
-    if start == -1:
-        return None
-    depth, in_string, escaped = 0, False, False
-    for index in range(start, len(text)):
-        char = text[index]
+    depth, start, in_string, escaped = 0, None, False, False
+    for index, char in enumerate(text):
         if in_string:
             if escaped:
                 escaped = False
@@ -45,12 +49,14 @@ def _balanced_object(text: str) -> str | None:
         if char == '"':
             in_string = True
         elif char == "{":
-            depth += 1
-        elif char == "}":
-            depth -= 1
             if depth == 0:
-                return text[start : index + 1]
-    return None
+                start = index
+            depth += 1
+        elif char == "}" and depth:
+            depth -= 1
+            if depth == 0 and start is not None:
+                yield text[start : index + 1]
+                start = None
 
 
 # A local CPU-served model (the very case the backup exists for) can legitimately take
@@ -124,9 +130,9 @@ class OpenAICompatibleLLMClient:
         """Local models often write the tool call INTO the text instead of tool_calls.
 
         Recover a tool-call-shaped JSON object ({"name": ..., "arguments"/"parameters":
-        {...}}) from the content: the whole text, a fenced ``` block, or a single JSON
-        object embedded in prose ("Sure! {...}"). Anything that does not yield exactly
-        that shape stays a hard failure.
+        {...}}) from the content: the whole text, a fenced ``` block, or any JSON object
+        embedded in prose ("Sure! {...}"). The first candidate with that exact shape
+        wins; anything else stays a hard failure.
         """
         if not isinstance(said, str):
             return []
@@ -136,9 +142,7 @@ class OpenAICompatibleLLMClient:
         fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, flags=re.S)
         if fence:
             candidates.append(fence.group(1))
-        embedded = _balanced_object(text)
-        if embedded:
-            candidates.append(embedded)
+        candidates.extend(_balanced_objects(text))
 
         for candidate in candidates:
             try:
