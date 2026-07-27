@@ -4,18 +4,19 @@ Results cross respondents by design, so the boundary that matters here is the te
 a run belongs to, not the person who answered it.
 """
 
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
 from app.conduct.engine import ConductEngine
 from app.errors import NotFoundError
-from app.runs.enums import RunStatus
+from app.runs.enums import AnswerKind, RunStatus
+from app.runs.models import REPLY_PREFIX
 from app.runs.service import ResultsService
 from app.templates.enums import AnswerType
 from app.templates.schemas import QuestionInput, TemplateCreate, TemplateUpdate
 from app.templates.service import TemplateService
-from tests.fakes import FakeLLM, follow_up, move_on, record
+from tests.fakes import FakeLLM, follow_up, move_on, record, reply
 
 
 async def _answer_first(session, run, respondent):
@@ -172,3 +173,48 @@ def test_every_answer_shape_flattens_to_a_readable_cell():
     assert flatten_answer({"other": "Split shift"}) == "(other) Split shift"
     assert flatten_answer({"unanswerable": "declined"}) == "(declined) declined"
     assert flatten_answer({"mystery": 1}) == '{"mystery": 1}'  # future shapes never crash
+
+
+async def test_follow_up_spend_is_visible_even_when_no_follow_up_answer_exists(
+    session, author, respondent, published
+):
+    """The case that motivated exposing this at all.
+
+    A probe is charged when the engine issues it, and a probe often draws out the
+    scripted answer itself — so the run records one scripted answer and no follow-up
+    row. Counting follow-up answers would report "never probed", which is how a live
+    acceptance walkthrough twice concluded the feature was broken when it was not.
+    """
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    probed = FakeLLM(follow_up("Which line do you run?"))
+    run = await ConductEngine(session, llm=probed).handle_message(run.id, "bit of both", respondent)
+
+    detail = await ResultsService(session).get_run(published.id, run.id, author)
+    question_id = UUID(next(iter(run.probes_asked)))
+
+    assert not [a for a in detail.answers if a.kind is AnswerKind.follow_up]
+    assert detail.follow_ups_asked == {question_id: 1}
+
+
+async def test_replies_are_not_reported_as_follow_ups(session, author, respondent, published):
+    """Replies share the probes JSONB under a prefix. That is storage, not survey data,
+    and an author counting follow-ups must not see it."""
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    chatty = FakeLLM(reply("It means your job title."))
+    run = await ConductEngine(session, llm=chatty).handle_message(
+        run.id, "what do you mean?", respondent
+    )
+
+    detail = await ResultsService(session).get_run(published.id, run.id, author)
+
+    assert any(k.startswith(REPLY_PREFIX) for k in run.probes_asked)  # it was stored
+    assert detail.follow_ups_asked == {}  # but never surfaced
+
+
+async def test_a_run_that_was_never_probed_reports_nothing(session, author, respondent, published):
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    await _answer_first(session, run, respondent)
+
+    detail = await ResultsService(session).get_run(published.id, run.id, author)
+
+    assert detail.follow_ups_asked == {}

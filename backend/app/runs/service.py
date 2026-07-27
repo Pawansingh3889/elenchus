@@ -7,6 +7,7 @@ refuses anyone else, while results are author-facing and cross-respondent.
 import csv
 import io
 import json
+import logging
 from typing import Any
 from uuid import UUID
 
@@ -14,12 +15,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.errors import NotFoundError
 from app.runs.enums import AnswerKind
-from app.runs.models import SurveyRun
+from app.runs.models import REPLY_PREFIX, SurveyRun
 from app.runs.repository import ResultsRepository
 from app.runs.schemas import AnswerRead, MessageRead, RunDetail, RunSummary
 from app.templates.models import SurveyTemplate, SurveyTemplateVersion
 from app.templates.repository import TemplateRepository
 from app.users.models import User
+
+logger = logging.getLogger("app.runs.results")
 
 EXPORT_COLUMNS = [
     "run_id",
@@ -61,6 +64,7 @@ class ResultsService:
             completed_at=run.completed_at,
             messages=[MessageRead.model_validate(m) for m in run.messages],
             answers=[AnswerRead.model_validate(a) for a in run.answers],
+            follow_ups_asked=follow_ups_asked(run),
             summary=run.summary,
         )
 
@@ -92,6 +96,27 @@ class ResultsService:
         if template is None or template.created_by != author.id:
             raise NotFoundError("Template not found.")
         return template
+
+
+def follow_ups_asked(run: SurveyRun) -> dict[UUID, int]:
+    """The follow-up probes the engine issued, per question id.
+
+    ``probes_asked`` is the engine's own ledger and holds two things: follow-up counts
+    keyed by question id, and reply counts under a ``reply:`` prefix sharing the same
+    JSONB. That prefix is a storage detail, so only the probes cross the API boundary.
+    """
+    counts: dict[UUID, int] = {}
+    for key, count in run.probes_asked.items():
+        if key.startswith(REPLY_PREFIX):
+            continue
+        try:
+            counts[UUID(key)] = count
+        except ValueError:
+            # Only the engine writes this column, so a key that is neither a question id
+            # nor a reply marker means an engine bug — worth a line in the log, but not
+            # worth failing an author's whole results view over.
+            logger.warning("skipping unrecognised probes_asked key: run=%s key=%r", run.id, key)
+    return counts
 
 
 def flatten_answer(value: dict[str, Any]) -> str:

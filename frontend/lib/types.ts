@@ -147,5 +147,9 @@ export interface RunDetail {
   completed_at: string | null;
   messages: RunMessage[];
   answers: RunAnswer[];
+  /** Follow-ups the engine issued, keyed by question id. A probe is charged when it is
+   *  asked, and one that draws out the scripted answer leaves no follow-up answer — so
+   *  this is the only place a probed question shows up as probed. */
+  follow_ups_asked: Record<string, number>;
   summary: StoredRunSummary | null;
 }

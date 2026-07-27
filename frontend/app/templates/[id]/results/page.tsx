@@ -35,6 +35,10 @@ function groupByQuestion(answers: RunAnswer[]): AnswerGroup[] {
   return groups;
 }
 
+function totalProbes(run: RunDetail): number {
+  return Object.values(run.follow_ups_asked ?? {}).reduce((sum, n) => sum + n, 0);
+}
+
 function stamp(answer: RunAnswer, respondent: string, version: number): string {
   const when = new Date(answer.answered_at).toLocaleString(undefined, {
     dateStyle: "medium",
@@ -245,12 +249,28 @@ export default function ResultsPage() {
                         ? `, completed ${new Date(detail.data.completed_at).toLocaleString()}`
                         : ", still in progress"}
                     </span>
+                    {/* Run-level total as well as the per-question chips: a question that
+                        was probed but never answered has no row to hang a chip on. */}
+                    {totalProbes(detail.data) > 0 ? (
+                      <span>
+                        {totalProbes(detail.data)} follow-up
+                        {totalProbes(detail.data) === 1 ? "" : "s"} asked
+                      </span>
+                    ) : null}
                   </div>
                   <div className="answer-list">
                     {groupByQuestion(detail.data.answers).map((group) => (
                       <div key={group.questionId} className="answer">
                         <div className="answer-q">
                           {group.scripted?.question_text ?? "Unanswered question"}
+                          {detail.data.follow_ups_asked?.[group.questionId] ? (
+                            <span
+                              className="chip chip-follow"
+                              title="Follow-ups the engine allowed on this question. A probe is counted when it is asked, so this can exceed the number of follow-up answers below."
+                            >
+                              {detail.data.follow_ups_asked[group.questionId]} probed
+                            </span>
+                          ) : null}
                         </div>
                         {group.scripted ? (
                           <>

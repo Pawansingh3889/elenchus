@@ -18,6 +18,12 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
 
+# Replies share the ``probes_asked`` JSONB with follow-ups, under this prefix — same
+# lifecycle, no extra column, and a question id (a UUID) can never collide with it.
+# Defined beside the column so the engine that writes it and the results service that
+# reads it cannot drift apart on the spelling.
+REPLY_PREFIX = "reply:"
+
 
 class SurveyRun(Base):
     __tablename__ = "survey_runs"

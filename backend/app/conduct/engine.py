@@ -20,7 +20,7 @@ from app.llm.client import LLMError, LLMProtocol, NoToolCallError, ToolTurn
 from app.llm.factory import get_llm
 from app.llm.prompts import load_prompt
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
-from app.runs.models import Answer, RunMessage, SurveyRun
+from app.runs.models import REPLY_PREFIX, Answer, RunMessage, SurveyRun
 from app.users.models import User
 
 logger = logging.getLogger("app.conduct")
@@ -214,7 +214,7 @@ class ConductEngine:
         if turn.tool_name == REPLY:
             # Speaking costs a reply from the per-question cap but records nothing and
             # never advances — the current question stays current.
-            key = f"reply:{question['id']}"
+            key = f"{REPLY_PREFIX}{question['id']}"
             run.probes_asked = {**run.probes_asked, key: run.probes_asked.get(key, 0) + 1}
             await self.session.flush()
             return str(turn.tool_input["reply_text"]).strip()
@@ -270,7 +270,7 @@ class ConductEngine:
             "follow_ups_used": run.probes_asked.get(question["id"], 0),
             # Replies share the probes JSONB under a prefixed key — same lifecycle,
             # no schema change, and question ids (UUIDs) can never collide with it.
-            "replies_used": run.probes_asked.get(f"reply:{question['id']}", 0),
+            "replies_used": run.probes_asked.get(f"{REPLY_PREFIX}{question['id']}", 0),
         }
 
 

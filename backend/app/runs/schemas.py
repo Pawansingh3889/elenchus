@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
 
@@ -51,6 +51,11 @@ class RunDetail(BaseModel):
     completed_at: datetime | None
     messages: list[MessageRead]
     answers: list[AnswerRead]
+    # Follow-ups the engine issued, per question id. The cap is spent when a probe is
+    # asked, not when a reply to one is recorded, so this is the only faithful record of
+    # follow-up spend: a probe that drew out the scripted answer itself leaves no
+    # follow-up answer row behind, and the results view would show no sign of it.
+    follow_ups_asked: dict[UUID, int] = Field(default_factory=dict)
     # Null until an author asks for one; the stretch AI summary is generated on request,
     # not as a side effect of the respondent finishing.
     summary: dict[str, Any] | None = None
