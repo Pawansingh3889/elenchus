@@ -51,3 +51,6 @@ class RunDetail(BaseModel):
     completed_at: datetime | None
     messages: list[MessageRead]
     answers: list[AnswerRead]
+    # Null until an author asks for one; the stretch AI summary is generated on request,
+    # not as a side effect of the respondent finishing.
+    summary: dict[str, Any] | None = None

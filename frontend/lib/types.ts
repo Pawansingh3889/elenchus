@@ -119,6 +119,25 @@ export interface RunSummary {
   completed_at: string | null;
 }
 
+export interface RunQuote {
+  question: string;
+  quote: string;
+}
+
+/** The AI summary of one completed run. Quotes are verbatim: the backend drops any the
+ *  respondent did not actually say, so what arrives here can be shown as their words. */
+export interface RunSummaryContent {
+  headline: string;
+  key_facts: string[];
+  notable_quotes: RunQuote[];
+}
+
+/** As stored on the run: the content plus the provenance the API adds when writing it. */
+export type StoredRunSummary = RunSummaryContent & {
+  prompt_version?: string;
+  generated_at?: string;
+};
+
 export interface RunDetail {
   id: string;
   respondent_name: string;
@@ -128,4 +147,5 @@ export interface RunDetail {
   completed_at: string | null;
   messages: RunMessage[];
   answers: RunAnswer[];
+  summary: StoredRunSummary | null;
 }

@@ -61,6 +61,7 @@ class ResultsService:
             completed_at=run.completed_at,
             messages=[MessageRead.model_validate(m) for m in run.messages],
             answers=[AnswerRead.model_validate(a) for a in run.answers],
+            summary=run.summary,
         )
 
     async def export(self, template_id: UUID, author: User) -> tuple[str, list[dict[str, Any]]]:

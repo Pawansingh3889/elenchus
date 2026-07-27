@@ -898,3 +898,47 @@ select.field {
   min-height: 0;
   max-height: 40vh;
 }
+
+/* ---------------------------------------------------------------- AI run summary */
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.summary-headline {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+  margin: 0;
+}
+.summary-facts {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13.5px;
+}
+.summary-quotes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+/* Quotes are the respondent's verbatim words, so they are set apart from the model's
+   own prose above them rather than styled like it. */
+.summary-quote {
+  margin: 0;
+  padding: 8px 12px;
+  background: var(--ai-fill);
+  border-left: 2px solid var(--ai-border);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  font-size: 13.5px;
+  font-style: italic;
+}
+.summary-quote cite {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  font-style: normal;
+  color: var(--secondary);
+}

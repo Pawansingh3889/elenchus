@@ -6,7 +6,6 @@ before failing loudly (ARCHITECTURE.md: validate then act). A valid draft is per
 so it lands in the same builder a hand-built one would.
 """
 
-import json
 import logging
 from typing import Any
 from uuid import UUID
@@ -16,6 +15,7 @@ from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.llm.client import LLMError, LLMProtocol
+from app.llm.decoding import decode_stringified
 from app.llm.factory import get_llm
 from app.llm.prompts import load_prompt
 from app.templates.models import SurveyTemplate
@@ -120,25 +120,6 @@ class GenerationService:
         raise LLMError(f"Model returned an invalid template after one retry: {error}")
 
 
-def _tolerant_json(text: str) -> Any:
-    """Parse model-emitted JSON, absorbing the two classic small-model corruptions.
-
-    Strict first. Then ``strict=False``, which permits literal control characters
-    (a model writing a question across two lines puts a real newline inside the
-    string — invalid in strict JSON). Then repair ``\\'``: escaping an apostrophe is
-    a Python habit, never valid JSON, and replacing it with a bare apostrophe is
-    lossless. Returns None when nothing parses — the caller leaves the original
-    string for the validator to reject loudly.
-    """
-    for candidate in (text, text.replace("\\'", "'")):
-        for strict in (True, False):
-            try:
-                return json.loads(candidate, strict=strict)
-            except json.JSONDecodeError:
-                continue
-    return None
-
-
 def _decode_stringified_fields(raw: dict[str, Any]) -> dict[str, Any]:
     """Undo one JSON-encoding of the structured fields, a common small-model slip.
 
@@ -149,15 +130,9 @@ def _decode_stringified_fields(raw: dict[str, Any]) -> dict[str, Any]:
     the validator to reject, so real junk still fails loudly.
     """
 
-    def parsed(value: Any, expected: type) -> Any:
-        if not isinstance(value, str):
-            return value
-        decoded = _tolerant_json(value)
-        return decoded if isinstance(decoded, expected) else value
-
     def repaired_question(question: Any) -> Any:
         if not isinstance(question, dict):
-            question = parsed(question, dict)
+            question = decode_stringified(question, dict)
         if not isinstance(question, dict) or "options" not in question:
             return question  # leave absent keys absent: the schema defaults
         # Options only mean anything on the select types. Small models decorate rating
@@ -166,11 +141,11 @@ def _decode_stringified_fields(raw: dict[str, Any]) -> dict[str, Any]:
         # the retry.
         if question.get("answer_type") not in ("single_select", "multi_select"):
             return {**question, "options": []}
-        return {**question, "options": parsed(question["options"], list)}
+        return {**question, "options": decode_stringified(question["options"], list)}
 
     repaired = dict(raw)
     if "questions" in repaired:
-        repaired["questions"] = parsed(repaired["questions"], list)
+        repaired["questions"] = decode_stringified(repaired["questions"], list)
     if isinstance(repaired.get("questions"), list):
         repaired["questions"] = [repaired_question(q) for q in repaired["questions"]]
     return repaired

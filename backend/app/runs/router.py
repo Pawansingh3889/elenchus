@@ -12,6 +12,7 @@ from app.auth.dependencies import require_author
 from app.db.session import get_session
 from app.runs.schemas import RunDetail, RunSummary
 from app.runs.service import ResultsService, to_csv
+from app.runs.summary import RunSummaryContent, RunSummaryService
 from app.users.models import User
 
 router = APIRouter(prefix="/api/v1/templates", tags=["results"])
@@ -59,3 +60,17 @@ async def get_run(
     session: AsyncSession = Depends(get_session),
 ) -> RunDetail:
     return await ResultsService(session).get_run(template_id, run_id, author)
+
+
+@router.post("/{template_id}/runs/{run_id}/summary", response_model=RunSummaryContent)
+async def summarise_run(
+    template_id: UUID,
+    run_id: UUID,
+    refresh: bool = Query(False, description="Regenerate even if a summary is stored."),
+    author: User = Depends(require_author),
+    session: AsyncSession = Depends(get_session),
+) -> RunSummaryContent:
+    """Summarise one completed run. Author-triggered rather than generated when the
+    respondent finishes: a model call on the respondent's last turn would put LLM latency
+    (and LLM failure) in the path of recording their final answer."""
+    return await RunSummaryService(session).summarise(template_id, run_id, author, refresh)

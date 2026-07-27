@@ -5,9 +5,14 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { api } from "@/lib/api";
-import { useCurrentUser, useTemplateRun, useTemplateRuns } from "@/lib/queries";
+import {
+  useCurrentUser,
+  useSummariseRun,
+  useTemplateRun,
+  useTemplateRuns,
+} from "@/lib/queries";
 import { useUserStore } from "@/lib/store";
-import type { RunAnswer } from "@/lib/types";
+import type { RunAnswer, RunDetail } from "@/lib/types";
 
 interface AnswerGroup {
   questionId: string;
@@ -54,6 +59,80 @@ function readValue(value: Record<string, unknown>): string {
   if ("other" in value) return String(value.other);
   if ("unanswerable" in value) return `Declined — ${value.unanswerable}`;
   return JSON.stringify(value);
+}
+
+/** The AI summary panel. Only offered on a completed run: summarising a half-finished
+ *  one would describe a response the respondent is still giving. */
+function SummaryCard({ templateId, run }: { templateId: string; run: RunDetail }) {
+  const summarise = useSummariseRun(templateId, run.id);
+  const summary = run.summary;
+  const done = run.status === "completed";
+
+  return (
+    <div className="card">
+      <div className="card-label">
+        Summary
+        <span className="chip chip-follow">AI</span>
+      </div>
+
+      {summary ? (
+        <div className="summary">
+          <p className="summary-headline">{summary.headline}</p>
+          {summary.key_facts.length > 0 ? (
+            <ul className="summary-facts">
+              {summary.key_facts.map((fact, i) => (
+                <li key={i}>{fact}</li>
+              ))}
+            </ul>
+          ) : null}
+          {summary.notable_quotes.length > 0 ? (
+            <div className="summary-quotes">
+              {summary.notable_quotes.map((q, i) => (
+                <blockquote key={i} className="summary-quote">
+                  “{q.quote}”<cite>{q.question}</cite>
+                </blockquote>
+              ))}
+            </div>
+          ) : null}
+          <div className="answer-stamp">
+            {summary.generated_at
+              ? `Generated ${new Date(summary.generated_at).toLocaleString()}`
+              : "Generated"}
+            {summary.prompt_version ? ` · ${summary.prompt_version}` : ""}
+          </div>
+        </div>
+      ) : (
+        <div className="muted">
+          {done
+            ? "No summary yet."
+            : "Available once the respondent finishes — a partial run would summarise an answer still being given."}
+        </div>
+      )}
+
+      {summarise.error ? (
+        <div className="error-text">{(summarise.error as Error).message}</div>
+      ) : null}
+
+      <div className="page-head-actions">
+        <button
+          className="btn btn-secondary"
+          onClick={() => summarise.mutate(Boolean(summary))}
+          disabled={!done || summarise.isPending}
+          title={
+            done
+              ? "Ask the model for the key facts and notable quotes in this response"
+              : "Only a completed run can be summarised"
+          }
+        >
+          {summarise.isPending
+            ? "Summarising…"
+            : summary
+              ? "Regenerate summary"
+              : "Generate summary"}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default function ResultsPage() {
@@ -153,6 +232,8 @@ export default function ResultsPage() {
               <div className="error-text">{(detail.error as Error).message}</div>
             ) : detail.data ? (
               <>
+                <SummaryCard templateId={id} run={detail.data} />
+
                 <div className="card">
                   <div className="card-label">Answers</div>
                   <div className="detail-head">

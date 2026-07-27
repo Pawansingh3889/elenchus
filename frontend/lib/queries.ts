@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "./api";
 import { useUserStore } from "./store";
-import type { TemplateWrite } from "./types";
+import type { RunDetail, TemplateWrite } from "./types";
 
 export function useUsers() {
   return useQuery({ queryKey: ["users"], queryFn: api.listUsers });
@@ -129,6 +129,21 @@ export function useTemplateRun(templateId: string, runId: string | null) {
     queryKey: ["template-run", templateId, runId, userId],
     queryFn: () => api.getTemplateRun(templateId, runId as string),
     enabled: !!userId && !!runId,
+  });
+}
+
+/** Summarising is a model call the author asks for, so it is a mutation, not a query
+ *  that fires on render. The result is written back into the cached run detail. */
+export function useSummariseRun(templateId: string, runId: string | null) {
+  const qc = useQueryClient();
+  const userId = useUserStore((s) => s.currentUserId);
+  return useMutation({
+    mutationFn: (refresh: boolean = false) =>
+      api.summariseRun(templateId, runId as string, refresh),
+    onSuccess: (summary) =>
+      qc.setQueryData(["template-run", templateId, runId, userId], (run: RunDetail | undefined) =>
+        run ? { ...run, summary } : run,
+      ),
   });
 }
 

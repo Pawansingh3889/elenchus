@@ -4,6 +4,7 @@ import type {
   Run,
   RunDetail,
   RunSummary,
+  RunSummaryContent,
   Template,
   TemplateSummary,
   TemplateVersion,
@@ -110,4 +111,9 @@ export const api = {
     rawRequest(`/templates/${templateId}/runs/export?format=${format}`),
   getTemplateRun: (templateId: string, runId: string) =>
     request<RunDetail>(`/templates/${templateId}/runs/${runId}`),
+  summariseRun: (templateId: string, runId: string, refresh = false) =>
+    request<RunSummaryContent>(
+      `/templates/${templateId}/runs/${runId}/summary${refresh ? "?refresh=true" : ""}`,
+      { method: "POST" },
+    ),
 };
