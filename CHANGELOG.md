@@ -5,6 +5,123 @@ All notable changes to the ViewOps Survey Service, from the first commit onward.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-07-27 — Gate mining, the LLM boundary, and the stretch goals
+
+The day's theme is a method: construct an input whose correct verdict is known, run the
+**real** code, and keep only the cases where the verdict flips the wrong way. Every defect
+below was invisible to a suite that passed clean before and after — 21 in total, across
+every surface that validates or decides something.
+
+### Added
+- **AI summary of a completed run** (PR #29) — `POST /templates/{id}/runs/{run_id}/summary`
+  returns a headline, key facts and notable quotes through a schema-constrained tool call,
+  stored on `survey_runs.summary` and shown above the answers. Author-triggered rather than
+  generated when the respondent finishes: a model call on the final turn would put LLM
+  latency, and LLM failure, in the path of recording someone's last answer. Two gates sit
+  between the model and the column — the schema, and a check that every quote is a verbatim
+  span of a recorded answer, because a fabricated quote is indistinguishable from a real one
+  once it is rendered beside the answers.
+- **Conditional visibility** (PR #33) — a question may carry `show_when {question, op, value}`
+  and the engine skips it when the condition is not met. The reference is a question's
+  *position*, not its id: saving a draft replaces every question row, so an id-keyed condition
+  would break the moment the author edited anything. A condition must point backwards, must
+  name an option the referenced select actually offers, and is satisfied by neither operator
+  without a recorded answer — so a skipped or declined premise hides the dependent question,
+  and conditions cascade.
+- **Save and continue later** (PR #34) — `GET /runs` returns the caller's own unfinished runs
+  and the respondent's home turns Start into **Continue**, showing where they left off. This
+  was not merely missing: the home offered Start and nothing else, so anyone who closed the
+  tab could only start again, opening a second run and stranding the first half-answered in
+  the author's results.
+- **Estimated completion time** (PR #34) — shown before starting, computed from question
+  count and type, because a screen of ratings and a screen of essays are not the same survey.
+  Deliberately coarse and rounded up: follow-ups add turns and conditions remove them, so a
+  precise figure would be false precision.
+- **Follow-up spend on the results view** (PR #30) — `RunDetail.follow_ups_asked`, per question.
+  The cap is charged when a probe is *issued*, and a probe often draws out the scripted answer
+  itself, so the run holds one scripted answer and no follow-up row. Counting follow-up answers
+  reported "never probed" for runs that plainly were — twice, during a live acceptance
+  walkthrough — and an author had no way to tell the two apart.
+
+### Fixed
+- **The transcript pushed every early conduct turn off the primary** (PR #28). The message
+  list replayed to the model opened with the engine's greeting, and Anthropic rejects a list
+  whose first entry is not the user's. The first several turns of every run therefore 400'd
+  and fell through to a backup; nothing looked wrong because failover worked. Only the
+  windowed path was safe, its own head already being a user message.
+- **A recorded answer could be silently discarded** (PR #28). `tool_turn` left parallel tool
+  use enabled and kept the *last* tool block, so a turn carrying both `record_answer` and
+  `move_on` threw away the answer just given and advanced anyway.
+- **One malformed backup response killed the whole failover chain** (PR #28). Seven bodies
+  that are valid JSON but not the Chat Completions shape raised `AttributeError`/`KeyError`,
+  which `FailoverLLM` does not catch, so a single bad tier aborted the request instead of
+  trying the next provider. Every hop is now shape-checked and failures stay typed.
+- **Concurrent turns corrupted a run** (PR #31). Two messages arriving together — a
+  double-clicked send, or a client retry — both read the current question and the probe
+  budget, then both wrote. The run ended up with two scripted answers for one question while
+  advancing once ("2 of 2 answered" on a run whose second question was never asked), and the
+  probes counter, a read-modify-write on JSONB, lost updates: racing it walked a respondent to
+  four follow-ups against a cap of two. `handle_message` now takes the run's row lock
+  (`FOR UPDATE NOWAIT`), and the loser gets a 409 rather than queuing behind a model call.
+- **Salvage discarded tool calls that were plainly present** (PR #32). It scanned from the
+  first `{` — so a brace inside earlier prose read as the start of an object — and returned
+  only the first balanced object, so a leading thinking object swallowed the real call. The
+  brace-counting itself was correct.
+- **Ten holes in the answer gate** (PR #25) — NaN and infinity, Python-only numeric literals
+  (`"4_000"`, full-width digits), empty write-ins, duplicate multi-select options.
+- **Five holes at the template schema gate** (PR #26) — blank titles, question text and
+  options; options colliding case-insensitively; and `_without_catch_alls` emptying a select
+  *after* validation, since Pydantic does not re-validate on assignment — silently turning
+  multiple choice into free text.
+- **Validation errors rendered as `[object Object]`** (PR #27). FastAPI sends a 422 `detail`
+  as a list of `{loc, msg}`; the client assumed a string.
+- **The respondent's home advertised the draft, not the published version** (PR #34). A survey
+  published with two questions and since edited to three offered three on the home page and
+  asked two. The published list now reads the latest version's definition.
+- **A max_tokens truncation reported itself as a chatty turn** (PR #28), which the engine
+  retries — at the same budget, so the retry truncated identically and the error named the
+  wrong cause.
+
+### Changed
+- Progress (`answered / total`) counts what can still be asked rather than every authored
+  question, in both the respondent's view and the author's list, so a conditional run reads
+  "2 of 2" instead of looking abandoned at "2 of 3". The denominator only ever shrinks: one
+  that grew mid-survey would read as the survey getting longer the more you answered.
+- Tolerant JSON decoding of model output moved to `app/llm/decoding.py`; generation and
+  summarisation meet the same small-model slips.
+- `main` is protected: both CI checks are required, force-pushes and deletion are blocked,
+  and history must stay linear.
+
+## 2026-07-26 — A third failover tier, recoverable secrets
+
+### Added
+- **Third backup tier** (PR #23) — `LLM_BACKUP3_*`, intended for OpenRouter's `openrouter/free`
+  router, which picks a healthy tool-calling model per call rather than a hardcoded id. That
+  sidesteps exactly the failure backup 2 hit when Gemini deprecated a model id underneath it.
+- **`.env` encrypted with sops/age** (PR #22) — `.env.encrypted` is safely committable and
+  `scripts/decrypt-env.sh` regenerates the live file, which stays plaintext and git-ignored.
+
+### Fixed
+- **A generated draft with no questions was persisted** (PR #24). Caught live: the free
+  auto-router picked a weaker model that returned a schema-valid but empty tool call — a title
+  and zero questions. An empty question list is now a validation failure, so it burns the retry
+  and fails loudly instead of saving a useless draft.
+
+## 2026-07-25 — AI drafts you can talk to
+
+### Added
+- **Refine a draft by follow-up prompt** (PR #20) — generation returns the model's short
+  rationale alongside the draft, and an author can iterate by instruction instead of only
+  editing by hand. The note is a schema field rather than prose: a forced tool call suppresses
+  free text, so asking for a sentence "alongside" the call reliably yields nothing.
+- **Generate lands in the builder** (PR #21) — "Generate draft" now opens the draft with its
+  questions shown and the note seeded into the Refine panel, instead of a card on the home page.
+
+### Fixed
+- **An exhausted LLM chain showed the raw upstream error** (PR #19) — a Gemini quota JSON
+  surfaced to the respondent as a 502. Any `LLMError` reaching the HTTP boundary is now a calm
+  503; the detail stays in the logs.
+
 ## 2026-07-24 — Tricky-input hardening, role-aware UI, and the editor cockpit
 
 ### Added
