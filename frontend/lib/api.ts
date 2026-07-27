@@ -24,6 +24,31 @@ export class ApiError extends Error {
   }
 }
 
+/** Our own errors carry `detail` as a string, but FastAPI's request validation returns a
+ *  list of `{loc, msg}` instead. Passing that list to Error() stringifies it to
+ *  "[object Object]", which is what an author saw for a blank title or a duplicate
+ *  option — so flatten it into the field and the reason. */
+function errorMessage(body: unknown, fallback: string): string {
+  const payload = body as { error?: { message?: unknown }; detail?: unknown } | null;
+  const detail = payload?.error?.message ?? payload?.detail;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    const reasons = detail
+      .map((item) => {
+        const { loc, msg } = (item ?? {}) as { loc?: unknown; msg?: unknown };
+        // Pydantic prefixes custom validators with "Value error, "; it means nothing here.
+        const reason = String(msg ?? "").replace(/^Value error, /, "");
+        const field = Array.isArray(loc)
+          ? loc.filter((part) => part !== "body").join(".")
+          : "";
+        return field ? `${field}: ${reason}` : reason;
+      })
+      .filter(Boolean);
+    if (reasons.length) return reasons.join("; ");
+  }
+  return fallback;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const userId = useUserStore.getState().currentUserId;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -33,8 +58,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!res.ok) {
     let message = res.statusText;
     try {
-      const body = await res.json();
-      message = body?.error?.message ?? body?.detail ?? message;
+      message = errorMessage(await res.json(), message);
     } catch {
       // non-JSON error body; keep the status text
     }
