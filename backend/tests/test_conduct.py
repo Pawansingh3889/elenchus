@@ -16,6 +16,7 @@ from app.conduct.engine import (
     ConductEngine,
     _transcript,
 )
+from app.conduct.repository import RunRepository
 from app.errors import ConflictError
 from app.llm.client import LLMError, NoToolCallError, ToolTurn
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
@@ -537,3 +538,79 @@ async def test_a_chatty_turn_with_no_tool_call_is_retried_once(session, responde
     with pytest.raises(LLMError):
         await ConductEngine(session, llm=stubborn).handle_message(run.id, "4", respondent)
     assert stubborn.calls == 2  # one nudge, then loud failure — never an infinite loop
+
+
+async def test_a_second_turn_is_refused_while_one_is_in_flight(
+    engine, session, respondent, published
+):
+    """The lock is the whole mechanism, so test it directly rather than by timing.
+
+    A run holds its row for the length of a turn — which spans a model call — so the
+    second arrival is told the run is busy instead of waiting on it.
+    """
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    await session.commit()
+
+    async with AsyncSession(engine, expire_on_commit=False) as holder:
+        assert await RunRepository(holder).try_lock(run.id)  # first turn owns the run
+
+        async with AsyncSession(engine, expire_on_commit=False) as second:
+            engine_two = ConductEngine(second, llm=FakeLLM(_record("Line lead")))
+            with pytest.raises(ConflictError, match="already handling"):
+                await engine_two.handle_message(run.id, "line lead", respondent)
+
+
+async def test_racing_messages_never_double_answer_one_question(
+    engine, session, respondent, published
+):
+    """A double-clicked send used to leave two scripted answers on one question, and the
+    author's results then read '2 of 2 answered' on a run whose second question was never
+    asked. Whoever wins, the run must hold one scripted answer per question."""
+    import asyncio
+
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.runs.models import Answer
+
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    await session.commit()
+
+    class SlowLLM:
+        """Holds the first turn open long enough for the second request to arrive.
+
+        q0 permits probing, so the engine loops once after recording — hence move_on on
+        the second call, exactly as the scripted fakes elsewhere do.
+        """
+
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def tool_turn(self, **_):
+            self.calls += 1
+            if self.calls == 1:
+                await asyncio.sleep(0.05)
+                return _record("Line lead")
+            return _move_on()
+
+        async def tool_call(self, **_):
+            raise AssertionError("unused")
+
+    async def turn(n: int):
+        async with AsyncSession(engine, expire_on_commit=False) as s:
+            try:
+                await ConductEngine(s, llm=SlowLLM()).handle_message(run.id, f"m{n}", respondent)
+                return "ok"
+            except ConflictError:
+                return "refused"
+
+    outcomes = await asyncio.gather(turn(1), turn(2))
+    assert outcomes.count("refused") == 1, outcomes
+
+    async with AsyncSession(engine, expire_on_commit=False) as s:
+        rows = (await s.execute(select(Answer).where(Answer.run_id == run.id))).scalars().all()
+    scripted = [a for a in rows if a.kind is AnswerKind.scripted]
+    assert len(scripted) == 1
+    assert len({a.question_id for a in scripted}) == 1

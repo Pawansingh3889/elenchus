@@ -88,6 +88,13 @@ class ConductEngine:
         return _questions_of(version.definition)
 
     async def handle_message(self, run_id: UUID, content: str, respondent: User) -> SurveyRun:
+        # One turn at a time per run. Without this, two messages arriving together — a
+        # double-clicked send, or a client retrying after a timeout — both read the same
+        # current question and the same probe budget, then both write: the run ends up
+        # with two scripted answers for one question, and a follow-up cap of 2 can be
+        # driven past 2 because the JSONB counter is a read-modify-write.
+        if not await self.repo.try_lock(run_id):
+            raise ConflictError("This run is already handling a message. Try again in a moment.")
         run = await self.load(run_id, respondent)
         if run.status is not RunStatus.in_progress:
             raise ConflictError("This run is already finished.")
