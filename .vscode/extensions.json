@@ -4,7 +4,9 @@
     "ms-python.python",
     "ms-python.vscode-pylance",
     "charliermarsh.ruff",
+    "ms-python.black-formatter",
     "ms-python.mypy-type-checker",
+    "ms-ossdata.vscode-pgsql",
     "dbaeumer.vscode-eslint",
     "ms-azuretools.vscode-docker",
     "github.vscode-github-actions"

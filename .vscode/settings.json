@@ -9,8 +9,11 @@
   "python.testing.cwd": "${workspaceFolder}/backend",
   "python.testing.pytestArgs": [],
 
+  // Format with black, lint and sort imports with ruff — the same split the quality
+  // bar uses. Ruff's formatter is black-compatible but not byte-identical, so leaving
+  // it as the formatter meant a saved file could still fail `black --check`.
   "[python]": {
-    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.defaultFormatter": "ms-python.black-formatter",
     "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
       "source.organizeImports.ruff": "explicit"
@@ -18,6 +21,9 @@
   },
 
   "ruff.configuration": "${workspaceFolder}/backend/pyproject.toml",
+  "black-formatter.args": ["--config", "${workspaceFolder}/backend/pyproject.toml"],
+  "black-formatter.cwd": "${workspaceFolder}/backend",
+  "black-formatter.path": ["${workspaceFolder}/backend/.venv/bin/black"],
   "mypy-type-checker.cwd": "${workspaceFolder}/backend",
 
   "eslint.workingDirectories": [

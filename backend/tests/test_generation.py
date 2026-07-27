@@ -98,6 +98,35 @@ async def test_catch_all_options_become_a_write_in(session, author):
     assert (site.options, site.allow_other) == (["Hull", "Leeds"], False)
 
 
+async def test_a_select_of_only_catch_alls_keeps_them_rather_than_emptying(session, author):
+    """Stripping every option would leave a select with none — which the schema refuses on
+    the way in, but the strip runs after validation and is never re-checked. The engine
+    would then offer the question with no enum, quietly turning it into free text."""
+    fake = FakeLLM(
+        {
+            "title": "Onboarding",
+            "questions": [
+                {
+                    "text": "Which team?",
+                    "answer_type": "single_select",
+                    "options": ["Other", "N/A", "Prefer not to say"],
+                },
+                {
+                    "text": "Which tools?",
+                    "answer_type": "multi_select",
+                    "options": ["None of the above", "Not applicable"],
+                },
+            ],
+        }
+    )
+    template, _ = await GenerationService(session, llm=fake).generate_draft("teams", author)
+
+    team, tools = template.questions
+    assert team.options == ["Other", "N/A", "Prefer not to say"]
+    assert tools.options == ["None of the above", "Not applicable"]
+    assert [q.allow_other for q in (team, tools)] == [False, False]
+
+
 async def test_generate_retries_once_then_succeeds(session, author):
     fake = FakeLLM(_INVALID, _VALID)
     template, _ = await GenerationService(session, llm=fake).generate_draft("x", author)

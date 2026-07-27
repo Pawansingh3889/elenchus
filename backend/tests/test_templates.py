@@ -3,6 +3,7 @@
 from uuid import uuid4
 
 import pytest
+from pydantic import ValidationError
 
 from app.errors import ConflictError, NotFoundError
 from app.templates.enums import AnswerType, TemplateStatus
@@ -79,3 +80,39 @@ async def test_update_replaces_questions(session, author):
     )
     assert [q.text for q in updated.questions] == ["c", "a"]
     assert [q.position for q in updated.questions] == [0, 1]
+
+
+# The schema is the gate for both authoring paths — the builder and the LLM draft — so
+# these hold whichever one produced the template.
+
+
+def test_blank_text_is_refused_and_real_text_is_stored_trimmed():
+    """min_length counts characters, not content: "   " satisfies it and renders as a
+    question with nothing to read."""
+    with pytest.raises(ValidationError):
+        QuestionInput(text="   ", answer_type=AnswerType.short_text)
+    with pytest.raises(ValidationError):
+        TemplateCreate(title="   ", questions=[_q("q")])
+    padded = QuestionInput(text="  How long?  ", answer_type=AnswerType.short_text)
+    assert padded.text == "How long?"
+    assert TemplateCreate(title="  Shift feedback  ").title == "Shift feedback"
+
+
+def test_a_blank_option_is_refused():
+    """A blank option renders as an empty choice, and the answer gate matches "" to it —
+    so it is selectable by an empty answer."""
+    with pytest.raises(ValidationError):
+        QuestionInput(text="q", answer_type=AnswerType.single_select, options=["Days", "   "])
+
+
+def test_options_that_collide_case_insensitively_are_refused():
+    """Answers are matched to options case-insensitively, so "days" alongside "Days" is a
+    choice the respondent can never land on and a count that can never be right."""
+    with pytest.raises(ValidationError):
+        QuestionInput(text="q", answer_type=AnswerType.single_select, options=["Days", "Days"])
+    with pytest.raises(ValidationError):
+        QuestionInput(text="q", answer_type=AnswerType.single_select, options=["Days", "days"])
+    kept = QuestionInput(
+        text="q", answer_type=AnswerType.single_select, options=[" Days ", "Nights"]
+    )
+    assert kept.options == ["Days", "Nights"]

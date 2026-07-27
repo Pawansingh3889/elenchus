@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.templates.enums import AnswerType, TemplateStatus
 
@@ -17,6 +17,33 @@ class QuestionInput(BaseModel):
     allow_other: bool = False
     required: bool = True
     allow_follow_ups: bool = False
+
+    @field_validator("text")
+    @classmethod
+    def _text_has_content(cls, value: str) -> str:
+        # min_length counts characters, not content: "   " passes it and renders as a
+        # question with nothing to read.
+        text = value.strip()
+        if not text:
+            raise ValueError("question text cannot be blank")
+        return text
+
+    @field_validator("options")
+    @classmethod
+    def _options_are_distinct_and_readable(cls, values: list[str]) -> list[str]:
+        """Options are matched case-insensitively when an answer comes back, so anything
+        that collides under that rule is a choice the respondent can never land on."""
+        options: list[str] = []
+        seen: set[str] = set()
+        for value in values:
+            option = value.strip()
+            if not option:
+                raise ValueError("an option cannot be blank")
+            if option.casefold() in seen:
+                raise ValueError(f"duplicate option '{option}'")
+            seen.add(option.casefold())
+            options.append(option)
+        return options
 
     @model_validator(mode="after")
     def _check_options(self) -> "QuestionInput":
@@ -32,6 +59,14 @@ class TemplateWrite(BaseModel):
     title: str = Field(min_length=1, max_length=300)
     description: str | None = None
     questions: list[QuestionInput] = Field(default_factory=list)
+
+    @field_validator("title")
+    @classmethod
+    def _title_has_content(cls, value: str) -> str:
+        title = value.strip()
+        if not title:
+            raise ValueError("title cannot be blank")
+        return title
 
 
 # Create and update share the same shape (a full draft), but stay distinct types

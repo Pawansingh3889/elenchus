@@ -197,10 +197,19 @@ def _without_catch_alls(template_in: TemplateCreate) -> TemplateCreate:
     """
     for question in template_in.questions:
         kept = [o for o in question.options if o.strip().lower() not in _CATCH_ALL_OPTIONS]
-        if len(kept) != len(question.options):
-            logger.info("replaced catch-all options with allow_other: %r", question.text)
-            question.options = kept
-            question.allow_other = True
+        if len(kept) == len(question.options):
+            continue
+        if not kept:
+            # Every option was a catch-all. Stripping them would leave a select with no
+            # options — which the schema refuses on the way in, but assignment here runs
+            # after validation and so is never re-checked. The invalid draft would reach
+            # the builder, and the engine would offer the question with no enum at all,
+            # quietly turning multiple choice into free text. Leave it for the author.
+            logger.info("kept catch-all options, nothing else to offer: %r", question.text)
+            continue
+        logger.info("replaced catch-all options with allow_other: %r", question.text)
+        question.options = kept
+        question.allow_other = True
     return template_in
 
 
