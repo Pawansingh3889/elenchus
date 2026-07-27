@@ -299,3 +299,50 @@ async def test_no_tool_call_raises_the_retryable_error_type():
 
     with pytest.raises(NoToolCallError):
         await _client(handler).tool_turn(system="s", messages=[], tools=[])
+
+
+@pytest.mark.parametrize(
+    ("label", "body"),
+    [
+        ("a bare list", []),
+        ("a bare string", "nope"),
+        ("a non-dict choice", {"choices": ["record_answer"]}),
+        ("a string message", {"choices": [{"message": "record_answer"}]}),
+        ("string tool_calls entries", {"choices": [{"message": {"tool_calls": ["record"]}}]}),
+        ("tool_calls as an object", {"choices": [{"message": {"tool_calls": {"f": {}}}}]}),
+        ("a string function", {"choices": [{"message": {"tool_calls": [{"function": "x"}]}}]}),
+    ],
+)
+async def test_a_malformed_provider_body_stays_inside_the_error_type(label: str, body: Any) -> None:
+    """These endpoints are third-party and sometimes answer with JSON that is not the
+    Chat Completions shape. Walking it optimistically raised AttributeError/KeyError,
+    which FailoverLLM does not catch — so one bad body killed the request instead of
+    moving to the next provider."""
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=body)
+
+    with pytest.raises(LLMError):
+        await _client(handler).tool_turn(system="s", messages=[], tools=[])
+
+
+async def test_a_non_json_body_stays_inside_the_error_type():
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text="<html>gateway</html>")
+
+    with pytest.raises(LLMError, match="non-JSON"):
+        await _client(handler).tool_turn(system="s", messages=[], tools=[])
+
+
+async def test_a_malformed_body_falls_through_to_the_next_provider():
+    """The point of the shape checks: a broken tier must not abort the chain."""
+
+    def broken(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"choices": ["record_answer"]})
+
+    def working(_: httpx.Request) -> httpx.Response:
+        return _tool_response("move_on", {"question_id": "q"})
+
+    chain = FailoverLLM(_client(broken), _client(working))
+    turn = await chain.tool_turn(system="s", messages=[], tools=[])
+    assert turn.tool_name == "move_on"

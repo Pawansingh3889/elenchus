@@ -306,18 +306,28 @@ def _last_assistant(run: SurveyRun) -> str:
 
 
 def _transcript(run: SurveyRun) -> list[dict[str, str]]:
-    """The last TRANSCRIPT_WINDOW messages. Windowing is safe by construction: the
-    briefing restates the current question, type, options, and budgets every turn, so
-    distant history is never needed to act — and an unbounded replay overflows the
-    small context of a local backup model long before a survey ends."""
+    """The last TRANSCRIPT_WINDOW messages, always opening on a user turn.
+
+    Windowing is safe by construction: the briefing restates the current question, type,
+    options, and budgets every turn, so distant history is never needed to act — and an
+    unbounded replay overflows the small context of a local backup model long before a
+    survey ends.
+
+    The leading user turn is not cosmetic. Anthropic rejects a message list that starts
+    with the assistant, and every run starts with the engine's opening question — so
+    each of a run's first few turns 400'd on the primary and quietly fell through to a
+    backup. Only the windowed path was safe, because its own head is a user message.
+    """
     messages = [
         {"role": "assistant" if m.role is MessageRole.assistant else "user", "content": m.content}
         for m in run.messages
     ]
-    if len(messages) <= TRANSCRIPT_WINDOW:
-        return messages
-    head: dict[str, str] = {"role": "user", "content": "[earlier conversation omitted]"}
-    return [head, *messages[-TRANSCRIPT_WINDOW:]]
+    if len(messages) > TRANSCRIPT_WINDOW:
+        head: dict[str, str] = {"role": "user", "content": "[earlier conversation omitted]"}
+        messages = [head, *messages[-TRANSCRIPT_WINDOW:]]
+    if messages and messages[0]["role"] != "user":
+        messages = [{"role": "user", "content": "[survey started]"}, *messages]
+    return messages
 
 
 def _value_schema(question: dict[str, Any]) -> dict[str, Any]:

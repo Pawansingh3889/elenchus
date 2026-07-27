@@ -40,6 +40,17 @@ class NoToolCallError(LLMError):
     code = "llm_no_tool_call"
 
 
+class TruncatedTurnError(LLMError):
+    """The turn hit max_tokens before the model chose a tool.
+
+    Deliberately NOT a NoToolCallError: the engine retries those with a nudge, and a
+    retry at the same token budget truncates in exactly the same place. Failing over to
+    another provider (or raising) beats spending a turn to learn nothing.
+    """
+
+    code = "llm_truncated_turn"
+
+
 @asynccontextmanager
 async def _api_errors() -> AsyncIterator[None]:
     """Map SDK failures to one typed error, so callers never see a raw 500."""
@@ -132,12 +143,20 @@ class LLMClient:
                         "input_schema": input_schema,
                     }
                 ],
-                tool_choice={"type": "tool", "name": tool_name},
+                tool_choice={
+                    "type": "tool",
+                    "name": tool_name,
+                    "disable_parallel_tool_use": True,
+                },
             )
         logger.info("llm tool_call model=%s usage=%s", self._model, response.usage)
         for block in response.content:
             if isinstance(block, ToolUseBlock) and block.name == tool_name:
                 return cast("dict[str, Any]", block.input)
+        if response.stop_reason == "max_tokens":
+            raise TruncatedTurnError(
+                f"Model hit the {max_tokens}-token limit before completing its tool call."
+            )
         raise LLMError("Model did not return the expected tool call.")
 
     async def tool_turn(
@@ -156,7 +175,11 @@ class LLMClient:
                 system=system,
                 messages=cast("Any", messages),
                 tools=cast("Any", tools),
-                tool_choice={"type": "any"},
+                # Parallel tool use is on by default, and one turn carrying both
+                # record_answer and move_on would have the engine act on whichever it
+                # kept — dropping an answer the respondent actually gave. One tool per
+                # turn is the engine's contract, so say so rather than pick a winner.
+                tool_choice={"type": "any", "disable_parallel_tool_use": True},
             )
         logger.info("llm tool_turn model=%s usage=%s", self._model, response.usage)
         said: list[str] = []
@@ -165,9 +188,15 @@ class LLMClient:
         for block in response.content:
             if isinstance(block, TextBlock):
                 said.append(block.text)
-            elif isinstance(block, ToolUseBlock):
+            elif isinstance(block, ToolUseBlock) and name is None:
+                # First tool wins if a model ignores the flag: it matches the backup
+                # client, and the engine sees one action either way.
                 name = block.name
                 payload = cast("dict[str, Any]", block.input)
         if name is None:
+            if response.stop_reason == "max_tokens":
+                raise TruncatedTurnError(
+                    f"Model hit the {max_tokens}-token limit before choosing a tool."
+                )
             raise NoToolCallError("Model returned no tool call.")
         return ToolTurn(text="\n".join(said).strip(), tool_name=name, tool_input=payload)

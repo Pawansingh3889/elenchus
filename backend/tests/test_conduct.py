@@ -480,6 +480,35 @@ def test_transcript_is_windowed_for_small_contexts():
     assert windowed[-1]["content"] == "message 29"
 
 
+def test_transcript_always_opens_on_a_user_turn():
+    """Anthropic rejects a message list starting with the assistant, and every run opens
+    with the engine's greeting — so a run's first few turns 400'd on the primary and fell
+    through to a backup. Only the windowed path escaped, its head being a user message."""
+    for length in range(1, TRANSCRIPT_WINDOW + 6):
+        run = SimpleNamespace(
+            messages=[
+                RunMessage(
+                    role=MessageRole.assistant if i % 2 == 0 else MessageRole.user,
+                    content=f"message {i}",
+                )
+                for i in range(length)
+            ]
+        )
+        sent = _transcript(cast("SurveyRun", run))
+        assert sent[0]["role"] == "user", f"{length} stored messages opened on the assistant"
+
+    # The real opening shape: greeting, then the respondent's first reply.
+    run = SimpleNamespace(
+        messages=[
+            RunMessage(role=MessageRole.assistant, content="Thanks for taking it. Your role?"),
+            RunMessage(role=MessageRole.user, content="Data engineer"),
+        ]
+    )
+    sent = _transcript(cast("SurveyRun", run))
+    assert [m["role"] for m in sent] == ["user", "assistant", "user"]
+    assert sent[1]["content"].endswith("Your role?")  # the greeting is still replayed
+
+
 def test_whitespace_only_messages_are_refused_at_the_boundary():
     """A blank message must 422 before it reaches the transcript or burns a model turn."""
     from pydantic import ValidationError

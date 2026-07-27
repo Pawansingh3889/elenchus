@@ -111,7 +111,13 @@ class OpenAICompatibleLLMClient:
                 f"Backup LLM rejected the request ({response.status_code}): {response.text[:200]}"
             )
         logger.info("llm backup call model=%s status=%s", self._model, response.status_code)
-        return cast("dict[str, Any]", response.json())
+        try:
+            body = response.json()
+        except ValueError as exc:
+            raise LLMError(f"Backup LLM returned a non-JSON body: {response.text[:200]}") from exc
+        if not isinstance(body, dict):
+            raise LLMError(f"Backup LLM returned {type(body).__name__}, expected a JSON object.")
+        return cast("dict[str, Any]", body)
 
     @staticmethod
     def _salvage_from_content(said: Any) -> list[dict[str, Any]]:
@@ -149,20 +155,36 @@ class OpenAICompatibleLLMClient:
 
     @staticmethod
     def _first_tool_call(data: dict[str, Any]) -> tuple[str, dict[str, Any], str]:
-        """Pull (tool name, parsed arguments, spoken text) from the first choice."""
+        """Pull (tool name, parsed arguments, spoken text) from the first choice.
+
+        Every hop is shape-checked. These endpoints are third-party and occasionally
+        answer with something that is JSON but not the Chat Completions shape; walking
+        it optimistically raised AttributeError/KeyError, which is not an ``LLMError``
+        and so aborted the whole failover chain instead of moving to the next provider.
+        """
         choices = data.get("choices") or []
-        if not choices:
+        if not isinstance(choices, list) or not choices:
             raise LLMError("Backup LLM returned no choices.")
+        if not isinstance(choices[0], dict):
+            raise LLMError("Backup LLM returned a malformed choice.")
         message = choices[0].get("message") or {}
+        if not isinstance(message, dict):
+            raise LLMError("Backup LLM returned a malformed message.")
         said = message.get("content")
         tool_calls = message.get("tool_calls") or []
+        if not isinstance(tool_calls, list):
+            raise LLMError("Backup LLM returned a malformed tool_calls field.")
         if not tool_calls:
             tool_calls = OpenAICompatibleLLMClient._salvage_from_content(said)
             if tool_calls:
                 said = ""  # the content WAS the tool call; there is nothing spoken
         if not tool_calls:
             raise NoToolCallError("Backup LLM returned no tool call.")
+        if not isinstance(tool_calls[0], dict):
+            raise LLMError("Backup LLM returned a malformed tool call.")
         function = tool_calls[0].get("function") or {}
+        if not isinstance(function, dict):
+            raise LLMError("Backup LLM tool call has a malformed function field.")
         name = function.get("name")
         if not isinstance(name, str):
             raise LLMError("Backup LLM tool call is missing a name.")
