@@ -21,6 +21,7 @@ from app.llm.factory import get_llm
 from app.llm.prompts import load_prompt
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
 from app.runs.models import REPLY_PREFIX, Answer, RunMessage, SurveyRun
+from app.templates.visibility import next_visible, remaining_possible
 from app.users.models import User
 
 logger = logging.getLogger("app.conduct")
@@ -86,6 +87,19 @@ class ConductEngine:
         if version is None:
             raise NotFoundError("The run's template version is missing.")
         return _questions_of(version.definition)
+
+    def progress(self, run: SurveyRun, questions: list[dict[str, Any]]) -> tuple[int, int]:
+        """(answered, total) for the respondent's progress indicator.
+
+        With conditional visibility the total is not simply the question count: some
+        questions will never be asked. It is what has been answered plus what can still
+        be asked, so a question ruled out by a condition drops out of the denominator
+        and a completed run always reads "n of n".
+        """
+        answers = _scripted_answers(run)
+        answered = len(answers)
+        remaining = remaining_possible(run.current_question_index, questions, answers)
+        return answered, answered + remaining
 
     async def handle_message(self, run_id: UUID, content: str, respondent: User) -> SurveyRun:
         # One turn at a time per run. Without this, two messages arriving together — a
@@ -263,12 +277,21 @@ class ConductEngine:
         return self._advance(run, questions, turn)  # move_on
 
     def _advance(self, run: SurveyRun, questions: list[dict[str, Any]], turn: ToolTurn) -> str:
-        run.current_question_index += 1
+        # Skip anything whose show_when condition is not satisfied by what has actually
+        # been recorded. Deciding this in code, from the database, is the same rule that
+        # governs which question is current: the model never gets a say in it.
+        nxt = run.current_question_index + 1
+        run.current_question_index = next_visible(nxt, questions, _scripted_answers(run))
+        # The model wrote its closing line for the question it expected to come next. If
+        # the engine has skipped past that one, those words describe a question nobody
+        # will be asked, so they are replaced rather than spoken.
+        skipped = run.current_question_index != nxt
         if run.current_question_index >= len(questions):
             run.status = RunStatus.completed
             run.completed_at = datetime.now(UTC)
-            return turn.text or CLOSING_FALLBACK
-        return turn.text or questions[run.current_question_index]["text"]
+            return CLOSING_FALLBACK if skipped else (turn.text or CLOSING_FALLBACK)
+        asking = str(questions[run.current_question_index]["text"])
+        return asking if skipped else (turn.text or asking)
 
     async def _state(self, run: SurveyRun, question: dict[str, Any]) -> dict[str, Any]:
         scripted = await self.repo.count_answers(run.id, UUID(question["id"]), AnswerKind.scripted)
@@ -282,6 +305,11 @@ class ConductEngine:
 
 
 # ------------------------------------------------------------------- helpers
+
+
+def _scripted_answers(run: SurveyRun) -> dict[str, dict[str, Any]]:
+    """Each question's scripted answer, keyed by question id — what conditions read."""
+    return {str(a.question_id): a.value for a in run.answers if a.kind is AnswerKind.scripted}
 
 
 def _questions_of(definition: dict[str, Any]) -> list[dict[str, Any]]:

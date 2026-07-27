@@ -15,7 +15,6 @@ from app.conduct.schemas import (
     StartRunRequest,
 )
 from app.db.session import get_session
-from app.runs.enums import AnswerKind
 from app.runs.models import SurveyRun
 from app.runs.schemas import AnswerRead, MessageRead
 from app.users.models import User
@@ -36,12 +35,13 @@ async def _to_read(engine: ConductEngine, run: SurveyRun) -> RunRead:
             allow_other=bool(q.get("allow_other")),
             required=bool(q.get("required")),
         )
+    answered, total = engine.progress(run, questions)
     return RunRead(
         id=run.id,
         status=run.status,
         current_question=current,
-        answered=sum(1 for a in run.answers if a.kind is AnswerKind.scripted),
-        total=len(questions),
+        answered=answered,
+        total=total,
         messages=[
             MessageRead.model_validate(m) for m in sorted(run.messages, key=lambda m: m.created_at)
         ],

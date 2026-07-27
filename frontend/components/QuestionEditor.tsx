@@ -1,6 +1,6 @@
 "use client";
 
-import type { AnswerType, QuestionInput } from "@/lib/types";
+import type { AnswerType, QuestionInput, ShowWhenOp } from "@/lib/types";
 
 const TYPES: { value: AnswerType; label: string }[] = [
   { value: "single_select", label: "Single select" },
@@ -20,13 +20,27 @@ interface Props {
   index: number;
   total: number;
   question: QuestionInput;
+  /** Every question before this one — what a condition may reference. */
+  earlier: QuestionInput[];
   onChange: (patch: Partial<QuestionInput>) => void;
   onRemove: () => void;
   onMove: (dir: number) => void;
 }
 
-export function QuestionEditor({ index, total, question, onChange, onRemove, onMove }: Props) {
+export function QuestionEditor({
+  index,
+  total,
+  question,
+  earlier,
+  onChange,
+  onRemove,
+  onMove,
+}: Props) {
   const selectType = isSelect(question.answer_type);
+  const optionsOf = (position: number) => earlier[position]?.options ?? [];
+  // A select can only ever record one of its own options, so start there; anything else
+  // is free text and the author types it.
+  const defaultValueFor = (position: number) => optionsOf(position)[0] ?? "";
 
   const setType = (t: AnswerType) =>
     onChange({
@@ -118,6 +132,95 @@ export function QuestionEditor({ index, total, question, onChange, onRemove, onM
               </label>
             ) : null}
           </div>
+
+          {/* Only questions with something before them can be conditional — the engine
+              decides visibility from answers already recorded, so a condition on a later
+              question could never come true. */}
+          {index > 0 ? (
+            <div className="qcard-visibility">
+              <span className="qcard-vis-label">Show</span>
+              <select
+                value={question.show_when ? "cond" : "always"}
+                onChange={(e) =>
+                  onChange({
+                    show_when:
+                      e.target.value === "cond"
+                        ? { question: index - 1, op: "is", value: defaultValueFor(index - 1) }
+                        : null,
+                  })
+                }
+              >
+                <option value="always">always</option>
+                <option value="cond">only if…</option>
+              </select>
+
+              {question.show_when ? (
+                <>
+                  <select
+                    value={question.show_when.question}
+                    onChange={(e) => {
+                      const target = Number(e.target.value);
+                      onChange({
+                        show_when: {
+                          ...question.show_when!,
+                          question: target,
+                          // The old value belongs to a different question's options.
+                          value: defaultValueFor(target),
+                        },
+                      });
+                    }}
+                  >
+                    {earlier.map((q, i) => (
+                      <option key={i} value={i}>
+                        Q{i + 1}: {q.text.slice(0, 28) || "(untitled)"}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={question.show_when.op}
+                    onChange={(e) =>
+                      onChange({
+                        show_when: { ...question.show_when!, op: e.target.value as ShowWhenOp },
+                      })
+                    }
+                  >
+                    <option value="is">is</option>
+                    <option value="is_not">is not</option>
+                  </select>
+
+                  {/* A select's answer can only ever be one of its options, so offer
+                      those rather than letting the author mistype one. */}
+                  {optionsOf(question.show_when.question).length > 0 ? (
+                    <select
+                      value={question.show_when.value}
+                      onChange={(e) =>
+                        onChange({
+                          show_when: { ...question.show_when!, value: e.target.value },
+                        })
+                      }
+                    >
+                      {optionsOf(question.show_when.question).map((o) => (
+                        <option key={o} value={o}>
+                          {o}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      value={question.show_when.value}
+                      placeholder="answer"
+                      onChange={(e) =>
+                        onChange({
+                          show_when: { ...question.show_when!, value: e.target.value },
+                        })
+                      }
+                    />
+                  )}
+                </>
+              ) : null}
+            </div>
+          ) : null}
         </div>
         <div className="qcard-controls">
           <button

@@ -942,3 +942,52 @@ select.field {
   font-style: normal;
   color: var(--secondary);
 }
+
+/* ------------------------------------------------- conditional visibility (builder) */
+.qcard-visibility {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+  font-size: 12.5px;
+}
+.qcard-visibility select,
+.qcard-visibility input {
+  font-size: 12.5px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--white);
+  max-width: 190px;
+}
+.qcard-vis-label {
+  color: var(--accent-strong);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+/* A cleared condition is a silent change to survey behaviour, so it is announced. */
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  margin-bottom: 10px;
+  border-radius: var(--radius);
+  background: var(--warn-fill);
+  color: var(--warn-text);
+  border: 1px solid var(--warn-border);
+  font-size: 12.5px;
+}
+.link-btn {
+  background: none;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+  color: inherit;
+  font-size: 12.5px;
+}

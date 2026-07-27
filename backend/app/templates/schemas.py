@@ -5,9 +5,31 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.templates.enums import AnswerType, TemplateStatus
+from app.templates.enums import AnswerType, ShowWhenOp, TemplateStatus
 
 SELECT_TYPES = {AnswerType.single_select, AnswerType.multi_select}
+
+
+class ShowWhen(BaseModel):
+    """A question's visibility condition (SPEC.md 2.2 stretch 2).
+
+    ``question`` is the **0-based position** of an earlier question, not its id. Draft
+    edits replace every question row, so ids do not survive a save — a condition keyed
+    on one would break the moment the author edited anything. Positions are stable
+    within a draft, and frozen for good once a version is published.
+    """
+
+    question: int = Field(ge=0)
+    op: ShowWhenOp
+    value: str = Field(min_length=1)
+
+    @field_validator("value")
+    @classmethod
+    def _value_has_content(cls, value: str) -> str:
+        text = value.strip()
+        if not text:
+            raise ValueError("show_when value cannot be blank")
+        return text
 
 
 class QuestionInput(BaseModel):
@@ -17,6 +39,7 @@ class QuestionInput(BaseModel):
     allow_other: bool = False
     required: bool = True
     allow_follow_ups: bool = False
+    show_when: ShowWhen | None = None
 
     @field_validator("text")
     @classmethod
@@ -68,6 +91,39 @@ class TemplateWrite(BaseModel):
             raise ValueError("title cannot be blank")
         return title
 
+    @model_validator(mode="after")
+    def _conditions_can_actually_be_evaluated(self) -> "TemplateWrite":
+        """A condition must point backwards at a question that can answer it.
+
+        The engine walks questions in order and decides visibility from answers already
+        recorded, so a condition on a later question — or on itself — could never be
+        true and would silently hide the question forever. Cheaper to refuse the survey
+        than to ship one with a question nobody can reach.
+        """
+        for position, question in enumerate(self.questions):
+            condition = question.show_when
+            if condition is None:
+                continue
+            if condition.question >= position:
+                raise ValueError(
+                    f"question {position + 1} is shown by a condition on question "
+                    f"{condition.question + 1}, which is not earlier in the survey"
+                )
+            referenced = self.questions[condition.question]
+            if referenced.options:
+                # The value is compared against what was recorded, and a select can only
+                # ever record one of its own options (or a write-in). A value that is
+                # neither is a typo the author will otherwise only discover by running
+                # the survey and finding the question never appears.
+                allowed = {o.casefold() for o in referenced.options}
+                if condition.value.casefold() not in allowed and not referenced.allow_other:
+                    raise ValueError(
+                        f"question {position + 1}'s condition wants "
+                        f"{condition.value!r}, which is not an option on question "
+                        f"{condition.question + 1} ({', '.join(referenced.options)})"
+                    )
+        return self
+
 
 # Create and update share the same shape (a full draft), but stay distinct types
 # so the API and future divergence read clearly.
@@ -98,6 +154,7 @@ class QuestionRead(BaseModel):
     allow_other: bool
     required: bool
     allow_follow_ups: bool
+    show_when: ShowWhen | None = None
 
 
 class TemplateRead(BaseModel):

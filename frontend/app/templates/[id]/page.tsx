@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 
 import { LivePreview } from "@/components/LivePreview";
+import { clearedBy, remapConditions } from "@/lib/conditions";
 import { QuestionEditor } from "@/components/QuestionEditor";
 import {
   useCurrentUser,
@@ -24,6 +25,7 @@ const blankQuestion = (): QuestionInput => ({
   allow_other: false,
   required: true,
   allow_follow_ups: false,
+  show_when: null,
 });
 
 export default function BuilderPage({ params }: { params: Promise<{ id: string }> }) {
@@ -42,6 +44,8 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
   const [description, setDescription] = useState("");
   const [questions, setQuestions] = useState<QuestionInput[]>([]);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // How many visibility conditions the last reorder/delete had to clear.
+  const [dropped, setDropped] = useState(0);
   const [instruction, setInstruction] = useState("");
   // Seed the Refine panel with the note from the generate that opened this draft…
   const [notes, setNotes] = useState<string[]>(() => {
@@ -75,6 +79,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
         allow_other: q.allow_other,
         required: q.required,
         allow_follow_ups: q.allow_follow_ups,
+        show_when: q.show_when ?? null,
       })),
     );
   }
@@ -89,14 +94,25 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
   const patchQuestion = (i: number, patch: Partial<QuestionInput>) =>
     setQuestions((qs) => qs.map((q, j) => (j === i ? { ...q, ...patch } : q)));
   const addQuestion = () => setQuestions((qs) => [...qs, blankQuestion()]);
-  const removeQuestion = (i: number) => setQuestions((qs) => qs.filter((_, j) => j !== i));
+  // Deleting or reordering shifts positions, and conditions are keyed by position —
+  // so both have to repoint them or a condition silently starts referring to whatever
+  // question moved into that slot.
+  const removeQuestion = (i: number) =>
+    setQuestions((qs) => {
+      const order = qs.map((_, j) => j).filter((j) => j !== i);
+      const next = remapConditions(order.map((j) => qs[j]), order);
+      setDropped(clearedBy(qs, next));
+      return next;
+    });
   const moveQuestion = (i: number, dir: number) =>
     setQuestions((qs) => {
       const j = i + dir;
       if (j < 0 || j >= qs.length) return qs;
-      const copy = [...qs];
-      [copy[i], copy[j]] = [copy[j], copy[i]];
-      return copy;
+      const order = qs.map((_, k) => k);
+      [order[i], order[j]] = [order[j], order[i]];
+      const next = remapConditions(order.map((k) => qs[k]), order);
+      setDropped(clearedBy(qs, next));
+      return next;
     });
 
   const body = { title, description: description || null, questions };
@@ -127,6 +143,9 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
           allow_other: q.allow_other,
           required: q.required,
           allow_follow_ups: q.allow_follow_ups,
+          // The refined draft is the server's, conditions and all — dropping this would
+          // silently strip every condition each time the author refined.
+          show_when: q.show_when ?? null,
         })),
       );
       setNotes((n) => [...n, note || "Updated the draft."]);
@@ -192,13 +211,23 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
         {remove.error ? <div className="error-text">{(remove.error as Error).message}</div> : null}
 
         <div className="questions">
-          {questions.map((q, i) => (
+          {dropped > 0 ? (
+          <div className="notice">
+            {dropped === 1 ? "A visibility condition was" : `${dropped} visibility conditions were`}
+            {" cleared: the question it pointed at was removed or is no longer earlier."}
+            <button className="link-btn" onClick={() => setDropped(0)}>
+              dismiss
+            </button>
+          </div>
+        ) : null}
+        {questions.map((q, i) => (
             <QuestionEditor
               key={i}
               index={i}
               total={questions.length}
               question={q}
               onChange={(patch) => patchQuestion(i, patch)}
+              earlier={questions.slice(0, i)}
               onRemove={() => removeQuestion(i)}
               onMove={(dir) => moveQuestion(i, dir)}
             />

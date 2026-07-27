@@ -9,6 +9,15 @@ class TemplateStatus(str, enum.Enum):
     archived = "archived"
 
 
+class ShowWhenOp(str, enum.Enum):
+    """The two comparisons the demo builder offers. Deliberately not extended: every
+    extra operator is another thing the author can get subtly wrong, and the brief says
+    conditional visibility, not routing."""
+
+    is_ = "is"
+    is_not = "is_not"
+
+
 class AnswerType(str, enum.Enum):
     single_select = "single_select"
     multi_select = "multi_select"

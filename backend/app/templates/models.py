@@ -52,6 +52,10 @@ class SurveyQuestion(Base):
     allow_other: Mapped[bool] = mapped_column(Boolean, default=False)
     required: Mapped[bool] = mapped_column(Boolean, default=True)
     allow_follow_ups: Mapped[bool] = mapped_column(Boolean, default=False)
+    # {"question": <0-based position of an earlier question>, "op": "is"|"is_not",
+    # "value": "..."} or NULL for always-visible. Keyed by position, not id: a draft
+    # edit replaces every question row, so ids do not survive a save.
+    show_when: Mapped[dict[str, Any] | None] = mapped_column(JSONB, default=None)
 
     template: Mapped["SurveyTemplate"] = relationship(back_populates="questions")
 

@@ -20,6 +20,7 @@ from app.runs.repository import ResultsRepository
 from app.runs.schemas import AnswerRead, MessageRead, RunDetail, RunSummary
 from app.templates.models import SurveyTemplate, SurveyTemplateVersion
 from app.templates.repository import TemplateRepository
+from app.templates.visibility import remaining_possible
 from app.users.models import User
 
 logger = logging.getLogger("app.runs.results")
@@ -154,13 +155,18 @@ def to_csv(rows: list[dict[str, Any]]) -> str:
 
 
 def _summary(run: SurveyRun, version: SurveyTemplateVersion, user: User) -> RunSummary:
+    questions = sorted(version.definition["questions"], key=lambda q: q["position"])
+    answers = {str(a.question_id): a.value for a in run.answers if a.kind is AnswerKind.scripted}
     return RunSummary(
         id=run.id,
         respondent_name=user.display_name,
         status=run.status,
         version=version.version,
-        answered=sum(1 for a in run.answers if a.kind is AnswerKind.scripted),
-        total=len(version.definition["questions"]),
+        answered=len(answers),
+        # Same denominator the respondent sees: questions a condition ruled out were
+        # never asked, so counting them would leave every conditional run looking
+        # abandoned at "2 of 4".
+        total=len(answers) + remaining_possible(run.current_question_index, questions, answers),
         started_at=run.started_at,
         completed_at=run.completed_at,
     )

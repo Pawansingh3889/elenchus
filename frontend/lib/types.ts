@@ -18,6 +18,18 @@ export interface User {
   role: UserRole;
 }
 
+export type ShowWhenOp = "is" | "is_not";
+
+/** A question's visibility condition. `question` is the 0-based **position** of an
+ *  earlier question, not its id — a draft save replaces every question row, so ids do
+ *  not survive an edit. Positions shift when questions move, so anything that reorders
+ *  or deletes must remap these (see remapConditions in the builder). */
+export interface ShowWhen {
+  question: number;
+  op: ShowWhenOp;
+  value: string;
+}
+
 export interface QuestionInput {
   text: string;
   answer_type: AnswerType;
@@ -25,6 +37,7 @@ export interface QuestionInput {
   allow_other: boolean;
   required: boolean;
   allow_follow_ups: boolean;
+  show_when: ShowWhen | null;
 }
 
 export interface Question extends QuestionInput {
