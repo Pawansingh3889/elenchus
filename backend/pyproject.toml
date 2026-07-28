@@ -12,13 +12,16 @@ dependencies = [
     "pydantic>=2.10",
     "pydantic-settings>=2.6",
     "anthropic>=0.40",
+    # Imported at module scope by app/llm/backup.py, which is on the import chain from
+    # app.main. It was dev-only, so the image (uv sync --no-dev) booted only because
+    # anthropic happens to pull httpx in transitively.
+    "httpx>=0.28",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
-    "httpx>=0.28",
     "ruff>=0.8",
     "black>=24.10",
     "mypy>=1.13",

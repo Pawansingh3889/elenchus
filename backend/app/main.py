@@ -4,6 +4,7 @@ Routes stay thin and delegate to services; domain routers are mounted here.
 """
 
 import logging
+import sys
 
 from fastapi import Depends, FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +21,35 @@ from app.runs.router import router as results_router
 from app.templates.router import router as templates_router
 from app.users.router import router as users_router
 
+
+def _configure_logging() -> None:
+    """Give the app's own loggers somewhere to write.
+
+    Without this they had nowhere to go. The app runs as ``uvicorn app.main:app``, and
+    uvicorn's default config attaches handlers only to the ``uvicorn*`` loggers — the root
+    gets none — so every ``app.*`` record fell through to ``logging.lastResort``, which
+    drops anything below WARNING. The per-call token-usage lines ARCHITECTURE.md 3.5 calls
+    non-negotiable are logged at INFO, so across a full day of live runs not one was ever
+    written, and the warnings that did survive arrived as a bare message with no level or
+    source.
+
+    Configured on the ``app`` logger rather than the root: uvicorn owns its own
+    configuration, and reconfiguring the root either fights it or double-emits every line.
+    Every logger in this codebase already sits under that namespace, so one handler covers
+    all of them. ``python -m app.seed`` and Alembic do not import this module and are
+    unaffected; both print their own output.
+    """
+    app_logger = logging.getLogger("app")
+    if app_logger.handlers:  # tests import this module repeatedly
+        return
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
+    app_logger.addHandler(handler)
+    app_logger.setLevel(get_settings().log_level.upper())
+    app_logger.propagate = False
+
+
+_configure_logging()
 logger = logging.getLogger("app.main")
 
 app = FastAPI(title="ViewOps Survey Service", version="0.1.0")

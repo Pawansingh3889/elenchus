@@ -396,3 +396,37 @@ async def test_salvage_still_refuses_what_is_not_a_tool_call(label: str, content
 
     with pytest.raises(NoToolCallError):
         await _client(handler).tool_turn(system="s", messages=[], tools=[])
+
+
+async def test_the_backup_tier_records_its_token_usage(caplog):
+    """A backup can serve any live turn — with no Anthropic key, every turn — and until
+    this was added those tokens were spent with no record whatsoever."""
+    import logging
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        body = json.loads(_tool_response("move_on", {"question_id": "q"}).content)
+        body["usage"] = {"prompt_tokens": 812, "completion_tokens": 37, "total_tokens": 849}
+        return httpx.Response(200, json=body)
+
+    with caplog.at_level(logging.INFO, logger="app.llm.backup"):
+        await _client(handler).tool_turn(system="s", messages=[], tools=[])
+
+    usage = [r.getMessage() for r in caplog.records if "usage=" in r.getMessage()]
+    assert len(usage) == 1, usage
+    assert "nemotron-test" in usage[0]  # which tier spent it
+    assert "849" in usage[0]
+
+
+async def test_a_tier_that_omits_usage_still_logs_cleanly(caplog):
+    """Not every OpenAI-compatible endpoint returns a usage block. Recording None is the
+    honest answer; raising over optional provider metadata would not be."""
+    import logging
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return _tool_response("move_on", {"question_id": "q"})
+
+    with caplog.at_level(logging.INFO, logger="app.llm.backup"):
+        turn = await _client(handler).tool_turn(system="s", messages=[], tools=[])
+
+    assert turn.tool_name == "move_on"
+    assert any("usage=None" in r.getMessage() for r in caplog.records)

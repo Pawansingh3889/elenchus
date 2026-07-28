@@ -69,6 +69,11 @@ class Settings(BaseSettings):
     frontend_origin: str = Field(
         "http://localhost:3000", description="Allowed CORS origin for the browser app"
     )
+    log_level: str = Field(
+        "INFO",
+        description="Level for the app.* loggers. INFO keeps the per-call token-usage "
+        "records ARCHITECTURE.md requires; raise to WARNING to quieten them.",
+    )
 
 
 @lru_cache

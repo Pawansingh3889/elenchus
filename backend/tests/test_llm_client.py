@@ -109,3 +109,37 @@ async def test_one_shot_tool_call_also_forbids_parallel_tools():
 
     assert result == {"title": "T"}
     assert sent["tool_choice"]["disable_parallel_tool_use"] is True
+
+
+async def test_app_loggers_can_actually_emit_info():
+    """The bug this guards: nothing configured logging, so every app.* record fell through
+    to logging.lastResort — which drops anything below WARNING. The token-usage lines
+    ARCHITECTURE.md 3.5 requires are INFO, so across a full day of live runs not one was
+    ever written, while the code plainly looked like it logged them."""
+    import logging
+
+    import app.main  # noqa: F401  — importing configures the app.* loggers
+
+    app_logger = logging.getLogger("app")
+    assert app_logger.handlers, "app loggers have nowhere to write"
+    assert logging.getLogger("app.llm").isEnabledFor(logging.INFO)
+
+
+async def test_token_usage_is_recorded_for_each_call(caplog):
+    """ARCHITECTURE.md 3.5 makes this the client's job, so assert the record exists rather
+    than trusting that the line is present in the source."""
+    import logging
+
+    client, _ = _client_returning(
+        [ToolUseBlock(type="tool_use", id="a", name="generate", input={"title": "T"})]
+    )
+    with caplog.at_level(logging.INFO, logger="app.llm"):
+        await client.tool_call(
+            system="s", prompt="p", tool_name="generate", tool_description="d", input_schema={}
+        )
+        await client.tool_turn(system="s", messages=[{"role": "user", "content": "x"}], tools=[])
+
+    usage_records = [r.getMessage() for r in caplog.records if "usage=" in r.getMessage()]
+    assert len(usage_records) == 2, usage_records
+    assert any("tool_call" in m for m in usage_records)
+    assert any("tool_turn" in m for m in usage_records)

@@ -8,6 +8,16 @@ It implements the same ``LLMProtocol`` surface and returns the same validated sh
 the conduct engine and generation service cannot tell which provider answered. As with the
 primary, SDK/transport failures become one typed ``LLMError`` and a malformed or missing
 tool call fails loudly rather than degrading.
+
+A knowing deviation, recorded here so it is a decision rather than a discovery:
+ARCHITECTURE.md 3.1 says "Never regex/parse structured data out of prose", and
+``_salvage_from_content`` below does precisely that. It is confined to this module — the
+Anthropic path never parses prose — and exists because the models these tiers reach are
+free or locally served, and routinely write the tool call into the message text instead of
+into ``tool_calls``. With no Anthropic key configured, every turn is served by a backup
+tier, so refusing to salvage would mean refusing to run at all. The mitigation is that
+salvage only ever *proposes* a tool call: the payload is validated against the same schema
+as any other, and the engine rejects it identically if it does not fit.
 """
 
 import json
@@ -116,13 +126,25 @@ class OpenAICompatibleLLMClient:
             raise LLMError(
                 f"Backup LLM rejected the request ({response.status_code}): {response.text[:200]}"
             )
-        logger.info("llm backup call model=%s status=%s", self._model, response.status_code)
         try:
             body = response.json()
         except ValueError as exc:
             raise LLMError(f"Backup LLM returned a non-JSON body: {response.text[:200]}") from exc
         if not isinstance(body, dict):
             raise LLMError(f"Backup LLM returned {type(body).__name__}, expected a JSON object.")
+        # Logged after parsing so the token usage is in reach — a backup tier can serve any
+        # live turn, and until now those tokens were spent with no record at all. Format
+        # matches the primary's so one grep finds every tier's spend.
+        #
+        # `.get` is not a no-fallbacks shrug here: usage is optional provider metadata that
+        # is recorded and never acted on, unlike the required data ARCHITECTURE.md 4 is
+        # about. A tier that omits it logs usage=None, which is the honest answer.
+        logger.info(
+            "llm backup call model=%s status=%s usage=%s",
+            self._model,
+            response.status_code,
+            body.get("usage"),
+        )
         return cast("dict[str, Any]", body)
 
     @staticmethod
