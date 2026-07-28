@@ -5,7 +5,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "ViewOps Surveys",
+  title: "Survey Service",
   description: "Author and conduct surveys",
 };
 

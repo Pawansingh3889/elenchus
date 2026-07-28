@@ -18,7 +18,7 @@ export function TopBar() {
     <header className="topbar">
       <div className="topbar-left">
         <Link href={isAuthor ? "/" : "/respond"} className="topbar-brand">
-          ViewOps <span>Surveys</span>
+          Survey <span>Service</span>
         </Link>
         <nav className="topbar-nav">
           {/* Roles don't cross: authors build, respondents answer. */}
