@@ -65,8 +65,8 @@ def _canonical_option(raw: str, options: list[str]) -> str | None:
 def validate_answer(question: dict[str, Any], raw: Any) -> dict[str, Any]:
     """Return the normalised value to store, or raise AnswerValidationError."""
     answer_type = question["answer_type"]
-    options: list[str] = question.get("options") or []
-    allow_other = bool(question.get("allow_other"))
+    options: list[str] = question["options"]
+    allow_other = question["allow_other"]
     raw = _coerce(answer_type, raw)
 
     if answer_type == "yes_no":

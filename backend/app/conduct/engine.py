@@ -21,6 +21,7 @@ from app.llm.factory import get_llm
 from app.llm.prompts import load_prompt
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
 from app.runs.models import REPLY_PREFIX, Answer, RunMessage, SurveyRun
+from app.templates.snapshot import questions_of
 from app.templates.visibility import next_visible, remaining_possible
 from app.users.models import User
 
@@ -323,12 +324,14 @@ def _scripted_answers(run: SurveyRun) -> dict[str, dict[str, Any]]:
 
 
 def _questions_of(definition: dict[str, Any]) -> list[dict[str, Any]]:
-    questions = definition.get("questions") or []
-    return sorted(questions, key=lambda q: q["position"])
+    # Validated at the boundary (see templates/snapshot.py), so every reader below can
+    # subscript a snapshot question instead of deciding for itself what a missing key
+    # would have meant.
+    return questions_of(definition)
 
 
 def _may_probe(question: dict[str, Any], follow_ups_used: int) -> bool:
-    return bool(question.get("allow_follow_ups")) and follow_ups_used < MAX_FOLLOW_UPS
+    return bool(question["allow_follow_ups"]) and follow_ups_used < MAX_FOLLOW_UPS
 
 
 def _is_uuid(value: str) -> bool:
@@ -379,7 +382,7 @@ def _value_schema(question: dict[str, Any]) -> dict[str, Any]:
     """A typed JSON schema for the answer value, so constrained backends get a grammar
     and weak models see the exact shape instead of guessing from prose."""
     answer_type = question["answer_type"]
-    options: list[str] = question.get("options") or []
+    options: list[str] = question["options"]
     if answer_type == "rating":
         return {"type": "integer", "minimum": 1, "maximum": 5}
     if answer_type == "yes_no":
@@ -389,7 +392,7 @@ def _value_schema(question: dict[str, Any]) -> dict[str, Any]:
     if answer_type == "date":
         return {"type": "string", "pattern": r"^\d{4}-\d{2}-\d{2}$"}
     if answer_type == "single_select":
-        if options and not question.get("allow_other"):
+        if options and not question["allow_other"]:
             return {"type": "string", "enum": options}
         return {"type": "string"}
     if answer_type == "multi_select":
@@ -556,9 +559,9 @@ def _briefing(
         f"- Question id: {question['id']}",
         f"- Answer type: {question['answer_type']}",
     ]
-    if question.get("options"):
+    if question["options"]:
         lines.append(f"- Options: {question['options']}")
-        lines.append(f"- Free-text 'other' allowed: {bool(question.get('allow_other'))}")
+        lines.append(f"- Free-text 'other' allowed: {question['allow_other']}")
     if question["answer_type"] == "date":
         # Without this the model has no clock, and resolves "this year" against its
         # training data. A live run turned "the 3rd of March this year" into 2024-03-03.
@@ -568,13 +571,13 @@ def _briefing(
         lines.append(f"- Today is {now:%A}, {now.date().isoformat()}")
     lines.append(
         "- This question is required"
-        if question.get("required", True)
+        if question["required"]
         else "- This question is OPTIONAL: if they deflect, let it go rather than pressing"
     )
     lines.append(f"- Answer already recorded: {state['scripted_recorded']}")
     lines.append(
         f"- Follow-ups asked so far: {state['follow_ups_used']} of {MAX_FOLLOW_UPS}"
-        if question.get("allow_follow_ups")
+        if question["allow_follow_ups"]
         else "- Follow-ups: not permitted for this question"
     )
     lines.append(

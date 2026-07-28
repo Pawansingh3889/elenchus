@@ -16,6 +16,7 @@ from app.templates.estimate import estimated_minutes
 from app.templates.models import SurveyQuestion, SurveyTemplate, SurveyTemplateVersion
 from app.templates.repository import TemplateRepository
 from app.templates.schemas import QuestionInput, TemplateCreate, TemplateUpdate
+from app.templates.snapshot import questions_of
 from app.users.models import User
 
 
@@ -46,12 +47,9 @@ class TemplateService:
         actually face — read from the published version, never the evolving draft."""
         rows = await self.repo.list_published_latest()
         return [
-            (
-                template,
-                len(definition.get("questions") or []),
-                estimated_minutes(definition.get("questions") or []),
-            )
+            (template, len(questions), estimated_minutes(questions))
             for template, definition in rows
+            for questions in [questions_of(definition)]
         ]
 
     async def update_draft(

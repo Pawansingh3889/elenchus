@@ -68,7 +68,7 @@ def is_visible(
 
     ``answers`` maps question id to its scripted answer value.
     """
-    condition = question.get("show_when")
+    condition = question["show_when"]
     if not condition:
         return True
     position = condition.get("question")
@@ -108,7 +108,7 @@ def remaining_possible(
     total = 0
     for index in range(current, len(questions)):
         question = questions[index]
-        condition = question.get("show_when")
+        condition = question["show_when"]
         if not condition:
             total += 1
             continue

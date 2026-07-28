@@ -19,30 +19,57 @@ def _q(text: str, answer_type: AnswerType = AnswerType.short_text, **kw) -> Ques
 # ------------------------------------------------------------------ the estimate
 
 
+def _snap(answer_type: str, **kw: object) -> dict[str, object]:
+    """A complete snapshot question, as ``templates.snapshot.questions_of`` yields.
+
+    These tests used to pass bare ``{"answer_type": ...}`` dicts. That worked only
+    because the estimate defaulted every key it could not find, which is the habit
+    ``snapshot.py`` exists to end — a fixture shaped like nothing the application ever
+    produces cannot show that the real thing works.
+    """
+    return {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "position": 0,
+        "text": "q",
+        "answer_type": answer_type,
+        "options": [],
+        "allow_other": False,
+        "required": True,
+        "allow_follow_ups": False,
+        "show_when": None,
+        **kw,
+    }
+
+
 def test_the_estimate_reflects_how_long_each_type_takes() -> None:
     """A screen of ratings and a screen of essays are not the same survey."""
-    taps = [{"answer_type": "rating"} for _ in range(4)]
-    essays = [{"answer_type": "long_text"} for _ in range(4)]
+    taps = [_snap("rating") for _ in range(4)]
+    essays = [_snap("long_text") for _ in range(4)]
     assert estimated_minutes(taps) < estimated_minutes(essays)
 
 
 def test_the_estimate_is_never_zero_minutes() -> None:
     """'0 minutes' reads as 'no time at all', which no survey is."""
-    assert estimated_minutes([{"answer_type": "yes_no"}]) == 1
+    assert estimated_minutes([_snap("yes_no")]) == 1
     assert estimated_minutes([]) == 1
 
 
 def test_questions_that_may_be_probed_cost_more() -> None:
     """Enough questions to clear the rounding to whole minutes — at three the extra
     probing time is real but disappears into the same minute."""
-    plain = [{"answer_type": "long_text"} for _ in range(8)]
-    probed = [{"answer_type": "long_text", "allow_follow_ups": True} for _ in range(8)]
+    plain = [_snap("long_text") for _ in range(8)]
+    probed = [_snap("long_text", allow_follow_ups=True) for _ in range(8)]
     assert estimated_minutes(probed) > estimated_minutes(plain)
 
 
 def test_an_unknown_type_still_counts_as_a_question() -> None:
-    """A version written by a future build must not estimate as if it were empty."""
-    assert estimated_minutes([{"answer_type": "hologram"}]) >= 1
+    """A version written by a future build must not estimate as if it were empty.
+
+    Unreachable from the application now that ``questions_of`` validates
+    ``answer_type`` against the enum — kept because the helper is worth being safe on
+    its own terms, and a future caller may not come through that gate.
+    """
+    assert estimated_minutes([_snap("hologram")]) >= 1
 
 
 # ------------------------------------------------- the published list describes the version

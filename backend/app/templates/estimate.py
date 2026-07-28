@@ -37,11 +37,11 @@ def estimated_minutes(questions: list[dict[str, Any]]) -> int:
     total = 0
     for question in questions:
         try:
-            answer_type = AnswerType(question.get("answer_type"))
+            answer_type = AnswerType(question["answer_type"])
         except ValueError:
             total += DEFAULT_SECONDS  # an unknown type is still a question to answer
             continue
         total += SECONDS.get(answer_type, DEFAULT_SECONDS)
-        if question.get("allow_follow_ups"):
+        if question["allow_follow_ups"]:
             total += FOLLOW_UP_SECONDS
     return max(1, -(-total // 60))

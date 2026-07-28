@@ -32,9 +32,9 @@ async def _to_read(engine: ConductEngine, run: SurveyRun) -> RunRead:
             id=UUID(q["id"]),
             text=q["text"],
             answer_type=q["answer_type"],
-            options=q.get("options") or [],
-            allow_other=bool(q.get("allow_other")),
-            required=bool(q.get("required")),
+            options=q["options"],
+            allow_other=q["allow_other"],
+            required=q["required"],
         )
     answered, total = engine.progress(run, questions)
     return RunRead(

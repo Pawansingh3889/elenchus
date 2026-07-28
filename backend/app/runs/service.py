@@ -20,6 +20,7 @@ from app.runs.repository import ResultsRepository
 from app.runs.schemas import AnswerRead, MessageRead, RunDetail, RunSummary
 from app.templates.models import SurveyTemplate, SurveyTemplateVersion
 from app.templates.repository import TemplateRepository
+from app.templates.snapshot import questions_of
 from app.templates.visibility import remaining_possible
 from app.users.models import User
 
@@ -155,7 +156,7 @@ def to_csv(rows: list[dict[str, Any]]) -> str:
 
 
 def _summary(run: SurveyRun, version: SurveyTemplateVersion, user: User) -> RunSummary:
-    questions = sorted(version.definition["questions"], key=lambda q: q["position"])
+    questions = questions_of(version.definition)
     answers = {str(a.question_id): a.value for a in run.answers if a.kind is AnswerKind.scripted}
     return RunSummary(
         id=run.id,
