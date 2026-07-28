@@ -36,3 +36,47 @@ def test_llm_error_subclasses_resolve_to_the_same_handler():
     # LLMError) lands on the LLMError handler too, not the generic AppError one.
     assert issubclass(NoToolCallError, LLMError)
     assert LLMError in app.exception_handlers
+
+
+async def test_a_database_that_has_gone_away_reads_as_a_calm_503():
+    """The failure this exists for: when Postgres stops, asyncpg's socket error reaches
+    the boundary as a plain OSError. SQLAlchemy does not wrap a failure to *connect*, so
+    an OperationalError handler would miss it and every endpoint answered with a bare,
+    unexplained 500."""
+    handler = app.exception_handlers[OSError]
+
+    response = await handler(_request(), ConnectionRefusedError(111, "Connection refused"))
+    body = json.loads(response.body)
+
+    assert response.status_code == 503
+    assert body["error"]["code"] == "database_unavailable"
+    assert "database" in body["error"]["message"]
+    # The socket detail belongs in the log, not in a respondent's browser.
+    assert "111" not in body["error"]["message"]
+
+
+async def test_health_reports_the_database_it_depends_on(session):
+    """Health used to answer 'ok' whenever the process was up, so an outage looked like
+    an application bug: green health, every real endpoint failing."""
+    from app.main import health
+
+    response = await health(session)
+    body = json.loads(response.body)
+
+    assert response.status_code == 200
+    assert body == {"status": "ok", "database": "ok"}
+
+
+async def test_health_is_degraded_when_the_database_cannot_be_reached():
+    from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+
+    from app.main import health
+
+    dead = create_async_engine("postgresql+asyncpg://viewops:viewops@localhost:5999/viewops")
+    async with AsyncSession(dead) as unreachable:
+        response = await health(unreachable)
+    await dead.dispose()
+    body = json.loads(response.body)
+
+    assert response.status_code == 503
+    assert body == {"status": "degraded", "database": "unreachable"}
