@@ -72,7 +72,7 @@ schema-constrained tool call and is validated before use — the AI can only *pr
 an action; the engine decides whether it happens. The exact instructions the AI is
 given are versioned files checked into the project
 ([conduct_v2.md](../backend/app/llm/prompts/conduct_v2.md) for the conversation,
-[generate_template_v1.md](../backend/app/llm/prompts/generate_template_v1.md) for
+[generate_template_v2.md](../backend/app/llm/prompts/generate_template_v2.md) for
 drafting) — so "what we told the AI" is always reviewable, like any other code.
 
 ## The rules that stop bad answers reaching the database

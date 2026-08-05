@@ -1,7 +1,7 @@
 """Load versioned prompt files by name.
 
 Prompts are code: they live under ``prompts/`` and are loaded by name + version
-(e.g. ``generate_template_v1``), never inlined as string literals in services.
+(e.g. ``generate_template_v2``), never inlined as string literals in services.
 """
 
 from pathlib import Path
