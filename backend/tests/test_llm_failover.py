@@ -301,6 +301,52 @@ async def test_no_tool_call_raises_the_retryable_error_type():
         await _client(handler).tool_turn(system="s", messages=[], tools=[])
 
 
+async def test_a_turn_cut_off_at_the_token_limit_is_not_retryable():
+    """finish_reason "length" means the tokens ran out, not that the model declined to
+    act. Retrying that with a nudge stops in the same place, so it must not arrive as a
+    NoToolCallError."""
+    from app.llm.client import NoToolCallError, TruncatedTurnError
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {"message": {"content": '{"name": "record_'}, "finish_reason": "length"}
+                ]
+            },
+        )
+
+    with pytest.raises(TruncatedTurnError, match="token limit"):
+        await _client(handler).tool_turn(system="s", messages=[], tools=[])
+    # A subclass of LLMError so failover still moves on, but never of the retryable type.
+    assert issubclass(TruncatedTurnError, LLMError)
+    assert not issubclass(TruncatedTurnError, NoToolCallError)
+
+
+async def test_a_complete_call_in_a_truncated_turn_is_still_salvaged():
+    """Truncation is checked after salvage: the model can finish the call and then be cut
+    off mid-prose, and that call is perfectly usable."""
+
+    complete_call = json.dumps({"name": "record_answer", "arguments": {"value": 4}})
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {"content": f"{complete_call} and then it ran ou"},
+                        "finish_reason": "length",
+                    }
+                ]
+            },
+        )
+
+    turn = await _client(handler).tool_turn(system="s", messages=[], tools=[])
+    assert (turn.tool_name, turn.tool_input) == ("record_answer", {"value": 4})
+
+
 @pytest.mark.parametrize(
     ("label", "body"),
     [

@@ -28,7 +28,7 @@ from typing import Any, cast
 
 import httpx
 
-from app.llm.client import LLMError, NoToolCallError, ToolTurn
+from app.llm.client import LLMError, NoToolCallError, ToolTurn, TruncatedTurnError
 
 logger = logging.getLogger("app.llm.backup")
 
@@ -205,6 +205,15 @@ class OpenAICompatibleLLMClient:
             if tool_calls:
                 said = ""  # the content WAS the tool call; there is nothing spoken
         if not tool_calls:
+            # Ran out of tokens rather than declined to act. Kept apart from
+            # NoToolCallError because the engine retries that one with a nudge, and a
+            # retry at the same budget stops in exactly the same place: a wasted turn,
+            # then the same failure. Salvage is attempted first, since a truncated turn
+            # can still carry a complete tool call in the text it managed to write.
+            if choices[0].get("finish_reason") == "length":
+                raise TruncatedTurnError(
+                    "Backup LLM hit its token limit before completing a tool call."
+                )
             raise NoToolCallError("Backup LLM returned no tool call.")
         if not isinstance(tool_calls[0], dict):
             raise LLMError("Backup LLM returned a malformed tool call.")
