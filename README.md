@@ -131,7 +131,8 @@ DATABASE_URL=postgresql+asyncpg://viewops:viewops@localhost:5432/viewops uv run 
 
 The suite runs against a real Postgres — the repository layer is exercised against the engine
 it ships on — and fakes the LLM at the client wrapper, so it needs no API key. If a test ever
-needs one, that is the bug.
+needs one, that is the bug. The backup providers follow the same rule: the OpenAI-compatible
+client is driven through an in-process mock transport, so failover coverage runs offline too.
 
 GitHub Actions runs the same gates on every pull request: `alembic upgrade head` from an empty
 database, `ruff`, `black`, `mypy` and `pytest` for the backend; `tsc --noEmit`, `eslint` and

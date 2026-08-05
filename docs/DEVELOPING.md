@@ -1,29 +1,17 @@
 # Developing in VS Code
 
-The project runs entirely in Docker, so the only hard requirement is Docker itself.
-Everything below is about making it comfortable to work on from the editor — and
-avoiding the handful of traps that cost me time.
+Getting the stack running is in the [README](../README.md) — prerequisites, quick start
+and the seeded demo users all live there. This is the editor half: making the project
+comfortable to work on, and the handful of traps that cost me time.
 
-## 1. Open the right folder
-
-The repository lives inside WSL, not on the Windows filesystem. Open it as a remote
-folder rather than through `\\wsl.localhost\...`, or file watching and git will both
-be slow.
-
-- Command Palette → **WSL: Connect to WSL using Distro…** → `Ubuntu`
-- **File → Open Folder…** → `/home/pawan/viewops-survey-service`
-
-**Check the status bar reads `WSL: Ubuntu`.** If it says anything else you are in a
-different Linux install with a different copy of the code, and your edits will not be
-in the repository. The Source Control panel is the other tell: it should show a git
-repository on `main`, not "no source control providers".
+## 1. Extensions
 
 On first open, VS Code offers the extensions in `.vscode/extensions.json`. Accept them:
 Claude Code, Python, Pylance, Ruff, mypy, ESLint and Docker. The workspace settings
 wire Ruff to `backend/pyproject.toml` and point ESLint at `frontend/`, so formatting
 and linting match what CI runs.
 
-## 1b. The three-pane cockpit
+## 2. The three-pane cockpit
 
 VS Code can be the whole workbench: assistant, code, and the live app side by side.
 
@@ -55,29 +43,17 @@ Set it up once; VS Code remembers the layout per workspace:
 The result: ask Claude Code for a change on the left, watch the diff land in the
 middle, and see the running app react on the right with the engine narrating below.
 
-## 2. Run everything in Docker
+## 3. Editing against the running stack
 
-The default. From the integrated terminal at the repository root:
-
-```bash
-docker compose up --build
-```
-
-Postgres, the API and the frontend come up together. The backend applies migrations and
-seeds users on start.
-
-- Frontend → http://localhost:3000
-- API → http://localhost:8000 (docs at `/docs`)
-- Postgres → localhost:5432 (`viewops` / `viewops`)
-
-Both application containers hot-reload from the mounted source, so editing in VS Code is
-enough — no rebuild for ordinary changes. Rebuild only when a dependency changes:
+Bring the stack up as the README describes. Both application containers hot-reload from
+the mounted source, so editing in VS Code is enough — no rebuild for ordinary changes.
+Rebuild only when a dependency changes:
 
 ```bash
 docker compose up -d --build backend
 ```
 
-## 3. Run the backend on the host, with breakpoints
+## 4. Run the backend on the host, with breakpoints
 
 Containers hot-reload but you cannot set a breakpoint in them from here. To debug the
 conduct engine, run Postgres in Docker and the API on the host.
@@ -99,30 +75,20 @@ docker compose stop backend        # ... debug ... then
 docker compose start backend
 ```
 
-## 4. Run the tests
+## 5. Run the tests
 
-**Run and Debug → `backend: pytest`**, or from the terminal:
+**Run and Debug → `backend: pytest`**, or from the terminal as the
+[README](../README.md#tests-and-ci) shows. The suite needs Postgres running but never
+touches development data — it creates and drops its own `viewops_test` database per run.
 
-```bash
-cd backend
-DATABASE_URL=postgresql+asyncpg://viewops:viewops@localhost:5432/viewops uv run pytest -q
-```
-
-The suite needs Postgres running but never touches development data — it creates and
-drops its own `viewops_test` database per run. It also needs no `ANTHROPIC_API_KEY`: the
-model is faked at the client wrapper, deliberately, so the tests stay honest about what
-they prove. If a test ever needs a real key, that is the bug. The backup-provider tests
-follow the same rule — the OpenAI-compatible client is driven through an in-process mock
-transport, so failover coverage also runs offline.
-
-The same checks CI runs:
+The same checks CI runs, locally:
 
 ```bash
 cd backend && uv run ruff check . && uv run black --check app tests && uv run mypy app
 cd frontend && pnpm exec tsc --noEmit && pnpm exec eslint .
 ```
 
-## 5. Run the frontend on the host
+## 6. Run the frontend on the host
 
 Rarely needed, since the container hot-reloads. If you want the dev server in your own
 terminal, stop the container first so port 3000 is free:
@@ -135,7 +101,7 @@ cd frontend && pnpm install && pnpm dev
 `NEXT_PUBLIC_API_URL` defaults to `http://localhost:8000`, so it finds the containerised
 API without configuration.
 
-## 6. Reset to a known state
+## 7. Reset to a known state
 
 ```bash
 ./scripts/demo_reset.sh
@@ -147,8 +113,8 @@ Use it whenever the data gets messy, and before showing the app to anyone.
 
 ## Traps
 
-**Only one stack at a time.** WSL distributions share a network namespace, so a second
-copy of the project cannot bind 3000, 8000 or 5432 while the first is up. `docker compose
+**Only one stack at a time.** A second copy of the project cannot bind 3000, 8000 or
+5432 while the first is up — and neither can another project's Postgres. `docker compose
 down` in the other one first.
 
 **`.next` and `.venv` can end up owned by root.** The containers run as root and write

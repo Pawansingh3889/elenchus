@@ -14,7 +14,7 @@ tests exist to prove those checks hold — including when the AI misbehaves on p
 
 ## What runs automatically
 
-Every time the code changes, **76 automated checks** run before the change can land.
+Every time the code changes, **212 automated checks** run before the change can land.
 They cover four areas:
 
 | Area | What it proves |
@@ -85,7 +85,7 @@ respondent behaviour — the things real people actually do — and hardened wha
 | Model writes "4" (text) instead of 4 (number) | A harmless formatting slip failed the whole turn | Pure formatting slips are corrected automatically; real guesses are still refused |
 
 Every rule in the table is enforced by code (not by hoping the AI listens) and locked
-in by a new automated check — that's how the count went from 63 to 76.
+in by a new automated check of its own.
 
 ## The live end-to-end test (23 July 2026)
 
@@ -132,5 +132,5 @@ backup: same validation, same limits, same refusal to save bad data.
   answer was arrived at.
 - Results are tied to the exact survey version the person answered — later edits
   can't distort old results.
-- The AI is a helper on a short leash, and 63 automated checks re-verify the leash
-  on every change.
+- The AI is a helper on a short leash, and every one of those automated checks
+  re-verifies the leash on every change.
