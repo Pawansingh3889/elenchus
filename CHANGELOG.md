@@ -5,6 +5,23 @@ All notable changes to the ViewOps Survey Service, from the first commit onward.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-08-05 — Client branding removed from the code and from history
+
+The trial ended on 28 July and the client asked that their branding and template styling
+not travel with the code. Removed from the working tree **and rewritten out of all 120
+commits**, so no earlier revision carries them either:
+
+- `DESIGN.md` and `reference/survey_builder_demo.html`, the client's visual language and
+  builder mock, deleted from every commit that ever held them.
+- The colour palette, replaced token by token with neutral values.
+- The client's typeface, replaced with a system font stack.
+- The palette's variable names, which were taken verbatim from the client's design
+  document, renamed to semantic ones (`--ink`, `--canvas`, `--surface`, `--muted`,
+  `--accent`, `--accent-strong`, `--highlight`, `--border`).
+- The product name in the page title and top bar.
+
+The rest of the brief pack is kept: it records what was asked for, and carries no styling.
+
 ## 2026-08-05 — Cleanup pass
 
 No behaviour change. A sweep for things the repo was carrying but not using, and for

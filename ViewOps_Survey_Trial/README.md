@@ -1,5 +1,11 @@
 # ViewOps — Survey Service Trial Brief
 
+> **Note added after the trial, not part of the original brief.** `DESIGN.md` and
+> `reference/survey_builder_demo.html` set out the client's colour palette, typeface and
+> template styling. They were removed from this repository and from its history at the
+> client's request. References to them below are left as they were written; the files
+> themselves are gone, and the application uses a neutral palette and a system typeface.
+
 Welcome. This is a four-day trial project. You'll build a **standalone survey service** from scratch in a fresh repository. It is a real feature we intend to integrate into our platform, so treat it as production work, not a toy.
 
 ## What you're building (one paragraph)
