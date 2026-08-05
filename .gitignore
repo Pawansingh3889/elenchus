@@ -39,3 +39,7 @@ npm-debug.log*
 
 # One-off local export artifacts
 exports/
+
+# Local-only compose overrides (publishes the DB port for GUI access)
+docker-compose.dbport.yml
+docker-compose.override.yml
