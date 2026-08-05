@@ -5,6 +5,33 @@ All notable changes to the ViewOps Survey Service, from the first commit onward.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-08-05 — Cleanup pass
+
+No behaviour change. A sweep for things the repo was carrying but not using, and for
+knowledge written down in more than one place.
+
+### Removed
+- **Misfiled steward pilot docs.** `docs/steward-pilot-plan.md` and `docs/steward-pilot/`
+  (841 lines) were operational materials for a different project. Nothing linked to them.
+- **create-next-app leftovers.** The generated `frontend/README.md` documented npm, yarn
+  and bun against a pnpm repo and duplicated the root README's quick start; the five
+  placeholder SVGs in `frontend/public/` were never referenced.
+- **Superseded prompts:** `conduct_v1.md` and `generate_template_v1.md`. The engine loads
+  `conduct_v2`, generation loads `generate_template_v2`, and neither version is pinned per
+  run, so the old files were unreachable. `refine_template_v1` and `summarise_run_v1` stay.
+- **`engine._questions_of`,** a private passthrough to `snapshot.questions_of` whose body
+  was a comment restating that module's docstring.
+
+### Changed
+- **The transcript renders from one component** (`components/Transcript.tsx`) instead of
+  being copied between the respondent's runner and the author's results view.
+- **DEVELOPING.md covers only what the README does not.** It opened with WSL setup for a
+  machine this repo no longer lives on and then repeated the quick start, the ports and
+  the test command.
+- **TESTING_REPORT.md no longer quotes a stale test count.** It claimed 76, and 63 further
+  down, against a suite of 213. The round-specific counts are gone rather than re-pinned,
+  since they go stale on the next merge.
+
 ## 2026-07-27 — Gate mining, the LLM boundary, and the stretch goals
 
 The day's theme is a method: construct an input whose correct verdict is known, run the
