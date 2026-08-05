@@ -10,7 +10,8 @@ import uuid
 
 import pytest
 
-from app.conduct.engine import _briefing, _questions_of
+from app.conduct import engine
+from app.conduct.engine import _briefing
 from app.errors import ValidationError
 from app.templates.snapshot import questions_of
 
@@ -38,7 +39,9 @@ def test_a_question_missing_required_is_refused_not_guessed() -> None:
     assert "required" in str(exc.value)
 
 
-@pytest.mark.parametrize("field", ["id", "text", "answer_type", "options", "allow_other"])
+@pytest.mark.parametrize(
+    "field", ["id", "text", "answer_type", "options", "allow_other", "allow_follow_ups"]
+)
 def test_every_other_missing_field_is_refused_too(field: str) -> None:
     """Not a special case for one key — the whole shape is the contract."""
     broken = _snap()
@@ -80,11 +83,13 @@ def test_questions_come_back_in_position_order() -> None:
 
 
 def test_the_engine_loads_through_the_same_gate() -> None:
-    """_questions_of is the conduct engine's only door to a snapshot."""
-    broken = _snap()
-    del broken["allow_follow_ups"]
-    with pytest.raises(ValidationError):
-        _questions_of({"questions": [broken]})
+    """The validating loader is the conduct engine's only door to a snapshot.
+
+    Asserted by identity rather than by calling it: the engine used to wrap this in a
+    private passthrough, and a wrapper is exactly where a future edit could start
+    reading a definition around the gate instead of through it.
+    """
+    assert engine.questions_of is questions_of
 
 
 def test_a_validated_question_briefs_as_required() -> None:

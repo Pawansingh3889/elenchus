@@ -60,7 +60,7 @@ class ConductEngine:
         version = await self.repo.latest_version(template_id)
         if version is None:
             raise ConflictError("This template has no published version to answer.")
-        questions = _questions_of(version.definition)
+        questions = questions_of(version.definition)
         if not questions:
             raise ConflictError("The published version has no questions.")
 
@@ -87,7 +87,7 @@ class ConductEngine:
         version = await self.repo.get_version(run.template_version_id)
         if version is None:
             raise NotFoundError("The run's template version is missing.")
-        return _questions_of(version.definition)
+        return questions_of(version.definition)
 
     def progress(self, run: SurveyRun, questions: list[dict[str, Any]]) -> tuple[int, int]:
         """(answered, total) for the respondent's progress indicator.
@@ -107,7 +107,7 @@ class ConductEngine:
         out: list[tuple[SurveyRun, UUID, str, int, int]] = []
         for run, template_id, title in await self.repo.in_progress_for(respondent.id):
             version = await self.repo.get_version(run.template_version_id)
-            questions = _questions_of(version.definition) if version else []
+            questions = questions_of(version.definition) if version else []
             answered, total = self.progress(run, questions)
             out.append((run, template_id, title, answered, total))
         return out
@@ -321,13 +321,6 @@ class ConductEngine:
 def _scripted_answers(run: SurveyRun) -> dict[str, dict[str, Any]]:
     """Each question's scripted answer, keyed by question id — what conditions read."""
     return {str(a.question_id): a.value for a in run.answers if a.kind is AnswerKind.scripted}
-
-
-def _questions_of(definition: dict[str, Any]) -> list[dict[str, Any]]:
-    # Validated at the boundary (see templates/snapshot.py), so every reader below can
-    # subscript a snapshot question instead of deciding for itself what a missing key
-    # would have meant.
-    return questions_of(definition)
 
 
 def _may_probe(question: dict[str, Any], follow_ups_used: int) -> bool:

@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { AnswerAffordances } from "@/components/AnswerAffordances";
+import { Transcript } from "@/components/Transcript";
 import { useCurrentUser, useRun, useSendRunMessage } from "@/lib/queries";
 import { useUserStore } from "@/lib/store";
 
@@ -58,12 +59,7 @@ export default function RunPage() {
         </div>
       </div>
 
-      <div className="chat-thread">
-        {run.messages.map((message, i) => (
-          <div key={`${message.created_at}-${i}`} className={`bubble bubble-${message.role}`}>
-            {message.content}
-          </div>
-        ))}
+      <Transcript messages={run.messages}>
         {send.isPending ? (
           <div className="bubble bubble-assistant typing">
             <span />
@@ -72,7 +68,7 @@ export default function RunPage() {
           </div>
         ) : null}
         <div ref={endRef} />
-      </div>
+      </Transcript>
 
       {send.error ? <div className="error-text">{(send.error as Error).message}</div> : null}
 

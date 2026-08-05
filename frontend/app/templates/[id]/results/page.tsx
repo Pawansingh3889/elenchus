@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { Transcript } from "@/components/Transcript";
 import { api } from "@/lib/api";
 import {
   useCurrentUser,
@@ -308,16 +309,7 @@ export default function ResultsPage() {
 
                 <div className="card">
                   <div className="card-label">Transcript</div>
-                  <div className="chat-thread chat-thread-flat">
-                    {detail.data.messages.map((message, i) => (
-                      <div
-                        key={`${message.created_at}-${i}`}
-                        className={`bubble bubble-${message.role}`}
-                      >
-                        {message.content}
-                      </div>
-                    ))}
-                  </div>
+                  <Transcript messages={detail.data.messages} flat />
                 </div>
               </>
             ) : null}
