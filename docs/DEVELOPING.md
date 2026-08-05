@@ -79,7 +79,7 @@ docker compose start backend
 
 **Run and Debug → `backend: pytest`**, or from the terminal as the
 [README](../README.md#tests-and-ci) shows. The suite needs Postgres running but never
-touches development data — it creates and drops its own `viewops_test` database per run.
+touches development data — it creates and drops its own `elenchus_test` database per run.
 
 The same checks CI runs, locally:
 

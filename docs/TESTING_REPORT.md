@@ -1,6 +1,6 @@
 # How we test the survey AI — and what the tests found
 
-A plain-English report on the testing behind the ViewOps survey service, written for
+A plain-English report on the testing behind the Elenchus survey service, written for
 readers who don't code. For the technical view, see [DEVELOPING.md](DEVELOPING.md); for
 what the application does, see [OVERVIEW.md](OVERVIEW.md).
 

@@ -36,10 +36,10 @@ if [[ "$DB_ONLY" == "--db-only" ]]; then
   # `compose ps -q` returns nothing under podman-compose, so find it by name instead.
   PG=$($RUNTIME ps --format '{{.Names}}' 2>/dev/null | grep -m1 postgres || true)
   [[ -n "$PG" ]] || { echo "postgres is not running; start it first" >&2; exit 1; }
-  $RUNTIME exec "$PG" psql -U viewops -d postgres \
-    -c "DROP DATABASE IF EXISTS viewops WITH (FORCE);" -c "CREATE DATABASE viewops;" >/dev/null
+  $RUNTIME exec "$PG" psql -U elenchus -d postgres \
+    -c "DROP DATABASE IF EXISTS elenchus WITH (FORCE);" -c "CREATE DATABASE elenchus;" >/dev/null
   ( cd backend
-    export DATABASE_URL=postgresql+asyncpg://viewops:viewops@localhost:5432/viewops
+    export DATABASE_URL=postgresql+asyncpg://elenchus:elenchus@localhost:5432/elenchus
     uv run alembic upgrade head >/dev/null
     uv run python -m app.seed >/dev/null )
   # No backend restart needed: the engine sets pool_pre_ping, so pooled connections

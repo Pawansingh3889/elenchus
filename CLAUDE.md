@@ -1,6 +1,6 @@
-# ViewOps Survey Service — Project Guide
+# Elenchus Survey Service — Project Guide
 
-Standing instructions for *how* we build this service. The brief in `ViewOps_Survey_Trial/`
+Standing instructions for *how* we build this service. The brief in `trial-brief/`
 is the source of truth for *what*; this file is the source of truth for *how*.
 
 ## What this is

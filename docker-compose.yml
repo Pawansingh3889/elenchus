@@ -1,18 +1,18 @@
-name: viewops
+name: elenchus
 
 services:
   postgres:
     image: postgres:17-alpine
     environment:
-      POSTGRES_USER: viewops
-      POSTGRES_PASSWORD: viewops
-      POSTGRES_DB: viewops
+      POSTGRES_USER: elenchus
+      POSTGRES_PASSWORD: elenchus
+      POSTGRES_DB: elenchus
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U viewops -d viewops"]
+      test: ["CMD-SHELL", "pg_isready -U elenchus -d elenchus"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -20,7 +20,7 @@ services:
   backend:
     build: ./backend
     environment:
-      DATABASE_URL: postgresql+asyncpg://viewops:viewops@postgres:5432/viewops
+      DATABASE_URL: postgresql+asyncpg://elenchus:elenchus@postgres:5432/elenchus
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-5}
       # Optional OpenAI-compatible backup LLMs forming a failover chain after Anthropic

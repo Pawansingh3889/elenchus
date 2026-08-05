@@ -13,31 +13,31 @@ from app.users.models import User, UserRole
 SEED_USERS: list[tuple[UUID, str, str, UserRole]] = [
     (
         UUID("00000000-0000-0000-0000-0000000000a1"),
-        "ava@viewops.dev",
+        "ava@elenchus.dev",
         "Ava Author",
         UserRole.author,
     ),
     (
         UUID("00000000-0000-0000-0000-0000000000a2"),
-        "arjun@viewops.dev",
+        "arjun@elenchus.dev",
         "Arjun Author",
         UserRole.author,
     ),
     (
         UUID("00000000-0000-0000-0000-0000000000b1"),
-        "rosa@viewops.dev",
+        "rosa@elenchus.dev",
         "Rosa Respondent",
         UserRole.respondent,
     ),
     (
         UUID("00000000-0000-0000-0000-0000000000b2"),
-        "ravi@viewops.dev",
+        "ravi@elenchus.dev",
         "Ravi Respondent",
         UserRole.respondent,
     ),
     (
         UUID("00000000-0000-0000-0000-0000000000b3"),
-        "remy@viewops.dev",
+        "remy@elenchus.dev",
         "Remy Respondent",
         UserRole.respondent,
     ),

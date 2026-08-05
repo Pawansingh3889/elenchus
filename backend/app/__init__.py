@@ -1,1 +1,1 @@
-"""ViewOps survey service backend."""
+"""Elenchus survey service backend."""

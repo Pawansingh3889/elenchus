@@ -72,7 +72,7 @@ async def test_health_is_degraded_when_the_database_cannot_be_reached():
 
     from app.main import health
 
-    dead = create_async_engine("postgresql+asyncpg://viewops:viewops@localhost:5999/viewops")
+    dead = create_async_engine("postgresql+asyncpg://elenchus:elenchus@localhost:5999/elenchus")
     async with AsyncSession(dead) as unreachable:
         response = await health(unreachable)
     await dead.dispose()

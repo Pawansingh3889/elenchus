@@ -1,10 +1,10 @@
-# ViewOps Survey Service
+# Elenchus Survey Service
 
 A standalone, embeddable survey service. Authors build survey templates (by natural
 language or a builder UI) and publish immutable versions; respondents complete published
 surveys through a conversational, LLM-driven runner that keeps the model on rails.
 
-Full brief in [`ViewOps_Survey_Trial/`](ViewOps_Survey_Trial/README.md); what the app does
+Full brief in [`trial-brief/`](trial-brief/README.md); what the app does
 in [`docs/OVERVIEW.md`](docs/OVERVIEW.md); build conventions in [`CLAUDE.md`](CLAUDE.md);
 working on it in an editor in [`docs/DEVELOPING.md`](docs/DEVELOPING.md); project history
 in [`CHANGELOG.md`](CHANGELOG.md).
@@ -35,7 +35,7 @@ docker compose up --build     # or: podman compose up --build
 
 - Backend API → http://localhost:8000 (health: `/api/v1/health`, docs: `/docs`)
 - Frontend → http://localhost:3000
-- Postgres → localhost:5432 (`viewops` / `viewops`)
+- Postgres → localhost:5432 (`elenchus` / `elenchus`)
 
 The backend applies Alembic migrations on start, so the schema is ready once it's up.
 
@@ -50,11 +50,11 @@ two authors and three respondents with stable ids:
 
 | Role | Name | Email | `X-User-Id` |
 |---|---|---|---|
-| author | Ava Author | ava@viewops.dev | `00000000-0000-0000-0000-0000000000a1` |
-| author | Arjun Author | arjun@viewops.dev | `00000000-0000-0000-0000-0000000000a2` |
-| respondent | Rosa Respondent | rosa@viewops.dev | `00000000-0000-0000-0000-0000000000b1` |
-| respondent | Ravi Respondent | ravi@viewops.dev | `00000000-0000-0000-0000-0000000000b2` |
-| respondent | Remy Respondent | remy@viewops.dev | `00000000-0000-0000-0000-0000000000b3` |
+| author | Ava Author | ava@elenchus.dev | `00000000-0000-0000-0000-0000000000a1` |
+| author | Arjun Author | arjun@elenchus.dev | `00000000-0000-0000-0000-0000000000a2` |
+| respondent | Rosa Respondent | rosa@elenchus.dev | `00000000-0000-0000-0000-0000000000b1` |
+| respondent | Ravi Respondent | ravi@elenchus.dev | `00000000-0000-0000-0000-0000000000b2` |
+| respondent | Remy Respondent | remy@elenchus.dev | `00000000-0000-0000-0000-0000000000b3` |
 
 ```bash
 curl -s http://localhost:8000/api/v1/templates \
@@ -126,7 +126,7 @@ docker-compose.yml
 
 ```bash
 cd backend
-DATABASE_URL=postgresql+asyncpg://viewops:viewops@localhost:5432/viewops uv run pytest -q
+DATABASE_URL=postgresql+asyncpg://elenchus:elenchus@localhost:5432/elenchus uv run pytest -q
 ```
 
 The suite runs against a real Postgres — the repository layer is exercised against the engine

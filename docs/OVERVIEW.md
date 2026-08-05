@@ -1,4 +1,4 @@
-# What ViewOps Survey Service does
+# What Elenchus Survey Service does
 
 A plain-English tour of the application — what it is, who uses it, what the AI
 actually does, and what comes out the other end. Read this first; along the way it
@@ -8,7 +8,7 @@ links to the rest of the story: how to [run it](../README.md), how to
 
 ## In one sentence
 
-ViewOps replaces boring online forms with a friendly chat: instead of filling in boxes
+Elenchus replaces boring online forms with a friendly chat: instead of filling in boxes
 on a questionnaire, respondents answer questions by texting back and forth with an AI —
 like messaging a polite interviewer — while the software keeps the AI firmly on rails.
 
@@ -168,5 +168,5 @@ of these — the chat can be embedded where the respondents already are.
   deviations we caught, the rules they earned, and the live failover run).
 - **How it all got built** → [CHANGELOG.md](../CHANGELOG.md) (the project's history,
   day by day, from the first commit).
-- **The original brief** → [ViewOps_Survey_Trial/](../ViewOps_Survey_Trial/README.md)
+- **The original brief** → [trial-brief/](../trial-brief/README.md)
   (what was asked for in the first place).

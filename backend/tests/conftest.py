@@ -1,6 +1,6 @@
 """Test fixtures: a real Postgres test database with a fresh schema per test.
 
-Uses the compose Postgres (a separate ``viewops_test`` database), so repository and
+Uses the compose Postgres (a separate ``elenchus_test`` database), so repository and
 service logic is exercised against the real engine, not a stand-in.
 """
 
@@ -16,17 +16,17 @@ from app.templates.schemas import QuestionInput, TemplateCreate
 from app.templates.service import TemplateService
 from app.users.models import User, UserRole
 
-ADMIN_URL = "postgresql+asyncpg://viewops:viewops@localhost:5432/viewops"
-TEST_URL = "postgresql+asyncpg://viewops:viewops@localhost:5432/viewops_test"
+ADMIN_URL = "postgresql+asyncpg://elenchus:elenchus@localhost:5432/elenchus"
+TEST_URL = "postgresql+asyncpg://elenchus:elenchus@localhost:5432/elenchus_test"
 
 
 @pytest_asyncio.fixture
 async def engine():
     admin = create_async_engine(ADMIN_URL, isolation_level="AUTOCOMMIT")
     async with admin.connect() as conn:
-        found = await conn.scalar(text("SELECT 1 FROM pg_database WHERE datname = 'viewops_test'"))
+        found = await conn.scalar(text("SELECT 1 FROM pg_database WHERE datname = 'elenchus_test'"))
         if not found:
-            await conn.execute(text("CREATE DATABASE viewops_test"))
+            await conn.execute(text("CREATE DATABASE elenchus_test"))
     await admin.dispose()
 
     eng = create_async_engine(TEST_URL)

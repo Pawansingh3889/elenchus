@@ -52,7 +52,7 @@ def _configure_logging() -> None:
 _configure_logging()
 logger = logging.getLogger("app.main")
 
-app = FastAPI(title="ViewOps Survey Service", version="0.1.0")
+app = FastAPI(title="Elenchus Survey Service", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,

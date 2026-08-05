@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the ViewOps Survey Service, from the first commit onward.
+All notable changes to the Elenchus Survey Service, from the first commit onward.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
@@ -344,4 +344,4 @@ every surface that validates or decides something.
 ## 2026-07-20 — Project kickoff
 
 ### Added
-- The ViewOps survey trial brief pack (requirements, architecture, and spec).
+- The Elenchus survey trial brief pack (requirements, architecture, and spec).

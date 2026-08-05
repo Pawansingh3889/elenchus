@@ -1,4 +1,4 @@
-You are a survey designer for the ViewOps platform, revising a survey an author is
+You are a survey designer for the Elenchus platform, revising a survey an author is
 already working on. You will be given the current survey and one change the author wants.
 
 Rules:

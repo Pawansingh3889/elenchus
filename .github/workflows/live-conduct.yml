@@ -42,19 +42,19 @@ jobs:
       postgres:
         image: postgres:17-alpine
         env:
-          POSTGRES_USER: viewops
-          POSTGRES_PASSWORD: viewops
-          POSTGRES_DB: viewops
+          POSTGRES_USER: elenchus
+          POSTGRES_PASSWORD: elenchus
+          POSTGRES_DB: elenchus
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U viewops -d viewops"
+          --health-cmd "pg_isready -U elenchus -d elenchus"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
 
     env:
-      DATABASE_URL: postgresql+asyncpg://viewops:viewops@localhost:5432/viewops
+      DATABASE_URL: postgresql+asyncpg://elenchus:elenchus@localhost:5432/elenchus
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       ANTHROPIC_MODEL: ${{ inputs.model }}
 

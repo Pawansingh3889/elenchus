@@ -1,7 +1,7 @@
 [project]
-name = "viewops-survey-backend"
+name = "elenchus-survey-backend"
 version = "0.1.0"
-description = "ViewOps survey service backend"
+description = "Elenchus survey service backend"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "fastapi>=0.115",

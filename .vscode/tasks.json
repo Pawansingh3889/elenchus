@@ -21,7 +21,7 @@
       "problemMatcher": []
     },
     {
-      // The suite creates its own viewops_test database but still needs a server.
+      // The suite creates its own elenchus_test database but still needs a server.
       "label": "database up",
       "type": "shell",
       "command": "docker compose up -d postgres",

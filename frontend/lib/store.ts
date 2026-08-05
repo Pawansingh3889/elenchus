@@ -14,7 +14,7 @@ export const useUserStore = create<UserState>()(
       currentUserId: null,
       setCurrentUserId: (id) => set({ currentUserId: id }),
     }),
-    { name: "viewops-user" },
+    { name: "elenchus-user" },
   ),
 );
 
