@@ -7,7 +7,15 @@ the code, breaks every consumer silently.
 
 import pytest
 
-from app.i18n import DEFAULT_LOCALE, MESSAGES, SUPPORTED, parse_locale, translate
+from app.i18n import (
+    DEFAULT_LOCALE,
+    LANGUAGE_NAMES,
+    MESSAGES,
+    SUPPORTED,
+    language_note,
+    parse_locale,
+    translate,
+)
 
 
 @pytest.mark.parametrize(
@@ -64,3 +72,41 @@ def test_the_translations_are_actually_different() -> None:
         for locale, text in by_locale.items():
             if locale != "en":
                 assert text != english, f"{message_id}/{locale} is still English"
+
+
+# --------------------------------------------------------------- language note
+
+
+def test_english_gets_a_short_note_and_no_lecture() -> None:
+    """The default path is most runs. A page of instructions about not translating
+    options is noise when the survey and the respondent are already in English."""
+    note = language_note("en")
+    assert note == "Speak English."
+
+
+def test_a_named_language_is_used_rather_than_its_code() -> None:
+    """Models handle "Arabic" more reliably than "ar"."""
+    note = language_note("ar")
+    assert "Arabic" in note
+    assert '"ar"' not in note
+
+
+def test_an_unknown_code_is_passed_through_rather_than_failing() -> None:
+    """Adding a locale to the picker must not require editing this table first. The
+    worst case is the model receiving a tag it can still recognise."""
+    assert "zu" in language_note("zu")
+
+
+def test_the_note_forbids_translating_option_values() -> None:
+    """The load-bearing half. Options are the author's text and the key an answer is
+    stored under: _canonical_option matches what comes back against that exact string,
+    so a translated option matches nothing and the answer is lost."""
+    note = language_note("es")
+    assert "character for character" in note
+    assert "untranslated" in note
+
+
+def test_every_locale_offered_in_the_ui_has_a_language_name() -> None:
+    """A locale in the picker but missing here would reach the model as a bare code."""
+    for locale in SUPPORTED:
+        assert locale in LANGUAGE_NAMES

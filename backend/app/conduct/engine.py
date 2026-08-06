@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.conduct.repository import RunRepository
 from app.conduct.validation import AnswerValidationError, validate_answer
 from app.errors import ConflictError, ForbiddenError, NotFoundError
+from app.i18n import language_note, translate
 from app.llm.client import LLMError, LLMProtocol, NoToolCallError, ToolTurn
 from app.llm.factory import get_llm
 from app.llm.prompts import load_prompt
@@ -32,7 +33,9 @@ MAX_REPLIES = 2  # conversational replies per question (record nothing, advance 
 MAX_MODEL_TURNS = 3  # per respondent message
 TRANSCRIPT_WINDOW = 12  # messages replayed per turn; the briefing restates the question
 _REJECTED = "run=%s question=%s tool=%s raw_input=%r raw_text=%r error=%s"
-CLOSING_FALLBACK = "That's everything — thank you, your answers are saved."
+# Said when the model supplies no closing line of its own. Resolved per run rather than
+# fixed, because it is the engine's own sentence: unlike a question's text, no author
+# wrote it, so nothing is lost by saying it in the respondent's language.
 
 RECORD = "record_answer"
 FOLLOW_UP = "ask_follow_up"
@@ -56,7 +59,9 @@ class ConductEngine:
 
     # ---------------------------------------------------------------- lifecycle
 
-    async def start_run(self, template_id: UUID, respondent: User) -> SurveyRun:
+    async def start_run(
+        self, template_id: UUID, respondent: User, language: str = "en"
+    ) -> SurveyRun:
         version = await self.repo.latest_version(template_id)
         if version is None:
             raise ConflictError("This template has no published version to answer.")
@@ -64,7 +69,9 @@ class ConductEngine:
         if not questions:
             raise ConflictError("The published version has no questions.")
 
-        run = SurveyRun(template_version_id=version.id, respondent_id=respondent.id)
+        run = SurveyRun(
+            template_version_id=version.id, respondent_id=respondent.id, language=language
+        )
         run.messages.append(
             RunMessage(
                 role=MessageRole.assistant,
@@ -180,7 +187,9 @@ class ConductEngine:
             ]
         try:
             turn = await self.llm.tool_turn(
-                system=load_prompt("conduct_v2") + "\n\n" + briefing,
+                system="\n\n".join(
+                    (load_prompt("conduct_v3"), language_note(run.language), briefing)
+                ),
                 messages=messages,
                 tools=tools,
             )
@@ -300,7 +309,15 @@ class ConductEngine:
         if run.current_question_index >= len(questions):
             run.status = RunStatus.completed
             run.completed_at = datetime.now(UTC)
-            return CLOSING_FALLBACK if skipped else (turn.text or CLOSING_FALLBACK)
+            closing = translate("closing", run.language)
+            return closing if skipped else (turn.text or closing)
+        # The author's question text, spoken verbatim when the model offers nothing.
+        # Deliberately not translated, even in a non-English run: this is the survey's
+        # own wording, the thing the author wrote and will read answers against, and
+        # rendering it in another language is survey-content translation, which needs
+        # per-locale question text on the template rather than a guess made here. The
+        # consequence is real and worth knowing: a run conducted in Spanish shows the
+        # English question whenever the model returns an empty utterance.
         asking = str(questions[run.current_question_index]["text"])
         return asking if skipped else (turn.text or asking)
 

@@ -27,6 +27,7 @@ from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.errors import ConflictError, NotFoundError
+from app.i18n import language_note
 from app.llm.client import LLMError, LLMProtocol
 from app.llm.decoding import decode_stringified
 from app.llm.factory import get_llm
@@ -227,7 +228,13 @@ class RunSummaryService:
                 }
             )
         turn = await self.llm.tool_turn(
-            system=load_prompt(PROMPT_VERSION), messages=messages, tools=[_TOOL], max_tokens=2048
+            # Written in the language the run was conducted in. A summary is read
+            # beside the answers it describes, and an English summary of an Arabic
+            # conversation forces the author to translate one of the two themselves.
+            system="\n\n".join((load_prompt(PROMPT_VERSION), language_note(run.language))),
+            messages=messages,
+            tools=[_TOOL],
+            max_tokens=2048,
         )
         raw = _decode_stringified_fields(turn.tool_input)
         # Fabricated quotes are dropped before validation, never after: mutating a
@@ -252,7 +259,9 @@ class RunSummaryService:
         how the draft was made, neither the writer's briefing nor its earlier attempts.
         """
         turn = await self.verifier.tool_turn(
-            system=load_prompt(VERIFY_PROMPT_VERSION),
+            # The checker reads the same language it is checking, or it cannot judge
+            # whether a quote supports a claim.
+            system="\n\n".join((load_prompt(VERIFY_PROMPT_VERSION), language_note(run.language))),
             messages=[{"role": "user", "content": _verification_brief(run, content)}],
             tools=[_VERIFY_TOOL],
             max_tokens=1024,

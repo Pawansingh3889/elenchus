@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import HTTP_201_CREATED
 
@@ -16,6 +16,7 @@ from app.conduct.schemas import (
     StartRunRequest,
 )
 from app.db.session import get_session
+from app.i18n import parse_locale
 from app.runs.models import SurveyRun
 from app.runs.schemas import AnswerRead, MessageRead
 from app.users.models import User
@@ -55,9 +56,15 @@ async def start_run(
     data: StartRunRequest,
     respondent: User = Depends(require_respondent),
     session: AsyncSession = Depends(get_session),
+    accept_language: str | None = Header(default=None),
 ) -> RunRead:
     engine = ConductEngine(session)
-    run = await engine.start_run(data.template_id, respondent)
+    # The language is settled here, once, and stored on the run. Later turns read it
+    # from the run rather than the header, so resuming somewhere else cannot switch
+    # the interview's language halfway through.
+    run = await engine.start_run(
+        data.template_id, respondent, language=parse_locale(accept_language)
+    )
     return await _to_read(engine, run)
 
 

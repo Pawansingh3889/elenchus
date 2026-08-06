@@ -616,3 +616,83 @@ async def test_racing_messages_never_double_answer_one_question(
     scripted = [a for a in rows if a.kind is AnswerKind.scripted]
     assert len(scripted) == 1
     assert len({a.question_id for a in scripted}) == 1
+
+
+# ------------------------------------------------------------------- language
+
+
+async def test_a_run_pins_its_language_at_the_start(session, respondent, published):
+    """Fixed when the run begins, not read per request: a respondent resuming on
+    another device, or after their browser's language changed, must not find the
+    interview switching language with a transcript above them in the first one."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent, language="ar")
+    assert run.language == "ar"
+
+    # Reloading is the resume path, and it reads the stored value.
+    resumed = await engine.load(run.id, respondent)
+    assert resumed.language == "ar"
+
+
+async def test_a_run_defaults_to_english(session, respondent, published):
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    assert run.language == "en"
+
+
+async def test_the_run_language_reaches_the_model(session, respondent, published):
+    """The instruction is injected per run rather than baked into the prompt file, so
+    this is the only thing proving it actually arrives."""
+    llm = FakeLLM(_record("Line lead"), _move_on())
+    engine = ConductEngine(session, llm=llm)
+    run = await engine.start_run(published.id, respondent, language="es")
+    await engine.handle_message(run.id, "soy jefe de línea", respondent)
+
+    assert llm.briefings, "the model was never asked anything"
+    assert "Speak Spanish" in llm.briefings[0]
+
+
+async def test_an_answer_in_another_language_still_stores_a_typed_value(
+    session, respondent, published
+):
+    """What makes a multilingual interview a prompt problem rather than a parser one:
+    the model reads "cuatro" and the tool call carries 4, so nothing downstream needs
+    to know which language the run was in."""
+    llm = FakeLLM(_record("Line lead"), _move_on(), _record(4), _move_on())
+    engine = ConductEngine(session, llm=llm)
+    run = await engine.start_run(published.id, respondent, language="es")
+    await engine.handle_message(run.id, "soy jefe de línea", respondent)
+    run = await engine.handle_message(run.id, "cuatro", respondent)
+
+    stored = [a.value for a in run.answers if a.kind is AnswerKind.scripted]
+    assert {"rating": 4} in stored
+
+
+async def test_the_engines_own_closing_line_follows_the_run_language(
+    session, respondent, published
+):
+    """The distinction this stage settled on: the engine's own sentences are
+    translated, the author's question text is not. Nobody wrote the closing line, so
+    saying it in the respondent's language costs nothing; a question's wording is the
+    survey itself, and rendering that in another language is content translation with
+    a data model behind it."""
+    from app.i18n import translate
+
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent, language="es")
+
+    # Answer every question with no closing line of the model's own, so the engine
+    # falls back to its own words.
+    silent_move_on = ToolTurn(text="", tool_name="move_on", tool_input={})
+    for value in ("Line lead", 4, "Days"):
+        # Silent on both turns: the fake's default "Thanks." would otherwise be the
+        # last thing said, and this test is about what the engine says when the model
+        # says nothing.
+        silent_record = ToolTurn(text="", tool_name="record_answer", tool_input={"value": value})
+        llm = FakeLLM(silent_record, silent_move_on)
+        run = await ConductEngine(session, llm=llm).handle_message(run.id, "…", respondent)
+        if run.status is RunStatus.completed:
+            break
+
+    assert run.status is RunStatus.completed
+    assert run.messages[-1].content == translate("closing", "es")
+    assert run.messages[-1].content != translate("closing", "en")

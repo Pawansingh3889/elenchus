@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Text, func, text
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func, text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -35,6 +35,11 @@ class SurveyRun(Base):
         SAEnum(RunStatus, name="run_status"), default=RunStatus.in_progress
     )
     current_question_index: Mapped[int] = mapped_column(Integer, default=0)
+    # The language this run is conducted in, fixed when it starts. Fixed rather than
+    # read per request because a respondent who resumes on another device, or after
+    # their browser's language changed, must not find the interview switching language
+    # mid-conversation: the transcript above them is already in the first one.
+    language: Mapped[str] = mapped_column(String(8), default="en", server_default="en")
     # Follow-ups *asked* per question id. The cap is spent when the engine issues a
     # probe, not when a reply to one is recorded — otherwise a respondent who never
     # answers a probe is never charged for it and can be probed indefinitely.
