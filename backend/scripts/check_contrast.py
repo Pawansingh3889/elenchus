@@ -26,19 +26,24 @@ from _guard import fail, report, require_paths
 
 # (foreground token, background token, minimum ratio, what it is)
 PAIRS: tuple[tuple[str, str, float, str], ...] = (
-    ("muted", "white", 4.5, "muted text on a card"),
+    ("muted", "raised", 4.5, "muted text on a card"),
     ("muted", "surface", 4.5, "muted text on a field"),
     ("muted", "canvas", 4.5, "muted text on the page background"),
-    ("secondary", "white", 4.5, "secondary text on a card"),
-    ("accent-strong", "white", 4.5, "card labels"),
+    ("secondary", "raised", 4.5, "secondary text on a card"),
+    ("accent-strong", "raised", 4.5, "card labels"),
     ("ink", "canvas", 4.5, "body text"),
     ("err-text", "err-fill", 4.5, "error text on its fill"),
     ("warn-text", "warn-fill", 4.5, "warning text on its fill"),
-    ("focus", "white", 3.0, "focus ring on a card"),
+    ("focus", "raised", 3.0, "focus ring on a card"),
     ("focus", "canvas", 3.0, "focus ring on the page background"),
 )
 
 TOKEN = re.compile(r"^\s*--([a-z0-9-]+):\s*(#[0-9a-fA-F]{3,8})\s*;", re.MULTILINE)
+# A palette block is a selector followed by declarations. Splitting on these rather
+# than reading the file flat is the whole point: a flat read takes the last definition
+# of each token, so the moment a dark theme was added the guard would have quietly
+# stopped checking the light one and reported success either way.
+BLOCK = re.compile(r"(?P<selector>[^{}]+)\{(?P<body>[^{}]*)\}")
 
 
 def _luminance(value: str) -> float:
@@ -67,28 +72,50 @@ def main() -> int:
     args = parser.parse_args()
 
     require_paths([args.stylesheet], f"stylesheet at {args.stylesheet}")
-    tokens = dict(TOKEN.findall(args.stylesheet.read_text(encoding="utf-8")))
-    if not tokens:
+    text = args.stylesheet.read_text(encoding="utf-8")
+
+    # The base palette, then every override that redefines it. A theme is checked as
+    # base-overlaid-with-override, which is exactly how the browser resolves it.
+    base: dict[str, str] = {}
+    themes: dict[str, dict[str, str]] = {}
+    for block in BLOCK.finditer(text):
+        selector = re.sub(r"/\*.*?\*/", "", block.group("selector"), flags=re.S)
+        selector = " ".join(selector.split())
+        tokens = dict(TOKEN.findall(block.group("body")))
+        if not tokens:
+            continue
+        if selector == ":root":
+            base.update(tokens)
+        elif "data-theme" in selector or "prefers-color-scheme" in selector:
+            themes.setdefault(selector, {}).update(tokens)
+
+    if not base:
         fail(
-            f"no --token: #hex declarations found in {args.stylesheet}.",
+            f"no :root palette found in {args.stylesheet}.",
             "The palette moved or changed shape, so this guard is checking nothing.",
         )
 
-    violations: list[str] = []
-    for fg, bg, minimum, what in PAIRS:
-        if fg not in tokens or bg not in tokens:
-            # A renamed token silently drops its pair, which is how a check quietly
-            # stops checking. Say so instead.
-            violations.append(f"{what}: --{fg} or --{bg} is no longer defined")
-            continue
-        ratio = contrast(tokens[fg], tokens[bg])
-        if ratio < minimum:
-            violations.append(
-                f"{what}: --{fg} ({tokens[fg]}) on --{bg} ({tokens[bg]}) "
-                f"is {ratio:.2f}:1, needs {minimum}:1"
-            )
+    palettes = {"light": base}
+    for selector, overrides in themes.items():
+        palettes[selector] = {**base, **overrides}
 
-    return report("palette contrast", violations, len(PAIRS), unit="colour pair")
+    violations: list[str] = []
+    for name, tokens in palettes.items():
+        for fg, bg, minimum, what in PAIRS:
+            if fg not in tokens or bg not in tokens:
+                # A renamed token silently drops its pair, which is how a check quietly
+                # stops checking. Say so instead.
+                violations.append(f"[{name}] {what}: --{fg} or --{bg} is no longer defined")
+                continue
+            ratio = contrast(tokens[fg], tokens[bg])
+            if ratio < minimum:
+                violations.append(
+                    f"[{name}] {what}: --{fg} ({tokens[fg]}) on --{bg} ({tokens[bg]}) "
+                    f"is {ratio:.2f}:1, needs {minimum}:1"
+                )
+
+    checked = len(PAIRS) * len(palettes)
+    return report("palette contrast", violations, checked, unit="colour pair")
 
 
 if __name__ == "__main__":

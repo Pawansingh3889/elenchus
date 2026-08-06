@@ -2,7 +2,7 @@
   --ink: #23262b;
   --canvas: #eceef0;
   --surface: #f7f8f9;
-  --white: #ffffff;
+  --raised: #ffffff;
   --on-ink: #eceef0;
   /* Text greys are chosen by contrast, not by eye. --muted carries real sentences
      (.empty, .muted), so it clears 4.5:1 on all three backgrounds it can land on:
@@ -69,6 +69,96 @@
      above and below the line that collide at that value, so they get their own below. */
   --leading: 1.5;
   --leading-loose: 1.75;
+
+  /* The last four colours that lived in rules. Shadows are tokens because a shadow
+     tuned for a light page is invisible on a dark one, and the overlays because the
+     top bar tints itself against whatever it sits on. */
+  --overlay-weak: rgba(255, 255, 255, 0.08);
+  --overlay-line: rgba(255, 255, 255, 0.15);
+  --shadow-sm: 0 1px 3px rgba(35, 38, 43, 0.06);
+  --shadow-md: 0 4px 12px rgba(35, 38, 43, 0.1);
+
+  color-scheme: light;
+}
+
+/* ---------------------------------------------------------------------------
+   Dark theme.
+
+   Values only. No rule below this point names a colour, which is the property
+   that makes a second theme a palette swap rather than a second stylesheet.
+
+   Every text pair here was chosen by contrast and is enforced by
+   backend/scripts/check_contrast.py, which reads both palettes: a dark theme
+   that has never been measured is where accessibility regressions hide, since
+   the person who built it was looking at the light one.
+
+   `color-scheme` tells the browser to render its own furniture, meaning
+   scrollbars, form controls and the caret, to match. Without it those stay
+   light and the page looks half-converted.
+   --------------------------------------------------------------------------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --canvas: #15171a;
+    --surface: #1c1f24;
+    --raised: #212429;
+    --ink: #e6e8ea;
+    --on-ink: #e6e8ea;
+    --muted: #9aa4ae;
+    --muted-light: #4a525b;
+    --secondary: #b3bcc5;
+    --accent: #6da4cd;
+    --accent-strong: #a9c9e4;
+    --focus: #6db3e8;
+    --highlight: #e2b23c;
+    --highlight-soft: #2c3138;
+    --border: rgba(255, 255, 255, 0.12);
+    --border-faint: rgba(255, 255, 255, 0.07);
+    --warn-fill: #39290b;
+    --warn-text: #f0cf8a;
+    --warn-border: rgba(240, 207, 138, 0.25);
+    --err-fill: #3a1a13;
+    --err-text: #f4b3a3;
+    --err-border: rgba(244, 179, 163, 0.25);
+    --ai-fill: #1d2733;
+    --ai-border: rgba(169, 201, 228, 0.22);
+    /* Elevation reads as light on a dark surface, not as a cast shadow. */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
+    color-scheme: dark;
+  }
+}
+
+/* The same values, applied on request rather than by system preference. Kept in step
+   with the block above deliberately: a manual toggle that drifts from the automatic
+   one is worse than no toggle. Nothing sets this attribute yet; it is the hook a
+   preference control will use. */
+:root[data-theme="dark"] {
+  --canvas: #15171a;
+  --surface: #1c1f24;
+  --raised: #212429;
+  --ink: #e6e8ea;
+  --on-ink: #e6e8ea;
+  --muted: #9aa4ae;
+  --muted-light: #4a525b;
+  --secondary: #b3bcc5;
+  --accent: #6da4cd;
+  --accent-strong: #a9c9e4;
+  --focus: #6db3e8;
+  --highlight: #e2b23c;
+  --highlight-soft: #2c3138;
+  --border: rgba(255, 255, 255, 0.12);
+  --border-faint: rgba(255, 255, 255, 0.07);
+  --warn-fill: #39290b;
+  --warn-text: #f0cf8a;
+  --warn-border: rgba(240, 207, 138, 0.25);
+  --err-fill: #3a1a13;
+  --err-text: #f4b3a3;
+  --err-border: rgba(244, 179, 163, 0.25);
+  --ai-fill: #1d2733;
+  --ai-border: rgba(169, 201, 228, 0.22);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
 }
 
 * {
@@ -187,9 +277,9 @@ select {
   color: var(--muted);
 }
 .topbar-user select {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--overlay-weak);
   color: var(--on-ink);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--overlay-line);
   border-radius: 8px;
   padding: 5px 8px;
 }
@@ -239,7 +329,7 @@ select {
 }
 
 .card {
-  background: var(--white);
+  background: var(--raised);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 16px;
@@ -282,15 +372,15 @@ select {
 }
 .btn-primary {
   background: var(--ink);
-  color: var(--white);
+  color: var(--raised);
 }
 .btn-secondary {
-  background: var(--white);
+  background: var(--raised);
   border-color: var(--border);
   color: var(--ink);
 }
 .btn-ai {
-  background: var(--white);
+  background: var(--raised);
   border-color: var(--accent);
   color: var(--accent-strong);
 }
@@ -319,7 +409,7 @@ select {
     border-color var(--dur-fast) var(--ease);
 }
 .field:focus {
-  background: var(--white);
+  background: var(--raised);
   border-color: var(--accent);
 }
 textarea {
@@ -336,7 +426,7 @@ textarea {
   min-height: 72px;
 }
 .generate-card textarea:focus {
-  background: var(--white);
+  background: var(--raised);
   border-color: var(--accent);
 }
 .generate-actions {
@@ -354,7 +444,7 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--white);
+  background: var(--raised);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 14px 16px;
@@ -366,7 +456,7 @@ textarea {
 }
 .template-row:hover {
   border-color: var(--muted-light);
-  box-shadow: 0 1px 3px rgba(35, 38, 43, 0.06);
+  box-shadow: var(--shadow-sm);
 }
 .template-title {
   font-weight: 700;
@@ -432,7 +522,7 @@ textarea {
     border-color var(--dur-fast) var(--ease);
 }
 .builder-title:focus {
-  background: var(--white);
+  background: var(--raised);
   border-color: var(--accent);
 }
 .builder-actions {
@@ -490,7 +580,7 @@ textarea {
   gap: 10px;
 }
 .qcard {
-  background: var(--white);
+  background: var(--raised);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 14px;
@@ -533,7 +623,7 @@ textarea {
   height: 26px;
   border-radius: 7px;
   border: 1px solid var(--border);
-  background: var(--white);
+  background: var(--raised);
   color: var(--secondary);
   display: grid;
   place-items: center;
@@ -589,7 +679,7 @@ select.field {
 }
 .option-row input {
   flex: 1;
-  background: var(--white);
+  background: var(--raised);
   border: 1px solid var(--border);
   border-radius: 7px;
   padding: 5px 8px;
@@ -614,7 +704,7 @@ select.field {
 .preview {
   position: sticky;
   top: 20px;
-  background: var(--white);
+  background: var(--raised);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
@@ -645,9 +735,9 @@ select.field {
   color: var(--secondary);
 }
 .segmented button.active {
-  background: var(--white);
+  background: var(--raised);
   color: var(--ink);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-sm);
 }
 .preview-body {
   padding: 16px;
@@ -673,7 +763,7 @@ select.field {
 .chip {
   border-radius: 20px;
   border: 1px solid var(--muted-light);
-  background: var(--white);
+  background: var(--raised);
   color: var(--accent-strong);
   font-size: var(--text-xs);
   padding: 4px 10px;
@@ -736,7 +826,7 @@ select.field {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  background: var(--white);
+  background: var(--raised);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 14px 16px;
@@ -782,7 +872,7 @@ select.field {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  background: var(--white);
+  background: var(--raised);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 18px;
@@ -1080,7 +1170,7 @@ select.field {
   grid-template-columns: 1fr auto;
   gap: 4px 8px;
   text-align: start;
-  background: var(--white);
+  background: var(--raised);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 10px 12px;
@@ -1241,7 +1331,7 @@ select.field {
   padding: 4px 6px;
   border: 1px solid var(--border);
   border-radius: 7px;
-  background: var(--white);
+  background: var(--raised);
   max-width: 190px;
 }
 .qcard-vis-label {

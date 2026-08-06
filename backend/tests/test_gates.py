@@ -214,7 +214,7 @@ PALETTE = """:root {{
   --ink: #23262b;
   --canvas: #eceef0;
   --surface: #f7f8f9;
-  --white: #ffffff;
+  --raised: #ffffff;
   --muted: {muted};
   --secondary: #636b73;
   --accent-strong: #3c5570;
@@ -277,6 +277,39 @@ def test_a_stylesheet_with_no_tokens_fails(tmp_path: Path) -> None:
     result = run_contrast(sheet)
     assert result.returncode == 1
     assert "checking nothing" in result.stderr
+
+
+def test_every_theme_is_measured_not_just_the_last_one(tmp_path: Path) -> None:
+    """The trap this guard nearly fell into. Reading the file flat takes the last
+    definition of each token, so adding a dark theme would have silently replaced the
+    light palette and reported success on one theme while claiming to check the app."""
+    sheet = tmp_path / "globals.css"
+    sheet.write_text(
+        PALETTE.format(muted="#646d76", focus="#4190c2") + """
+:root[data-theme="dark"] {
+  --canvas: #15171a;
+  --surface: #1c1f24;
+  --raised: #212429;
+  --ink: #e6e8ea;
+  --muted: #55606a;
+  --secondary: #b3bcc5;
+  --accent-strong: #a9c9e4;
+  --focus: #6db3e8;
+  --warn-fill: #39290b;
+  --warn-text: #f0cf8a;
+  --err-fill: #3a1a13;
+  --err-text: #f4b3a3;
+}
+""",
+        encoding="utf-8",
+    )
+    result = run_contrast(sheet)
+    # The light palette is fine; the dark one's muted grey is too dark against its own
+    # backgrounds. A flat read would have seen only the dark values and never compared
+    # them against the light backgrounds, or vice versa.
+    assert result.returncode == 1
+    assert "data-theme" in result.stderr
+    assert "[light]" not in result.stderr
 
 
 # --------------------------------------------------------- logical properties
