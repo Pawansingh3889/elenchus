@@ -970,6 +970,27 @@ select.field {
   font-size: 11px;
   letter-spacing: 0.06em;
 }
+/* The card the server named in its last refusal. Marked so the author can find it
+   without counting cards against a message at the top of the page. */
+.qcard-rejected {
+  border-color: var(--err-border);
+  box-shadow: 0 0 0 3px var(--err-fill);
+}
+/* An incomplete condition, said next to the control that fixes it. The draft cannot be
+   saved while one of these is on screen, so it is worth more than a border colour. */
+.qcard-warn {
+  margin: 8px 0 0;
+  color: var(--err-text);
+  background: var(--err-fill);
+  border: 1px solid var(--err-border);
+  border-radius: 9px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.qcard-visibility input[aria-invalid="true"] {
+  border-color: var(--err-border);
+  background: var(--err-fill);
+}
 /* A cleared condition is a silent change to survey behaviour, so it is announced. */
 .notice {
   display: flex;

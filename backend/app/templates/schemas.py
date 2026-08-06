@@ -122,6 +122,20 @@ class TemplateWrite(BaseModel):
                         f"{condition.value!r}, which is not an option on question "
                         f"{condition.question + 1} ({', '.join(referenced.options)})"
                     )
+            elif referenced.answer_type is AnswerType.yes_no:
+                # A yes/no question records a boolean, which app.templates.visibility
+                # renders as "yes"/"true" or "no"/"false". Anything else can never match.
+                # Worth checking precisely because this is the branch a select falls into
+                # the moment its type is changed: the options go, the stale value stays,
+                # and without this the draft saves and the question is simply never shown
+                # again. A condition that can never be true is the exact failure the rest
+                # of this validator exists to prevent, so it must not survive here either.
+                if condition.value.casefold() not in {"yes", "no", "true", "false"}:
+                    raise ValueError(
+                        f"question {position + 1}'s condition wants "
+                        f"{condition.value!r}, but question {condition.question + 1} is "
+                        "a yes/no question and can only answer 'yes' or 'no'"
+                    )
         return self
 
 

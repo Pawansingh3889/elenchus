@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 
 import { LivePreview } from "@/components/LivePreview";
-import { clearedBy, remapConditions } from "@/lib/conditions";
+import { clearedBy, remapConditions, repairConditionsFor } from "@/lib/conditions";
 import { QuestionEditor } from "@/components/QuestionEditor";
 import {
   useCurrentUser,
@@ -15,6 +15,7 @@ import {
   useTemplate,
   useUpdateTemplate,
 } from "@/lib/queries";
+import { ApiError } from "@/lib/api";
 import { useDraftNoteStore, useUserStore } from "@/lib/store";
 import type { QuestionInput } from "@/lib/types";
 
@@ -91,8 +92,18 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
     return <div className="error-text">{error ? (error as Error).message : "Not found"}</div>;
   }
 
+  // Editing a question can orphan a *later* question's condition: change the type and
+  // the options go, remove an option and a condition naming it describes an answer that
+  // can no longer be given. Repositioning is not the only edit conditions depend on.
   const patchQuestion = (i: number, patch: Partial<QuestionInput>) =>
-    setQuestions((qs) => qs.map((q, j) => (j === i ? { ...q, ...patch } : q)));
+    setQuestions((qs) => {
+      const patched = qs.map((q, j) => (j === i ? { ...q, ...patch } : q));
+      const touchesAnswers = "answer_type" in patch || "options" in patch || "allow_other" in patch;
+      if (!touchesAnswers) return patched;
+      const next = repairConditionsFor(patched, i);
+      setDropped(clearedBy(patched, next));
+      return next;
+    });
   const addQuestion = () => setQuestions((qs) => [...qs, blankQuestion()]);
   // Deleting or reordering shifts positions, and conditions are keyed by position —
   // so both have to repoint them or a condition silently starts referring to whatever
@@ -114,6 +125,24 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
       setDropped(clearedBy(qs, next));
       return next;
     });
+
+  // Which questions the server last objected to, so the complaint can sit on the card
+  // it belongs to. A message under the description is a scroll away from a question far
+  // down the list, and the author has to match "Question 4" to a card by counting.
+  const rejected = [update.error, publish.error, refine.error]
+    .flatMap((e) => (e instanceof ApiError ? e.questions : []))
+    .filter((v, i, all) => all.indexOf(v) === i);
+
+  // Known-bad before the server is even asked: a condition with nothing to match, and a
+  // select with nothing to choose. Both are states the builder can reach, so Publish
+  // should say why it is unavailable rather than failing after a round trip.
+  const blockers = questions.flatMap((q, i) => {
+    const problems: string[] = [];
+    if (q.show_when && !q.show_when.value.trim()) problems.push("its condition has no answer");
+    if ((q.answer_type === "single_select" || q.answer_type === "multi_select") && !q.options.length)
+      problems.push("it has no options");
+    return problems.map((p) => `Question ${i + 1}: ${p}`);
+  });
 
   const body = { title, description: description || null, questions };
   const save = () => update.mutate(body);
@@ -176,7 +205,8 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
             <button
               className="btn btn-primary"
               onClick={onPublish}
-              disabled={publish.isPending || questions.length === 0}
+              disabled={publish.isPending || questions.length === 0 || blockers.length > 0}
+              title={blockers.length > 0 ? blockers.join("\n") : undefined}
             >
               {publish.isPending ? "Publishing…" : "Publish"}
             </button>
@@ -226,6 +256,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
               index={i}
               total={questions.length}
               question={q}
+              rejected={rejected.includes(i)}
               onChange={(patch) => patchQuestion(i, patch)}
               earlier={questions.slice(0, i)}
               onRemove={() => removeQuestion(i)}
