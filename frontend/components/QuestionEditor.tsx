@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 
+import { useT } from "@/lib/i18n/useT";
 import type { AnswerType, QuestionInput, ShowWhenOp } from "@/lib/types";
 
 const TYPES: { value: AnswerType; label: string }[] = [
@@ -43,6 +44,7 @@ export function QuestionEditor({
   onRemove,
   onMove,
 }: Props) {
+  const msg = useT();
   const selectType = isSelect(question.answer_type);
   const optionsOf = (position: number) => earlier[position]?.options ?? [];
   // A select can only ever record one of its own options, so start there. A yes/no
@@ -73,10 +75,8 @@ export function QuestionEditor({
 
     if (leavingSelect && question.options.length > 0) {
       const count = question.options.length;
-      const noun = count === 1 ? "option" : "options";
       const confirmed = window.confirm(
-        `Changing this question to ${labelFor(t)} removes its ${count} ${noun}.\n\n` +
-          `They will be restored if you change it back before saving.`,
+        msg.builder.typeChangeWarning(labelFor(t), count),
       );
       if (!confirmed) return;
       stashedOptions.current = question.options;
@@ -107,7 +107,7 @@ export function QuestionEditor({
         <div className="qcard-body">
           <input
             className="field"
-            placeholder="Question text"
+            placeholder={msg.builder.questionPlaceholder}
             value={question.text}
             onChange={(e) => onChange({ text: e.target.value })}
           />
@@ -130,21 +130,21 @@ export function QuestionEditor({
               {question.options.map((o, i) => (
                 <div className="option-row" key={i}>
                   <input
-                    placeholder={`Option ${i + 1}`}
+                    placeholder={msg.builder.optionPlaceholder(i + 1)}
                     value={o}
                     onChange={(e) => setOption(i, e.target.value)}
                   />
                   <button
                     className="icon-btn"
                     onClick={() => removeOption(i)}
-                    aria-label="Remove option"
+                    aria-label={msg.builder.removeOption}
                   >
                     ×
                   </button>
                 </div>
               ))}
               <button className="add-dashed" onClick={addOption}>
-                + Add option
+                {msg.builder.addOption}
               </button>
             </div>
           ) : null}
@@ -156,7 +156,7 @@ export function QuestionEditor({
                 checked={question.required}
                 onChange={(e) => onChange({ required: e.target.checked })}
               />
-              Required
+              {msg.builder.required}
             </label>
             <label>
               <input
@@ -164,7 +164,7 @@ export function QuestionEditor({
                 checked={question.allow_follow_ups}
                 onChange={(e) => onChange({ allow_follow_ups: e.target.checked })}
               />
-              Allow follow-ups
+              {msg.builder.allowFollowUps}
             </label>
             {selectType ? (
               <label>
@@ -173,7 +173,7 @@ export function QuestionEditor({
                   checked={question.allow_other}
                   onChange={(e) => onChange({ allow_other: e.target.checked })}
                 />
-                Allow &ldquo;other&rdquo;
+                {msg.builder.allowOther}
               </label>
             ) : null}
           </div>
@@ -183,7 +183,7 @@ export function QuestionEditor({
               question could never come true. */}
           {index > 0 ? (
             <div className="qcard-visibility">
-              <span className="qcard-vis-label">Show</span>
+              <span className="qcard-vis-label">{msg.builder.show}</span>
               <select
                 value={question.show_when ? "cond" : "always"}
                 onChange={(e) =>
@@ -195,8 +195,8 @@ export function QuestionEditor({
                   })
                 }
               >
-                <option value="always">always</option>
-                <option value="cond">only if…</option>
+                <option value="always">{msg.builder.always}</option>
+                <option value="cond">{msg.builder.onlyIf}</option>
               </select>
 
               {question.show_when ? (
@@ -230,8 +230,8 @@ export function QuestionEditor({
                       })
                     }
                   >
-                    <option value="is">is</option>
-                    <option value="is_not">is not</option>
+                    <option value="is">{msg.builder.is}</option>
+                    <option value="is_not">{msg.builder.isNot}</option>
                   </select>
 
                   {/* A select's answer can only ever be one of its options, so offer
@@ -254,7 +254,7 @@ export function QuestionEditor({
                   ) : (
                     <input
                       value={question.show_when.value}
-                      placeholder="answer"
+                      placeholder={msg.builder.answerPlaceholder}
                       aria-invalid={conditionNeedsValue}
                       onChange={(e) =>
                         onChange({
@@ -269,10 +269,7 @@ export function QuestionEditor({
           ) : null}
 
           {conditionNeedsValue ? (
-            <p className="qcard-warn">
-              Type the answer this question depends on, or set it back to “always”. The
-              survey cannot be saved while the condition has no answer to match.
-            </p>
+            <p className="qcard-warn">{msg.builder.conditionNeedsValue}</p>
           ) : null}
         </div>
         <div className="qcard-controls">
@@ -280,7 +277,7 @@ export function QuestionEditor({
             className="icon-btn"
             onClick={() => onMove(-1)}
             disabled={index === 0}
-            aria-label="Move up"
+            aria-label={msg.builder.moveUp}
           >
             ↑
           </button>
@@ -288,11 +285,11 @@ export function QuestionEditor({
             className="icon-btn"
             onClick={() => onMove(1)}
             disabled={index === total - 1}
-            aria-label="Move down"
+            aria-label={msg.builder.moveDown}
           >
             ↓
           </button>
-          <button className="icon-btn" onClick={onRemove} aria-label="Delete question">
+          <button className="icon-btn" onClick={onRemove} aria-label={msg.builder.removeQuestion}>
             ✕
           </button>
         </div>

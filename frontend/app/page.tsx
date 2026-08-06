@@ -62,7 +62,7 @@ export default function Home() {
       <div className="card generate-card">
         <div className="card-label">{home.draftWithAi}</div>
         <textarea
-          placeholder="Describe the survey… e.g. An onboarding survey for factory staff: their role, the systems they use daily, and their biggest data frustrations."
+          placeholder={home.describePlaceholder}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
         />

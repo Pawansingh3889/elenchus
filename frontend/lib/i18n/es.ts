@@ -13,6 +13,7 @@ export const es: Messages = {
     cancel: "Cancelar",
     dismiss: "descartar",
     notFound: "No encontrado",
+    deleting: "Eliminando…",
   },
   topbar: {
     brandLead: "Servicio de",
@@ -33,6 +34,7 @@ export const es: Messages = {
       "Describe la encuesta… p. ej. Una encuesta de incorporación para personal de fábrica: su puesto, los sistemas que usan a diario y sus mayores frustraciones con los datos.",
   },
   builder: {
+    pickUser: "Elige un usuario en la barra superior.",
     titlePlaceholder: "Título de la encuesta",
     descriptionPlaceholder: "Descripción (opcional)",
     questionPlaceholder: "Texto de la pregunta",
@@ -66,6 +68,9 @@ export const es: Messages = {
       n === 1
         ? "Se borró una condición de visibilidad: la pregunta a la que apuntaba se eliminó o ya no está antes."
         : `Se borraron ${n} condiciones de visibilidad: la pregunta a la que apuntaban se eliminó o ya no está antes.`,
+    typeChangeWarning: (typeLabel: string, count: number) =>
+      `Cambiar esta pregunta a ${typeLabel} elimina ${count} ${count === 1 ? "opción" : "opciones"}.\n\n` +
+      "Se restaurarán si vuelves a cambiarla antes de guardar.",
     questionLabel: (n: number) => `Pregunta ${n}`,
   },
   respond: {

@@ -14,6 +14,7 @@ export const ar: Messages = {
     cancel: "إلغاء",
     dismiss: "إخفاء",
     notFound: "غير موجود",
+    deleting: "جارٍ الحذف…",
   },
   topbar: {
     brandLead: "خدمة",
@@ -34,6 +35,7 @@ export const ar: Messages = {
       "صف الاستبيان… مثال: استبيان تعريفي لموظفي المصنع: دورهم، والأنظمة التي يستخدمونها يوميًا، وأكبر مشكلاتهم مع البيانات.",
   },
   builder: {
+    pickUser: "اختر مستخدمًا من الشريط العلوي.",
     titlePlaceholder: "عنوان الاستبيان",
     descriptionPlaceholder: "الوصف (اختياري)",
     questionPlaceholder: "نص السؤال",
@@ -67,6 +69,9 @@ export const ar: Messages = {
       n === 1
         ? "تم مسح شرط ظهور واحد: السؤال الذي كان يشير إليه حُذف أو لم يعد قبله."
         : `تم مسح ${n} من شروط الظهور: السؤال الذي كانت تشير إليه حُذف أو لم يعد قبلها.`,
+    typeChangeWarning: (typeLabel: string, count: number) =>
+      `تغيير هذا السؤال إلى ${typeLabel} يحذف ${count} من الخيارات.\n\n` +
+      "ستُستعاد إذا أعدته قبل الحفظ.",
     questionLabel: (n: number) => `السؤال ${n}`,
   },
   respond: {

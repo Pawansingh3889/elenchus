@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { useT } from "@/lib/i18n/useT";
 import type { CurrentQuestion } from "@/lib/types";
 
 /**
@@ -17,13 +18,17 @@ export function AnswerAffordances({
   disabled: boolean;
   onAnswer: (text: string) => void;
 }) {
+  const msg = useT();
   const [picked, setPicked] = useState<string[]>([]);
   const [typed, setTyped] = useState("");
 
   if (question.answer_type === "yes_no") {
     return (
       <div className="afford">
-        {["Yes", "No"].map((option) => (
+        {/* Translating these is correct rather than risky: the chip's text is sent as
+            the respondent's message, the model interprets it, and what reaches the
+            database is the boolean its tool call returns. "Sí" records true. */}
+        {[msg.run.yes, msg.run.no].map((option) => (
           <button
             key={option}
             className="chip"
@@ -51,7 +56,7 @@ export function AnswerAffordances({
           </button>
         ))}
         {question.allow_other ? (
-          <span className="chip chip-dashed afford-hint">or say it in your own words below</span>
+          <span className="chip chip-dashed afford-hint">{msg.run.orSayIt}</span>
         ) : null}
       </div>
     );

@@ -21,6 +21,7 @@ export const en = {
     cancel: "Cancel",
     dismiss: "dismiss",
     notFound: "Not found",
+    deleting: "Deleting…",
   },
   topbar: {
     brandLead: "Survey",
@@ -41,6 +42,7 @@ export const en = {
       "Describe the survey… e.g. An onboarding survey for factory staff: their role, the systems they use daily, and their biggest data frustrations.",
   },
   builder: {
+    pickUser: "Pick a user in the top bar.",
     titlePlaceholder: "Survey title",
     descriptionPlaceholder: "Description (optional)",
     questionPlaceholder: "Question text",
@@ -74,6 +76,9 @@ export const en = {
       n === 1
         ? "A visibility condition was cleared: the question it pointed at was removed or is no longer earlier."
         : `${n} visibility conditions were cleared: the question they pointed at was removed or is no longer earlier.`,
+    typeChangeWarning: (typeLabel: string, count: number) =>
+      `Changing this question to ${typeLabel} removes its ${count} ${count === 1 ? "option" : "options"}.\n\n` +
+      "They will be restored if you change it back before saving.",
     questionLabel: (n: number) => `Question ${n}`,
   },
   respond: {
