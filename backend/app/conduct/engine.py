@@ -351,13 +351,15 @@ def _transcript(run: SurveyRun) -> list[dict[str, str]]:
 
     Windowing is safe by construction: the briefing restates the current question, type,
     options, and budgets every turn, so distant history is never needed to act — and an
-    unbounded replay overflows the small context of a local backup model long before a
-    survey ends.
+    unbounded replay overflows the small context of a local model long before a survey
+    ends.
 
-    The leading user turn is not cosmetic. Anthropic rejects a message list that starts
-    with the assistant, and every run starts with the engine's opening question — so
-    each of a run's first few turns 400'd on the primary and quietly fell through to a
-    backup. Only the windowed path was safe, because its own head is a user message.
+    The leading user turn is not cosmetic. It was forced by the old Anthropic tier, which
+    rejects a message list starting with the assistant: every run opens with the engine's
+    question, so a run's first few turns 400'd and fell through to the next tier. Only
+    the windowed path was safe, because its own head is a user message. That tier is
+    gone, and the invariant stays: an assistant-first list is the odd thing to hand any
+    provider, and nothing here is cheaper for having dropped it.
     """
     messages = [
         {"role": "assistant" if m.role is MessageRole.assistant else "user", "content": m.content}

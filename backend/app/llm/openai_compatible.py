@@ -1,23 +1,19 @@
-"""A backup LLM client speaking the OpenAI Chat Completions API.
+"""The one LLM client, speaking the OpenAI Chat Completions API.
 
-The primary client (``app.llm.client.LLMClient``) talks to Anthropic. This one talks to
-any OpenAI-compatible server — vLLM, NVIDIA NIM, OpenRouter, Ollama, and similar — so a
-model such as Nemotron/Hermes can stand in when the primary is unavailable.
-
-It implements the same ``LLMProtocol`` surface and returns the same validated shapes, so
-the conduct engine and generation service cannot tell which provider answered. As with the
-primary, SDK/transport failures become one typed ``LLMError`` and a malformed or missing
-tool call fails loudly rather than degrading.
+Every configured tier answers this protocol, whether it is OpenAI itself, Groq,
+OpenRouter, a self-hosted vLLM or a local Ollama. One instance is built per enabled tier,
+differing only in base URL, key, model and timeout, so the conduct engine and generation
+service cannot tell which tier answered. Transport failures become one typed ``LLMError``
+and a malformed or missing tool call fails loudly rather than degrading.
 
 A knowing deviation, recorded here so it is a decision rather than a discovery:
 ARCHITECTURE.md 3.1 says "Never regex/parse structured data out of prose", and
-``_salvage_from_content`` below does precisely that. It is confined to this module — the
-Anthropic path never parses prose — and exists because the models these tiers reach are
-free or locally served, and routinely write the tool call into the message text instead of
-into ``tool_calls``. With no Anthropic key configured, every turn is served by a backup
-tier, so refusing to salvage would mean refusing to run at all. The mitigation is that
-salvage only ever *proposes* a tool call: the payload is validated against the same schema
-as any other, and the engine rejects it identically if it does not fit.
+``_salvage_from_content`` below does precisely that. It exists because the lower tiers
+are free or locally served models that routinely write the tool call into the message
+text instead of into ``tool_calls``, and refusing to salvage would mean refusing to run
+whenever the chain reaches them. The mitigation is that salvage only ever *proposes* a
+tool call: the payload is validated against the same schema as any other, and the engine
+rejects it identically if it does not fit.
 """
 
 import json
@@ -30,7 +26,7 @@ import httpx
 
 from app.llm.client import LLMError, NoToolCallError, ToolTurn, TruncatedTurnError
 
-logger = logging.getLogger("app.llm.backup")
+logger = logging.getLogger("app.llm.openai_compatible")
 
 
 def _balanced_objects(text: str) -> Iterator[str]:
@@ -69,9 +65,9 @@ def _balanced_objects(text: str) -> Iterator[str]:
                 start = None
 
 
-# A local CPU-served model (the very case the backup exists for) can legitimately take
+# A local CPU-served model (the very case the last tier exists for) can legitimately take
 # well over a minute on a cold load or a long survey, so the read timeout is generous
-# and configurable (LLM_BACKUP_TIMEOUT_SECONDS). Connecting, by contrast, should be
+# and configurable (LLM_TIER<n>_TIMEOUT_SECONDS). Connecting, by contrast, should be
 # near-instant — a short connect timeout keeps a *genuinely* unreachable endpoint from
 # stalling a request for the full read window.
 DEFAULT_TIMEOUT_SECONDS = 120.0
@@ -91,7 +87,7 @@ class OpenAICompatibleLLMClient:
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         if not base_url or not model:
-            raise LLMError("Backup LLM is enabled but base_url/model are not configured.")
+            raise LLMError("This LLM tier is enabled but its base_url/model are not configured.")
         self._base_url = base_url.rstrip("/")
         self._api_key = api_key
         self._model = model
@@ -112,35 +108,35 @@ class OpenAICompatibleLLMClient:
         except httpx.TimeoutException as exc:
             # str(ReadTimeout) is usually empty, which once surfaced as a blank
             # "could not reach" while the model was merely slow — name the failure.
-            logger.error("backup llm timed out: %r", exc)
+            logger.error("llm tier timed out: %r", exc)
             raise LLMError(
-                f"Backup LLM timed out after {self._timeout.read}s — the model may be "
-                "loading or too slow for the configured LLM_BACKUP_TIMEOUT_SECONDS."
+                f"LLM tier timed out after {self._timeout.read}s. The model may be "
+                "loading or too slow for the configured LLM_TIER<n>_TIMEOUT_SECONDS."
             ) from exc
         except httpx.HTTPError as exc:
             # repr, not str: several httpx errors stringify to "".
-            logger.error("backup llm call failed: %r", exc)
-            raise LLMError(f"Could not reach the backup LLM: {exc!r}") from exc
+            logger.error("llm tier call failed: %r", exc)
+            raise LLMError(f"Could not reach the LLM tier: {exc!r}") from exc
         if response.status_code >= 400:
-            logger.error("backup llm returned %s: %s", response.status_code, response.text[:200])
+            logger.error("llm tier returned %s: %s", response.status_code, response.text[:200])
             raise LLMError(
-                f"Backup LLM rejected the request ({response.status_code}): {response.text[:200]}"
+                f"LLM tier rejected the request ({response.status_code}): {response.text[:200]}"
             )
         try:
             body = response.json()
         except ValueError as exc:
-            raise LLMError(f"Backup LLM returned a non-JSON body: {response.text[:200]}") from exc
+            raise LLMError(f"LLM tier returned a non-JSON body: {response.text[:200]}") from exc
         if not isinstance(body, dict):
-            raise LLMError(f"Backup LLM returned {type(body).__name__}, expected a JSON object.")
-        # Logged after parsing so the token usage is in reach — a backup tier can serve any
-        # live turn, and until now those tokens were spent with no record at all. Format
-        # matches the primary's so one grep finds every tier's spend.
+            raise LLMError(f"LLM tier returned {type(body).__name__}, expected a JSON object.")
+        # Logged after parsing so the token usage is in reach: any tier can serve any
+        # live turn, and until now those tokens were spent with no record at all. One format
+        # across tiers means one grep finds every tier's spend.
         #
         # `.get` is not a no-fallbacks shrug here: usage is optional provider metadata that
         # is recorded and never acted on, unlike the required data ARCHITECTURE.md 4 is
         # about. A tier that omits it logs usage=None, which is the honest answer.
         logger.info(
-            "llm backup call model=%s status=%s usage=%s",
+            "llm tier call model=%s status=%s usage=%s",
             self._model,
             response.status_code,
             body.get("usage"),
@@ -190,16 +186,16 @@ class OpenAICompatibleLLMClient:
         """
         choices = data.get("choices") or []
         if not isinstance(choices, list) or not choices:
-            raise LLMError("Backup LLM returned no choices.")
+            raise LLMError("LLM tier returned no choices.")
         if not isinstance(choices[0], dict):
-            raise LLMError("Backup LLM returned a malformed choice.")
+            raise LLMError("LLM tier returned a malformed choice.")
         message = choices[0].get("message") or {}
         if not isinstance(message, dict):
-            raise LLMError("Backup LLM returned a malformed message.")
+            raise LLMError("LLM tier returned a malformed message.")
         said = message.get("content")
         tool_calls = message.get("tool_calls") or []
         if not isinstance(tool_calls, list):
-            raise LLMError("Backup LLM returned a malformed tool_calls field.")
+            raise LLMError("LLM tier returned a malformed tool_calls field.")
         if not tool_calls:
             tool_calls = OpenAICompatibleLLMClient._salvage_from_content(said)
             if tool_calls:
@@ -212,31 +208,31 @@ class OpenAICompatibleLLMClient:
             # can still carry a complete tool call in the text it managed to write.
             if choices[0].get("finish_reason") == "length":
                 raise TruncatedTurnError(
-                    "Backup LLM hit its token limit before completing a tool call."
+                    "LLM tier hit its token limit before completing a tool call."
                 )
-            raise NoToolCallError("Backup LLM returned no tool call.")
+            raise NoToolCallError("LLM tier returned no tool call.")
         if not isinstance(tool_calls[0], dict):
-            raise LLMError("Backup LLM returned a malformed tool call.")
+            raise LLMError("LLM tier returned a malformed tool call.")
         function = tool_calls[0].get("function") or {}
         if not isinstance(function, dict):
-            raise LLMError("Backup LLM tool call has a malformed function field.")
+            raise LLMError("LLM tier tool call has a malformed function field.")
         name = function.get("name")
         if not isinstance(name, str):
-            raise LLMError("Backup LLM tool call is missing a name.")
+            raise LLMError("LLM tier tool call is missing a name.")
         raw_arguments = function.get("arguments", "{}")
         try:
             arguments = (
                 json.loads(raw_arguments) if isinstance(raw_arguments, str) else raw_arguments
             )
         except json.JSONDecodeError as exc:
-            raise LLMError(f"Backup LLM tool arguments were not valid JSON: {exc}") from exc
+            raise LLMError(f"LLM tier tool arguments were not valid JSON: {exc}") from exc
         if not isinstance(arguments, dict):
-            raise LLMError("Backup LLM tool arguments were not a JSON object.")
+            raise LLMError("LLM tier tool arguments were not a JSON object.")
         return name, cast("dict[str, Any]", arguments), said if isinstance(said, str) else ""
 
     @staticmethod
     def _as_openai_tools(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """Translate Anthropic-style tools (name/description/input_schema) to OpenAI's shape."""
+        """Translate the engine's tool shape (name/description/input_schema) to OpenAI's."""
         return [
             {
                 "type": "function",
@@ -274,7 +270,7 @@ class OpenAICompatibleLLMClient:
         data = await self._post(payload)
         name, arguments, _ = self._first_tool_call(data)
         if name != tool_name:
-            raise LLMError(f"Backup LLM called {name!r}, expected {tool_name!r}.")
+            raise LLMError(f"LLM tier called {name!r}, expected {tool_name!r}.")
         return arguments
 
     async def tool_turn(

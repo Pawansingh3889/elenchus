@@ -1,7 +1,7 @@
 """The factory assembles the failover chain from settings, in the right order.
 
-Settings are supplied directly (bypassing the real environment) and the Anthropic client
-is stubbed where a key is claimed, so no network or API key is touched.
+Settings are supplied directly, bypassing the real environment, and no client ever
+sends a request, so no network or API key is touched.
 """
 
 from typing import Any
@@ -10,9 +10,9 @@ import pytest
 
 from app.config import Settings
 from app.llm import factory
-from app.llm.backup import OpenAICompatibleLLMClient
 from app.llm.client import LLMError
 from app.llm.failover import FailoverLLM
+from app.llm.openai_compatible import OpenAICompatibleLLMClient
 
 
 def _settings(**overrides: Any) -> Settings:
@@ -21,25 +21,30 @@ def _settings(**overrides: Any) -> Settings:
     return Settings(**values)
 
 
-_CEREBRAS = {
-    "llm_backup_enabled": True,
-    "llm_backup_base_url": "https://api.cerebras.ai/v1",
-    "llm_backup_model": "llama-3.3-70b",
+_OPENAI = {
+    "llm_tier1_enabled": True,
+    "llm_tier1_base_url": "https://api.openai.com/v1",
+    "llm_tier1_model": "gpt-test",
 }
 _GROQ = {
-    "llm_backup2_enabled": True,
-    "llm_backup2_base_url": "https://api.groq.com/openai/v1",
-    "llm_backup2_model": "llama-3.3-70b-versatile",
+    "llm_tier2_enabled": True,
+    "llm_tier2_base_url": "https://api.groq.com/openai/v1",
+    "llm_tier2_model": "llama-3.3-70b-versatile",
 }
 _OPENROUTER = {
-    "llm_backup3_enabled": True,
-    "llm_backup3_base_url": "https://openrouter.ai/api/v1",
-    "llm_backup3_model": "openrouter/free",
+    "llm_tier3_enabled": True,
+    "llm_tier3_base_url": "https://openrouter.ai/api/v1",
+    "llm_tier3_model": "openrouter/free",
+}
+_OLLAMA = {
+    "llm_tier4_enabled": True,
+    "llm_tier4_base_url": "http://localhost:11434/v1",
+    "llm_tier4_model": "llama3.2:3b",
 }
 
 
-def test_two_backups_chain_in_configured_order(monkeypatch):
-    monkeypatch.setattr(factory, "get_settings", lambda: _settings(**_CEREBRAS, **_GROQ))
+def test_two_tiers_chain_in_configured_order(monkeypatch):
+    monkeypatch.setattr(factory, "get_settings", lambda: _settings(**_OPENAI, **_GROQ))
 
     llm = factory.get_llm()
 
@@ -48,51 +53,64 @@ def test_two_backups_chain_in_configured_order(monkeypatch):
         OpenAICompatibleLLMClient,
         OpenAICompatibleLLMClient,
     ]
-    assert llm._clients[0]._base_url == "https://api.cerebras.ai/v1"  # Cerebras leads
+    assert llm._clients[0]._base_url == "https://api.openai.com/v1"  # OpenAI leads
     assert llm._clients[1]._base_url == "https://api.groq.com/openai/v1"  # Groq second
 
 
-def test_three_backups_chain_in_configured_order(monkeypatch):
+def test_the_whole_chain_runs_openai_groq_openrouter_ollama(monkeypatch):
+    """The configured order, and the one the failover wrapper walks."""
     monkeypatch.setattr(
-        factory, "get_settings", lambda: _settings(**_CEREBRAS, **_GROQ, **_OPENROUTER)
+        factory,
+        "get_settings",
+        lambda: _settings(**_OPENAI, **_GROQ, **_OPENROUTER, **_OLLAMA),
     )
 
     llm = factory.get_llm()
 
     assert isinstance(llm, FailoverLLM)
     assert [c._base_url for c in llm._clients] == [
-        "https://api.cerebras.ai/v1",
+        "https://api.openai.com/v1",
         "https://api.groq.com/openai/v1",
-        "https://openrouter.ai/api/v1",  # third backup, tried only if the first two fail
+        "https://openrouter.ai/api/v1",
+        "http://localhost:11434/v1",  # last resort, and the only one that costs nothing
     ]
 
 
-def test_the_primary_leads_the_chain_when_its_key_is_set(monkeypatch):
-    sentinel = object()
+def test_a_gap_in_the_middle_does_not_reorder_the_rest(monkeypatch):
+    """Tier order is positional. Disabling tier 2 promotes nothing: 1, 3 and 4 keep
+    their relative order rather than sliding into the free slot."""
     monkeypatch.setattr(
-        factory,
-        "get_settings",
-        lambda: _settings(anthropic_api_key="sk-ant-x", **_CEREBRAS, **_GROQ, **_OPENROUTER),
+        factory, "get_settings", lambda: _settings(**_OPENAI, **_OPENROUTER, **_OLLAMA)
     )
-    monkeypatch.setattr(factory, "LLMClient", lambda: sentinel)
 
     llm = factory.get_llm()
 
-    assert isinstance(llm, FailoverLLM)
-    assert len(llm._clients) == 4
-    assert llm._clients[0] is sentinel  # Anthropic, ahead of all three backups
+    assert [c._base_url for c in llm._clients] == [
+        "https://api.openai.com/v1",
+        "https://openrouter.ai/api/v1",
+        "http://localhost:11434/v1",
+    ]
 
 
 def test_a_single_configured_tier_is_used_bare(monkeypatch):
-    monkeypatch.setattr(factory, "get_settings", lambda: _settings(**_CEREBRAS))
+    monkeypatch.setattr(factory, "get_settings", lambda: _settings(**_GROQ))
 
     llm = factory.get_llm()
 
     assert isinstance(llm, OpenAICompatibleLLMClient)
 
 
+def test_no_configured_tier_fails_loudly(monkeypatch):
+    """The one case with nothing to fall back to. It must raise rather than hand back
+    something that fails later, further from the cause."""
+    monkeypatch.setattr(factory, "get_settings", lambda: _settings())
+
+    with pytest.raises(LLMError, match="No LLM tier is configured"):
+        factory.get_llm()
+
+
 def test_an_enabled_but_unconfigured_tier_fails_loudly(monkeypatch):
-    monkeypatch.setattr(factory, "get_settings", lambda: _settings(llm_backup_enabled=True))
+    monkeypatch.setattr(factory, "get_settings", lambda: _settings(llm_tier1_enabled=True))
 
     with pytest.raises(LLMError):
         factory.get_llm()

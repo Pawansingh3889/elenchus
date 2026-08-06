@@ -21,26 +21,29 @@ services:
     build: ./backend
     environment:
       DATABASE_URL: postgresql+asyncpg://elenchus:elenchus@postgres:5432/elenchus
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-5}
-      # Optional OpenAI-compatible backup LLMs forming a failover chain after Anthropic
-      # (see .env.example). Without these the container never sees the backup settings and
-      # failover silently can't engage.
-      LLM_BACKUP_ENABLED: ${LLM_BACKUP_ENABLED:-false}
-      LLM_BACKUP_BASE_URL: ${LLM_BACKUP_BASE_URL:-}
-      LLM_BACKUP_API_KEY: ${LLM_BACKUP_API_KEY:-}
-      LLM_BACKUP_MODEL: ${LLM_BACKUP_MODEL:-}
-      LLM_BACKUP_TIMEOUT_SECONDS: ${LLM_BACKUP_TIMEOUT_SECONDS:-120}
-      LLM_BACKUP2_ENABLED: ${LLM_BACKUP2_ENABLED:-false}
-      LLM_BACKUP2_BASE_URL: ${LLM_BACKUP2_BASE_URL:-}
-      LLM_BACKUP2_API_KEY: ${LLM_BACKUP2_API_KEY:-}
-      LLM_BACKUP2_MODEL: ${LLM_BACKUP2_MODEL:-}
-      LLM_BACKUP2_TIMEOUT_SECONDS: ${LLM_BACKUP2_TIMEOUT_SECONDS:-120}
-      LLM_BACKUP3_ENABLED: ${LLM_BACKUP3_ENABLED:-false}
-      LLM_BACKUP3_BASE_URL: ${LLM_BACKUP3_BASE_URL:-}
-      LLM_BACKUP3_API_KEY: ${LLM_BACKUP3_API_KEY:-}
-      LLM_BACKUP3_MODEL: ${LLM_BACKUP3_MODEL:-}
-      LLM_BACKUP3_TIMEOUT_SECONDS: ${LLM_BACKUP3_TIMEOUT_SECONDS:-120}
+      # The OpenAI-compatible LLM tiers, tried in order (see .env.example). Passed
+      # through explicitly: without these the container never sees the settings and the
+      # chain silently can't engage.
+      LLM_TIER1_ENABLED: ${LLM_TIER1_ENABLED:-false}
+      LLM_TIER1_BASE_URL: ${LLM_TIER1_BASE_URL:-}
+      LLM_TIER1_API_KEY: ${LLM_TIER1_API_KEY:-}
+      LLM_TIER1_MODEL: ${LLM_TIER1_MODEL:-}
+      LLM_TIER1_TIMEOUT_SECONDS: ${LLM_TIER1_TIMEOUT_SECONDS:-120}
+      LLM_TIER2_ENABLED: ${LLM_TIER2_ENABLED:-false}
+      LLM_TIER2_BASE_URL: ${LLM_TIER2_BASE_URL:-}
+      LLM_TIER2_API_KEY: ${LLM_TIER2_API_KEY:-}
+      LLM_TIER2_MODEL: ${LLM_TIER2_MODEL:-}
+      LLM_TIER2_TIMEOUT_SECONDS: ${LLM_TIER2_TIMEOUT_SECONDS:-120}
+      LLM_TIER3_ENABLED: ${LLM_TIER3_ENABLED:-false}
+      LLM_TIER3_BASE_URL: ${LLM_TIER3_BASE_URL:-}
+      LLM_TIER3_API_KEY: ${LLM_TIER3_API_KEY:-}
+      LLM_TIER3_MODEL: ${LLM_TIER3_MODEL:-}
+      LLM_TIER3_TIMEOUT_SECONDS: ${LLM_TIER3_TIMEOUT_SECONDS:-120}
+      LLM_TIER4_ENABLED: ${LLM_TIER4_ENABLED:-false}
+      LLM_TIER4_BASE_URL: ${LLM_TIER4_BASE_URL:-}
+      LLM_TIER4_API_KEY: ${LLM_TIER4_API_KEY:-}
+      LLM_TIER4_MODEL: ${LLM_TIER4_MODEL:-}
+      LLM_TIER4_TIMEOUT_SECONDS: ${LLM_TIER4_TIMEOUT_SECONDS:-300}
     depends_on:
       postgres:
         condition: service_healthy

@@ -18,7 +18,7 @@ def _request() -> Request:
 
 async def test_llm_failure_becomes_a_calm_503_without_raw_detail():
     handler = app.exception_handlers[LLMError]
-    raw = 'Backup LLM rejected the request (429): {"error":{"code":429,"message":"quota exceeded"}}'
+    raw = 'LLM tier rejected the request (429): {"error":{"code":429,"message":"quota exceeded"}}'
 
     response = await handler(_request(), LLMError(raw))
     body = json.loads(response.body)

@@ -32,8 +32,8 @@ jobs:
 
     env:
       DATABASE_URL: postgresql+asyncpg://elenchus:elenchus@localhost:5432/elenchus
-      # No ANTHROPIC_API_KEY: the suite fakes the LLM at the client wrapper, so it
-      # must pass without one. If a test ever needs a key, that is the bug.
+      # No LLM tier is configured: the suite fakes the LLM at the client wrapper, so
+      # it must pass without a key. If a test ever needs one, that is the bug.
 
     steps:
       - uses: actions/checkout@v4

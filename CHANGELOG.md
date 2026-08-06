@@ -5,6 +5,27 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-08-06. One provider protocol: the Anthropic path removed
+
+The Anthropic key had been blank for a while, and the factory only ever built that client
+when a key was set, so in practice every turn was already served by an OpenAI-compatible
+tier. This makes that the design rather than an accident:
+
+- `LLMClient`, the Anthropic SDK wrapper, and the `anthropic` dependency are gone.
+  `app/llm/client.py` now holds only the contract every client satisfies: the typed
+  errors, the one-turn shape, and the protocol. `backup.py` became `openai_compatible.py`
+  and is the single client, reached over `httpx`.
+- The chain is now four ordered tiers: OpenAI, Groq, OpenRouter, then a local Ollama.
+  `LLM_BACKUP*_*` became `LLM_TIER1_*` through `LLM_TIER4_*`, since nothing is a backup
+  once there is no primary. Tier order is positional: disabling one promotes nothing.
+- With no tier enabled the factory now raises rather than returning a client that fails
+  later, further from the cause.
+- A turn cut off at the token limit raises `TruncatedTurnError` instead of arriving as a
+  retryable `NoToolCallError`. Only the Anthropic client had ever made that distinction,
+  and retrying a truncated turn at the same budget stops in the same place. Salvage still
+  runs first, so a call that completed before the cut-off is used.
+- `test_llm_client.py` is deleted along with the SDK path it exercised. 207 tests pass.
+
 ## 2026-08-05 — Client branding removed from the code and from history
 
 The trial ended on 28 July and the client asked that their branding and template styling

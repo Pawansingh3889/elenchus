@@ -11,10 +11,8 @@ dependencies = [
     "alembic>=1.14",
     "pydantic>=2.10",
     "pydantic-settings>=2.6",
-    "anthropic>=0.40",
-    # Imported at module scope by app/llm/backup.py, which is on the import chain from
-    # app.main. It was dev-only, so the image (uv sync --no-dev) booted only because
-    # anthropic happens to pull httpx in transitively.
+    # The only HTTP client in the app: every LLM tier is reached through it, so it is a
+    # first-class runtime dependency rather than something inherited from an SDK.
     "httpx>=0.28",
 ]
 

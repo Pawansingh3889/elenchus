@@ -1,4 +1,4 @@
-"""Backup-provider tests: the failover wrapper and the OpenAI-compatible client.
+"""Provider tests: the failover wrapper and the OpenAI-compatible client.
 
 All offline — the OpenAI-compatible client is driven through an httpx MockTransport, so no
 network or API key is touched, and the failover wrapper uses in-memory doubles.
@@ -10,9 +10,9 @@ from typing import Any
 import httpx
 import pytest
 
-from app.llm.backup import OpenAICompatibleLLMClient
 from app.llm.client import LLMError, ToolTurn
 from app.llm.failover import FailoverLLM
+from app.llm.openai_compatible import OpenAICompatibleLLMClient
 
 # ---------------------------------------------------------------- failover wrapper
 
@@ -36,14 +36,14 @@ class _StubLLM:
     async def tool_call(self, **_: Any) -> dict[str, Any]:
         self.tool_call_calls += 1
         if self._fail:
-            raise LLMError("primary down")
+            raise LLMError("tier down")
         assert self._payload is not None
         return self._payload
 
     async def tool_turn(self, **_: Any) -> ToolTurn:
         self.tool_turn_calls += 1
         if self._fail:
-            raise LLMError("primary down")
+            raise LLMError("tier down")
         assert self._turn is not None
         return self._turn
 
@@ -54,53 +54,53 @@ _ARGS: dict[str, Any] = dict(
 _TURN_ARGS: dict[str, Any] = dict(system="s", messages=[], tools=[], max_tokens=16)
 
 
-async def test_failover_prefers_primary_and_never_touches_backup():
-    primary = _StubLLM(payload={"ok": True}, turn=ToolTurn("hi", "move_on", {}))
-    backup = _StubLLM(payload={"ok": False}, turn=ToolTurn("no", "move_on", {}))
-    failover = FailoverLLM(primary, backup)
+async def test_failover_prefers_the_first_tier_and_never_touches_the_second():
+    tier1 = _StubLLM(payload={"ok": True}, turn=ToolTurn("hi", "move_on", {}))
+    tier2 = _StubLLM(payload={"ok": False}, turn=ToolTurn("no", "move_on", {}))
+    failover = FailoverLLM(tier1, tier2)
 
     assert await failover.tool_call(**_ARGS) == {"ok": True}
     assert await failover.tool_turn(**_TURN_ARGS) == ToolTurn("hi", "move_on", {})
-    assert (backup.tool_call_calls, backup.tool_turn_calls) == (0, 0)
+    assert (tier2.tool_call_calls, tier2.tool_turn_calls) == (0, 0)
 
 
-async def test_failover_uses_backup_when_primary_fails():
-    primary = _StubLLM(fail=True)
-    backup = _StubLLM(payload={"from": "backup"}, turn=ToolTurn("hey", "record_answer", {"v": 1}))
-    failover = FailoverLLM(primary, backup)
+async def test_failover_uses_the_second_tier_when_the_first_fails():
+    tier1 = _StubLLM(fail=True)
+    tier2 = _StubLLM(payload={"from": "tier2"}, turn=ToolTurn("hey", "record_answer", {"v": 1}))
+    failover = FailoverLLM(tier1, tier2)
 
-    assert await failover.tool_call(**_ARGS) == {"from": "backup"}
+    assert await failover.tool_call(**_ARGS) == {"from": "tier2"}
     assert await failover.tool_turn(**_TURN_ARGS) == ToolTurn("hey", "record_answer", {"v": 1})
-    assert (primary.tool_call_calls, primary.tool_turn_calls) == (1, 1)
-    assert (backup.tool_call_calls, backup.tool_turn_calls) == (1, 1)
+    assert (tier1.tool_call_calls, tier1.tool_turn_calls) == (1, 1)
+    assert (tier2.tool_call_calls, tier2.tool_turn_calls) == (1, 1)
 
 
-async def test_failover_propagates_backup_failure_loudly():
+async def test_failover_propagates_a_last_tier_failure_loudly():
     failover = FailoverLLM(_StubLLM(fail=True), _StubLLM(fail=True))
     with pytest.raises(LLMError):
         await failover.tool_call(**_ARGS)
 
 
-async def test_failover_chains_through_to_the_second_backup():
-    """Anthropic -> Cerebras -> Groq: both earlier tiers fail, the third answers."""
-    primary = _StubLLM(fail=True)
-    backup1 = _StubLLM(fail=True)
-    backup2 = _StubLLM(payload={"from": "b2"}, turn=ToolTurn("ok", "move_on", {}))
-    failover = FailoverLLM(primary, backup1, backup2)
+async def test_failover_chains_through_to_the_third_tier():
+    """OpenAI -> Groq -> OpenRouter: both earlier tiers fail, the third answers."""
+    tier1 = _StubLLM(fail=True)
+    tier2 = _StubLLM(fail=True)
+    tier3 = _StubLLM(payload={"from": "t3"}, turn=ToolTurn("ok", "move_on", {}))
+    failover = FailoverLLM(tier1, tier2, tier3)
 
-    assert await failover.tool_call(**_ARGS) == {"from": "b2"}
+    assert await failover.tool_call(**_ARGS) == {"from": "t3"}
     assert await failover.tool_turn(**_TURN_ARGS) == ToolTurn("ok", "move_on", {})
-    assert primary.tool_call_calls == backup1.tool_call_calls == backup2.tool_call_calls == 1
+    assert tier1.tool_call_calls == tier2.tool_call_calls == tier3.tool_call_calls == 1
 
 
 async def test_failover_stops_at_the_first_healthy_tier():
-    primary = _StubLLM(fail=True)
-    backup1 = _StubLLM(payload={"from": "b1"}, turn=ToolTurn("ok", "move_on", {}))
-    backup2 = _StubLLM(payload={"from": "b2"}, turn=ToolTurn("no", "move_on", {}))
-    failover = FailoverLLM(primary, backup1, backup2)
+    tier1 = _StubLLM(fail=True)
+    tier2 = _StubLLM(payload={"from": "t2"}, turn=ToolTurn("ok", "move_on", {}))
+    tier3 = _StubLLM(payload={"from": "t3"}, turn=ToolTurn("no", "move_on", {}))
+    failover = FailoverLLM(tier1, tier2, tier3)
 
-    assert await failover.tool_call(**_ARGS) == {"from": "b1"}
-    assert backup2.tool_call_calls == 0  # the second backup is never reached
+    assert await failover.tool_call(**_ARGS) == {"from": "t2"}
+    assert tier3.tool_call_calls == 0  # the third tier is never reached
 
 
 async def test_failover_propagates_the_last_error_when_every_tier_fails():
@@ -119,7 +119,7 @@ def test_failover_needs_at_least_one_client():
 
 def _client(handler: Any) -> OpenAICompatibleLLMClient:
     return OpenAICompatibleLLMClient(
-        base_url="http://backup.local/v1",
+        base_url="http://tier.local/v1",
         api_key="k",
         model="nemotron-test",
         transport=httpx.MockTransport(handler),
@@ -251,7 +251,7 @@ async def test_timeout_produces_a_named_error_not_a_blank_line():
         raise httpx.ReadTimeout("")
 
     client = OpenAICompatibleLLMClient(
-        base_url="http://backup.local/v1",
+        base_url="http://tier.local/v1",
         api_key="",
         model="slow-model",
         timeout_seconds=90.0,
@@ -265,7 +265,7 @@ def test_timeout_is_configurable_with_a_fast_connect():
     """A slow local model gets a generous read window; a genuinely unreachable
     endpoint still fails on the short connect timeout."""
     client = OpenAICompatibleLLMClient(
-        base_url="http://backup.local/v1", api_key="", model="m", timeout_seconds=300.0
+        base_url="http://tier.local/v1", api_key="", model="m", timeout_seconds=300.0
     )
     assert client._timeout.read == 300.0
     assert client._timeout.connect == 10.0
@@ -444,9 +444,9 @@ async def test_salvage_still_refuses_what_is_not_a_tool_call(label: str, content
         await _client(handler).tool_turn(system="s", messages=[], tools=[])
 
 
-async def test_the_backup_tier_records_its_token_usage(caplog):
-    """A backup can serve any live turn — with no Anthropic key, every turn — and until
-    this was added those tokens were spent with no record whatsoever."""
+async def test_a_tier_records_its_token_usage(caplog):
+    """Any tier can serve any live turn, and until this was added those tokens were
+    spent with no record whatsoever."""
     import logging
 
     def handler(_: httpx.Request) -> httpx.Response:
@@ -454,7 +454,7 @@ async def test_the_backup_tier_records_its_token_usage(caplog):
         body["usage"] = {"prompt_tokens": 812, "completion_tokens": 37, "total_tokens": 849}
         return httpx.Response(200, json=body)
 
-    with caplog.at_level(logging.INFO, logger="app.llm.backup"):
+    with caplog.at_level(logging.INFO, logger="app.llm.openai_compatible"):
         await _client(handler).tool_turn(system="s", messages=[], tools=[])
 
     usage = [r.getMessage() for r in caplog.records if "usage=" in r.getMessage()]
@@ -471,7 +471,7 @@ async def test_a_tier_that_omits_usage_still_logs_cleanly(caplog):
     def handler(_: httpx.Request) -> httpx.Response:
         return _tool_response("move_on", {"question_id": "q"})
 
-    with caplog.at_level(logging.INFO, logger="app.llm.backup"):
+    with caplog.at_level(logging.INFO, logger="app.llm.openai_compatible"):
         turn = await _client(handler).tool_turn(system="s", messages=[], tools=[])
 
     assert turn.tool_name == "move_on"

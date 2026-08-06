@@ -37,7 +37,7 @@ Set it up once; VS Code remembers the layout per workspace:
    too.)
 4. **Bottom — the engine's heartbeat.** Terminal → Run Task… → **stack up + follow
    backend logs**. This starts the whole stack and streams the backend log, so every
-   model turn — including any `primary LLM failed … using backup` failover — scrolls
+   model turn, including any `LLM tier 1/4 failed … trying next` failover, scrolls
    live while you click around the app on the right.
 
 The result: ask Claude Code for a change on the left, watch the diff land in the
@@ -126,7 +126,7 @@ Running `alembic` or `pytest` from your own shell needs it exported, or settings
 fails immediately, by design — there is no default to fall back to.
 
 **The API key is optional but the runner is not.** Everything except answering a survey
-works with `ANTHROPIC_API_KEY` blank: building, publishing, versioning, starting a run,
+works with no LLM tier enabled: building, publishing, versioning, starting a run,
 resuming it, reading results. Answering calls the model, and without a funded key returns
 a typed 502 naming the reason. That is the intended behaviour, not a bug — the service
 never invents an answer when the model is unavailable.

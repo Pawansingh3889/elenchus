@@ -1,13 +1,13 @@
 """Provider failover: try each LLM in an ordered chain until one answers.
 
-The chain runs primary-first (Anthropic), then each configured backup in turn — e.g.
-Cerebras, then Groq. A tier is reached only when every tier before it raises an
-``LLMError`` (transport down, rate limited, credit exhausted, malformed tool call). If
-every tier fails, the last error propagates: the system still fails loudly, never
-silently degrading.
+The chain runs in tier order, lowest first: OpenAI, then Groq, then OpenRouter, then a
+local Ollama. A tier is reached only when every tier before it raises an ``LLMError``
+(transport down, rate limited, credit exhausted, malformed tool call). If every tier
+fails, the last error propagates: the system still fails loudly, never silently
+degrading.
 
 ``FailoverLLM`` itself satisfies ``LLMProtocol``, so callers can't tell a chain from a
-single client, and a two-client chain is exactly the old primary/backup pair.
+single client.
 """
 
 import logging
@@ -19,7 +19,7 @@ logger = logging.getLogger("app.llm.failover")
 
 
 class FailoverLLM:
-    """Chain two or more ``LLMProtocol`` clients as primary then backups, tried in order."""
+    """Chain two or more ``LLMProtocol`` clients as tiers, tried in order."""
 
     def __init__(self, *clients: LLMProtocol) -> None:
         if not clients:

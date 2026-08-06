@@ -482,9 +482,11 @@ def test_transcript_is_windowed_for_small_contexts():
 
 
 def test_transcript_always_opens_on_a_user_turn():
-    """Anthropic rejects a message list starting with the assistant, and every run opens
-    with the engine's greeting — so a run's first few turns 400'd on the primary and fell
-    through to a backup. Only the windowed path escaped, its head being a user message."""
+    """The old Anthropic tier rejected a message list starting with the assistant, and
+    every run opens with the engine's greeting, so a run's first few turns 400'd there and
+    fell through to the next tier. Only the windowed path escaped, its head being a user
+    message. That tier is gone; the invariant is kept because an assistant-first list is
+    the odd thing to hand any provider."""
     for length in range(1, TRANSCRIPT_WINDOW + 6):
         run = SimpleNamespace(
             messages=[

@@ -111,14 +111,14 @@ of the AI's actual misbehaviours and the rules they earned is told in
 [TESTING_REPORT.md](TESTING_REPORT.md), including the tricky-questions round
 (prompt injection, "10/10" on a 1–5 scale, "next Tuesday" dates, and friends).
 
-## Resilience: the backup AI
+## Resilience: a chain of AI providers
 
-If the main AI service (Anthropic's Claude) is ever unavailable, the app automatically
-switches to a **backup AI** — any OpenAI-compatible model, including one running on
-your own machine — and the backup lives under **exactly the same rules**: same
-validation gate, same budgets, same refusal to save junk. An outage pauses nothing and
-weakens nothing. Turning it on is four lines in a config file — see the `LLM_BACKUP_*`
-settings in [.env.example](../.env.example), and the
+The app is configured with an ordered chain of AI providers, up to four of them: OpenAI
+first, then Groq, then OpenRouter, then a model running on your own machine. If one is
+unavailable, the next takes over automatically, and every tier lives under **exactly the
+same rules**: same validation gate, same budgets, same refusal to save junk. An outage
+pauses nothing and weakens nothing. Turning a tier on is four lines in a config file.
+See the `LLM_TIER*_*` settings in [.env.example](../.env.example), and the
 [testing report](TESTING_REPORT.md#the-live-end-to-end-test-23-july-2026) for the live
 run where every single turn failed over and the survey still completed cleanly.
 

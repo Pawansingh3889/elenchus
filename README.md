@@ -13,11 +13,11 @@ in [`CHANGELOG.md`](CHANGELOG.md).
 
 - **Backend** — Python 3.12, FastAPI (async), SQLAlchemy 2.x async + Alembic, PostgreSQL, Pydantic v2
 - **Frontend** — Next.js (App Router) + TypeScript, TanStack Query, Zustand
-- **LLM** — Anthropic Claude via the official SDK (primary), then an ordered chain of up
-  to three OpenAI-compatible backups (Groq, Gemini, OpenRouter, self-hosted vLLM/Ollama/NIM,
-  …), each tried until one answers. Any tier whose key is absent is skipped, and when every
-  tier fails the API returns a calm 503 rather than a raw upstream error. See `LLM_BACKUP*_*`
-  in `.env.example`
+- **LLM** — an ordered chain of up to four OpenAI-compatible tiers, tried until one
+  answers: OpenAI, then Groq, then OpenRouter, then a local Ollama. One client speaks to
+  all of them, so no provider SDK is vendored. A tier that is not enabled is skipped, and
+  when every tier fails the API returns a calm 503 rather than a raw upstream error. See
+  `LLM_TIER*_*` in `.env.example`
 - **Dev** — docker-compose (postgres + backend + frontend)
 
 ## Prerequisites
@@ -29,7 +29,7 @@ in [`CHANGELOG.md`](CHANGELOG.md).
 ## Quick start
 
 ```bash
-cp .env.example .env          # add your ANTHROPIC_API_KEY (only needed for LLM features)
+cp .env.example .env          # enable an LLM tier (only needed for LLM features)
 docker compose up --build     # or: podman compose up --build
 ```
 
@@ -87,10 +87,10 @@ Two more things worth trying:
   server-side, so the run reappears on **Respond** as **Continue** with the progress you left
   at — rather than starting a second, competing run.
 
-Answering needs a working model: `ANTHROPIC_API_KEY`, and/or the optional backup LLM
-configured via `LLM_BACKUP_*` (any OpenAI-compatible endpoint — with both set, the app
-uses Claude and falls back to the backup only when Claude errors). Everything else runs
-without a model.
+Answering needs at least one working tier, configured via `LLM_TIER1_*` through
+`LLM_TIER4_*` (any OpenAI-compatible endpoint). With several enabled, the app uses the
+lowest-numbered one and falls through to the next only when it errors. Everything else
+runs without a model.
 
 ## Layout
 
@@ -105,7 +105,7 @@ backend/
     conduct/           the deterministic run engine (answer validation, run locking)
     templates/…        visibility.py (show_when evaluation), estimate.py (time to complete)
     runs/summary.py    the AI summary of a completed run
-    llm/               Anthropic client, OpenAI-compatible backups + failover chain,
+    llm/               the OpenAI-compatible client + tier failover chain,
                        tolerant decoding of model JSON, versioned prompts
     auth/              dev-auth dependency
   migrations/          Alembic (async env)
@@ -131,8 +131,8 @@ DATABASE_URL=postgresql+asyncpg://elenchus:elenchus@localhost:5432/elenchus uv r
 
 The suite runs against a real Postgres — the repository layer is exercised against the engine
 it ships on — and fakes the LLM at the client wrapper, so it needs no API key. If a test ever
-needs one, that is the bug. The backup providers follow the same rule: the OpenAI-compatible
-client is driven through an in-process mock transport, so failover coverage runs offline too.
+needs one, that is the bug. The tiers follow the same rule: the OpenAI-compatible client is
+driven through an in-process mock transport, so failover coverage runs offline too.
 
 GitHub Actions runs the same gates on every pull request: `alembic upgrade head` from an empty
 database, `ruff`, `black`, `mypy` and `pytest` for the backend; `tsc --noEmit`, `eslint` and
@@ -140,7 +140,7 @@ database, `ruff`, `black`, `mypy` and `pytest` for the backend; `tsc --noEmit`, 
 
 `.github/workflows/live-conduct.yml` is the opposite check — it drives real conversations
 through a real model and only runs when you press *Run workflow*, since it costs credit. It
-needs an `ANTHROPIC_API_KEY` repository secret.
+needs an `LLM_TIER1_API_KEY` repository secret.
 
 ## Backend development (outside Docker)
 
