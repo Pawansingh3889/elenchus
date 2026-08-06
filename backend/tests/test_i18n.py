@@ -30,7 +30,9 @@ from app.i18n import (
         ("ar-EG,ar;q=0.9,en;q=0.8", "ar"),
         # Unsupported, absent and malformed all land on English rather than raising: a
         # wrong language is recoverable, a 500 while reporting an error is not.
-        ("de", "en"),
+        # A real language the app does not offer. Kept as a language rather than
+        # nonsense, because "unsupported" and "malformed" are different paths.
+        ("ja", "en"),
         ("", "en"),
         (None, "en"),
         (";;;", "en"),
@@ -54,7 +56,7 @@ def test_every_supported_locale_covers_every_message() -> None:
 
 
 def test_an_unknown_locale_falls_back_rather_than_failing() -> None:
-    assert translate("llm_unavailable", "de") == MESSAGES["llm_unavailable"][DEFAULT_LOCALE]
+    assert translate("llm_unavailable", "ja") == MESSAGES["llm_unavailable"][DEFAULT_LOCALE]
 
 
 def test_an_unknown_message_id_raises() -> None:

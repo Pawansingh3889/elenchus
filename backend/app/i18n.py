@@ -22,6 +22,14 @@ DEFAULT_LOCALE = "en"
 MESSAGES: dict[str, dict[str, str]] = {
     "llm_unavailable": {
         "en": "The assistant is briefly unavailable. Please try again in a moment.",
+        "fr": "L'assistant est momentanément indisponible. Réessayez dans un instant.",
+        "de": "Der Assistent ist kurzzeitig nicht verfügbar. Bitte versuchen Sie es gleich erneut.",
+        "pt": "O assistente está momentaneamente indisponível. Tente novamente daqui a pouco.",
+        "fil": "Pansamantalang hindi available ang assistant. Subukan ulit maya-maya.",
+        "hi": "सहायक कुछ देर के लिए उपलब्ध नहीं है। कृपया थोड़ी देर बाद पुनः प्रयास करें।",
+        "bn": "সহায়কটি কিছুক্ষণের জন্য অনুপলব্ধ। অনুগ্রহ করে একটু পরে আবার চেষ্টা করুন।",
+        "he": "העוזר אינו זמין לרגע. נסה שוב בעוד רגע.",
+        "ur": "معاون عارضی طور پر دستیاب نہیں۔ براہِ کرم تھوڑی دیر بعد دوبارہ کوشش کریں۔",
         "es": (
             "El asistente no está disponible por un momento. "
             "Inténtalo de nuevo en unos instantes."
@@ -30,11 +38,30 @@ MESSAGES: dict[str, dict[str, str]] = {
     },
     "closing": {
         "en": "That's everything, thank you. Your answers are saved.",
+        "fr": "C'est tout, merci. Vos réponses sont enregistrées.",
+        "de": "Das war alles, danke. Ihre Antworten sind gespeichert.",
+        "pt": "É tudo, obrigado. As suas respostas estão guardadas.",
+        "fil": "Iyon na lahat, salamat. Naka-save na ang iyong mga sagot.",
+        "hi": "बस इतना ही, धन्यवाद। आपके उत्तर सहेजे गए हैं।",
+        "bn": "এটুকুই, ধন্যবাদ। আপনার উত্তর সংরক্ষিত হয়েছে।",
+        "he": "זה הכול, תודה. התשובות שלך נשמרו.",
+        "ur": "بس اتنا ہی، شکریہ۔ آپ کے جوابات محفوظ ہو گئے۔",
         "es": "Eso es todo, gracias. Tus respuestas están guardadas.",
         "ar": "هذا كل شيء، شكرًا لك. تم حفظ إجاباتك.",
     },
     "database_unavailable": {
         "en": "The service cannot reach its database right now. Please try again in a moment.",
+        "fr": "Le service ne peut pas joindre sa base de données. Réessayez dans un instant.",
+        "de": (
+            "Der Dienst erreicht seine Datenbank gerade nicht. "
+            "Bitte versuchen Sie es gleich erneut."
+        ),
+        "pt": "O serviço não consegue aceder à base de dados. Tente novamente daqui a pouco.",
+        "fil": "Hindi maabot ng serbisyo ang database nito ngayon. Subukan ulit maya-maya.",
+        "hi": "सेवा अभी अपने डेटाबेस तक नहीं पहुँच पा रही। कृपया थोड़ी देर बाद प्रयास करें।",
+        "bn": "সেবাটি এখন তার ডেটাবেসে পৌঁছাতে পারছে না। একটু পরে আবার চেষ্টা করুন।",
+        "he": "השירות אינו מצליח להגיע למסד הנתונים כרגע. נסה שוב בעוד רגע.",
+        "ur": "سروس اس وقت اپنے ڈیٹابیس تک نہیں پہنچ پا رہی۔ تھوڑی دیر بعد کوشش کریں۔",
         "es": (
             "El servicio no puede conectar con su base de datos ahora mismo. "
             "Inténtalo de nuevo en unos instantes."
@@ -43,7 +70,7 @@ MESSAGES: dict[str, dict[str, str]] = {
     },
 }
 
-SUPPORTED = ("en", "es", "ar")
+SUPPORTED = ("en", "es", "fr", "de", "pt", "fil", "hi", "bn", "ar", "he", "ur")
 
 
 def parse_locale(accept_language: str | None) -> str:
