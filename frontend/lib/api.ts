@@ -1,4 +1,4 @@
-import { useUserStore } from "./store";
+import { useLocaleStore, useUserStore } from "./store";
 import type {
   GeneratedTemplate,
   Run,
@@ -100,6 +100,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const userId = useUserStore.getState().currentUserId;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (userId) headers["X-User-Id"] = userId;
+  // Read out of band like the user id, so every call carries the language without each
+  // caller remembering to pass it. The backend answers its own messages in this
+  // language, and a run started now is conducted in it.
+  headers["Accept-Language"] = useLocaleStore.getState().locale;
 
   const res = await fetch(`${BASE}/api/v1${path}`, { ...init, headers });
   if (!res.ok) {

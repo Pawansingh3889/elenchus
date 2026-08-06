@@ -9,9 +9,11 @@ import {
   usePublishedSurveys,
   useStartRun,
 } from "@/lib/queries";
+import { useT } from "@/lib/i18n/useT";
 import { useUserStore } from "@/lib/store";
 
 export default function RespondPage() {
+  const { common, respond } = useT();
   const currentUserId = useUserStore((s) => s.currentUserId);
   const currentUser = useCurrentUser();
   const { data: surveys, isLoading, error } = usePublishedSurveys();
@@ -27,19 +29,19 @@ export default function RespondPage() {
   }, [isAuthor, router]);
 
   if (!currentUserId) {
-    return <div className="empty">Pick a user in the top bar to take a survey.</div>;
+    return <div className="empty">{respond.pickUser}</div>;
   }
   if (isAuthor) {
-    return <div className="empty">Taking you to Build…</div>;
+    return <div className="empty">{respond.goingToBuild}</div>;
   }
 
   return (
     <div className="page">
       <div className="page-head">
-        <h1>Open surveys</h1>
+        <h1>{respond.title}</h1>
       </div>
 
-      {isLoading ? <div className="muted">Loading…</div> : null}
+      {isLoading ? <div className="muted">{common.loading}</div> : null}
       {error ? <div className="error-text">{(error as Error).message}</div> : null}
       {start.error ? <div className="error-text">{(start.error as Error).message}</div> : null}
 
@@ -86,7 +88,7 @@ export default function RespondPage() {
           );
         })}
         {surveys && surveys.length === 0 ? (
-          <div className="muted">Nothing published yet. Publish a template to open it here.</div>
+          <div className="muted">{respond.empty}</div>
         ) : null}
       </div>
     </div>

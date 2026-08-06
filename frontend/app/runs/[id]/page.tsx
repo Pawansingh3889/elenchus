@@ -5,10 +5,12 @@ import { useEffect, useRef, useState } from "react";
 
 import { AnswerAffordances } from "@/components/AnswerAffordances";
 import { Transcript } from "@/components/Transcript";
+import { useT } from "@/lib/i18n/useT";
 import { useCurrentUser, useRun, useSendRunMessage } from "@/lib/queries";
 import { useUserStore } from "@/lib/store";
 
 export default function RunPage() {
+  const { common, run: text, respond } = useT();
   const { id } = useParams<{ id: string }>();
   const currentUserId = useUserStore((s) => s.currentUserId);
   const currentUser = useCurrentUser();
@@ -29,12 +31,12 @@ export default function RunPage() {
   }, [isAuthor, router]);
 
   if (!currentUserId) {
-    return <div className="empty">Pick a user in the top bar to continue this survey.</div>;
+    return <div className="empty">{text.pickUser}</div>;
   }
   if (isAuthor) {
-    return <div className="empty">Taking you to Build…</div>;
+    return <div className="empty">{respond.goingToBuild}</div>;
   }
-  if (isLoading) return <div className="muted">Loading…</div>;
+  if (isLoading) return <div className="muted">{common.loading}</div>;
   if (error) return <div className="error-text">{(error as Error).message}</div>;
   if (!run) return null;
 
@@ -73,7 +75,7 @@ export default function RunPage() {
       {send.error ? <div className="error-text">{(send.error as Error).message}</div> : null}
 
       {done ? (
-        <div className="chat-done">Thanks. Your answers are saved.</div>
+        <div className="chat-done">{text.done}</div>
       ) : (
         <>
           {run.current_question ? (
@@ -94,7 +96,7 @@ export default function RunPage() {
             <input
               className="field"
               value={draft}
-              placeholder="Type your answer…"
+              placeholder={text.answerPlaceholder}
               disabled={send.isPending}
               onChange={(e) => setDraft(e.target.value)}
             />
@@ -111,7 +113,7 @@ export default function RunPage() {
               honest version of a "save and exit" button. */}
           <div className="chat-later">
             <button className="link-btn" onClick={() => router.push("/respond")}>
-              Finish later
+              {text.finishLater}
             </button>
             <span className="muted"> — your answers so far are saved; pick up where you left off.</span>
           </div>

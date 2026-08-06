@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { useCreateTemplate, useCurrentUser, useGenerateTemplate, useTemplates } from "@/lib/queries";
+import { useT } from "@/lib/i18n/useT";
 import { useDraftNoteStore, useUserStore } from "@/lib/store";
 
 export default function Home() {
+  const { common, home } = useT();
   const currentUserId = useUserStore((s) => s.currentUserId);
   const currentUser = useCurrentUser();
   const { data: templates, isLoading, error } = useTemplates();
@@ -25,10 +27,10 @@ export default function Home() {
   }, [isRespondent, router]);
 
   if (!currentUserId) {
-    return <div className="empty">Pick a user in the top bar to start authoring.</div>;
+    return <div className="empty">{home.pickUser}</div>;
   }
   if (isRespondent) {
-    return <div className="empty">Taking you to Respond…</div>;
+    return <div className="empty">{home.goingToRespond}</div>;
   }
 
   async function onCreate() {
@@ -47,7 +49,7 @@ export default function Home() {
   return (
     <div className="page">
       <div className="page-head">
-        <h1>Survey templates</h1>
+        <h1>{home.title}</h1>
         <button className="btn btn-primary" onClick={onCreate} disabled={create.isPending}>
           {create.isPending ? "Creating…" : "New template"}
         </button>
@@ -58,7 +60,7 @@ export default function Home() {
       ) : null}
 
       <div className="card generate-card">
-        <div className="card-label">✦ Draft with AI</div>
+        <div className="card-label">{home.draftWithAi}</div>
         <textarea
           placeholder="Describe the survey… e.g. An onboarding survey for factory staff: their role, the systems they use daily, and their biggest data frustrations."
           value={prompt}
@@ -78,7 +80,7 @@ export default function Home() {
         ) : null}
       </div>
 
-      {isLoading ? <div className="muted">Loading…</div> : null}
+      {isLoading ? <div className="muted">{common.loading}</div> : null}
       {error ? <div className="error-text">{(error as Error).message}</div> : null}
 
       <div className="template-list">
@@ -101,7 +103,7 @@ export default function Home() {
           </Link>
         ))}
         {templates && templates.length === 0 ? (
-          <div className="muted">No templates yet. Create one or draft with AI.</div>
+          <div className="muted">{home.empty}</div>
         ) : null}
       </div>
     </div>

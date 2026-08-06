@@ -1,6 +1,26 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+import { DEFAULT_LOCALE, type Locale } from "./i18n";
+
+interface LocaleState {
+  locale: Locale;
+  setLocale: (locale: Locale) => void;
+}
+
+// The chosen language. Persisted, because being asked again on every reload is the
+// single most irritating thing a language picker can do. The API client reads it out
+// of band for the Accept-Language header, exactly as it does the acting user.
+export const useLocaleStore = create<LocaleState>()(
+  persist(
+    (set) => ({
+      locale: DEFAULT_LOCALE,
+      setLocale: (locale) => set({ locale }),
+    }),
+    { name: "elenchus-locale" },
+  ),
+);
+
 interface UserState {
   currentUserId: string | null;
   setCurrentUserId: (id: string | null) => void;
