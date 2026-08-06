@@ -33,6 +33,9 @@ SCRIPTS = BACKEND / "scripts"
 
 GUARDS = ("check_query_surface.py", "check_no_create_all.py", "check_prompts_versioned.py")
 
+# check_contrast.py reads one stylesheet rather than a repository tree, so it takes
+# --stylesheet instead of --root and is proven separately below.
+
 
 def run_guard(script: str, root: Path) -> subprocess.CompletedProcess[str]:
     """Run a guard against a repository root, exactly as `make guards` does."""
@@ -191,3 +194,86 @@ def test_import_contracts_hold() -> None:
         [str(lint_imports)], cwd=BACKEND, capture_output=True, text=True, check=False
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+# ------------------------------------------------------------------- contrast
+
+
+def run_contrast(stylesheet: Path) -> subprocess.CompletedProcess[str]:
+    env = dict(os.environ, PYTHONPATH=str(SCRIPTS))
+    return subprocess.run(
+        [sys.executable, str(SCRIPTS / "check_contrast.py"), "--stylesheet", str(stylesheet)],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+
+
+PALETTE = """:root {{
+  --ink: #23262b;
+  --canvas: #eceef0;
+  --surface: #f7f8f9;
+  --white: #ffffff;
+  --muted: {muted};
+  --secondary: #636b73;
+  --accent-strong: #3c5570;
+  --focus: {focus};
+  --warn-fill: #fdf3d9;
+  --warn-text: #7a4a06;
+  --err-fill: #fadbd5;
+  --err-text: #8a2c18;
+}}
+"""
+
+
+def test_an_accessible_palette_passes(tmp_path: Path) -> None:
+    sheet = tmp_path / "globals.css"
+    sheet.write_text(PALETTE.format(muted="#646d76", focus="#4190c2"), encoding="utf-8")
+    result = run_contrast(sheet)
+    assert result.returncode == 0, result.stderr
+    assert "colour pair" in result.stdout
+
+
+def test_the_grey_this_repo_actually_shipped_is_rejected(tmp_path: Path) -> None:
+    """#98a0a8 was the real value, on real sentences, at 2.65:1. If this guard would
+    not have caught it, it is not worth running."""
+    sheet = tmp_path / "globals.css"
+    sheet.write_text(PALETTE.format(muted="#98a0a8", focus="#4190c2"), encoding="utf-8")
+    result = run_contrast(sheet)
+    assert result.returncode == 1
+    assert "2.65:1" in result.stderr
+
+
+def test_a_focus_ring_below_three_to_one_is_rejected(tmp_path: Path) -> None:
+    """The old focus colour, --accent at 1.81:1, which is why focus was invisible."""
+    sheet = tmp_path / "globals.css"
+    sheet.write_text(PALETTE.format(muted="#646d76", focus="#9ec6e0"), encoding="utf-8")
+    result = run_contrast(sheet)
+    assert result.returncode == 1
+    assert "focus ring" in result.stderr
+
+
+def test_a_renamed_token_is_a_violation_not_a_silent_pass(tmp_path: Path) -> None:
+    """Dropping a pair because its token vanished is how a check stops checking."""
+    sheet = tmp_path / "globals.css"
+    sheet.write_text(
+        PALETTE.format(muted="#646d76", focus="#4190c2").replace("--focus:", "--ring:"),
+        encoding="utf-8",
+    )
+    result = run_contrast(sheet)
+    assert result.returncode == 1
+    assert "no longer defined" in result.stderr
+
+
+def test_contrast_fails_when_it_cannot_run(tmp_path: Path) -> None:
+    assert run_contrast(tmp_path / "absent.css").returncode != 0
+
+
+def test_a_stylesheet_with_no_tokens_fails(tmp_path: Path) -> None:
+    """An empty file has no failing pairs, which must not read as success."""
+    sheet = tmp_path / "globals.css"
+    sheet.write_text("body { color: red; }\n", encoding="utf-8")
+    result = run_contrast(sheet)
+    assert result.returncode == 1
+    assert "checking nothing" in result.stderr

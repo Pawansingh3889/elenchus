@@ -4,10 +4,19 @@
   --surface: #f7f8f9;
   --white: #ffffff;
   --on-ink: #eceef0;
-  --muted: #98a0a8;
+  /* Text greys are chosen by contrast, not by eye. --muted carries real sentences
+     (.empty, .muted), so it clears 4.5:1 on all three backgrounds it can land on:
+     white 5.26, surface 4.95, canvas 4.52. It was #98a0a8, which was 2.65:1 and
+     unreadable. --muted-light is deliberately untouched: it is never text, only
+     borders and the typing dots, where text contrast does not apply. */
+  --muted: #646d76;
   --muted-light: #c9ced3;
   --secondary: #636b73;
   --accent: #9ec6e0;
+  /* Focus needs its own token. --accent is decorative and measures 1.81:1, well under
+     the 3:1 a focus indicator has to reach; one colour cannot be both. This clears 3:1
+     on every background (white 3.50, surface 3.30, canvas 3.01). */
+  --focus: #4190c2;
   --accent-strong: #3c5570;
   --highlight: #e2b23c;
   --highlight-soft: #dfe4e8;
@@ -23,6 +32,17 @@
   --ai-border: rgba(60, 85, 112, 0.2);
   --radius: 8px;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  /* Motion, as tokens so every surface moves at the same speed. Short enough to feel
+     like response rather than animation: past ~200ms a hover reads as lag. Every use
+     is switched off under prefers-reduced-motion at the foot of this file. */
+  --dur-fast: 120ms;
+  --dur-slow: 200ms;
+  --ease: cubic-bezier(0.2, 0, 0.2, 1);
+
+  /* Touch targets. 44px is the smallest reliably hittable control on a phone, and
+     several controls here were built at 28px for a mouse. */
+  --tap: 44px;
 }
 
 * {
@@ -56,6 +76,26 @@ select {
   font-family: inherit;
   font-size: inherit;
   color: var(--ink);
+}
+
+/* One focus ring for the whole app, on :focus-visible so it appears for keyboard and
+   assistive navigation without ringing every mouse click. Previously three rules set
+   `outline: none` and substituted a border tint at 1.81:1, which is to say the app had
+   no visible focus at all: tabbing through the builder showed nothing. */
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Stop iOS zooming the page when a field is focused. Safari does that whenever the
+   font is under 16px, and every field here was 13.5px. */
+@media (max-width: 640px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
 }
 
 .topbar {
@@ -159,6 +199,22 @@ select {
   font-size: 12.5px;
   font-weight: 600;
   border: 1px solid transparent;
+  /* Buttons had no hover state at all, so every one of them was inert under the
+     cursor. Filter rather than per-variant colours: one rule then covers primary,
+     secondary, ai and danger without four sets of hand-mixed shades to keep in step. */
+  transition:
+    filter var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease),
+    opacity var(--dur-fast) var(--ease);
+}
+.btn:hover:not(:disabled) {
+  filter: brightness(0.94);
+}
+.btn:active:not(:disabled) {
+  /* Sub-pixel on purpose: enough to acknowledge the press, not enough to shift layout. */
+  transform: translateY(1px);
+  filter: brightness(0.88);
 }
 .btn:disabled {
   opacity: 0.5;
@@ -198,9 +254,11 @@ select {
   border: 1px solid var(--border);
   border-radius: 9px;
   padding: 8px 10px;
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
 }
 .field:focus {
-  outline: none;
   background: var(--white);
   border-color: var(--accent);
 }
@@ -218,7 +276,6 @@ textarea {
   min-height: 72px;
 }
 .generate-card textarea:focus {
-  outline: none;
   background: var(--white);
   border-color: var(--accent);
 }
@@ -242,8 +299,14 @@ textarea {
   border-radius: var(--radius);
   padding: 14px 16px;
 }
+.template-row {
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
 .template-row:hover {
   border-color: var(--muted-light);
+  box-shadow: 0 1px 3px rgba(35, 38, 43, 0.06);
 }
 .template-title {
   font-weight: 700;
@@ -283,11 +346,6 @@ textarea {
   gap: 18px;
   align-items: start;
 }
-@media (max-width: 900px) {
-  .builder {
-    grid-template-columns: 1fr;
-  }
-}
 .builder-main {
   display: flex;
   flex-direction: column;
@@ -300,15 +358,20 @@ textarea {
 }
 .builder-title {
   flex: 1;
+  /* Without a min-width a flex item refuses to shrink below its content, which is what
+     pushed the actions off the row and left the title clipped mid-word. */
+  min-width: 0;
   font-size: 17px;
   font-weight: 800;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 9px;
   padding: 8px 10px;
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
 }
 .builder-title:focus {
-  outline: none;
   background: var(--white);
   border-color: var(--accent);
 }
@@ -371,6 +434,9 @@ textarea {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 14px;
+  transition:
+    border-color var(--dur-slow) var(--ease),
+    box-shadow var(--dur-slow) var(--ease);
 }
 .qcard-top {
   display: flex;
@@ -391,6 +457,7 @@ textarea {
   margin-top: 3px;
 }
 .qcard-body {
+  min-width: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -410,6 +477,12 @@ textarea {
   color: var(--secondary);
   display: grid;
   place-items: center;
+}
+.icon-btn {
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
 }
 .icon-btn:hover {
   border-color: var(--muted-light);
@@ -586,6 +659,9 @@ select.field {
 .topbar-nav a {
   color: var(--muted);
 }
+.topbar-nav a {
+  transition: color var(--dur-fast) var(--ease);
+}
 .topbar-nav a:hover {
   color: var(--on-ink);
 }
@@ -712,15 +788,143 @@ select.field {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+/* Motion is an enhancement, so it is switched off wholesale for anyone who has asked
+   the OS for less of it. Written as a blanket rule rather than a list because the list
+   was already out of date once: every transition added after this comment is covered
+   without anyone remembering to come back here. */
+/* ---------------------------------------------------------------------------
+   Phones and tablets.
+
+   The app was built at one width: two grid collapses at 900px and nothing else,
+   so on a phone the top bar crowded, the builder's action row ran off the edge,
+   the chat thread was capped at 58vh with a keyboard covering half of it, and
+   several controls were 28px targets aimed at a mouse.
+
+   Two breakpoints, not five. 1024px is where the builder's side column stops
+   earning its space, 640px is where a layout has to stop being a row.
+   --------------------------------------------------------------------------- */
+
+/* Tablets and small laptops */
+@media (max-width: 1024px) {
+  .app-main {
+    padding: 20px 16px 48px;
+  }
+  .builder {
+    grid-template-columns: 1fr;
+  }
+  .results {
+    grid-template-columns: 1fr;
+  }
+  /* The preview follows the thing it previews rather than sitting beside it. */
+  .builder-side {
+    order: 2;
+  }
+}
+
+/* Phones */
+@media (max-width: 640px) {
+  .app-main {
+    padding: 14px 12px 40px;
+  }
+  .topbar {
+    height: auto;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .topbar-user {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .topbar-user select {
+    flex: 1;
+    min-height: var(--tap);
+  }
+
+  /* Head rows stop being rows: a title and its actions do not fit side by side. */
+  .page-head,
+  .builder-head,
+  .chat-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .page-head-actions,
+  .builder-actions {
+    justify-content: flex-start;
+  }
+
+  /* Every control becomes thumb-sized. 44px is the smallest reliably hittable
+     target; these were 28px and built for a cursor. */
+  .btn,
+  .icon-btn,
+  .chip,
+  .add-dashed,
+  .add-question {
+    min-height: var(--tap);
+  }
+  .btn {
+    padding: 10px 14px;
+  }
+  .icon-btn {
+    min-width: var(--tap);
+  }
+
+  /* The visibility row is four controls wide and cannot stay on one line. */
+  .qcard-visibility {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .qcard-visibility select,
+  .qcard-visibility input {
+    max-width: none;
+    min-height: var(--tap);
+  }
+
+  /* An on-screen keyboard takes roughly half the viewport, so a thread capped at
+     58vh leaves almost nothing visible. Dynamic viewport units account for the
+     browser chrome that appears and disappears while scrolling. */
+  .chat-thread {
+    max-height: 52dvh;
+    min-height: 200px;
+    padding: 14px;
+  }
   .bubble {
-    animation: none;
+    max-width: 92%;
   }
-  .typing span {
-    animation: none;
+  .composer {
+    flex-wrap: wrap;
   }
-  .progress-bar span {
-    transition: none;
+  .composer .btn {
+    flex: 1;
+  }
+
+  /* Wide content scrolls inside itself rather than pushing the page sideways. */
+  .answer-list,
+  .result-list {
+    overflow-x: auto;
+  }
+}
+
+/* Coarse pointers deserve the larger targets whatever the screen width: a tablet
+   in landscape is wider than 640px and still being used with a thumb. */
+@media (pointer: coarse) {
+  .btn,
+  .icon-btn,
+  .chip,
+  .star {
+    min-height: var(--tap);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
@@ -742,6 +946,15 @@ select.field {
   color: var(--muted);
   font-style: italic;
 }
+.chip {
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+}
+.chip:active:not(:disabled) {
+  transform: translateY(1px);
+}
 .chip:hover:not(:disabled) {
   border-color: var(--accent-strong);
 }
@@ -761,6 +974,11 @@ select.field {
   font-size: 21px;
   line-height: 1;
   padding: 0 1px;
+}
+.star {
+  transition:
+    color var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
 }
 .star:hover:not(:disabled) {
   color: var(--highlight);
@@ -792,11 +1010,6 @@ select.field {
   gap: 16px;
   align-items: start;
 }
-@media (max-width: 900px) {
-  .results {
-    grid-template-columns: 1fr;
-  }
-}
 .results-list {
   display: flex;
   flex-direction: column;
@@ -811,6 +1024,11 @@ select.field {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 10px 12px;
+}
+.result-row {
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease);
 }
 .result-row:hover {
   border-color: var(--muted-light);

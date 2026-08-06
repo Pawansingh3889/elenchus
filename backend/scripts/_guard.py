@@ -46,12 +46,17 @@ def fail(*lines: str) -> None:
     raise SystemExit(1)
 
 
-def report(name: str, violations: list[str], checked: int) -> int:
-    """Print the outcome and return the exit code."""
+def report(name: str, violations: list[str], checked: int, unit: str = "file") -> int:
+    """Print the outcome and return the exit code.
+
+    ``unit`` because not every guard counts files: one counts colour pairs, and a
+    guard that reports "10 file(s) checked" when it read one file is quietly lying
+    about what it covered.
+    """
     if violations:
         print(f"FAIL: {name}, {len(violations)} violation(s):", file=sys.stderr)
         for violation in violations:
             print(f"  {violation}", file=sys.stderr)
         return 1
-    print(f"ok: {name}, {checked} file(s) checked")
+    print(f"ok: {name}, {checked} {unit}(s) checked")
     return 0
