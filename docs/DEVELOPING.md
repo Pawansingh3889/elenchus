@@ -111,7 +111,32 @@ Wipes the database volume, rebuilds, and leaves one survey published twice with 
 respondent part-way through version 1. Takes about forty seconds and prints the URLs.
 Use it whenever the data gets messy, and before showing the app to anyone.
 
+## 8. The other compose files
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml up      # NVIDIA on Linux
+docker compose -f docker-compose.yml -f docker-compose.gpu-wsl.yml up  # Docker Desktop on WSL2
+```
+
+Both accelerate the tier-4 Ollama and nothing else, and both are overrides rather than
+part of the base file: a device reservation on a machine without a GPU does not degrade,
+it refuses to start the service. Each file's header records the driver requirement and
+the failure mode when it is not met, which is not an error but a silent fall back to the
+CPU for ever.
+
+`docker-compose.prod.yml` is a separate file rather than a pile of overrides, because
+almost everything the development stack does is wrong for an install: bind-mounting
+source over the image, `--reload`, seeding demo accounts every boot, publishing Postgres
+to the host, mutable image tags. Read its header before using it. In particular,
+authentication is still the `X-User-Id` development shim, so the stack belongs behind
+something that does the authenticating and not on the public internet.
+
 ## Traps
+
+**The first `compose up` after this change downloads a model.** The backend waits on
+`ollama-pull`, which fetches several GB before the API accepts traffic. It happens once:
+the weights live in a named volume that survives `compose down`. Set `OLLAMA_MODEL` to
+something smaller if that is not what you want.
 
 **Only one stack at a time.** A second copy of the project cannot bind 3000, 8000 or
 5432 while the first is up — and neither can another project's Postgres. `docker compose

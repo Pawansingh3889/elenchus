@@ -119,7 +119,10 @@ frontend/
     runs/[id]/         the conversational runner
   lib/                 typed API client, TanStack Query hooks, Zustand store,
                        conditions.ts (repointing show_when when questions move)
-docker-compose.yml
+docker-compose.yml        development stack, including the tier-4 Ollama
+docker-compose.gpu.yml    GPU for Ollama on a Linux host with NVIDIA hardware
+docker-compose.gpu-wsl.yml  GPU under Docker Desktop on WSL2, where the above fails
+docker-compose.prod.yml   deployment: pinned digests, no seeding, no bind mounts
 ```
 
 ## Tests and CI

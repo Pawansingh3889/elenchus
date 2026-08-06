@@ -1,0 +1,171 @@
+# Deployment compose. Not a development file: see docker-compose.yml for that.
+#
+# The development file is correct for development and wrong for an install. It
+# bind-mounts the source over the image, runs uvicorn --reload, seeds demo users on
+# every boot, publishes Postgres to the host, and pins images by mutable tags. Every
+# one of those is a bug in a deployment, so this is a separate file rather than a pile
+# of overrides.
+#
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# READ THIS FIRST. Authentication is still the development shim: app/auth resolves the
+# caller from an `X-User-Id` header, with nothing to stop a client sending any user's
+# id. Anyone who can reach this stack can read and edit every author's surveys. That
+# is fine on a private network behind something that does the authenticating, and it
+# is not fit for the public internet. This file exists so the rest of a deployment is
+# right, not because the service is ready to face the world.
+#
+# Required in the environment (no defaults, because a missing value must fail loudly):
+#   POSTGRES_PASSWORD    the database password
+#   FRONTEND_ORIGIN      the browser app's origin, for CORS
+#   LLM_TIER1_API_KEY    unless tier 1 is disabled
+#
+# APP_ENV is set to prod below for the deployment's own records. Note that nothing in
+# the code branches on it yet, so it changes no behaviour today.
+
+name: elenchus-prod
+
+services:
+  postgres:
+    # Pinned by digest, not by tag. `postgres:17-alpine` moves, so a tag pin means two
+    # installs a month apart can run different engines while claiming the same version.
+    image: postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-elenchus}
+      # `:?` fails the command rather than defaulting. A deployment that silently
+      # accepts a well-known password is worse than one that refuses to start.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD before deploying}
+      POSTGRES_DB: ${POSTGRES_DB:-elenchus}
+    # No `ports:`. The database is reachable only on the compose network, by the
+    # backend. Publishing 5432 to the host, as the development file does, puts the
+    # database on the deployment's network interface for no benefit.
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-elenchus} -d ${POSTGRES_DB:-elenchus}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest@sha256:4dea9fb511947e24a84237bb636b0203abcb2ff0d3fbc7b4ff865deb91362131
+    environment:
+      # Ollama unloads a model after ~5 minutes idle, so the first turn after any gap
+      # pays a full cold load, which is minutes on CPU. Keeping it resident pays once.
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-24h}
+    volumes:
+      - ollama:/root/.ollama
+    healthcheck:
+      # Not just "is the server up": the model must be present, or tier 4 404s at
+      # precisely the moment all three cloud tiers have already failed.
+      test:
+        [
+          "CMD-SHELL",
+          "ollama list | grep -q \"${OLLAMA_MODEL:-llama3.2:3b}\" || exit 1",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 60
+      start_period: 30s
+    restart: unless-stopped
+
+  # Pulls the model once, then exits. The backend waits on this completing rather than
+  # on the ollama container merely being up.
+  ollama-pull:
+    image: ollama/ollama:latest@sha256:4dea9fb511947e24a84237bb636b0203abcb2ff0d3fbc7b4ff865deb91362131
+    depends_on:
+      - ollama
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["/bin/sh", "-c"]
+    command: >-
+      'until ollama list >/dev/null 2>&1; do sleep 2; done;
+       ollama pull "${OLLAMA_MODEL:-llama3.2:3b}"'
+    restart: "no"
+
+  backend:
+    # Tagged so the built image is identifiable and can be pushed to a registry. A
+    # release should pull a pre-built image rather than building on the host; until
+    # that registry exists, this at least stops the image being anonymous.
+    image: elenchus-backend:0.1.0
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-elenchus}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD before deploying}@postgres:5432/${POSTGRES_DB:-elenchus}
+      APP_ENV: prod
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:?set FRONTEND_ORIGIN to the browser app's origin}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LLM_TIER1_ENABLED: ${LLM_TIER1_ENABLED:-true}
+      LLM_TIER1_BASE_URL: ${LLM_TIER1_BASE_URL:-https://api.openai.com/v1}
+      LLM_TIER1_API_KEY: ${LLM_TIER1_API_KEY:-}
+      LLM_TIER1_MODEL: ${LLM_TIER1_MODEL:-}
+      LLM_TIER1_TIMEOUT_SECONDS: ${LLM_TIER1_TIMEOUT_SECONDS:-120}
+      LLM_TIER2_ENABLED: ${LLM_TIER2_ENABLED:-false}
+      LLM_TIER2_BASE_URL: ${LLM_TIER2_BASE_URL:-https://api.groq.com/openai/v1}
+      LLM_TIER2_API_KEY: ${LLM_TIER2_API_KEY:-}
+      LLM_TIER2_MODEL: ${LLM_TIER2_MODEL:-}
+      LLM_TIER2_TIMEOUT_SECONDS: ${LLM_TIER2_TIMEOUT_SECONDS:-120}
+      LLM_TIER3_ENABLED: ${LLM_TIER3_ENABLED:-false}
+      LLM_TIER3_BASE_URL: ${LLM_TIER3_BASE_URL:-https://openrouter.ai/api/v1}
+      LLM_TIER3_API_KEY: ${LLM_TIER3_API_KEY:-}
+      LLM_TIER3_MODEL: ${LLM_TIER3_MODEL:-}
+      LLM_TIER3_TIMEOUT_SECONDS: ${LLM_TIER3_TIMEOUT_SECONDS:-120}
+      LLM_TIER4_ENABLED: ${LLM_TIER4_ENABLED:-true}
+      LLM_TIER4_BASE_URL: ${LLM_TIER4_BASE_URL:-http://ollama:11434/v1}
+      LLM_TIER4_API_KEY: ${LLM_TIER4_API_KEY:-}
+      LLM_TIER4_MODEL: ${LLM_TIER4_MODEL:-llama3.2:3b}
+      LLM_TIER4_TIMEOUT_SECONDS: ${LLM_TIER4_TIMEOUT_SECONDS:-300}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama-pull:
+        condition: service_completed_successfully
+    # No source bind mount: the image is what runs, so what was tested is what ships.
+    # Migrations still apply on start, because the schema must match the code that
+    # ships with it, but `python -m app.seed` does not. Seeding is idempotent, which is
+    # why it is harmless in development and exactly why it must not run here: it would
+    # leave five working accounts behind, two of them authors.
+    command: >-
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    restart: unless-stopped
+    healthcheck:
+      # Readiness, not liveness: /api/v1/health answers 503 when it cannot reach the
+      # database, so an unhealthy backend here means it genuinely cannot serve.
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/v1/health', timeout=5).status == 200 else 1)\"",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  frontend:
+    image: elenchus-frontend:0.1.0
+    build: ./frontend
+    environment:
+      # Baked into the browser bundle at build time, so it must be the origin the
+      # browser will use, not an in-network hostname the browser cannot resolve.
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?set NEXT_PUBLIC_API_URL to the backend's public origin}
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    # `next build` then `next start`, rather than the development file's `next dev`.
+    # No bind mount, so the build is of the image's own source.
+    command: >-
+      sh -c "pnpm build && pnpm start"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  # Model weights are several GB; a named volume keeps them across `compose down` so
+  # the pull happens once rather than on every restart.
+  ollama:
