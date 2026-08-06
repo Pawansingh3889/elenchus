@@ -1,20 +1,28 @@
 """AI summary of a completed run (SPEC.md 2.2, stretch 1).
 
 The author asks for it; the LLM returns it through a schema-constrained tool call; the
-validated result is stored on ``survey_runs.summary`` so it is generated once. Two gates
-sit between the model and the column: the schema, and a check that every quote is a
-verbatim span of something the respondent actually said. A summary is an author-facing
-artifact they will act on, and an invented quote is indistinguishable from a real one
-once it is rendered next to the answers.
+validated result is stored on ``survey_runs.summary`` so it is generated once. Three
+gates sit between the model and the column: the schema, a check that every quote is a
+verbatim span of something the respondent actually said, and a fresh-context checker
+that reads the draft against the answers and either passes it or sends it back with
+notes. A summary is an author-facing artifact they will act on, and an invented quote
+is indistinguishable from a real one once it is rendered next to the answers.
+
+The checker exists for what the first two gates cannot decide: whether the headline and
+key facts are *supported*. A rule can prove a quote verbatim; only a reader can notice a
+fact the respondent never gave. It runs in a separate call that sees the answers and the
+candidate and nothing of how the draft was made, because a model marking its own
+homework in its own context is suspiciously generous about it.
 """
 
+import json
 import logging
 import re
 from datetime import UTC, datetime
 from typing import Any, cast
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,7 +42,9 @@ logger = logging.getLogger("app.runs.summary")
 
 MAX_KEY_FACTS = 8
 MAX_QUOTES = 5
+MAX_PROBLEMS = 8
 PROMPT_VERSION = "summarise_run_v1"
+VERIFY_PROMPT_VERSION = "verify_summary_v1"
 
 
 class Quote(BaseModel):
@@ -78,17 +88,58 @@ class RunSummaryContent(BaseModel):
         return facts
 
 
+class SummaryVerdict(BaseModel):
+    """The checker's verdict on one candidate summary.
+
+    ``problems`` is what the writer gets back, so an unfaithful verdict that names
+    nothing actionable is itself invalid: "fail, no reason given" cannot be sent back
+    as notes and cannot be acted on.
+    """
+
+    faithful: bool
+    problems: list[str] = Field(default_factory=list, max_length=MAX_PROBLEMS)
+
+    @field_validator("problems")
+    @classmethod
+    def _problems_are_readable(cls, values: list[str]) -> list[str]:
+        problems: list[str] = []
+        for value in values:
+            problem = value.strip().lstrip("-•* ").strip()
+            if not problem:
+                raise ValueError("a problem cannot be blank")
+            problems.append(problem)
+        return problems
+
+    @model_validator(mode="after")
+    def _unfaithful_names_the_fault(self) -> "SummaryVerdict":
+        if not self.faithful and not self.problems:
+            raise ValueError("an unfaithful verdict must name at least one problem")
+        return self
+
+
 _TOOL: dict[str, Any] = {
     "name": "summarise_run",
     "description": "Return a structured summary of one completed survey response.",
     "input_schema": RunSummaryContent.model_json_schema(),
 }
 
+_VERIFY_TOOL: dict[str, Any] = {
+    "name": "report_verdict",
+    "description": "Report whether the candidate summary is supported by the answers.",
+    "input_schema": SummaryVerdict.model_json_schema(),
+}
+
 
 class RunSummaryService:
-    def __init__(self, session: AsyncSession, llm: LLMProtocol | None = None) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        llm: LLMProtocol | None = None,
+        verifier: LLMProtocol | None = None,
+    ) -> None:
         self.session = session
         self._llm = llm
+        self._verifier = verifier
         self.repo = ResultsRepository(session)
         self.templates = TemplateRepository(session)
 
@@ -98,6 +149,18 @@ class RunSummaryService:
         if self._llm is None:
             self._llm = get_llm()
         return self._llm
+
+    @property
+    def verifier(self) -> LLMProtocol:
+        """The checker's client: the writer's chain unless a different one is injected.
+
+        A separate seam because fresh context removes a model's generosity toward its
+        own draft but not its blind spots; a different model family in this seat would
+        remove some of those too.
+        """
+        if self._verifier is None:
+            self._verifier = self.llm
+        return self._verifier
 
     async def summarise(
         self, template_id: UUID, run_id: UUID, author: User, refresh: bool = False
@@ -117,9 +180,37 @@ class RunSummaryService:
             raise ConflictError("This run has no answers to summarise.")
 
         content = await self._generate(run, previous_error=None)
+        verdict = await self._verify(run, content)
+        if not verdict.faithful:
+            # Send it back with the checker's notes, through the same channel a schema
+            # rejection uses, and check the redraft from scratch.
+            notes = "; ".join(verdict.problems)
+            logger.warning(
+                "summary failed verification, redrafting: run=%s problems=%r",
+                run.id,
+                verdict.problems,
+            )
+            content = await self._generate(
+                run,
+                previous_error=f"a reviewer compared it against the answers and found: {notes}",
+            )
+            verdict = await self._verify(run, content)
+        if not verdict.faithful:
+            # Nothing is stored: an unsupported summary rendered beside the answers is
+            # worse than the author reading the answers themselves.
+            logger.error(
+                "summary failed verification twice: run=%s problems=%r",
+                run.id,
+                verdict.problems,
+            )
+            raise LLMError(
+                "The summary could not be verified against the answers: "
+                + "; ".join(verdict.problems)
+            )
         run.summary = {
             **content.model_dump(),
             "prompt_version": PROMPT_VERSION,
+            "verify_prompt_version": VERIFY_PROMPT_VERSION,
             "generated_at": datetime.now(UTC).isoformat(),
         }
         await self.session.commit()
@@ -155,6 +246,27 @@ class RunSummaryService:
             "run summary failed after one retry: run=%s raw=%r error=%s", run.id, raw, error
         )
         raise LLMError(f"Model returned an invalid summary after one retry: {error}")
+
+    async def _verify(self, run: SurveyRun, content: RunSummaryContent) -> SummaryVerdict:
+        """Fresh context: the checker sees the answers and the candidate, and nothing of
+        how the draft was made, neither the writer's briefing nor its earlier attempts.
+        """
+        turn = await self.verifier.tool_turn(
+            system=load_prompt(VERIFY_PROMPT_VERSION),
+            messages=[{"role": "user", "content": _verification_brief(run, content)}],
+            tools=[_VERIFY_TOOL],
+            max_tokens=1024,
+        )
+        raw = dict(turn.tool_input)
+        if "problems" in raw:
+            raw["problems"] = decode_stringified(raw["problems"], list)
+        try:
+            return SummaryVerdict.model_validate(raw)
+        except PydanticValidationError as exc:
+            # A checker that cannot say what is wrong has not checked anything; failing
+            # open here would make the gate decorative.
+            logger.error("summary verdict rejected: run=%s raw=%r error=%s", run.id, raw, exc)
+            raise LLMError(f"Checker returned an invalid verdict: {exc}") from exc
 
     async def _run_for_author(self, template_id: UUID, run_id: UUID, author: User) -> SurveyRun:
         """Same ownership rule as the rest of results: someone else's survey reads as
@@ -213,12 +325,16 @@ def _answer_text(answer: Answer) -> str:
     return flatten_answer(answer.value)
 
 
-def _transcript_for(run: SurveyRun) -> str:
-    """The answers as the model should see them: scripted questions with their follow-ups
+def _answers_block(run: SurveyRun) -> str:
+    """The answers as a model should see them: scripted questions with their follow-ups
     beneath, in the order they were given. The chat transcript is deliberately left out —
     it carries the model's own phrasing, which is not evidence of what the respondent said.
+
+    Writer and checker are both fed from this one extract, so the checker judges the
+    draft against exactly what the writer was given: never against more, which would fail
+    sound drafts, and never against less, which would pass unsupported ones.
     """
-    lines = ["Here is one completed response. Summarise it.", ""]
+    lines = []
     for answer in run.answers:
         prefix = "  follow-up" if answer.kind is AnswerKind.follow_up else "Q"
         lines.append(f"{prefix}: {answer.question_text}")
@@ -226,3 +342,15 @@ def _transcript_for(run: SurveyRun) -> str:
             f"{'  ' if answer.kind is AnswerKind.follow_up else ''}A: {_answer_text(answer)}"
         )
     return "\n".join(lines)
+
+
+def _transcript_for(run: SurveyRun) -> str:
+    return f"Here is one completed response. Summarise it.\n\n{_answers_block(run)}"
+
+
+def _verification_brief(run: SurveyRun, content: RunSummaryContent) -> str:
+    summary = json.dumps(content.model_dump(), ensure_ascii=False, indent=2)
+    return (
+        "Here is one completed survey response, and a candidate summary of it.\n\n"
+        f"Answers:\n{_answers_block(run)}\n\nCandidate summary:\n{summary}"
+    )
