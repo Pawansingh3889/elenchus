@@ -5,6 +5,35 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-08-06. Architecture rules made executable, and the gates proven
+
+Adopted from the copernus project, whose Makefile states the principle: a gate that
+has never been observed to reject anything is decoration.
+
+The layering in CLAUDE.md was true only by review. It is now enforced:
+
+- **Import contracts** (`lint-imports`). Inside every domain, imports point downward
+  only, router to service to repository to models. `service` and `models` are optional
+  layers because app.conduct keeps its logic in engine.py and app.users has no service;
+  a layer that is absent is skipped, a layer that exists is ordered. A second contract
+  keeps transport in one module: nothing above `app.llm.openai_compatible` may import
+  httpx, urllib, socket or requests directly.
+- **Guards** (`backend/scripts/`), for the rules a contract cannot express. Only
+  repositories may import the query surface, meaning select, func and selectinload,
+  while a router naming AsyncSession for its dependency is fine and always was; that
+  distinction is below module granularity, and import-linter cannot forbid a subpackage
+  of an external package. Alembic owns the schema, so `create_all` is rejected in app
+  code and in tests. Prompts must be named `<name>_v<N>.md`, and every PROMPT_VERSION
+  constant must resolve to a file that exists, which otherwise fails at the one moment
+  a model is called.
+- **Proof that each gate works** (`tests/test_gates.py`, 15 tests). Each guard is run
+  against a clean fake repository, against one with exactly one planted violation, and
+  against an empty directory. The third case is the one that hides: a naive checker
+  walks no files, finds nothing, and exits 0 having verified nothing at all.
+- **`make gate`**, which is exactly what CI runs, and the repo's first Makefile.
+
+227 tests.
+
 ## 2026-08-06. Ported from glance: summary verification and the local tier
 
 The glance project is a parallel build of this same service. Three pieces of it were
