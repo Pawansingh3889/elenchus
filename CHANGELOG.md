@@ -5,6 +5,34 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-08-06. Ported from glance: summary verification and the local tier
+
+The glance project is a parallel build of this same service. Three pieces of it were
+worth taking, and were taken rather than reinvented:
+
+- **A checker on the run summary.** The schema and the verbatim-quote gate cannot
+  decide whether the headline and key facts are *supported* by the answers; a rule can
+  prove a quote verbatim, only a reader can notice a fact the respondent never gave. A
+  second call now reads the draft against the same extract the writer was fed, blind to
+  how it was drafted, and either passes it or sends it back once with notes. Refused
+  twice is a 502 and nothing is stored. The verdict is itself schema-gated: unfaithful
+  while naming no problem is invalid, because it cannot be redrafted against.
+- **A local Ollama as tier 4.** The tier was configurable but unreachable, so the last
+  resort in the chain was decorative. Compose now runs its own, with a healthcheck that
+  asserts the model is pulled rather than that the server answers, and the model kept
+  resident server-side because the /v1 OpenAI shim does not reliably honour a per-request
+  keep_alive. The backend waits on the pull, so a fresh machine downloads weights before
+  the API accepts traffic.
+- **GPU overrides and a deployment compose.** Two GPU files, because Docker Desktop on
+  WSL2 has no nvidia runtime and needs /dev/dxg mapped instead. The prod file pins images
+  by digest, keeps Postgres off the host interface, refuses to start without a password,
+  and skips the seed. Its header states plainly that auth is still the X-User-Id shim, so
+  the stack is not fit for the public internet.
+
+Deliberately not taken: glance's `incidents` and `ask` domains, the first already dead in
+glance and the second specific to a factory floor. Its `sample_data` package needed no
+porting, this repo having the same one already.
+
 ## 2026-08-06. One provider protocol: the Anthropic path removed
 
 The Anthropic key had been blank for a while, and the factory only ever built that client
