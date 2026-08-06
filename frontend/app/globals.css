@@ -73,6 +73,12 @@
   /* The last four colours that lived in rules. Shadows are tokens because a shadow
      tuned for a light page is invisible on a dark one, and the overlays because the
      top bar tints itself against whatever it sits on. */
+  /* The dark slab: the top bar and the primary button. Separate from --ink because
+     --ink is body text, and in a dark theme text goes light while a slab must not.
+     One token doing both jobs turned the top bar light, with light text on it. */
+  --slab: #23262b;
+  --on-slab: #eceef0;
+
   --overlay-weak: rgba(255, 255, 255, 0.08);
   --overlay-line: rgba(255, 255, 255, 0.15);
   --shadow-sm: 0 1px 3px rgba(35, 38, 43, 0.06);
@@ -103,6 +109,8 @@
     --raised: #212429;
     --ink: #e6e8ea;
     --on-ink: #e6e8ea;
+    --slab: #0f1114;
+    --on-slab: #e6e8ea;
     --muted: #9aa4ae;
     --muted-light: #4a525b;
     --secondary: #b3bcc5;
@@ -138,6 +146,8 @@
   --raised: #212429;
   --ink: #e6e8ea;
   --on-ink: #e6e8ea;
+  --slab: #0f1114;
+  --on-slab: #e6e8ea;
   --muted: #9aa4ae;
   --muted-light: #4a525b;
   --secondary: #b3bcc5;
@@ -250,8 +260,8 @@ select {
 
 .topbar {
   height: 54px;
-  background: var(--ink);
-  color: var(--on-ink);
+  background: var(--slab);
+  color: var(--on-slab);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -278,7 +288,7 @@ select {
 }
 .topbar-user select {
   background: var(--overlay-weak);
-  color: var(--on-ink);
+  color: var(--on-slab);
   border: 1px solid var(--overlay-line);
   border-radius: 8px;
   padding: 5px 8px;
@@ -371,8 +381,8 @@ select {
   cursor: default;
 }
 .btn-primary {
-  background: var(--ink);
-  color: var(--raised);
+  background: var(--slab);
+  color: var(--on-slab);
 }
 .btn-secondary {
   background: var(--raised);
@@ -679,6 +689,11 @@ select.field {
 }
 .option-row input {
   flex: 1;
+  /* An input carries an intrinsic width of roughly 170px, and a flex item will not
+     shrink below its content without this. On a phone the row therefore overflowed its
+     own container and pushed the remove button past the edge. Same cause as the clipped
+     builder title. */
+  min-width: 0;
   background: var(--raised);
   border: 1px solid var(--border);
   border-radius: 7px;
@@ -813,7 +828,7 @@ select.field {
   transition: color var(--dur-fast) var(--ease);
 }
 .topbar-nav a:hover {
-  color: var(--on-ink);
+  color: var(--on-slab);
 }
 
 .survey-list {
@@ -953,130 +968,6 @@ select.field {
    Two breakpoints, not five. 1024px is where the builder's side column stops
    earning its space, 640px is where a layout has to stop being a row.
    --------------------------------------------------------------------------- */
-
-/* Tablets and small laptops */
-@media (max-width: 1024px) {
-  .app-main {
-    padding: 20px 16px 48px;
-  }
-  .builder {
-    grid-template-columns: 1fr;
-  }
-  .results {
-    grid-template-columns: 1fr;
-  }
-  /* The preview follows the thing it previews rather than sitting beside it. */
-  .builder-side {
-    order: 2;
-  }
-}
-
-/* Phones */
-@media (max-width: 640px) {
-  .app-main {
-    padding: 14px 12px 40px;
-  }
-  .topbar {
-    height: auto;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding: 10px 12px;
-  }
-  .topbar-user {
-    width: 100%;
-    justify-content: space-between;
-  }
-  .topbar-user select {
-    flex: 1;
-    min-height: var(--tap);
-  }
-
-  /* Head rows stop being rows: a title and its actions do not fit side by side. */
-  .page-head,
-  .builder-head,
-  .chat-head {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-  }
-  .page-head-actions,
-  .builder-actions {
-    justify-content: flex-start;
-  }
-
-  /* Every control becomes thumb-sized. 44px is the smallest reliably hittable
-     target; these were 28px and built for a cursor. */
-  .btn,
-  .icon-btn,
-  .chip,
-  .add-dashed,
-  .add-question {
-    min-height: var(--tap);
-  }
-  .btn {
-    padding: 10px 14px;
-  }
-  .icon-btn {
-    min-width: var(--tap);
-  }
-
-  /* The visibility row is four controls wide and cannot stay on one line. */
-  .qcard-visibility {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .qcard-visibility select,
-  .qcard-visibility input {
-    max-width: none;
-    min-height: var(--tap);
-  }
-
-  /* An on-screen keyboard takes roughly half the viewport, so a thread capped at
-     58vh leaves almost nothing visible. Dynamic viewport units account for the
-     browser chrome that appears and disappears while scrolling. */
-  .chat-thread {
-    max-height: 52dvh;
-    min-height: 200px;
-    padding: 14px;
-  }
-  .bubble {
-    max-width: 92%;
-  }
-  .composer {
-    flex-wrap: wrap;
-  }
-  .composer .btn {
-    flex: 1;
-  }
-
-  /* Wide content scrolls inside itself rather than pushing the page sideways. */
-  .answer-list,
-  .result-list {
-    overflow-x: auto;
-  }
-}
-
-/* Coarse pointers deserve the larger targets whatever the screen width: a tablet
-   in landscape is wider than 640px and still being used with a thumb. */
-@media (pointer: coarse) {
-  .btn,
-  .icon-btn,
-  .chip,
-  .star {
-    min-height: var(--tap);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
 
 .afford {
   display: flex;
@@ -1390,4 +1281,144 @@ select.field {
   font-size: var(--text-sm);
   text-align: center;
   color: var(--secondary);
+}
+
+/* Tablets and small laptops */
+@media (max-width: 1024px) {
+  .app-main {
+    padding: 20px 16px 48px;
+  }
+  .builder {
+    grid-template-columns: 1fr;
+  }
+  .results {
+    grid-template-columns: 1fr;
+  }
+  /* The preview follows the thing it previews rather than sitting beside it. */
+  .builder-side {
+    order: 2;
+  }
+}
+/* Phones */
+@media (max-width: 640px) {
+  .app-main {
+    padding: 14px 12px 40px;
+  }
+  .topbar {
+    height: auto;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .topbar-user {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .topbar-user select {
+    flex: 1;
+    min-height: var(--tap);
+  }
+
+  /* Head rows stop being rows: a title and its actions do not fit side by side. */
+  .page-head,
+  .builder-head,
+  .chat-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .page-head-actions,
+  .builder-actions {
+    justify-content: flex-start;
+  }
+
+  /* Every control becomes thumb-sized. 44px is the smallest reliably hittable
+     target; these were 28px and built for a cursor. */
+  .btn,
+  .icon-btn,
+  .chip,
+  .add-dashed,
+  .add-question {
+    min-height: var(--tap);
+  }
+  .btn {
+    padding: 10px 14px;
+  }
+  .icon-btn {
+    min-width: var(--tap);
+  }
+
+  /* A question card is a badge, a body and three controls on one row. Once those
+     controls are thumb-sized that leaves about 150px for the body on a 390px screen,
+     and the option fields read "Technica". So the header wraps: badge and controls
+     take the top line, the body takes the full width beneath. */
+  .qcard-top {
+    flex-wrap: wrap;
+  }
+  .qcard-num {
+    order: 1;
+  }
+  .qcard-controls {
+    order: 2;
+    margin-inline-start: auto;
+  }
+  .qcard-body {
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  /* The visibility row is four controls wide and cannot stay on one line. */
+  .qcard-visibility {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .qcard-visibility select,
+  .qcard-visibility input {
+    max-width: none;
+    min-height: var(--tap);
+  }
+
+  /* An on-screen keyboard takes roughly half the viewport, so a thread capped at
+     58vh leaves almost nothing visible. Dynamic viewport units account for the
+     browser chrome that appears and disappears while scrolling. */
+  .chat-thread {
+    max-height: 52dvh;
+    min-height: 200px;
+    padding: 14px;
+  }
+  .bubble {
+    max-width: 92%;
+  }
+  .composer {
+    flex-wrap: wrap;
+  }
+  .composer .btn {
+    flex: 1;
+  }
+
+  /* Wide content scrolls inside itself rather than pushing the page sideways. */
+  .answer-list,
+  .result-list {
+    overflow-x: auto;
+  }
+}
+/* Coarse pointers deserve the larger targets whatever the screen width: a tablet
+   in landscape is wider than 640px and still being used with a thumb. */
+@media (pointer: coarse) {
+  .btn,
+  .icon-btn,
+  .chip,
+  .star {
+    min-height: var(--tap);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

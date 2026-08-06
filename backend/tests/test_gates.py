@@ -215,6 +215,8 @@ PALETTE = """:root {{
   --canvas: #eceef0;
   --surface: #f7f8f9;
   --raised: #ffffff;
+  --slab: #23262b;
+  --on-slab: #eceef0;
   --muted: {muted};
   --secondary: #636b73;
   --accent-strong: #3c5570;
@@ -290,6 +292,8 @@ def test_every_theme_is_measured_not_just_the_last_one(tmp_path: Path) -> None:
   --canvas: #15171a;
   --surface: #1c1f24;
   --raised: #212429;
+  --slab: #0f1114;
+  --on-slab: #e6e8ea;
   --ink: #e6e8ea;
   --muted: #55606a;
   --secondary: #b3bcc5;

@@ -32,6 +32,10 @@ PAIRS: tuple[tuple[str, str, float, str], ...] = (
     ("secondary", "raised", 4.5, "secondary text on a card"),
     ("accent-strong", "raised", 4.5, "card labels"),
     ("ink", "canvas", 4.5, "body text"),
+    # The top bar and primary button. Added after a dark theme turned the bar light
+    # while its text stayed light, because --ink was painting both body text and the
+    # slab: one token, two jobs, and they diverge the moment a second theme exists.
+    ("on-slab", "slab", 4.5, "text on the top bar"),
     ("err-text", "err-fill", 4.5, "error text on its fill"),
     ("warn-text", "warn-fill", 4.5, "warning text on its fill"),
     ("focus", "raised", 3.0, "focus ring on a card"),
