@@ -5,7 +5,8 @@ PY := uv run
 GUARDS := scripts/check_query_surface.py \
           scripts/check_no_create_all.py \
           scripts/check_prompts_versioned.py \
-          scripts/check_contrast.py
+          scripts/check_contrast.py \
+          scripts/check_logical_properties.py
 
 # The guards import _guard.py as a sibling, so scripts/ must be importable.
 GUARD_ENV := PYTHONPATH=scripts

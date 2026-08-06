@@ -277,3 +277,74 @@ def test_a_stylesheet_with_no_tokens_fails(tmp_path: Path) -> None:
     result = run_contrast(sheet)
     assert result.returncode == 1
     assert "checking nothing" in result.stderr
+
+
+# --------------------------------------------------------- logical properties
+
+
+def run_logical(root: Path) -> subprocess.CompletedProcess[str]:
+    env = dict(os.environ, PYTHONPATH=str(SCRIPTS))
+    return subprocess.run(
+        [sys.executable, str(SCRIPTS / "check_logical_properties.py"), "--root", str(root)],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+
+
+@pytest.fixture
+def fake_frontend(tmp_path: Path) -> Path:
+    (tmp_path / "app").mkdir()
+    (tmp_path / "app" / "globals.css").write_text(
+        ".a { margin-inline-start: 4px; text-align: start; }\n", encoding="utf-8"
+    )
+    return tmp_path
+
+
+def test_direction_agnostic_css_passes(fake_frontend: Path) -> None:
+    result = run_logical(fake_frontend)
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize(
+    ("css", "expected"),
+    [
+        (".a { margin-left: 4px; }", "margin-inline-start"),
+        (".a { padding-right: 4px; }", "padding-inline-start"),
+        (".a { border-left: 1px solid red; }", "border-inline-start"),
+        (".a { text-align: left; }", "text-align: start"),
+        (".a { border-top-left-radius: 4px; }", "border-start-start-radius"),
+        (".a { border-radius: 0 4px 4px 0; }", "positional"),
+    ],
+)
+def test_physical_css_is_rejected(fake_frontend: Path, css: str, expected: str) -> None:
+    """Each of these looks correct in English and puts something on the wrong side in
+    Arabic, which is why a reviewer reading the diff in English will not catch them."""
+    (fake_frontend / "app" / "globals.css").write_text(css + "\n", encoding="utf-8")
+    result = run_logical(fake_frontend)
+    assert result.returncode == 1, result.stdout
+    assert expected in result.stderr
+
+
+def test_an_explicit_exception_is_honoured(fake_frontend: Path) -> None:
+    """Some rules genuinely are physical. Marking one is a decision on the record; the
+    alternative is that the first genuine exception disables the guard entirely."""
+    (fake_frontend / "app" / "globals.css").write_text(
+        ".a { margin-left: 4px; } /* logical-ok: mirrors a hardware bezel */\n",
+        encoding="utf-8",
+    )
+    assert run_logical(fake_frontend).returncode == 0
+
+
+def test_build_output_is_not_scanned(fake_frontend: Path) -> None:
+    """Generated CSS is minified onto one line and rewritten by the bundler, so faults
+    found there are neither real nor fixable. This guard read .next once and said so."""
+    built = fake_frontend / ".next" / "static"
+    built.mkdir(parents=True)
+    (built / "chunk.css").write_text(".x{margin-left:4px}\n", encoding="utf-8")
+    assert run_logical(fake_frontend).returncode == 0
+
+
+def test_logical_guard_fails_when_it_cannot_run(tmp_path: Path) -> None:
+    assert run_logical(tmp_path / "absent").returncode != 0

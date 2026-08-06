@@ -72,7 +72,8 @@ jobs:
           for guard in scripts/check_query_surface.py \
                        scripts/check_no_create_all.py \
                        scripts/check_prompts_versioned.py \
-                       scripts/check_contrast.py; do
+                       scripts/check_contrast.py \
+                       scripts/check_logical_properties.py; do
             echo "--> $guard"
             uv run python "$guard" || exit 1
           done

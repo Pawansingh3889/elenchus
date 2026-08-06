@@ -43,6 +43,32 @@
   /* Touch targets. 44px is the smallest reliably hittable control on a phone, and
      several controls here were built at 28px for a mouse. */
   --tap: 44px;
+
+  /* Spacing scale. The stylesheet had used 4, 6, 8, 10, 12, 14, 16, 18, 20, 24 and 60
+     as one-off values; these are the rungs worth keeping, so new work has somewhere
+     obvious to land instead of adding an eleventh number. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  /* Type scale, in rem so a reader who raises their browser's base size gets a bigger
+     app rather than one that ignores them. 1rem is 16px by default, and the app's body
+     was a hard 13.5px, which quietly overrode that preference. */
+  --text-xs: 0.6875rem;
+  --text-sm: 0.78rem;
+  --text-base: 0.85rem;
+  --text-md: 0.95rem;
+  --text-lg: 1.1rem;
+  --text-xl: 1.25rem;
+
+  /* Leading. Latin sits comfortably at 1.5; Devanagari, Bengali and Urdu carry marks
+     above and below the line that collide at that value, so they get their own below. */
+  --leading: 1.5;
+  --leading-loose: 1.75;
 }
 
 * {
@@ -58,9 +84,43 @@ body {
   font-family: var(--font);
   background: var(--canvas);
   color: var(--ink);
-  font-size: 13.5px;
-  line-height: 1.5;
+  font-size: var(--text-base);
+  line-height: var(--leading);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Scripts whose glyphs need more vertical room than a Latin-tuned scale gives them.
+   Set on :lang so it follows the document's language rather than a class someone has
+   to remember to add, and so a single page mixing scripts still gets both right.
+   Urdu appears here and in the RTL set below: it needs both. */
+:lang(hi),
+:lang(bn),
+:lang(mr),
+:lang(ne),
+:lang(pa),
+:lang(ta),
+:lang(te),
+:lang(ur) {
+  line-height: var(--leading-loose);
+}
+
+/* The system stack resolves to a Latin face that lacks these scripts, so the browser
+   falls back per-glyph and the result is inconsistent across platforms. Naming the
+   platform faces first keeps a sentence in one typeface. */
+:lang(ar),
+:lang(ur) {
+  font-family: "Segoe UI", Tahoma, "Geeza Pro", "Noto Naskh Arabic", var(--font);
+}
+:lang(he) {
+  font-family: "Segoe UI", Arial, "Noto Sans Hebrew", var(--font);
+}
+:lang(hi),
+:lang(mr),
+:lang(ne) {
+  font-family: "Nirmala UI", "Noto Sans Devanagari", var(--font);
+}
+:lang(bn) {
+  font-family: "Nirmala UI", "Noto Sans Bengali", var(--font);
 }
 a {
   color: inherit;
@@ -109,7 +169,7 @@ select {
 }
 .topbar-brand {
   font-weight: 800;
-  font-size: 15px;
+  font-size: var(--text-md);
 }
 .topbar-brand span {
   color: var(--accent);
@@ -121,7 +181,7 @@ select {
   gap: 8px;
 }
 .topbar-user-label {
-  font-size: 11px;
+  font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--muted);
@@ -155,7 +215,7 @@ select {
   gap: 8px;
 }
 .page-head h1 {
-  font-size: 19px;
+  font-size: var(--text-xl);
   font-weight: 800;
 }
 .muted {
@@ -175,7 +235,7 @@ select {
   border: 1px solid var(--err-border);
   border-radius: 9px;
   padding: 8px 12px;
-  font-size: 12.5px;
+  font-size: var(--text-sm);
 }
 
 .card {
@@ -185,7 +245,7 @@ select {
   padding: 16px;
 }
 .card-label {
-  font-size: 11px;
+  font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--accent-strong);
@@ -196,7 +256,7 @@ select {
 .btn {
   border-radius: 9px;
   padding: 8px 14px;
-  font-size: 12.5px;
+  font-size: var(--text-sm);
   font-weight: 600;
   border: 1px solid transparent;
   /* Buttons had no hover state at all, so every one of them was inert under the
@@ -313,11 +373,11 @@ textarea {
 }
 .template-meta {
   color: var(--secondary);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .pill {
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -361,7 +421,7 @@ textarea {
   /* Without a min-width a flex item refuses to shrink below its content, which is what
      pushed the actions off the row and left the title clipped mid-word. */
   min-width: 0;
-  font-size: 17px;
+  font-size: var(--text-lg);
   font-weight: 800;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -405,7 +465,7 @@ textarea {
   overflow-y: auto;
 }
 .refine-hint {
-  font-size: 12.5px;
+  font-size: var(--text-sm);
   margin: 0;
 }
 .refine-note {
@@ -413,7 +473,7 @@ textarea {
   border: 1px solid var(--ai-border);
   border-radius: 9px;
   padding: 8px 10px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--accent-strong);
 }
 .refine-form {
@@ -449,7 +509,7 @@ textarea {
   border-radius: 7px;
   background: var(--highlight-soft);
   color: var(--accent-strong);
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-weight: 700;
   display: grid;
   place-items: center;
@@ -500,7 +560,7 @@ textarea {
   display: flex;
   gap: 14px;
   flex-wrap: wrap;
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--secondary);
 }
 .qcard-flags label {
@@ -544,7 +604,7 @@ select.field {
 .add-dashed {
   border-radius: 9px;
   padding: 8px;
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 .add-question {
   border-radius: var(--radius);
@@ -580,7 +640,7 @@ select.field {
   background: transparent;
   border-radius: 18px;
   padding: 4px 12px;
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-weight: 600;
   color: var(--secondary);
 }
@@ -602,7 +662,7 @@ select.field {
   border: 1px solid var(--border-faint);
   border-radius: 10px;
   padding: 10px 12px;
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 .chat-afford {
   display: flex;
@@ -615,7 +675,7 @@ select.field {
   border: 1px solid var(--muted-light);
   background: var(--white);
   color: var(--accent-strong);
-  font-size: 11.5px;
+  font-size: var(--text-xs);
   padding: 4px 10px;
 }
 .chip-dashed {
@@ -623,13 +683,13 @@ select.field {
 }
 .stars {
   color: var(--highlight);
-  font-size: 16px;
+  font-size: var(--text-md);
   margin-top: 6px;
 }
 .preview-empty {
   color: var(--muted);
   font-style: italic;
-  font-size: 12.5px;
+  font-size: var(--text-sm);
 }
 .form-q {
   display: flex;
@@ -637,11 +697,11 @@ select.field {
   gap: 5px;
 }
 .form-q label {
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 .form-q .type-hint {
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 
@@ -653,7 +713,7 @@ select.field {
 .topbar-nav {
   display: flex;
   gap: 14px;
-  font-size: 12.5px;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 .topbar-nav a {
@@ -696,7 +756,7 @@ select.field {
   gap: 16px;
 }
 .chat-progress {
-  font-size: 11px;
+  font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--secondary);
@@ -731,7 +791,7 @@ select.field {
   overflow-y: auto;
 }
 .bubble {
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.6;
   max-width: 82%;
   white-space: pre-wrap;
@@ -971,7 +1031,7 @@ select.field {
   background: none;
   border: none;
   color: var(--muted-light);
-  font-size: 21px;
+  font-size: var(--text-xl);
   line-height: 1;
   padding: 0 1px;
 }
@@ -1001,7 +1061,7 @@ select.field {
   color: var(--accent-strong);
   border-radius: 9px;
   padding: 10px 12px;
-  font-size: 12.5px;
+  font-size: var(--text-sm);
 }
 
 .results {
@@ -1019,7 +1079,7 @@ select.field {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 4px 8px;
-  text-align: left;
+  text-align: start;
   background: var(--white);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -1038,12 +1098,12 @@ select.field {
 }
 .result-name {
   font-weight: 700;
-  font-size: 12.5px;
+  font-size: var(--text-sm);
 }
 .result-meta {
   grid-column: 1;
   color: var(--secondary);
-  font-size: 11.5px;
+  font-size: var(--text-xs);
 }
 .result-row .pill {
   grid-row: 1 / span 2;
@@ -1073,23 +1133,23 @@ select.field {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--secondary);
 }
 .answer-v {
-  font-size: 13.5px;
+  font-size: var(--text-base);
   font-weight: 600;
 }
 .answer-stamp {
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--muted);
   margin-top: 2px;
 }
 /* A follow-up sits under the question it probed, indented against a hairline. */
 .answer-follow {
   margin-top: 8px;
-  padding-left: 10px;
-  border-left: 2px solid var(--ai-border);
+  padding-inline-start: 10px;
+  border-inline-start: 2px solid var(--ai-border);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -1098,7 +1158,7 @@ select.field {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 12px;
-  font-size: 11.5px;
+  font-size: var(--text-xs);
   color: var(--secondary);
   padding-bottom: 10px;
   margin-bottom: 10px;
@@ -1107,7 +1167,7 @@ select.field {
 .chip-follow {
   background: var(--ai-fill);
   border-color: var(--ai-border);
-  font-size: 10px;
+  font-size: var(--text-xs);
   padding: 1px 7px;
 }
 .chat-thread-flat {
@@ -1124,18 +1184,18 @@ select.field {
   gap: 12px;
 }
 .summary-headline {
-  font-size: 15px;
+  font-size: var(--text-md);
   font-weight: 700;
   line-height: 1.35;
   margin: 0;
 }
 .summary-facts {
   margin: 0;
-  padding-left: 18px;
+  padding-inline-start: 18px;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 13.5px;
+  font-size: var(--text-base);
 }
 .summary-quotes {
   display: flex;
@@ -1148,15 +1208,18 @@ select.field {
   margin: 0;
   padding: 8px 12px;
   background: var(--ai-fill);
-  border-left: 2px solid var(--ai-border);
-  border-radius: 0 var(--radius) var(--radius) 0;
-  font-size: 13.5px;
+  border-inline-start: 2px solid var(--ai-border);
+  border-start-start-radius: 0;
+  border-start-end-radius: var(--radius);
+  border-end-end-radius: var(--radius);
+  border-end-start-radius: 0;
+  font-size: var(--text-base);
   font-style: italic;
 }
 .summary-quote cite {
   display: block;
   margin-top: 4px;
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-style: normal;
   color: var(--secondary);
 }
@@ -1170,11 +1233,11 @@ select.field {
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px dashed var(--border);
-  font-size: 12.5px;
+  font-size: var(--text-sm);
 }
 .qcard-visibility select,
 .qcard-visibility input {
-  font-size: 12.5px;
+  font-size: var(--text-sm);
   padding: 4px 6px;
   border: 1px solid var(--border);
   border-radius: 7px;
@@ -1185,7 +1248,7 @@ select.field {
   color: var(--accent-strong);
   font-weight: 700;
   text-transform: uppercase;
-  font-size: 11px;
+  font-size: var(--text-xs);
   letter-spacing: 0.06em;
 }
 /* The card the server named in its last refusal. Marked so the author can find it
@@ -1203,7 +1266,7 @@ select.field {
   border: 1px solid var(--err-border);
   border-radius: 9px;
   padding: 6px 10px;
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 .qcard-visibility input[aria-invalid="true"] {
   border-color: var(--err-border);
@@ -1220,7 +1283,7 @@ select.field {
   background: var(--warn-fill);
   color: var(--warn-text);
   border: 1px solid var(--warn-border);
-  font-size: 12.5px;
+  font-size: var(--text-sm);
 }
 .link-btn {
   background: none;
@@ -1228,13 +1291,13 @@ select.field {
   text-decoration: underline;
   cursor: pointer;
   color: inherit;
-  font-size: 12.5px;
+  font-size: var(--text-sm);
 }
 
 /* "Finish later" — leaving mid-run is safe because every turn is already persisted. */
 .chat-later {
   margin-top: 8px;
-  font-size: 12px;
+  font-size: var(--text-sm);
   text-align: center;
   color: var(--secondary);
 }
