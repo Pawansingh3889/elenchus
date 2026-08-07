@@ -72,6 +72,23 @@ async def test_the_engine_claims_the_nudged_retry_from_the_failover_chain(
     assert llm.cascade_flags == [False, False]
 
 
+async def test_a_tier_that_chats_twice_is_allowed_to_fall_to_the_next_one(
+    session, respondent, published
+):
+    """The nudge is for a tier that went off-script once. A tier that answers the same
+    way twice is not chatting, it is structurally unable to answer: a model ignoring
+    parallel_tool_calls returns two tool calls on every turn, and refusing to cascade
+    would 503 every respondent message with healthy tiers below never contacted."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    llm = FakeLLM(NoToolCallError("chatted"), _record("Line lead"), _move_on("Thanks."))
+    await ConductEngine(session, llm=llm).handle_message(run.id, "line lead", respondent)
+
+    # First attempt holds the tier for the nudge; the nudged retry may cascade.
+    assert llm.cascade_flags[:2] == [False, True]
+
+
 async def test_engine_withholds_follow_up_once_the_cap_is_spent(session, respondent, published):
     engine = ConductEngine(session, llm=FakeLLM())
     run = await engine.start_run(published.id, respondent)

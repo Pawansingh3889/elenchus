@@ -275,9 +275,17 @@ class ConductEngine:
                 ),
                 messages=messages,
                 tools=tools,
-                # This caller owns the retry, just below, so a chatty turn must not be
-                # allowed to abandon a healthy tier for a weaker one.
-                cascade_on_no_tool_call=False,
+                # The first attempt keeps its tier: this caller owns the nudged retry
+                # just below, and a turn that merely chatted deserves that nudge rather
+                # than a demotion to a weaker model.
+                #
+                # The nudged retry is allowed to cascade, because a tier that fails the
+                # same way twice is not chatting, it is structurally unable to answer.
+                # A model that ignores parallel_tool_calls returns two calls on every
+                # single turn, and _first_tool_call refuses all of them, so holding the
+                # tier would 503 every respondent message with three healthy tiers below
+                # never contacted. Failing the same way twice is the signal to move on.
+                cascade_on_no_tool_call=previous_error is not None,
             )
         except NoToolCallError as exc:
             # The model chatted, or called several tools at once: responsive but
