@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-import { DEFAULT_LOCALE, type Locale } from "./i18n";
+import { DEFAULT_LOCALE, isLocale, type Locale } from "./i18n";
 
 interface LocaleState {
   locale: Locale;
@@ -17,7 +17,17 @@ export const useLocaleStore = create<LocaleState>()(
       locale: DEFAULT_LOCALE,
       setLocale: (locale) => set({ locale }),
     }),
-    { name: "elenchus-locale" },
+    {
+      name: "elenchus-locale",
+      // A locale that was dropped from the offered set is still sitting in the browsers
+      // of everyone who picked it. The strings would fall back to English on their own,
+      // but the picker binds to this value and would render with nothing selected, so
+      // the retired tag is resolved to the default on the way out of storage.
+      merge: (persisted, current) => {
+        const saved = (persisted as Partial<LocaleState> | undefined)?.locale;
+        return { ...current, locale: saved && isLocale(saved) ? saved : DEFAULT_LOCALE };
+      },
+    },
   ),
 );
 

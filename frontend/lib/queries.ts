@@ -166,3 +166,14 @@ export function useSendRunMessage(id: string) {
     onSuccess: (run) => qc.setQueryData(["run", id, userId], run),
   });
 }
+
+/** Take back the previous answer so it can be given again. Returns the rewound run, in
+ *  the same shape a turn does, so it seeds the cache the same way. */
+export function useRewindRun(id: string) {
+  const qc = useQueryClient();
+  const userId = useUserStore((s) => s.currentUserId);
+  return useMutation({
+    mutationFn: () => api.rewindRun(id),
+    onSuccess: (run) => qc.setQueryData(["run", id, userId], run),
+  });
+}

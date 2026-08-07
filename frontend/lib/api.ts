@@ -157,6 +157,8 @@ export const api = {
   myUnfinishedRuns: () => request<ResumableRun[]>("/runs"),
   sendRunMessage: (id: string, content: string) =>
     request<Run>(`/runs/${id}/messages`, { method: "POST", body: JSON.stringify({ content }) }),
+  // No body: which answer comes back is the engine's to decide, not the client's.
+  rewindRun: (id: string) => request<Run>(`/runs/${id}/rewind`, { method: "POST" }),
   listTemplateRuns: (templateId: string) => request<RunSummary[]>(`/templates/${templateId}/runs`),
   exportRuns: (templateId: string, format: "csv" | "json") =>
     rawRequest(`/templates/${templateId}/runs/export?format=${format}`),

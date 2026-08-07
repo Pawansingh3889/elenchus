@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 
 import { LivePreview } from "@/components/LivePreview";
-import { clearedBy, remapConditions, repairConditionsFor } from "@/lib/conditions";
+import { clearedBy, followOptionRename, remapConditions, repairConditionsFor } from "@/lib/conditions";
 import { QuestionEditor } from "@/components/QuestionEditor";
 import {
   useCurrentUser,
@@ -97,13 +97,22 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
   // Editing a question can orphan a *later* question's condition: change the type and
   // the options go, remove an option and a condition naming it describes an answer that
   // can no longer be given. Repositioning is not the only edit conditions depend on.
+  //
+  // An option RENAME is followed before repair judges anything. This runs on every
+  // keystroke, so "Days" being edited to "Nights" passes through "Day", "Da"… and a
+  // repair-only pass cleared the condition at the first non-matching keystroke, then
+  // had no way to restore it when the author finished typing.
   const patchQuestion = (i: number, patch: Partial<QuestionInput>) =>
     setQuestions((qs) => {
       const patched = qs.map((q, j) => (j === i ? { ...q, ...patch } : q));
       const touchesAnswers = "answer_type" in patch || "options" in patch || "allow_other" in patch;
       if (!touchesAnswers) return patched;
-      const next = repairConditionsFor(patched, i);
-      setDropped(clearedBy(patched, next));
+      const followed =
+        "options" in patch && patch.options
+          ? followOptionRename(patched, i, qs[i].options, patch.options)
+          : patched;
+      const next = repairConditionsFor(followed, i);
+      setDropped(clearedBy(followed, next));
       return next;
     });
   const addQuestion = () => setQuestions((qs) => [...qs, blankQuestion()]);
@@ -140,10 +149,10 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
   // should say why it is unavailable rather than failing after a round trip.
   const blockers = questions.flatMap((q, i) => {
     const problems: string[] = [];
-    if (q.show_when && !q.show_when.value.trim()) problems.push("its condition has no answer");
+    if (q.show_when && !q.show_when.value.trim()) problems.push(msg.builder.conditionHasNoAnswer);
     if ((q.answer_type === "single_select" || q.answer_type === "multi_select") && !q.options.length)
-      problems.push("it has no options");
-    return problems.map((p) => `Question ${i + 1}: ${p}`);
+      problems.push(msg.builder.selectHasNoOptions);
+    return problems.map((p) => msg.builder.publishBlocker(i + 1, p));
   });
 
   const body = { title, description: description || null, questions };

@@ -32,6 +32,40 @@ export function remapConditions(
 }
 
 /**
+ * Follow an option rename: conditions naming the old text move to the new text.
+ *
+ * This runs BEFORE `repairConditionsFor` on an options edit, and it is what makes
+ * per-keystroke repair safe. Repair alone cleared the condition on the first keystroke
+ * of a rename ("Days" -> "Day" no longer matches, condition gone) and finishing the
+ * rename could not bring it back: the author lost a working rule to a typo fix, with a
+ * dismissible notice as the only witness. Matching by position rather than text,
+ * because the position is the one thing a keystroke does not change.
+ *
+ * Only exact single-option edits follow; anything else (reorder, delete, paste-over)
+ * falls through to repair, which keeps what still matches and clears what cannot.
+ */
+export function followOptionRename(
+  questions: QuestionInput[],
+  changedIndex: number,
+  before: string[],
+  after: string[],
+): QuestionInput[] {
+  if (before.length !== after.length) return questions;
+  const renamed = before
+    .map((text, position) => ({ position, from: text, to: after[position] }))
+    .filter((r) => r.from !== r.to);
+  if (renamed.length !== 1) return questions;
+  const { from, to } = renamed[0];
+
+  return questions.map((question) => {
+    const condition = question.show_when;
+    if (!condition || condition.question !== changedIndex) return question;
+    if (condition.value.toLowerCase() !== from.toLowerCase()) return question;
+    return { ...question, show_when: { ...condition, value: to } };
+  });
+}
+
+/**
  * Repair conditions pointing at a question whose answers have changed shape.
  *
  * A condition's value names an answer the target can actually give. Change the target's
@@ -42,7 +76,8 @@ export function remapConditions(
  * The value is kept when the target can still produce it, and the condition is cleared
  * when it cannot. Cleared rather than guessed at, for the same reason `remapConditions`
  * clears: there is no honest way to infer which of the remaining answers the author
- * meant, and a wrong guess hides a question from real respondents.
+ * meant, and a wrong guess hides a question from real respondents. Renames never reach
+ * this fate, because `followOptionRename` has already moved their conditions.
  */
 export function repairConditionsFor(
   questions: QuestionInput[],

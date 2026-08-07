@@ -4,9 +4,10 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { AnswerAffordances } from "@/components/AnswerAffordances";
+import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
 import { Transcript } from "@/components/Transcript";
 import { useT } from "@/lib/i18n/useT";
-import { useCurrentUser, useRun, useSendRunMessage } from "@/lib/queries";
+import { useCurrentUser, useRewindRun, useRun, useSendRunMessage } from "@/lib/queries";
 import { useUserStore } from "@/lib/store";
 
 export default function RunPage() {
@@ -16,6 +17,7 @@ export default function RunPage() {
   const currentUser = useCurrentUser();
   const { data: run, isLoading, error } = useRun(id);
   const send = useSendRunMessage(id);
+  const rewind = useRewindRun(id);
   const [draft, setDraft] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -40,15 +42,32 @@ export default function RunPage() {
   if (error) return <div className="error-text">{(error as Error).message}</div>;
   if (!run) return null;
 
+  // One request at a time. A rewind fired while a turn is in flight would race the answer
+  // that turn is still writing, and the engine's row lock would refuse it anyway.
+  const busy = send.isPending || rewind.isPending;
+
   const answer = (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed || send.isPending) return;
+    if (!trimmed || busy) return;
     setDraft("");
     send.mutate(trimmed);
   };
 
+  // Destructive and irreversible: it discards the answer, anything the engine probed
+  // from it, and that stretch of the conversation. The builder confirms before losing an
+  // author's typed options for the same reason.
+  const editPrevious = () => {
+    if (busy || !window.confirm(text.editPreviousConfirm)) return;
+    setDraft("");
+    rewind.mutate();
+  };
+
   const done = run.status !== "in_progress";
   const progress = run.total ? Math.round((run.answered / run.total) * 100) : 0;
+  // There has to be an answer to take back. `answered` counts scripted answers, which is
+  // exactly what the engine rewinds: a follow-up is never the last thing recorded on its
+  // own, so it cannot be the thing that comes back.
+  const canEditPrevious = !done && run.answered > 0;
 
   return (
     <div className="chat">
@@ -62,7 +81,7 @@ export default function RunPage() {
       </div>
 
       <Transcript messages={run.messages}>
-        {send.isPending ? (
+        {busy ? (
           <div className="bubble bubble-assistant typing">
             <span />
             <span />
@@ -73,6 +92,7 @@ export default function RunPage() {
       </Transcript>
 
       {send.error ? <div className="error-text">{(send.error as Error).message}</div> : null}
+      {rewind.error ? <div className="error-text">{(rewind.error as Error).message}</div> : null}
 
       {done ? (
         <div className="chat-done">{text.done}</div>
@@ -82,7 +102,7 @@ export default function RunPage() {
             <AnswerAffordances
               key={run.current_question.id}
               question={run.current_question}
-              disabled={send.isPending}
+              disabled={busy}
               onAnswer={answer}
             />
           ) : null}
@@ -93,21 +113,33 @@ export default function RunPage() {
               answer(draft);
             }}
           >
-            <input
-              className="field"
+            <AutoGrowTextarea
               value={draft}
               placeholder={text.answerPlaceholder}
-              disabled={send.isPending}
-              onChange={(e) => setDraft(e.target.value)}
+              disabled={busy}
+              onChange={setDraft}
+              // A textarea does not submit its form on Enter the way an input does, and a
+              // respondent mid-conversation expects it to. Shift+Enter still opens a line,
+              // which is the whole point of the box wrapping now.
+              onEnter={() => answer(draft)}
             />
-            <button
-              className="btn btn-primary"
-              type="submit"
-              disabled={send.isPending || !draft.trim()}
-            >
-              Send
+            <button className="btn btn-primary" type="submit" disabled={busy || !draft.trim()}>
+              {text.send}
             </button>
           </form>
+
+          {/* Offered next to the composer rather than on the bubble itself: what comes
+              back is the last *answer*, which may span several bubbles once the engine has
+              probed it, so pinning the control to one of them would misdescribe it. */}
+          {canEditPrevious ? (
+            <div className="chat-amend">
+              <button className="link-btn" onClick={editPrevious} disabled={busy}>
+                {text.editPrevious}
+              </button>
+              <span className="muted">{text.editPreviousHint}</span>
+            </div>
+          ) : null}
+
           {/* Nothing to save: every turn is already persisted server-side, so leaving
               is safe and the run is offered back on the home page. Saying so is the
               honest version of a "save and exit" button. */}
@@ -115,7 +147,7 @@ export default function RunPage() {
             <button className="link-btn" onClick={() => router.push("/respond")}>
               {text.finishLater}
             </button>
-            <span className="muted"> — your answers so far are saved; pick up where you left off.</span>
+            <span className="muted">{text.finishLaterHint}</span>
           </div>
         </>
       )}

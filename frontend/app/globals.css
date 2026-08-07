@@ -427,6 +427,20 @@ textarea {
   min-height: 64px;
 }
 
+/* Sized by AutoGrowTextarea from its content, so it must start at one line and never be
+   dragged: the two rules above would otherwise floor every one of these at 64px and hand
+   the user a resize grip that fights the measurement. The cap stops a pasted essay from
+   pushing the rest of the card off screen; past it the field scrolls like any other. */
+.autogrow {
+  resize: none;
+  min-height: 0;
+  max-height: 40vh;
+  overflow-y: auto;
+  /* A URL or a part number has no spaces to break at, and would otherwise widen the row
+     rather than wrap inside it. */
+  overflow-wrap: break-word;
+}
+
 .generate-card textarea {
   width: 100%;
   background: var(--surface);
@@ -685,11 +699,13 @@ select.field {
 .option-row {
   display: flex;
   gap: 6px;
-  align-items: center;
+  /* Top, not centre: the field grows downwards when an option wraps, and a centred
+     remove button would drift down the row with it. */
+  align-items: flex-start;
 }
-.option-row input {
+.option-row textarea {
   flex: 1;
-  /* An input carries an intrinsic width of roughly 170px, and a flex item will not
+  /* A form control carries an intrinsic width of roughly 170px, and a flex item will not
      shrink below its content without this. On a phone the row therefore overflowed its
      own container and pushed the remove button past the edge. Same cause as the clipped
      builder title. */
@@ -1032,10 +1048,20 @@ select.field {
 .composer {
   display: flex;
   gap: 8px;
+  /* The box grows downwards as the answer wraps, so Send stays on the last line rather
+     than stretching to the full height of a four-line reply. */
+  align-items: flex-end;
 }
 .composer .field {
   flex: 1;
+  /* Without this the textarea keeps its intrinsic width and pushes Send off the row on a
+     narrow screen. Same cause as the option rows. */
+  min-width: 0;
 }
+
+/* Taking back the previous answer. Quiet by design: it sits under the composer as a way
+   out for someone who answered too fast, not as a step in the flow. Styled with
+   .chat-later below, whose declarations it shared verbatim. */
 .chat-done {
   background: var(--ai-fill);
   border: 1px solid var(--ai-border);
@@ -1276,10 +1302,18 @@ select.field {
 }
 
 /* "Finish later" — leaving mid-run is safe because every turn is already persisted. */
+/* Flex rather than centred inline text, because the separator used to be a leading
+   space inside the hint string. That put a layout decision inside translated copy, where
+   every locale had to remember to repeat it. The gap does the same job for all of them. */
+.chat-amend,
 .chat-later {
   margin-top: 8px;
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  justify-content: center;
+  flex-wrap: wrap;
   font-size: var(--text-sm);
-  text-align: center;
   color: var(--secondary);
 }
 

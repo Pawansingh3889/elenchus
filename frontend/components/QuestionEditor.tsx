@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 
+import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
 import { useT } from "@/lib/i18n/useT";
 import type { AnswerType, QuestionInput, ShowWhenOp } from "@/lib/types";
 
@@ -105,11 +106,10 @@ export function QuestionEditor({
       <div className="qcard-top">
         <div className="qcard-num">{index + 1}</div>
         <div className="qcard-body">
-          <input
-            className="field"
+          <AutoGrowTextarea
             placeholder={msg.builder.questionPlaceholder}
             value={question.text}
-            onChange={(e) => onChange({ text: e.target.value })}
+            onChange={(text) => onChange({ text })}
           />
           <div className="qcard-row">
             <select
@@ -129,10 +129,14 @@ export function QuestionEditor({
             <div className="options">
               {question.options.map((o, i) => (
                 <div className="option-row" key={i}>
-                  <input
+                  {/* No "field" class: option rows carry their own compact styling via
+                      the `.option-row textarea` rule, so the shared field chrome would
+                      double the borders and padding. */}
+                  <AutoGrowTextarea
+                    className=""
                     placeholder={msg.builder.optionPlaceholder(i + 1)}
                     value={o}
-                    onChange={(e) => setOption(i, e.target.value)}
+                    onChange={(value) => setOption(i, value)}
                   />
                   <button
                     className="icon-btn"
