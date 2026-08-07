@@ -74,7 +74,7 @@ class GenerationService:
         the model's note on what changed. The whole survey is re-drafted and re-validated,
         so a follow-up can never leave the draft in an invalid shape."""
         current = await self.templates.get_draft(template_id, author)
-        system = load_prompt("refine_template_v1")
+        system = load_prompt("refine_template_v2")
         message = (
             f"{_describe(current)}\n\nRequested change: {instruction}\n\n"
             "Return the complete revised survey."
@@ -194,7 +194,14 @@ def _to_update(template_in: TemplateCreate) -> TemplateUpdate:
 
 
 def _describe(template: SurveyTemplate) -> str:
-    """Render the current draft as plain text for the model to revise."""
+    """Render the current draft as plain text for the model to revise.
+
+    Everything the author can set has to appear here. A refine returns the COMPLETE
+    survey and ``update_draft`` replaces every row with it, so any attribute this
+    omits is not "left alone", it is deleted. ``show_when`` was omitted, and so every
+    conditional-visibility rule in a draft was silently dropped the first time the
+    author asked for any unrelated change.
+    """
     lines = [
         f"Title: {template.title}",
         f"Description: {template.description or '(none)'}",
@@ -210,6 +217,16 @@ def _describe(template: SurveyTemplate) -> str:
             parts.append("optional")
         if question.allow_follow_ups:
             parts.append("follow-ups on")
+        if question.show_when:
+            # Numbered as the listing numbers them, from 1. show_when stores the
+            # 0-based position, and handing the model a number that does not match
+            # what it is reading invites it to repoint the condition at the wrong
+            # question, which is a quieter fault than losing it.
+            condition = question.show_when
+            parts.append(
+                f"shown only if Q{int(condition['question']) + 1} "
+                f"{condition['op']} \"{condition['value']}\""
+            )
         lines.append("  " + " · ".join(parts))
     return "\n".join(lines)
 
