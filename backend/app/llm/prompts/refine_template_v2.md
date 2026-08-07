@@ -16,3 +16,8 @@ Rules:
 - Never exceed 20 questions.
 - Set `required` and `allow_follow_ups` sensibly, as an original draft would.
 - Write each question in clear, neutral language a respondent will readily understand.
+- Preserve conditional visibility. A question shown "only if Q<n> is <value>" must come
+  back with the same `show_when`, pointing at the same question, unless the change asks
+  otherwise. You are returning the whole survey, so a condition you leave out is deleted,
+  not left alone. If the change reorders or removes questions, repoint the conditions so
+  they still name the question the author meant.

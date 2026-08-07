@@ -72,6 +72,59 @@ async def test_the_engine_claims_the_nudged_retry_from_the_failover_chain(
     assert llm.cascade_flags == [False, False]
 
 
+async def test_progress_does_not_count_the_current_question_twice_while_probing(
+    session, respondent, published
+):
+    """`published` has two questions and q0 permits probing. Once q0's answer is
+    recorded the engine loops without advancing, so `answered` already counts q0 while
+    remaining_possible counts inclusively from the unmoved index and counts it again.
+    The respondent read "1 of 3" on a two-question survey, and the denominator shrank to
+    2 when the probe finished, which reads as the survey growing shorter as you answer.
+    """
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    llm = FakeLLM(_record("Line lead"), _follow_up("What does that involve?"))
+    run = await ConductEngine(session, llm=llm).handle_message(run.id, "line lead", respondent)
+
+    reader = ConductEngine(session, llm=FakeLLM())
+    questions = await reader.questions(run)
+    assert reader.probing(run, questions) is True
+    assert reader.progress(run, questions) == (1, 2)
+
+
+async def test_probing_is_false_once_the_engine_has_moved_on(session, respondent, published):
+    """The other edge of the same predicate: after the engine advances, the question the
+    respondent is looking at is scripted again and its typed controls are correct."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    llm = FakeLLM(_record("Line lead"), _move_on("Thanks. How was onboarding?"))
+    run = await ConductEngine(session, llm=llm).handle_message(run.id, "line lead", respondent)
+
+    reader = ConductEngine(session, llm=FakeLLM())
+    questions = await reader.questions(run)
+    assert reader.probing(run, questions) is False
+    assert reader.progress(run, questions) == (1, 2)
+
+
+async def test_a_tier_that_chats_twice_is_allowed_to_fall_to_the_next_one(
+    session, respondent, published
+):
+    """The nudge is for a tier that went off-script once. A tier that answers the same
+    way twice is not chatting, it is structurally unable to answer: a model ignoring
+    parallel_tool_calls returns two tool calls on every turn, and refusing to cascade
+    would 503 every respondent message with healthy tiers below never contacted."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    llm = FakeLLM(NoToolCallError("chatted"), _record("Line lead"), _move_on("Thanks."))
+    await ConductEngine(session, llm=llm).handle_message(run.id, "line lead", respondent)
+
+    # First attempt holds the tier for the nudge; the nudged retry may cascade.
+    assert llm.cascade_flags[:2] == [False, True]
+
+
 async def test_engine_withholds_follow_up_once_the_cap_is_spent(session, respondent, published):
     engine = ConductEngine(session, llm=FakeLLM())
     run = await engine.start_run(published.id, respondent)

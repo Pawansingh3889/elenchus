@@ -18,8 +18,12 @@ class FakeLLM:
         self._payloads = list(payloads)
         self._note = note
         self.calls = 0
+        # What the model was actually told. A refine returns the whole survey, so
+        # anything missing from the brief is deleted rather than left alone.
+        self.messages_seen: list[list[dict[str, str]]] = []
 
-    async def tool_turn(self, **_: Any) -> ToolTurn:
+    async def tool_turn(self, *, messages: list[dict[str, str]], **_: Any) -> ToolTurn:
+        self.messages_seen.append(messages)
         payload = self._payloads[min(self.calls, len(self._payloads) - 1)]
         self.calls += 1
         return ToolTurn(text=self._note, tool_name="draft_survey_template", tool_input=payload)
@@ -250,6 +254,55 @@ async def test_refine_updates_the_draft_in_place_and_returns_a_note(session, aut
     assert updated.title == "Onboarding (short)"
     assert [q.text for q in updated.questions] == ["Your role?"]
     assert note == "Trimmed it to a single question."
+
+
+_WITH_CONDITION: dict[str, Any] = {
+    "title": "Onboarding",
+    "questions": [
+        {"text": "Your role?", "answer_type": "single_select", "options": ["Manager", "Line lead"]},
+        {
+            "text": "How big is your team?",
+            "answer_type": "number",
+            "show_when": {"question": 0, "op": "is", "value": "Manager"},
+        },
+    ],
+}
+
+
+async def test_refine_tells_the_model_which_conditions_it_must_keep(session, author):
+    """A refine returns the COMPLETE survey and update_draft replaces every row with it,
+    so an attribute the brief omits is deleted, not left alone. show_when was omitted, so
+    the first unrelated refine silently dropped every conditional-visibility rule and the
+    builder then re-seeded from the response, showing the author "Always"."""
+    original, _ = await GenerationService(session, llm=FakeLLM(_WITH_CONDITION)).generate_draft(
+        "onboarding", author
+    )
+    assert original.questions[1].show_when is not None  # the draft really has one
+
+    fake = FakeLLM(_WITH_CONDITION, note="Made it optional.")
+    await GenerationService(session, llm=fake).refine_draft(
+        original.id, "make question 2 optional", author
+    )
+
+    brief = fake.messages_seen[0][0]["content"]
+    # Numbered as the brief numbers its questions, from 1, not the stored 0-based index.
+    assert 'shown only if Q1 is "Manager"' in brief
+
+
+async def test_refine_keeps_a_condition_the_model_returns(session, author):
+    """The other half: the brief carries the condition out, and the round trip carries
+    it back in. Without this the first test could pass while update_draft dropped it."""
+    original, _ = await GenerationService(session, llm=FakeLLM(_WITH_CONDITION)).generate_draft(
+        "onboarding", author
+    )
+
+    fake = FakeLLM(_WITH_CONDITION, note="Unchanged.")
+    updated, _ = await GenerationService(session, llm=fake).refine_draft(
+        original.id, "no change", author
+    )
+
+    kept = sorted(updated.questions, key=lambda q: q.position)[1].show_when
+    assert kept == {"question": 0, "op": "is", "value": "Manager"}
 
 
 async def test_refine_re_validates_so_a_bad_change_fails_loudly(session, author):

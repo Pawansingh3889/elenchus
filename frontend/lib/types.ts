@@ -127,6 +127,9 @@ export interface Run {
   id: string;
   status: RunStatus;
   current_question: CurrentQuestion | null;
+  /** The engine is probing: the last question came from the model, so `current_question`
+   *  describes the scripted question behind it and not what is actually being asked. */
+  awaiting_follow_up: boolean;
   answered: number;
   total: number;
   messages: RunMessage[];

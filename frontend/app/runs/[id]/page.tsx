@@ -49,8 +49,11 @@ export default function RunPage() {
   const answer = (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || busy) return;
-    setDraft("");
-    send.mutate(trimmed);
+    // Cleared once the turn is recorded, not before. The engine appends the respondent's
+    // message and only flushes it, so a turn that fails rolls it back: clearing up front
+    // left the text in neither the transcript nor the box, and a long answer had to be
+    // written again from memory on top of being told to try again.
+    send.mutate(trimmed, { onSuccess: () => setDraft("") });
   };
 
   // Destructive and irreversible: it discards the answer, anything the engine probed
@@ -98,7 +101,12 @@ export default function RunPage() {
         <div className="chat-done">{text.done}</div>
       ) : (
         <>
-          {run.current_question ? (
+          {/* Not while the engine is probing. `current_question` still describes the
+              scripted question, so its typed controls would answer the wrong question:
+              [Yes] [No] chips under "could you describe the issues you've encountered?",
+              and the description recorded as "Yes". A probe is always open prose, so the
+              composer below is the whole affordance it needs. */}
+          {run.current_question && !run.awaiting_follow_up ? (
             <AnswerAffordances
               key={run.current_question.id}
               question={run.current_question}
