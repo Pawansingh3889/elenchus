@@ -50,10 +50,21 @@ TOKEN = re.compile(r"^\s*--([a-z0-9-]+):\s*(#[0-9a-fA-F]{3,8})\s*;", re.MULTILIN
 BLOCK = re.compile(r"(?P<selector>[^{}]+)\{(?P<body>[^{}]*)\}")
 
 
+class TranslucentColour(ValueError):
+    """A colour with alpha below 1 cannot be contrast-checked against one background:
+    what the eye sees depends on whatever the colour is painted over. Raised so the
+    caller reports it as a violation rather than the guard crashing on a 4-digit hex
+    or silently ignoring an 8-digit one's alpha and passing a see-through colour."""
+
+
 def _luminance(value: str) -> float:
     hexed = value.lstrip("#")
-    if len(hexed) == 3:
+    if len(hexed) in (3, 4):
         hexed = "".join(c * 2 for c in hexed)
+    if len(hexed) == 8:
+        if hexed[6:8].lower() != "ff":
+            raise TranslucentColour(value)
+        hexed = hexed[:6]
     channels = [int(hexed[i : i + 2], 16) / 255 for i in (0, 2, 4)]
     linear = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in channels]
     return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
@@ -111,7 +122,14 @@ def main() -> int:
                 # stops checking. Say so instead.
                 violations.append(f"[{name}] {what}: --{fg} or --{bg} is no longer defined")
                 continue
-            ratio = contrast(tokens[fg], tokens[bg])
+            try:
+                ratio = contrast(tokens[fg], tokens[bg])
+            except TranslucentColour as translucent:
+                violations.append(
+                    f"[{name}] {what}: {translucent} has alpha, so its contrast depends "
+                    "on what it is painted over; use an opaque colour for checked pairs"
+                )
+                continue
             if ratio < minimum:
                 violations.append(
                     f"[{name}] {what}: --{fg} ({tokens[fg]}) on --{bg} ({tokens[bg]}) "

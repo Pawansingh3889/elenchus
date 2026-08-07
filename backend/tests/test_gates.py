@@ -143,8 +143,21 @@ def test_query_surface_allows_asyncsession_above_a_repository(fake_repo: Path) -
 
 def test_create_all_is_rejected_in_app_code(fake_repo: Path) -> None:
     (fake_repo / "app" / "templates" / "service.py").write_text(
-        "async def init(conn, Base):\n    await conn.run_sync(Base.metadata.create_all)\n"
-        "    Base.metadata.create_all(bind=conn)\n",
+        "async def init(conn, Base):\n    Base.metadata.create_all(bind=conn)\n",
+        encoding="utf-8",
+    )
+    result = run_guard("check_no_create_all.py", fake_repo)
+    assert result.returncode == 1
+    assert "create_all" in result.stderr
+
+
+def test_create_all_passed_to_run_sync_is_rejected_on_its_own(fake_repo: Path) -> None:
+    """The async idiom hands the bound method to run_sync instead of calling it, and
+    builds the schema just as surely. Planted ALONE, because the old planted violation
+    paired it with a direct call: the guard caught the pair for the wrong reason, and
+    this repository's own conftest sat in the blind spot while the gate reported ok."""
+    (fake_repo / "app" / "templates" / "service.py").write_text(
+        "async def init(conn, Base):\n    await conn.run_sync(Base.metadata.create_all)\n",
         encoding="utf-8",
     )
     result = run_guard("check_no_create_all.py", fake_repo)
@@ -266,6 +279,32 @@ def test_a_renamed_token_is_a_violation_not_a_silent_pass(tmp_path: Path) -> Non
     result = run_contrast(sheet)
     assert result.returncode == 1
     assert "no longer defined" in result.stderr
+
+
+def test_an_opaque_short_hex_is_measured_not_crashed_on(tmp_path: Path) -> None:
+    """#rgb and #rgba with full alpha are valid CSS; the guard used to crash on the
+    4-digit form (int('', 16)) and silently strip nothing from the 8-digit one."""
+    sheet = tmp_path / "globals.css"
+    sheet.write_text(
+        PALETTE.format(muted="#646d76", focus="#4190c2").replace("#23262b;", "#223f;", 1),
+        encoding="utf-8",
+    )
+    result = run_contrast(sheet)
+    assert result.returncode == 0, result.stderr
+
+
+def test_a_translucent_colour_is_a_violation_not_a_pass(tmp_path: Path) -> None:
+    """An 8-digit hex with alpha below 1 has no single contrast ratio: what the eye
+    sees depends on what it is painted over. Ignoring the alpha would let a
+    see-through text colour pass the gate at full strength."""
+    sheet = tmp_path / "globals.css"
+    sheet.write_text(
+        PALETTE.format(muted="#646d7680", focus="#4190c2"),
+        encoding="utf-8",
+    )
+    result = run_contrast(sheet)
+    assert result.returncode == 1
+    assert "alpha" in result.stderr
 
 
 def test_contrast_fails_when_it_cannot_run(tmp_path: Path) -> None:
