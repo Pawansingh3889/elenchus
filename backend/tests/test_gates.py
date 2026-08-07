@@ -194,6 +194,37 @@ def test_a_prompt_version_naming_no_file_is_rejected(fake_repo: Path) -> None:
     assert "does not exist" in result.stderr
 
 
+def test_a_prompt_named_inline_at_the_call_site_is_rejected(fake_repo: Path) -> None:
+    """A constant is not the only way to name a prompt, and it is not the way the
+    engine names its own: load_prompt("conduct_v3") is a literal. Those call sites sat
+    outside this guard entirely, so renaming the file left the gate green and broke
+    every respondent turn at the one moment that costs money to discover."""
+    (fake_repo / "app" / "conduct.py").write_text(
+        "from app.llm.prompts import load_prompt\n\n"
+        'def decide():\n    return load_prompt("conduct_v9")\n',
+        encoding="utf-8",
+    )
+    result = run_guard("check_prompts_versioned.py", fake_repo)
+    assert result.returncode == 1
+    assert "does not exist" in result.stderr
+
+
+def test_a_prompt_loaded_through_a_variable_is_left_to_the_constant_rule(
+    fake_repo: Path,
+) -> None:
+    """load_prompt(PROMPT_VERSION) names nothing on its own. Flagging the variable as
+    though it were a filename would fail the guard on the codebase's own summary
+    service, whose constant is checked separately and resolves."""
+    (fake_repo / "app" / "runs.py").write_text(
+        "from app.llm.prompts import load_prompt\n\n"
+        'PROMPT_VERSION = "conduct_v2"\n\n'
+        "def write():\n    return load_prompt(PROMPT_VERSION)\n",
+        encoding="utf-8",
+    )
+    result = run_guard("check_prompts_versioned.py", fake_repo)
+    assert result.returncode == 0, result.stderr
+
+
 # ------------------------------------------------------- the contracts themselves
 
 

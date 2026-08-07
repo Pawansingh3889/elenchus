@@ -131,6 +131,39 @@ services:
       LLM_TIER4_API_KEY: ${LLM_TIER4_API_KEY:-}
       LLM_TIER4_MODEL: ${LLM_TIER4_MODEL:-llama3.2:3b}
       LLM_TIER4_TIMEOUT_SECONDS: ${LLM_TIER4_TIMEOUT_SECONDS:-300}
+      # What each tier costs, for the spend ledger. Forwarded for the same reason the
+      # connection settings above are: compose reads .env only to interpolate ${...}
+      # here, so a variable not named on this list never reaches the container. Left
+      # off, prices fall back to the code defaults of zero, and a deployment billing
+      # real money to a real provider records every call as free. That is the failure
+      # the ledger exists to prevent, and it cannot be corrected afterwards, since
+      # prices are applied at call time rather than recomputed from the file.
+      #
+      # The prices stay 0 by default rather than carrying a figure for the default
+      # tier-1 model: a rate hard-coded here goes stale silently, whereas an unpriced
+      # hosted tier logs "no price configured" on the first call and counts every one of
+      # them in llm_unmetered_calls, so the gap is visible in the rollup.
+      LLM_TIER1_PARAMS_B: ${LLM_TIER1_PARAMS_B:-0}
+      LLM_TIER1_LOCAL: ${LLM_TIER1_LOCAL:-false}
+      LLM_TIER1_PRICE_IN_PER_MTOK: ${LLM_TIER1_PRICE_IN_PER_MTOK:-0}
+      LLM_TIER1_PRICE_OUT_PER_MTOK: ${LLM_TIER1_PRICE_OUT_PER_MTOK:-0}
+      LLM_TIER2_PARAMS_B: ${LLM_TIER2_PARAMS_B:-0}
+      LLM_TIER2_LOCAL: ${LLM_TIER2_LOCAL:-false}
+      LLM_TIER2_PRICE_IN_PER_MTOK: ${LLM_TIER2_PRICE_IN_PER_MTOK:-0}
+      LLM_TIER2_PRICE_OUT_PER_MTOK: ${LLM_TIER2_PRICE_OUT_PER_MTOK:-0}
+      LLM_TIER3_PARAMS_B: ${LLM_TIER3_PARAMS_B:-0}
+      LLM_TIER3_LOCAL: ${LLM_TIER3_LOCAL:-false}
+      LLM_TIER3_PRICE_IN_PER_MTOK: ${LLM_TIER3_PRICE_IN_PER_MTOK:-0}
+      LLM_TIER3_PRICE_OUT_PER_MTOK: ${LLM_TIER3_PRICE_OUT_PER_MTOK:-0}
+      # Tier 4 is the in-network Ollama: it bills no tokens but costs the machine for as
+      # long as it runs, so it is priced from the clock and must stay marked local.
+      LLM_TIER4_PARAMS_B: ${LLM_TIER4_PARAMS_B:-3}
+      LLM_TIER4_LOCAL: ${LLM_TIER4_LOCAL:-true}
+      LLM_TIER4_PRICE_IN_PER_MTOK: ${LLM_TIER4_PRICE_IN_PER_MTOK:-0}
+      LLM_TIER4_PRICE_OUT_PER_MTOK: ${LLM_TIER4_PRICE_OUT_PER_MTOK:-0}
+      HARDWARE_WATTS: ${HARDWARE_WATTS:-200}
+      ELECTRICITY_PRICE_PER_KWH: ${ELECTRICITY_PRICE_PER_KWH:-0.32}
+      LLM_LEDGER_PATH: ${LLM_LEDGER_PATH:-var/llm_ledger.jsonl}
     depends_on:
       postgres:
         condition: service_healthy

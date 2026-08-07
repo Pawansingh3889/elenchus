@@ -21,10 +21,10 @@ class NoToolCallError(LLMError):
     """The model did not produce exactly one tool call: none at all, or several at once.
 
     Distinguished from other LLM failures because it is cheaply retryable: the model is
-    responsive, it just went off-script. The conduct engine answers it with one nudged
-    retry, and the failover chain deliberately does not treat it as a downed tier.
-    Timeouts and transport errors stay plain LLMError so a retry never doubles a
-    120-second wait.
+    responsive, it just went off-script. Whether the failover chain treats it as a downed
+    tier is the caller's to say, via ``cascade_on_no_tool_call`` below, because only the
+    caller knows whether it will retry. Timeouts and transport errors stay plain LLMError
+    so a retry never doubles a 120-second wait.
     """
 
     code = "llm_no_tool_call"
@@ -71,4 +71,10 @@ class LLMProtocol(Protocol):
         messages: list[dict[str, str]],
         tools: list[dict[str, Any]],
         max_tokens: int = ...,
+        # Whether a NoToolCallError should drop the turn to the next tier. Defaults to
+        # cascading, because that is the only recovery a caller without a retry of its
+        # own has; a caller that answers the error with a nudged retry passes False so
+        # its healthy tier is not abandoned. On the protocol rather than on FailoverLLM
+        # because callers cannot tell a chain from a single client, which is the point.
+        cascade_on_no_tool_call: bool = ...,
     ) -> ToolTurn: ...

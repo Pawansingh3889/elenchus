@@ -46,6 +46,18 @@ async def _completed(session, respondent, published):
     return await engine.handle_message(run.id, "4", respondent)
 
 
+async def test_the_summariser_keeps_its_failover(session, author, respondent, published):
+    """The writer and the checker have no nudged retry, so a chatty turn must fall to
+    the next tier rather than ending the request. They keep the cascading default; only
+    the conduct engine opts out of it."""
+    run = await _completed(session, respondent, published)
+    llm = FakeLLM(_summary(), _faithful())
+
+    await RunSummaryService(session, llm=llm).summarise(published.id, run.id, author)
+
+    assert llm.cascade_flags == [True, True]
+
+
 async def test_summarises_a_completed_run_and_stores_it(session, author, respondent, published):
     run = await _completed(session, respondent, published)
     llm = FakeLLM(_summary(), _faithful())

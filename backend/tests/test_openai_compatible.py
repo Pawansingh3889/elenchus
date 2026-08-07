@@ -641,7 +641,7 @@ class _ChattyLLM(_StubLLM):
         raise NoToolCallError("LLM tier returned no tool call.")
 
 
-async def test_a_chatty_tier_is_not_failed_over_on_the_conversational_path():
+async def test_a_chatty_tier_is_not_failed_over_when_the_caller_owns_the_retry():
     """A model that chatted is not a downed provider. The engine answers this error
     with one nudged retry through the same chain; cascading instead silently handed
     the respondent's turn to ever weaker tiers while the healthy one was fine."""
@@ -650,8 +650,32 @@ async def test_a_chatty_tier_is_not_failed_over_on_the_conversational_path():
     failover = FailoverLLM(tier1, tier2)
 
     with pytest.raises(NoToolCallError):
-        await failover.tool_turn(**_TURN_ARGS)
+        await failover.tool_turn(**_TURN_ARGS, cascade_on_no_tool_call=False)
     assert tier2.tool_turn_calls == 0
+
+
+async def test_a_chatty_tier_falls_over_for_a_caller_that_cannot_retry():
+    """The other side of the same flag, and the reason it is a flag at all. Template
+    drafting and run summarising call tool_turn with no retry of their own, so the next
+    tier is their only recovery. Making the carve-out unconditional took that away: one
+    chatty turn from tier 1 became an immediate 503 with healthy tiers left untried."""
+    tier1 = _ChattyLLM()
+    tier2 = _StubLLM(turn=ToolTurn("hi", "move_on", {}))
+    failover = FailoverLLM(tier1, tier2)
+
+    assert await failover.tool_turn(**_TURN_ARGS) == ToolTurn("hi", "move_on", {})
+    assert (tier1.tool_turn_calls, tier2.tool_turn_calls) == (1, 1)
+
+
+async def test_a_downed_tier_cascades_even_when_the_caller_owns_the_retry():
+    """The carve-out is about chatter, not about health. A nudge cannot revive a tier
+    that is not answering, so opting out of it must not opt out of failover itself."""
+    tier1 = _StubLLM(fail=True)
+    tier2 = _StubLLM(turn=ToolTurn("hi", "move_on", {}))
+    failover = FailoverLLM(tier1, tier2)
+
+    turn = await failover.tool_turn(**_TURN_ARGS, cascade_on_no_tool_call=False)
+    assert turn == ToolTurn("hi", "move_on", {})
 
 
 async def test_a_chatty_tier_still_cascades_on_the_one_shot_path():

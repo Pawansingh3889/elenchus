@@ -275,6 +275,9 @@ class ConductEngine:
                 ),
                 messages=messages,
                 tools=tools,
+                # This caller owns the retry, just below, so a chatty turn must not be
+                # allowed to abandon a healthy tier for a weaker one.
+                cascade_on_no_tool_call=False,
             )
         except NoToolCallError as exc:
             # The model chatted, or called several tools at once: responsive but
