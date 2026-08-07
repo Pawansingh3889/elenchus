@@ -49,8 +49,11 @@ export default function RunPage() {
   const answer = (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || busy) return;
-    setDraft("");
-    send.mutate(trimmed);
+    // Cleared once the turn is recorded, not before. The engine appends the respondent's
+    // message and only flushes it, so a turn that fails rolls it back: clearing up front
+    // left the text in neither the transcript nor the box, and a long answer had to be
+    // written again from memory on top of being told to try again.
+    send.mutate(trimmed, { onSuccess: () => setDraft("") });
   };
 
   // Destructive and irreversible: it discards the answer, anything the engine probed
