@@ -75,7 +75,37 @@ guarantees the vendored SDK used to provide that nothing replaced.
   that was never committed. The script is now in the tree, and fails with the cause when
   Postgres is not up rather than with 200 connection errors halfway through.
 
-328 tests.
+### Then a review of all of the above, and of the code it landed on
+
+Three of the findings reached a running deployment, so they were fixed the same day. One
+of them was caused by the work above:
+
+- **The failover carve-out was made unconditional**, and justified by a nudged retry that
+  only the conduct engine has. `tool_turn` has three callers: template drafting retries
+  only on a validation error, and run summarising only on a Pydantic one, so both went
+  from falling through to the next tier to raising on the spot. On a fully configured
+  chain, an author pressing Draft with AI or Summarise while the tier-1 model answered in
+  prose got a 503 with three healthy tiers never tried. Whether a chatty turn should cost
+  a tier depends on whether the caller will retry, which only the caller knows, so it is
+  now theirs to say. A tier that is genuinely down still cascades either way, because a
+  nudge cannot revive a provider that is not answering.
+- **A missing prompt file accused the database.** `load_prompt` raised
+  `FileNotFoundError`, which is an `OSError`, which the handler for a departed Postgres
+  renders as "The service cannot reach its database right now". Renaming a prompt
+  answered every respondent turn that way while `/health` went on saying "ok". It now
+  raises a typed `PromptNotFoundError` and reads as the 500 it is. The guard meant to
+  catch this before runtime could not see it either: it resolved `PROMPT_VERSION`
+  constants only, and three call sites name their prompt inline, so a rename left the
+  gate green and broke the conversation at the one moment that costs money to discover.
+- **The ledger's prices never reached the container.** Compose reads `.env` only to
+  interpolate its own `${...}`, so a service sees exactly the variables its `environment`
+  block names, and both files stopped at the connection settings. Every price documented
+  in `.env.example` was set by the operator and dropped at the container boundary, so a
+  deployment paying a real provider recorded every call as free, unfixable after the fact
+  because the ledger prices at call time rather than recomputing. That block is a
+  hand-maintained copy of part of `Settings`, so a test now asserts the copy is complete.
+
+339 tests.
 
 ## 2026-08-06. Architecture rules made executable, and the gates proven
 
