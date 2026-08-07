@@ -20,12 +20,16 @@ from app.llm.openai_compatible import OpenAICompatibleLLMClient
 TIER_PREFIXES = ("llm_tier1", "llm_tier2", "llm_tier3", "llm_tier4")
 
 
-def _client_for(settings: Settings, prefix: str) -> OpenAICompatibleLLMClient:
+def _client_for(settings: Settings, prefix: str, tier: int) -> OpenAICompatibleLLMClient:
     return OpenAICompatibleLLMClient(
         base_url=getattr(settings, f"{prefix}_base_url"),
         api_key=getattr(settings, f"{prefix}_api_key"),
         model=getattr(settings, f"{prefix}_model"),
         timeout_seconds=getattr(settings, f"{prefix}_timeout_seconds"),
+        # The tier number the client is told is its position in the settings, not its
+        # position in the chain: with tiers 1 and 3 enabled, the second client is still
+        # tier 3, and pricing it as tier 2 would bill it at another provider's rate.
+        tier=tier,
     )
 
 
@@ -33,8 +37,8 @@ def get_llm() -> LLMProtocol:
     settings = get_settings()
 
     chain: list[LLMProtocol] = [
-        _client_for(settings, prefix)
-        for prefix in TIER_PREFIXES
+        _client_for(settings, prefix, tier)
+        for tier, prefix in enumerate(TIER_PREFIXES, start=1)
         if getattr(settings, f"{prefix}_enabled")
     ]
 

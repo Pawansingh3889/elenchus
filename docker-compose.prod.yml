@@ -18,7 +18,13 @@
 # Required in the environment (no defaults, because a missing value must fail loudly):
 #   POSTGRES_PASSWORD    the database password
 #   FRONTEND_ORIGIN      the browser app's origin, for CORS
-#   LLM_TIER1_API_KEY    unless tier 1 is disabled
+#   NEXT_PUBLIC_API_URL  the backend's public origin, baked into the browser bundle
+#   LLM_TIER1_API_KEY    unless tier 1 is disabled. The tier defaults to enabled with
+#                        the OpenAI base URL and model below, so key + password +
+#                        origins is a complete deployment; a tier enabled with an empty
+#                        model would fail the whole chain at startup, booting green
+#                        while 503ing every model call, which is why the model carries
+#                        a real default rather than an empty one.
 #
 # APP_ENV is set to prod below for the deployment's own records. Note that nothing in
 # the code branches on it yet, so it changes no behaviour today.
@@ -83,8 +89,11 @@ services:
     environment:
       OLLAMA_HOST: http://ollama:11434
     entrypoint: ["/bin/sh", "-c"]
+    # Skipped when the volume already holds the model, so a restart without internet
+    # access comes up clean instead of dying on the fetch.
     command: >-
       'until ollama list >/dev/null 2>&1; do sleep 2; done;
+       ollama list | grep -q "${OLLAMA_MODEL:-llama3.2:3b}" ||
        ollama pull "${OLLAMA_MODEL:-llama3.2:3b}"'
     restart: "no"
 
@@ -102,7 +111,10 @@ services:
       LLM_TIER1_ENABLED: ${LLM_TIER1_ENABLED:-true}
       LLM_TIER1_BASE_URL: ${LLM_TIER1_BASE_URL:-https://api.openai.com/v1}
       LLM_TIER1_API_KEY: ${LLM_TIER1_API_KEY:-}
-      LLM_TIER1_MODEL: ${LLM_TIER1_MODEL:-}
+      # A real default, not an empty one: enabled-with-no-model fails the whole LLM
+      # chain at startup while every healthcheck stays green. With base URL, model and
+      # the required key all present, the minimal deployment actually serves.
+      LLM_TIER1_MODEL: ${LLM_TIER1_MODEL:-gpt-4o-mini}
       LLM_TIER1_TIMEOUT_SECONDS: ${LLM_TIER1_TIMEOUT_SECONDS:-120}
       LLM_TIER2_ENABLED: ${LLM_TIER2_ENABLED:-false}
       LLM_TIER2_BASE_URL: ${LLM_TIER2_BASE_URL:-https://api.groq.com/openai/v1}
@@ -122,13 +134,21 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      ollama-pull:
-        condition: service_completed_successfully
+      # Deliberately not gated on ollama-pull: a multi-gigabyte download must not sit
+      # on the critical path of serving templates and results, which need no model.
+      # Tier-4 calls before the pull lands fail over or surface llm_unavailable, which
+      # is the honest state of the system.
     # No source bind mount: the image is what runs, so what was tested is what ships.
     # Migrations still apply on start, because the schema must match the code that
     # ships with it, but `python -m app.seed` does not. Seeding is idempotent, which is
     # why it is harmless in development and exactly why it must not run here: it would
     # leave five working accounts behind, two of them authors.
+    #
+    # The one volume is the LLM spend ledger (LLM_LEDGER_PATH defaults to
+    # var/llm_ledger.jsonl under the app directory). It is an append-only record whose
+    # whole point is durability; without the volume every container recreate deleted it.
+    volumes:
+      - backend-var:/app/var
     command: >-
       sh -c "alembic upgrade head &&
              uvicorn app.main:app --host 0.0.0.0 --port 8000"
@@ -169,3 +189,5 @@ volumes:
   # Model weights are several GB; a named volume keeps them across `compose down` so
   # the pull happens once rather than on every restart.
   ollama:
+  # The append-only LLM spend ledger, which must outlive the container it is written in.
+  backend-var:

@@ -18,11 +18,13 @@ class LLMError(AppError):
 
 
 class NoToolCallError(LLMError):
-    """The model produced a turn with no tool call at all.
+    """The model did not produce exactly one tool call: none at all, or several at once.
 
     Distinguished from other LLM failures because it is cheaply retryable: the model is
-    responsive, it just chatted instead of acting. Timeouts and transport errors stay
-    plain LLMError so a retry never doubles a 120-second wait.
+    responsive, it just went off-script. The conduct engine answers it with one nudged
+    retry, and the failover chain deliberately does not treat it as a downed tier.
+    Timeouts and transport errors stay plain LLMError so a retry never doubles a
+    120-second wait.
     """
 
     code = "llm_no_tool_call"

@@ -46,8 +46,13 @@ services:
       retries: 60          # generous: the first pull downloads several GB
       start_period: 30s
 
-  # Pulls the model once, then exits. The backend waits on this completing rather
-  # than on the ollama container merely being up.
+  # Pulls the model once, then exits. Deliberately NOT in the backend's depends_on:
+  # gating the API on a multi-gigabyte download put the model on the critical path of
+  # every `compose up`, and a developer offline or on hotel wifi could not reach the
+  # template CRUD, which needs no model at all. Until the pull lands, tier-4 calls fail
+  # and surface as llm_unavailable, which is the honest state of the system. The pull
+  # is also skipped when the volume already holds the model, so an offline restart
+  # with cached weights comes up clean instead of dying on the fetch.
   ollama-pull:
     image: docker.io/ollama/ollama:latest
     depends_on:
@@ -57,6 +62,7 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command: >-
       'until ollama list >/dev/null 2>&1; do sleep 2; done;
+       ollama list | grep -q "${OLLAMA_MODEL:-llama3.2:3b}" ||
        ollama pull "${OLLAMA_MODEL:-llama3.2:3b}"'
     restart: "no"
 
@@ -92,8 +98,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      ollama-pull:
-        condition: service_completed_successfully
     ports:
       - "8000:8000"
     volumes:

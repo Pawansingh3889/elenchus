@@ -16,14 +16,17 @@ tool call: the payload is validated against the same schema as any other, and th
 rejects it identically if it does not fit.
 """
 
+import asyncio
 import json
 import logging
 import re
+import time
 from collections.abc import Iterator
 from typing import Any, cast
 
 import httpx
 
+from app.llm import ledger
 from app.llm.client import LLMError, NoToolCallError, ToolTurn, TruncatedTurnError
 
 logger = logging.getLogger("app.llm.openai_compatible")
@@ -73,6 +76,25 @@ def _balanced_objects(text: str) -> Iterator[str]:
 DEFAULT_TIMEOUT_SECONDS = 120.0
 CONNECT_TIMEOUT_SECONDS = 10.0
 
+# In-tier retry budget for transient failures, restoring what the removed SDK client did
+# with max_retries=2: three attempts in all. Only failures that are cheap and usually
+# passing qualify: nothing connected, the server hung up mid-response, or it answered
+# 429/5xx. A read timeout is deliberately NOT among them, because each attempt may cost
+# the full LLM_TIER<n>_TIMEOUT_SECONDS and a model that is merely slow does not get
+# faster for being asked twice. A 4xx other than 429 resends the same bad request, so it
+# is not retried either.
+MAX_ATTEMPTS = 3
+RETRY_BACKOFF_SECONDS = 1.0
+_RETRYABLE_STATUSES = frozenset({429, 500, 502, 503, 504})
+
+
+class _Transient(Exception):
+    """Internal: a failure worth another attempt, carrying the typed error to raise
+    when the attempts run out. Never escapes ``_post``."""
+
+    def __init__(self, error: LLMError) -> None:
+        self.error = error
+
 
 class OpenAICompatibleLLMClient:
     """Force one schema-constrained tool call out of an OpenAI-compatible endpoint."""
@@ -85,6 +107,7 @@ class OpenAICompatibleLLMClient:
         model: str,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
         transport: httpx.AsyncBaseTransport | None = None,
+        tier: int = 0,
     ) -> None:
         if not base_url or not model:
             raise LLMError("This LLM tier is enabled but its base_url/model are not configured.")
@@ -93,11 +116,52 @@ class OpenAICompatibleLLMClient:
         self._model = model
         self._timeout = httpx.Timeout(timeout_seconds, connect=CONNECT_TIMEOUT_SECONDS)
         self._transport = transport  # injectable so tests need no network
+        # Which tier this client is in the chain, so the ledger can price the call. The
+        # factory always knows it; the default is for tests that build a client directly,
+        # and 0 records honestly as "no economics configured" rather than pricing the
+        # call as tier 1's.
+        self._tier = tier
 
-    async def _post(self, payload: dict[str, Any]) -> dict[str, Any]:
+    async def _post(self, payload: dict[str, Any], op: str = "unknown") -> dict[str, Any]:
+        """POST once, retrying the cheap transient failures, booking every attempt."""
+        for attempt in range(1, MAX_ATTEMPTS + 1):
+            try:
+                return await self._attempt(payload, op)
+            except _Transient as exc:
+                if attempt == MAX_ATTEMPTS:
+                    raise exc.error from None
+                logger.warning(
+                    "llm tier transient failure, retrying (attempt %d of %d): %s",
+                    attempt,
+                    MAX_ATTEMPTS,
+                    exc.error,
+                )
+                await asyncio.sleep(RETRY_BACKOFF_SECONDS * attempt)
+        raise LLMError("unreachable")  # the loop either returns or raises
+
+    async def _attempt(self, payload: dict[str, Any], op: str) -> dict[str, Any]:
         headers = {"Content-Type": "application/json"}
         if self._api_key:
             headers["Authorization"] = f"Bearer {self._api_key}"
+        # Monotonic, not wall clock: this becomes the cost of a locally served call, and
+        # a clock adjustment mid-request would otherwise price the turn as negative.
+        started = time.monotonic()
+
+        def book(status: int, usage: Any, error: str | None) -> None:
+            # Every attempt leaves a row, failures included. A ledger that only records
+            # successes cannot explain a cost spike caused by an afternoon of 429s
+            # pushing traffic to a priced tier: the calls that drove the spend would be
+            # the only ones missing from the record built to explain it.
+            ledger.record(
+                tier=self._tier,
+                model=self._model,
+                op=op,
+                usage=usage,
+                latency_ms=int((time.monotonic() - started) * 1000),
+                status=status,
+                error=error,
+            )
+
         try:
             async with httpx.AsyncClient(
                 timeout=self._timeout, transport=self._transport
@@ -105,10 +169,19 @@ class OpenAICompatibleLLMClient:
                 response = await client.post(
                     f"{self._base_url}/chat/completions", json=payload, headers=headers
                 )
+        except (httpx.ConnectError, httpx.ConnectTimeout, httpx.RemoteProtocolError) as exc:
+            # Nothing connected, or the server hung up mid-response: cheap to retry
+            # (the connect budget is seconds) and usually passing.
+            logger.error("llm tier call failed: %r", exc)
+            book(0, None, repr(exc))
+            raise _Transient(LLMError(f"Could not reach the LLM tier: {exc!r}")) from exc
         except httpx.TimeoutException as exc:
-            # str(ReadTimeout) is usually empty, which once surfaced as a blank
-            # "could not reach" while the model was merely slow — name the failure.
+            # A read timeout is the one transport failure not retried in-tier: each
+            # attempt may cost the full read budget, and a model that is merely slow
+            # does not get faster for being asked twice. str(ReadTimeout) is usually
+            # empty, which once surfaced as a blank "could not reach": name the failure.
             logger.error("llm tier timed out: %r", exc)
+            book(0, None, f"timed out after {self._timeout.read}s")
             raise LLMError(
                 f"LLM tier timed out after {self._timeout.read}s. The model may be "
                 "loading or too slow for the configured LLM_TIER<n>_TIMEOUT_SECONDS."
@@ -116,17 +189,24 @@ class OpenAICompatibleLLMClient:
         except httpx.HTTPError as exc:
             # repr, not str: several httpx errors stringify to "".
             logger.error("llm tier call failed: %r", exc)
+            book(0, None, repr(exc))
             raise LLMError(f"Could not reach the LLM tier: {exc!r}") from exc
         if response.status_code >= 400:
             logger.error("llm tier returned %s: %s", response.status_code, response.text[:200])
-            raise LLMError(
+            book(response.status_code, None, response.text[:200])
+            error = LLMError(
                 f"LLM tier rejected the request ({response.status_code}): {response.text[:200]}"
             )
+            if response.status_code in _RETRYABLE_STATUSES:
+                raise _Transient(error)
+            raise error
         try:
             body = response.json()
         except ValueError as exc:
+            book(response.status_code, None, "non-JSON body")
             raise LLMError(f"LLM tier returned a non-JSON body: {response.text[:200]}") from exc
         if not isinstance(body, dict):
+            book(response.status_code, None, f"{type(body).__name__} body")
             raise LLMError(f"LLM tier returned {type(body).__name__}, expected a JSON object.")
         # Logged after parsing so the token usage is in reach: any tier can serve any
         # live turn, and until now those tokens were spent with no record at all. One format
@@ -141,6 +221,10 @@ class OpenAICompatibleLLMClient:
             response.status_code,
             body.get("usage"),
         )
+        # The durable half of the same fact. The log line is for reading now; this is for
+        # answering "what did that survey cost, on which model" months from now, when the
+        # logs have rotated away.
+        book(response.status_code, body.get("usage"), None)
         return cast("dict[str, Any]", body)
 
     @staticmethod
@@ -211,6 +295,16 @@ class OpenAICompatibleLLMClient:
                     "LLM tier hit its token limit before completing a tool call."
                 )
             raise NoToolCallError("LLM tier returned no tool call.")
+        if len(tool_calls) > 1:
+            # The request asks for exactly one call (parallel_tool_calls false), but not
+            # every endpoint honours that flag. Taking the first and discarding the rest
+            # silently threw away whichever action came second; when [move_on,
+            # record_answer] arrived, the respondent's recorded answer was the part that
+            # vanished. Refusing is the retryable kind of failure: the model is
+            # responsive, it is just off-script, which is NoToolCallError's exact case.
+            raise NoToolCallError(
+                f"LLM tier returned {len(tool_calls)} tool calls; exactly one is allowed."
+            )
         if not isinstance(tool_calls[0], dict):
             raise LLMError("LLM tier returned a malformed tool call.")
         function = tool_calls[0].get("function") or {}
@@ -266,8 +360,13 @@ class OpenAICompatibleLLMClient:
                 [{"name": tool_name, "description": tool_description, "input_schema": input_schema}]
             ),
             "tool_choice": {"type": "function", "function": {"name": tool_name}},
+            # One call, not several: the engines act on exactly one tool per turn, and
+            # a provider that answers with two forces this client to choose for them.
+            # Endpoints that do not know the flag ignore it; _first_tool_call refuses
+            # multi-call answers regardless, so the guard holds either way.
+            "parallel_tool_calls": False,
         }
-        data = await self._post(payload)
+        data = await self._post(payload, op="tool_call")
         name, arguments, _ = self._first_tool_call(data)
         if name != tool_name:
             raise LLMError(f"LLM tier called {name!r}, expected {tool_name!r}.")
@@ -286,8 +385,12 @@ class OpenAICompatibleLLMClient:
             "max_tokens": max_tokens,
             "messages": [{"role": "system", "content": system}, *messages],
             "tools": self._as_openai_tools(tools),
-            "tool_choice": "required",  # force exactly one tool; the model picks which
+            # "required" alone means at least one call, not exactly one. The second half
+            # of "exactly" is parallel_tool_calls, and the belt for endpoints that
+            # ignore it is _first_tool_call refusing multi-call answers.
+            "tool_choice": "required",
+            "parallel_tool_calls": False,
         }
-        data = await self._post(payload)
+        data = await self._post(payload, op="tool_turn")
         name, arguments, said = self._first_tool_call(data)
         return ToolTurn(text=said.strip(), tool_name=name, tool_input=arguments)
