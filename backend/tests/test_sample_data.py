@@ -117,7 +117,13 @@ async def test_replaying_a_recorded_run_reproduces_its_answers(session, seeded_u
             llm = FakeLLM(turn)
         else:
             llm = FakeLLM(record(_derive_raw(value)), move_on())
-        live = await ConductEngine(session, llm=llm).handle_message(live.id, "reply", respondent)
+        # The respondent says what the fixture records. This used to send the literal
+        # word "reply" for every turn, which made the replay unable to exercise the
+        # grounding gate at all: a recorded answer must be traceable to what was really
+        # typed, and "reply" traces to nothing. Saying the answer keeps the replay a
+        # replay rather than a shape check with a placeholder attached.
+        spoken = str(_derive_raw(value)) if "unanswerable" not in value else "reply"
+        live = await ConductEngine(session, llm=llm).handle_message(live.id, spoken, respondent)
 
     assert live.status is RunStatus.completed
     assert [(a.kind.value, a.value) for a in live.answers] == [

@@ -196,7 +196,7 @@ def test_a_prompt_version_naming_no_file_is_rejected(fake_repo: Path) -> None:
 
 def test_a_prompt_named_inline_at_the_call_site_is_rejected(fake_repo: Path) -> None:
     """A constant is not the only way to name a prompt, and it is not the way the
-    engine names its own: load_prompt("conduct_v3") is a literal. Those call sites sat
+    engine names its own: load_prompt("conduct_v4") is a literal. Those call sites sat
     outside this guard entirely, so renaming the file left the gate green and broke
     every respondent turn at the one moment that costs money to discover."""
     (fake_repo / "app" / "conduct.py").write_text(

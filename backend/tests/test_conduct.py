@@ -789,7 +789,7 @@ async def test_a_follow_up_to_a_yes_no_question_records_the_words(
 
     llm = FakeLLM(_record("The scanner drops its connection every few hours."), _move_on())
     run = await ConductEngine(session, llm=llm).handle_message(
-        run.id, "the scanner drops out", respondent
+        run.id, "the scanner drops its connection every few hours", respondent
     )
 
     follow_ups = [a for a in run.answers if a.kind is AnswerKind.follow_up]
@@ -1170,7 +1170,9 @@ async def test_a_follow_up_on_a_write_in_select_records_prose_as_text(session, r
     run = await ConductEngine(session, llm=llm).handle_message(run.id, "the scanner", respondent)
 
     llm = FakeLLM(_record("It drops its connection every few hours."), _move_on())
-    run = await ConductEngine(session, llm=llm).handle_message(run.id, "it drops out", respondent)
+    run = await ConductEngine(session, llm=llm).handle_message(
+        run.id, "it drops its connection every few hours", respondent
+    )
 
     follow_ups = [a for a in run.answers if a.kind is AnswerKind.follow_up]
     assert follow_ups[0].value == {"text": "It drops its connection every few hours."}

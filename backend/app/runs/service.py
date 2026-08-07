@@ -90,6 +90,86 @@ class ResultsService:
                 )
         return template.title, rows
 
+    async def export_structured(self, template_id: UUID, author: User) -> dict[str, Any]:
+        """The whole survey per run: every question, its answer, and its follow-ups.
+
+        The flat export exists for spreadsheets and cannot say more than one row per
+        answer, which loses three things an analyst needs. A question nobody answered has
+        no row at all, so a skipped question and an unasked one look identical to a
+        question that was never in the survey. A follow-up sits beside its parent as a
+        peer, with the model's invented wording in the question column and nothing
+        joining them. And every value arrives pre-flattened to a string, so a rating and
+        the text "4" are indistinguishable once exported.
+
+        Here the question list comes from the frozen version rather than from the answers,
+        so unanswered questions are present and explicitly unanswered; follow-ups nest
+        under the question they were asked about; and each value appears twice, once in
+        the shape it was stored in and once flattened, so a reader can take either
+        without re-deriving the other and getting it subtly different.
+        """
+        template = await self._owned_or_404(template_id, author)
+        runs: list[dict[str, Any]] = []
+        for run, version, user in await self.repo.list_for_template(template_id):
+            by_question: dict[str, list[Any]] = {}
+            for answer in run.answers:
+                by_question.setdefault(str(answer.question_id), []).append(answer)
+
+            questions: list[dict[str, Any]] = []
+            for question in questions_of(version.definition):
+                found = by_question.get(question["id"], [])
+                scripted = next((a for a in found if a.kind is AnswerKind.scripted), None)
+                questions.append(
+                    {
+                        "position": question["position"],
+                        "id": question["id"],
+                        "text": question["text"],
+                        "answer_type": question["answer_type"],
+                        "options": question["options"],
+                        "required": question["required"],
+                        # False covers both "hidden by a condition" and "never reached",
+                        # which the flat export could not distinguish from absent.
+                        "answered": scripted is not None,
+                        "answer": scripted.value if scripted else None,
+                        "answer_display": flatten_answer(scripted.value) if scripted else None,
+                        "answered_at": scripted.answered_at.isoformat() if scripted else None,
+                        # The model wrote these questions, so their text lives on the
+                        # answer rather than in the frozen definition.
+                        "follow_ups": [
+                            {
+                                "question": a.question_text,
+                                "answer": a.value,
+                                "answer_display": flatten_answer(a.value),
+                                "answered_at": a.answered_at.isoformat(),
+                            }
+                            for a in found
+                            if a.kind is AnswerKind.follow_up
+                        ],
+                    }
+                )
+
+            runs.append(
+                {
+                    "run_id": str(run.id),
+                    "respondent": user.display_name,
+                    "status": run.status.value,
+                    "language": run.language,
+                    "version": version.version,
+                    "started_at": run.started_at.isoformat(),
+                    "completed_at": run.completed_at.isoformat() if run.completed_at else None,
+                    "llm_spend": {
+                        "calls": run.llm_calls,
+                        "prompt_tokens": run.llm_prompt_tokens,
+                        "completion_tokens": run.llm_completion_tokens,
+                        # Kept beside the cost rather than folded into it: a total that
+                        # hid the unmeasured calls would read as complete when it is not.
+                        "unmetered_calls": run.llm_unmetered_calls,
+                        "cost_usd": str(run.llm_cost_usd),
+                    },
+                    "questions": questions,
+                }
+            )
+        return {"template": {"id": str(template.id), "title": template.title}, "runs": runs}
+
     async def _owned_or_404(self, template_id: UUID, author: User) -> SurveyTemplate:
         """Responses carry respondent names and verbatim transcripts, so they are
         readable only by the author who created the survey. Someone else's template

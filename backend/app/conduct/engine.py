@@ -14,7 +14,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.conduct.repository import RunRepository
-from app.conduct.validation import AnswerValidationError, validate_answer
+from app.conduct.validation import AnswerValidationError, ungrounded_text, validate_answer
 from app.errors import ConflictError, ForbiddenError, NotFoundError
 from app.i18n import language_note, translate
 from app.llm import ledger
@@ -290,7 +290,7 @@ class ConductEngine:
         try:
             turn = await self.llm.tool_turn(
                 system="\n\n".join(
-                    (load_prompt("conduct_v3"), language_note(run.language), briefing)
+                    (load_prompt("conduct_v4"), language_note(run.language), briefing)
                 ),
                 messages=messages,
                 tools=tools,
@@ -321,7 +321,7 @@ class ConductEngine:
                 tools,
                 f"{exc} You must call exactly one of the offered tools.",
             )
-        error = _rejection(question, state, tools, turn)
+        error = _rejection(question, state, tools, turn, _respondent_said(run))
         if error is None:
             return turn
         if previous_error is None:
@@ -450,6 +450,18 @@ class ConductEngine:
 
 
 # ------------------------------------------------------------------- helpers
+
+
+def _respondent_said(run: SurveyRun) -> list[str]:
+    """Everything the respondent has typed in this run.
+
+    The whole run rather than only the turns since the current question was asked. That
+    is a superset, so it can only ever let an invention through by reusing the
+    respondent's own earlier words, never refuse an answer they really gave. Given a
+    false refusal blocks a real person mid-survey and a false pass costs one weak row,
+    the asymmetry is worth paying for.
+    """
+    return [m.content for m in run.messages if m.role is MessageRole.user]
 
 
 def _scripted_answers(run: SurveyRun) -> dict[str, dict[str, Any]]:
@@ -690,6 +702,7 @@ def _rejection(
     state: dict[str, Any],
     tools: list[dict[str, Any]],
     turn: ToolTurn,
+    said: list[str],
 ) -> str | None:
     """Second gate: re-check the chosen action in code, whatever was offered."""
     allowed = {t["name"] for t in tools}
@@ -727,11 +740,17 @@ def _rejection(
             # judged twice by two standards. This gate runs first, so a follow-up's
             # prose was rejected here before the recording rule ever saw it.
             if state["scripted_recorded"]:
-                _follow_up_value(question, turn.tool_input["value"])
+                value = _follow_up_value(question, turn.tool_input["value"])
             else:
-                validate_answer(question, turn.tool_input["value"])
+                value = validate_answer(question, turn.tool_input["value"])
         except AnswerValidationError as exc:
             return exc.message
+        # Shape proven, now source. Everything above establishes the answer is the right
+        # kind of thing; none of it asks whether the respondent said it. Free text is the
+        # only shape that can be invented wholesale, and it is the one an author reads as
+        # a quotation.
+        if isinstance(value.get("text"), str):
+            return ungrounded_text(value["text"], said)
         return None
 
     return None
