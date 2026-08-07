@@ -22,6 +22,9 @@ class FakeLLM:
         self.briefings: list[str] = []
         self.messages_seen: list[list[dict[str, str]]] = []
         self.tools_seen: list[list[dict[str, Any]]] = []
+        # Recorded so a test can assert who claimed the nudged retry, which decides
+        # whether a chatty turn keeps its tier or falls to the next one.
+        self.cascade_flags: list[bool] = []
 
     async def tool_turn(
         self,
@@ -30,11 +33,13 @@ class FakeLLM:
         messages: list[dict[str, str]],
         tools: list[dict[str, Any]],
         max_tokens: int = 1024,
+        cascade_on_no_tool_call: bool = True,
     ) -> ToolTurn:
         self.offered.append([t["name"] for t in tools])
         self.briefings.append(system)
         self.messages_seen.append(messages)
         self.tools_seen.append(tools)
+        self.cascade_flags.append(cascade_on_no_tool_call)
         if not self._turns:
             raise AssertionError("engine asked for a turn the test did not script")
         turn = self._turns[min(self.calls, len(self._turns) - 1)]

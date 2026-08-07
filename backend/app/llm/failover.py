@@ -6,9 +6,11 @@ local Ollama. A tier is reached only when every tier before it raises an ``LLMEr
 fails, the last error propagates: the system still fails loudly, never silently
 degrading.
 
-One carve-out on the conversational path: ``NoToolCallError`` propagates from
-``tool_turn`` without touching the next tier, because a model that merely chatted is
-not a downed provider and the conduct engine owns the retry for that case.
+One carve-out on the conversational path, and it is the caller's to ask for:
+``cascade_on_no_tool_call=False`` makes ``NoToolCallError`` propagate without touching
+the next tier, because a model that merely chatted is not a downed provider. Only a
+caller that answers that error with a retry of its own may ask for it. The default
+cascades, since a caller with no retry has nothing else to fall back on.
 
 ``FailoverLLM`` itself satisfies ``LLMProtocol``, so callers can't tell a chain from a
 single client.
@@ -63,22 +65,31 @@ class FailoverLLM:
         messages: list[dict[str, str]],
         tools: list[dict[str, Any]],
         max_tokens: int = 1024,
+        cascade_on_no_tool_call: bool = True,
     ) -> ToolTurn:
         errors: list[LLMError] = []
         for tier, client in enumerate(self._clients, start=1):
             try:
                 return await client.tool_turn(
-                    system=system, messages=messages, tools=tools, max_tokens=max_tokens
+                    system=system,
+                    messages=messages,
+                    tools=tools,
+                    max_tokens=max_tokens,
+                    cascade_on_no_tool_call=cascade_on_no_tool_call,
                 )
-            except NoToolCallError:
-                # The model chatted, or called two tools at once. That is not a downed
-                # tier, and the conduct engine answers this exact error with one nudged
-                # retry that re-enters the chain from the top. Swallowing it here
-                # silently dropped the turn to ever weaker tiers while the healthy one
-                # was fine, and then re-ran the whole cascade when the engine's nudge
-                # finally fired. tool_call below deliberately still cascades: it has no
-                # nudge path, so the next tier is its only recovery.
-                raise
+            except NoToolCallError as exc:
+                # The model chatted, or called two tools at once: responsive, not down.
+                # Only a caller that retries the error itself gains from stopping here,
+                # and it gains a lot, since dropping to ever weaker tiers while the
+                # healthy one was fine then re-runs the whole cascade when the nudge
+                # fires. A caller without that retry must still cascade: making this
+                # unconditional took failover away from template drafting and run
+                # summarising, which have no nudge, and turned one chatty turn from
+                # those into an immediate 503 with three healthy tiers left untried.
+                if not cascade_on_no_tool_call:
+                    raise
+                self._note(tier, "tool_turn", exc)
+                errors.append(exc)
             except LLMError as exc:
                 self._note(tier, "tool_turn", exc)
                 errors.append(exc)

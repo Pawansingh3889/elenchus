@@ -379,6 +379,10 @@ class OpenAICompatibleLLMClient:
         messages: list[dict[str, str]],
         tools: list[dict[str, Any]],
         max_tokens: int = 1024,
+        # Accepted and ignored: one tier has nothing to cascade to, so the flag can only
+        # mean something to FailoverLLM. It is on the protocol because callers are typed
+        # against the protocol and cannot tell which of the two they hold.
+        cascade_on_no_tool_call: bool = True,
     ) -> ToolTurn:
         payload = {
             "model": self._model,

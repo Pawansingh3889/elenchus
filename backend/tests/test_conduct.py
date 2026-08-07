@@ -56,6 +56,22 @@ async def test_records_answer_then_advances(session, respondent, published):
     assert run.messages[-1].content == "Thanks. How was onboarding?"
 
 
+async def test_the_engine_claims_the_nudged_retry_from_the_failover_chain(
+    session, respondent, published
+):
+    """The engine is the one caller that answers NoToolCallError itself, so it is the
+    one caller allowed to stop a chatty turn cascading. Asserted at the boundary rather
+    than trusted, because the flag defaulting the wrong way is invisible: every test
+    passes either way and only a live chain shows the difference."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    llm = FakeLLM(_record("Line lead"), _move_on("Thanks."))
+    await ConductEngine(session, llm=llm).handle_message(run.id, "line lead", respondent)
+
+    assert llm.cascade_flags == [False, False]
+
+
 async def test_engine_withholds_follow_up_once_the_cap_is_spent(session, respondent, published):
     engine = ConductEngine(session, llm=FakeLLM())
     run = await engine.start_run(published.id, respondent)
