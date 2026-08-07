@@ -127,6 +127,10 @@ docker-compose.prod.yml   deployment: pinned digests, no seeding, no bind mounts
 
 ## Tests and CI
 
+`make gate` is the whole contract, and it is exactly what CI runs.
+[docs/CHECKS.md](docs/CHECKS.md) says what each check is asking, what a failure means and
+how to fix it, and collects every command in one place.
+
 ```bash
 cd backend
 DATABASE_URL=postgresql+asyncpg://elenchus:elenchus@localhost:5432/elenchus uv run pytest -q
