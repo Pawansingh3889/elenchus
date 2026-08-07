@@ -28,12 +28,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.errors import ConflictError, NotFoundError
 from app.i18n import language_note
+from app.llm import ledger
 from app.llm.client import LLMError, LLMProtocol
 from app.llm.decoding import decode_stringified
 from app.llm.factory import get_llm
 from app.llm.prompts import load_prompt
 from app.runs.enums import AnswerKind, RunStatus
-from app.runs.models import Answer, SurveyRun
+from app.runs.models import Answer, SurveyRun, add_llm_spend
 from app.runs.repository import ResultsRepository
 from app.runs.service import flatten_answer
 from app.templates.repository import TemplateRepository
@@ -180,25 +181,34 @@ class RunSummaryService:
         if not run.answers:
             raise ConflictError("This run has no answers to summarise.")
 
-        content = await self._generate(run, previous_error=None)
-        verdict = await self._verify(run, content)
-        if not verdict.faithful:
-            # Send it back with the checker's notes, through the same channel a schema
-            # rejection uses, and check the redraft from scratch.
-            notes = "; ".join(verdict.problems)
-            logger.warning(
-                "summary failed verification, redrafting: run=%s problems=%r",
-                run.id,
-                verdict.problems,
-            )
-            content = await self._generate(
-                run,
-                previous_error=f"a reviewer compared it against the answers and found: {notes}",
-            )
+        # Measured against this run like any conduct turn: the summary's calls are the
+        # largest this run will ever make, and rows with run_id=null would exclude
+        # exactly them from "what did this run cost".
+        with ledger.measuring(run.id) as spend:
+            content = await self._generate(run, reviewer_notes=None)
             verdict = await self._verify(run, content)
+            if not verdict.faithful:
+                # Send it back with the checker's notes, through the same channel a
+                # schema rejection uses, and check the redraft from scratch.
+                notes = "; ".join(verdict.problems)
+                logger.warning(
+                    "summary failed verification, redrafting: run=%s problems=%r",
+                    run.id,
+                    verdict.problems,
+                )
+                content = await self._generate(
+                    run,
+                    reviewer_notes=(
+                        f"a reviewer compared it against the answers and found: {notes}"
+                    ),
+                )
+                verdict = await self._verify(run, content)
+        add_llm_spend(run, spend)
         if not verdict.faithful:
             # Nothing is stored: an unsupported summary rendered beside the answers is
-            # worse than the author reading the answers themselves.
+            # worse than the author reading the answers themselves. Raising discards the
+            # uncommitted rollup too; the ledger file keeps the calls that were made,
+            # which is the record that survives failed work.
             logger.error(
                 "summary failed verification twice: run=%s problems=%r",
                 run.id,
@@ -217,42 +227,58 @@ class RunSummaryService:
         await self.session.commit()
         return content
 
-    async def _generate(self, run: SurveyRun, previous_error: str | None) -> RunSummaryContent:
-        messages = [{"role": "user", "content": _transcript_for(run)}]
-        if previous_error is not None:
-            messages.append(
-                {
-                    "role": "user",
-                    "content": f"Your previous summary was rejected: {previous_error}\n"
-                    "Return a corrected summary.",
-                }
+    async def _generate(self, run: SurveyRun, reviewer_notes: str | None) -> RunSummaryContent:
+        """One draft, with its own schema retry.
+
+        ``reviewer_notes`` is the checker's feedback on a previous draft; the schema
+        retry is a separate, per-draft budget. They used to share one variable, so the
+        post-verification redraft arrived looking like it had already spent its retry
+        and failed on its first malformed field, the only model call in the system
+        denied the one nudge every other call gets.
+        """
+        rejected: str | None = None
+        for _ in range(2):
+            messages = [{"role": "user", "content": _transcript_for(run)}]
+            feedback = "; ".join(filter(None, (reviewer_notes, rejected)))
+            if feedback:
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": f"Your previous summary was rejected: {feedback}\n"
+                        "Return a corrected summary.",
+                    }
+                )
+            turn = await self.llm.tool_turn(
+                # Written in the language the run was conducted in. A summary is read
+                # beside the answers it describes, and an English summary of an Arabic
+                # conversation forces the author to translate one of the two themselves.
+                system="\n\n".join((load_prompt(PROMPT_VERSION), language_note(run.language))),
+                messages=messages,
+                tools=[_TOOL],
+                max_tokens=2048,
             )
-        turn = await self.llm.tool_turn(
-            # Written in the language the run was conducted in. A summary is read
-            # beside the answers it describes, and an English summary of an Arabic
-            # conversation forces the author to translate one of the two themselves.
-            system="\n\n".join((load_prompt(PROMPT_VERSION), language_note(run.language))),
-            messages=messages,
-            tools=[_TOOL],
-            max_tokens=2048,
-        )
-        raw = _decode_stringified_fields(turn.tool_input)
-        # Fabricated quotes are dropped before validation, never after: mutating a
-        # validated model skips Pydantic's checks and can break its own invariants.
-        raw = _without_invented_quotes(raw, run)
-        try:
-            return RunSummaryContent.model_validate(raw)
-        except PydanticValidationError as exc:
-            error = str(exc)
-        if previous_error is None:
-            logger.warning("run summary rejected, retrying: run=%s error=%s", run.id, error)
-            return await self._generate(run, previous_error=error)
-        # The rejection names the fault but not the payload, so keep it before failing
-        # (ARCHITECTURE.md 3.3).
-        logger.error(
-            "run summary failed after one retry: run=%s raw=%r error=%s", run.id, raw, error
-        )
-        raise LLMError(f"Model returned an invalid summary after one retry: {error}")
+            raw = _decode_stringified_fields(turn.tool_input)
+            # Fabricated quotes are dropped before validation, never after: mutating a
+            # validated model skips Pydantic's checks and can break its own invariants.
+            raw = _without_invented_quotes(raw, run)
+            try:
+                return RunSummaryContent.model_validate(raw)
+            except PydanticValidationError as exc:
+                if rejected is not None:
+                    # The rejection names the fault but not the payload, so keep it
+                    # before failing (ARCHITECTURE.md 3.3).
+                    logger.error(
+                        "run summary failed after one retry: run=%s raw=%r error=%s",
+                        run.id,
+                        raw,
+                        exc,
+                    )
+                    raise LLMError(
+                        f"Model returned an invalid summary after one retry: {exc}"
+                    ) from exc
+                rejected = str(exc)
+                logger.warning("run summary rejected, retrying: run=%s error=%s", run.id, exc)
+        raise LLMError("unreachable")  # the loop either returns or raises
 
     async def _verify(self, run: SurveyRun, content: RunSummaryContent) -> SummaryVerdict:
         """Fresh context: the checker sees the answers and the candidate, and nothing of

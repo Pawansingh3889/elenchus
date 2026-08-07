@@ -9,13 +9,13 @@ does not.
 
 Report through `report_verdict`:
 
-- `faithful` — true only if the headline and every key fact are supported by what the
+- `faithful`: true only if the headline and every key fact are supported by what the
   respondent actually said. Supported means stated, or a plain restatement of what was
-  stated — not extrapolated, not two answers merged into a claim neither makes on its
+  stated: not extrapolated, not two answers merged into a claim neither makes on its
   own, not inferred from a decline or a skipped question. A fact that plainly reports a
   decline ("declined to give a team size") is supported; a value invented to fill that
   gap is not.
-- `problems` — when `faithful` is false, name each unsupported claim and why it fails,
+- `problems`: when `faithful` is false, name each unsupported claim and why it fails,
   one clause per problem: "the headline says X but the respondent said Y". These notes
   go back to the writer as instructions for a redraft, so name the claim, not the
   feeling. Leave the list empty when `faithful` is true.

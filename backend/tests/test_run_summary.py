@@ -1,7 +1,7 @@
 """The AI summary of a completed run.
 
 The summary is author-facing and acted on, so the tests that matter are the gates
-between the model and the stored column — not that a happy path returns a string.
+between the model and the stored column, not that a happy path returns a string.
 """
 
 import pytest
@@ -63,7 +63,7 @@ async def test_summarises_a_completed_run_and_stores_it(session, author, respond
 
 
 async def test_a_stored_summary_is_not_regenerated(session, author, respondent, published):
-    """Generation costs model calls, so the column is the cache — one pass, then none."""
+    """Generation costs model calls, so the column is the cache: one pass, then none."""
     run = await _completed(session, respondent, published)
     llm = FakeLLM(_summary(), _faithful())
     service = RunSummaryService(session, llm=llm)
@@ -183,14 +183,14 @@ async def test_another_author_cannot_summarise_someone_elses_run(
 
 async def test_the_checker_reads_fresh_context(session, author, respondent, published):
     """The checker's turn carries the answers and the candidate, and nothing of how the
-    draft was made — not the writer's briefing, not the drafting conversation."""
+    draft was made: not the writer's briefing, not the drafting conversation."""
     run = await _completed(session, respondent, published)
     llm = FakeLLM(_summary(), _faithful())
 
     await RunSummaryService(session, llm=llm).summarise(published.id, run.id, author)
 
     assert llm.offered == [["summarise_run"], ["report_verdict"]]
-    (brief,) = llm.messages_seen[1]  # a single user message — no drafting history
+    (brief,) = llm.messages_seen[1]  # a single user message, no drafting history
     assert _QUOTE in brief["content"]
     assert "Two years in" in brief["content"]
     assert "Summarise it" not in brief["content"]
@@ -266,3 +266,54 @@ async def test_a_stringified_problems_list_is_decoded(session, author, responden
     assert llm.calls == 4
     assert "overreaches" in llm.messages_seen[2][-1]["content"]
     assert content.headline.startswith("Two years in")
+
+
+async def test_the_redraft_after_reviewer_notes_still_gets_its_schema_retry(
+    session, author, respondent, published
+):
+    """Reviewer notes and the schema retry are separate budgets. They used to share one
+    variable, so the post-verification redraft arrived looking like it had already
+    spent its retry and failed on its first malformed field."""
+    run = await _completed(session, respondent, published)
+    llm = FakeLLM(
+        _summary(),  # draft 1: valid
+        _unfaithful("the headline overstates the answers"),  # checker rejects it
+        _summary(headline=""),  # redraft 1: schema-invalid (blank headline)
+        _summary(headline="Counting stock on paper, two years in."),  # its retry: valid
+        _faithful(),  # checker passes the corrected redraft
+    )
+
+    content = await RunSummaryService(session, llm=llm).summarise(published.id, run.id, author)
+
+    assert content.headline == "Counting stock on paper, two years in."
+    assert llm.calls == 5
+
+
+async def test_summary_spend_lands_on_the_run(session, author, respondent, published):
+    """The summary's calls are the largest a run ever makes; booked with run_id=null
+    they were excluded from exactly the question the rollup exists to answer."""
+    from app.llm import ledger
+
+    class _MeteredSummaryLLM(FakeLLM):
+        async def tool_turn(self, **kwargs):
+            turn = await super().tool_turn(**kwargs)
+            ledger.record(
+                tier=4,
+                model="llama3.2:3b",
+                op="tool_turn",
+                usage={"prompt_tokens": 900, "completion_tokens": 120},
+                latency_ms=2000,
+                status=200,
+            )
+            return turn
+
+    run = await _completed(session, respondent, published)
+    before = run.llm_calls
+
+    llm = _MeteredSummaryLLM(_summary(), _faithful())
+    await RunSummaryService(session, llm=llm).summarise(published.id, run.id, author)
+
+    await session.refresh(run)
+    assert run.llm_calls == before + 2  # the writer and the checker
+    assert run.llm_prompt_tokens >= 1800
+    assert run.llm_cost_usd > 0
