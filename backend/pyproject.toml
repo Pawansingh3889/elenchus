@@ -25,6 +25,10 @@ dev = [
     "mypy>=1.13",
     "import-linter>=2.13",
     "pytest-cov>=7.1.0",
+    # Reads the compose files, to assert every setting the app needs is forwarded to
+    # the container. Available transitively through uvicorn[standard] already; declared
+    # because a test that imports it should not depend on another package's extras.
+    "pyyaml>=6.0",
 ]
 
 [tool.uv]
