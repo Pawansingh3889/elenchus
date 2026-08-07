@@ -72,6 +72,9 @@ export const es: Messages = {
       `Cambiar esta pregunta a ${typeLabel} elimina ${count} ${count === 1 ? "opción" : "opciones"}.\n\n` +
       "Se restaurarán si vuelves a cambiarla antes de guardar.",
     questionLabel: (n: number) => `Pregunta ${n}`,
+    conditionHasNoAnswer: "su condición no tiene respuesta",
+    selectHasNoOptions: "no tiene opciones",
+    publishBlocker: (n: number, problem: string) => `Pregunta ${n}: ${problem}`,
   },
   respond: {
     title: "Encuestas abiertas",
@@ -80,13 +83,17 @@ export const es: Messages = {
     empty: "Aún no hay nada publicado. Publica una plantilla para verla aquí.",
     start: "Empezar",
     continue: "Continuar",
-    resumeNote: " — tus respuestas están guardadas; continúa donde lo dejaste.",
   },
   run: {
     pickUser: "Elige un usuario en la barra superior para continuar esta encuesta.",
     answerPlaceholder: "Escribe tu respuesta…",
     send: "Enviar",
     finishLater: "Terminar más tarde",
+    finishLaterHint: "Tus respuestas están guardadas; puedes continuar donde lo dejaste.",
+    editPrevious: "Editar mi respuesta anterior",
+    editPreviousHint: "La pregunta vuelve para que puedas responderla de nuevo.",
+    editPreviousConfirm:
+      "¿Retirar tu respuesta anterior? También se eliminará todo lo que la encuesta te preguntó sobre ella, y volverás a responder esa pregunta.",
     done: "Gracias. Tus respuestas están guardadas.",
     orSayIt: "o dilo con tus propias palabras abajo",
     other: "otro…",

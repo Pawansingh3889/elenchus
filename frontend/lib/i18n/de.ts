@@ -67,6 +67,9 @@ export const de: Messages = {
     typeChangeWarning: (typeLabel: string, count: number) =>
       `Diese Frage auf ${typeLabel} zu ändern entfernt ihre ${count} Option(en).\n\nSie werden wiederhergestellt, wenn Sie vor dem Speichern zurückwechseln.`,
     questionLabel: (n: number) => `Frage ${n}`,
+    conditionHasNoAnswer: "ihre Bedingung hat keine Antwort",
+    selectHasNoOptions: "sie hat keine Optionen",
+    publishBlocker: (n: number, problem: string) => `Frage ${n}: ${problem}`,
   },
   respond: {
     title: "Offene Umfragen",
@@ -75,13 +78,18 @@ export const de: Messages = {
     empty: "Noch nichts veröffentlicht. Veröffentlichen Sie eine Vorlage, um sie hier zu sehen.",
     start: "Starten",
     continue: "Fortsetzen",
-    resumeNote: " – Ihre Antworten sind gespeichert; machen Sie dort weiter, wo Sie aufgehört haben.",
   },
   run: {
     pickUser: "Wählen Sie oben einen Benutzer, um diese Umfrage fortzusetzen.",
     answerPlaceholder: "Antwort eingeben…",
     send: "Senden",
     finishLater: "Später beenden",
+    finishLaterHint:
+      "Ihre bisherigen Antworten sind gespeichert; machen Sie dort weiter, wo Sie aufgehört haben.",
+    editPrevious: "Meine vorherige Antwort bearbeiten",
+    editPreviousHint: "Die Frage kommt zurück, damit Sie sie erneut beantworten können.",
+    editPreviousConfirm:
+      "Vorherige Antwort zurücknehmen? Alles, was die Umfrage dazu gefragt hat, wird ebenfalls entfernt, und Sie beantworten diese Frage erneut.",
     done: "Danke. Ihre Antworten sind gespeichert.",
     orSayIt: "oder sagen Sie es unten in eigenen Worten",
     other: "Sonstiges…",

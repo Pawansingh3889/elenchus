@@ -66,6 +66,9 @@ export const fil: Messages = {
     typeChangeWarning: (typeLabel: string, count: number) =>
       `Ang pagpalit ng tanong na ito sa ${typeLabel} ay mag-aalis ng ${count} opsyon.\n\nMaibabalik ang mga ito kung ibabalik mo bago mag-save.`,
     questionLabel: (n: number) => `Tanong ${n}`,
+    conditionHasNoAnswer: "walang sagot ang kondisyon nito",
+    selectHasNoOptions: "wala itong opsyon",
+    publishBlocker: (n: number, problem: string) => `Tanong ${n}: ${problem}`,
   },
   respond: {
     title: "Mga bukas na survey",
@@ -74,13 +77,17 @@ export const fil: Messages = {
     empty: "Wala pang nailathala. Mag-publish ng template para makita rito.",
     start: "Simulan",
     continue: "Ipagpatuloy",
-    resumeNote: " — naka-save ang mga sagot mo; ituloy kung saan ka huminto.",
   },
   run: {
     pickUser: "Pumili ng user sa itaas para ipagpatuloy ang survey na ito.",
     answerPlaceholder: "I-type ang iyong sagot…",
     send: "Ipadala",
     finishLater: "Tapusin mamaya",
+    finishLaterHint: "Naka-save ang iyong mga sagot; magpatuloy kung saan ka tumigil.",
+    editPrevious: "I-edit ang nakaraang sagot ko",
+    editPreviousHint: "Babalik ang tanong para masagot mo itong muli.",
+    editPreviousConfirm:
+      "Bawiin ang iyong nakaraang sagot? Aalisin din ang lahat ng itinanong ng survey tungkol dito, at sasagutin mong muli ang tanong na iyon.",
     done: "Salamat. Naka-save ang iyong mga sagot.",
     orSayIt: "o sabihin ito sa sarili mong salita sa ibaba",
     other: "iba pa…",

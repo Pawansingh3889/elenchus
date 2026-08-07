@@ -80,6 +80,9 @@ export const en = {
       `Changing this question to ${typeLabel} removes its ${count} ${count === 1 ? "option" : "options"}.\n\n` +
       "They will be restored if you change it back before saving.",
     questionLabel: (n: number) => `Question ${n}`,
+    conditionHasNoAnswer: "its condition has no answer",
+    selectHasNoOptions: "it has no options",
+    publishBlocker: (n: number, problem: string) => `Question ${n}: ${problem}`,
   },
   respond: {
     title: "Open surveys",
@@ -88,13 +91,17 @@ export const en = {
     empty: "Nothing published yet. Publish a template to open it here.",
     start: "Start",
     continue: "Continue",
-    resumeNote: " — your answers so far are saved; pick up where you left off.",
   },
   run: {
     pickUser: "Pick a user in the top bar to continue this survey.",
     answerPlaceholder: "Type your answer…",
     send: "Send",
     finishLater: "Finish later",
+    finishLaterHint: "Your answers so far are saved; pick up where you left off.",
+    editPrevious: "Edit my previous answer",
+    editPreviousHint: "The question comes back so you can answer it again.",
+    editPreviousConfirm:
+      "Take back your previous answer? Anything the survey asked about it will be removed too, and you will answer that question again.",
     done: "Thanks. Your answers are saved.",
     orSayIt: "or say it in your own words below",
     other: "other…",

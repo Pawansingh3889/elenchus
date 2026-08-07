@@ -8,7 +8,7 @@ translated is the sentence rendered beside it.
 The locale arrives as ``Accept-Language``, which the browser client sets from the
 language picker. Parsing is deliberately shallow: the header's full grammar allows
 quality weights and multiple entries, and this reads the first tag and matches on its
-primary subtag, so "ar-EG,ar;q=0.9,en;q=0.8" resolves to Arabic. Anything unrecognised
+primary subtag, so "pl-PL,pl;q=0.9,en;q=0.8" resolves to Polish. Anything unrecognised
 falls back to English rather than failing, because a message in the wrong language is
 recoverable and a 500 while reporting an error is not.
 """
@@ -19,58 +19,96 @@ DEFAULT_LOCALE = "en"
 
 # Keyed by message id, then locale. A locale missing an id falls back to English, which
 # is checked by a test rather than left to chance.
+#
+# The catalogue holds two kinds of locale, and only one is offered. SUPPORTED below is
+# the offering: what the picker shows and what a NEW run can be conducted in. The
+# retired tags (fr/pt/hi/bn/ar/he/ur, withdrawn from the picker on 7 Aug 2026) stay in
+# the catalogue and in LANGUAGE_NAMES because ``survey_runs.language`` is fixed at
+# start_run for the life of the run: a respondent halfway through a French interview
+# resumes in French, whatever the picker offers today. Their entries can go only when
+# no run in the database carries the tag.
 MESSAGES: dict[str, dict[str, str]] = {
     "llm_unavailable": {
         "en": "The assistant is briefly unavailable. Please try again in a moment.",
-        "fr": "L'assistant est momentanément indisponible. Réessayez dans un instant.",
         "de": "Der Assistent ist kurzzeitig nicht verfügbar. Bitte versuchen Sie es gleich erneut.",
-        "pt": "O assistente está momentaneamente indisponível. Tente novamente daqui a pouco.",
         "fil": "Pansamantalang hindi available ang assistant. Subukan ulit maya-maya.",
-        "hi": "सहायक कुछ देर के लिए उपलब्ध नहीं है। कृपया थोड़ी देर बाद पुनः प्रयास करें।",
-        "bn": "সহায়কটি কিছুক্ষণের জন্য অনুপলব্ধ। অনুগ্রহ করে একটু পরে আবার চেষ্টা করুন।",
-        "he": "העוזר אינו זמין לרגע. נסה שוב בעוד רגע.",
-        "ur": "معاون عارضی طور پر دستیاب نہیں۔ براہِ کرم تھوڑی دیر بعد دوبارہ کوشش کریں۔",
+        "pl": "Asystent jest chwilowo niedostępny. Spróbuj ponownie za moment.",
+        "lv": "Asistents īslaicīgi nav pieejams. Lūdzu, mēģiniet vēlreiz pēc brīža.",
+        "lt": "Asistentas laikinai nepasiekiamas. Bandykite dar kartą po akimirkos.",
+        "ro": "Asistentul este indisponibil pentru scurt timp. Încearcă din nou într-o clipă.",
         "es": (
             "El asistente no está disponible por un momento. "
             "Inténtalo de nuevo en unos instantes."
         ),
+        # Retired locales, kept for in-flight runs.
+        "fr": "L'assistant est momentanément indisponible. Réessayez dans un instant.",
+        "pt": "O assistente está momentaneamente indisponível. Tente novamente daqui a pouco.",
+        "hi": "सहायक कुछ देर के लिए उपलब्ध नहीं है। कृपया थोड़ी देर बाद पुनः प्रयास करें।",
+        "bn": "সহায়কটি কিছুক্ষণের জন্য অনুপলব্ধ। অনুগ্রহ করে একটু পরে আবার চেষ্টা করুন।",
+        "he": "העוזר אינו זמין לרגע. נסה שוב בעוד רגע.",
+        "ur": "معاون عارضی طور پر دستیاب نہیں۔ براہِ کرم تھوڑی دیر بعد دوبارہ کوشش کریں۔",
         "ar": "المساعد غير متاح مؤقتًا. يرجى المحاولة مرة أخرى بعد قليل.",
     },
     "closing": {
         "en": "That's everything, thank you. Your answers are saved.",
-        "fr": "C'est tout, merci. Vos réponses sont enregistrées.",
         "de": "Das war alles, danke. Ihre Antworten sind gespeichert.",
-        "pt": "É tudo, obrigado. As suas respostas estão guardadas.",
         "fil": "Iyon na lahat, salamat. Naka-save na ang iyong mga sagot.",
+        "pl": "To wszystko, dziękujemy. Twoje odpowiedzi są zapisane.",
+        "lv": "Tas ir viss, paldies. Jūsu atbildes ir saglabātas.",
+        "lt": "Tai viskas, ačiū. Jūsų atsakymai įrašyti.",
+        "ro": "Asta e tot, mulțumim. Răspunsurile tale sunt salvate.",
+        "es": "Eso es todo, gracias. Tus respuestas están guardadas.",
+        # Retired locales, kept for in-flight runs.
+        "fr": "C'est tout, merci. Vos réponses sont enregistrées.",
+        "pt": "É tudo, obrigado. As suas respostas estão guardadas.",
         "hi": "बस इतना ही, धन्यवाद। आपके उत्तर सहेजे गए हैं।",
         "bn": "এটুকুই, ধন্যবাদ। আপনার উত্তর সংরক্ষিত হয়েছে।",
         "he": "זה הכול, תודה. התשובות שלך נשמרו.",
         "ur": "بس اتنا ہی، شکریہ۔ آپ کے جوابات محفوظ ہو گئے۔",
-        "es": "Eso es todo, gracias. Tus respuestas están guardadas.",
         "ar": "هذا كل شيء، شكرًا لك. تم حفظ إجاباتك.",
     },
     "database_unavailable": {
         "en": "The service cannot reach its database right now. Please try again in a moment.",
-        "fr": "Le service ne peut pas joindre sa base de données. Réessayez dans un instant.",
         "de": (
             "Der Dienst erreicht seine Datenbank gerade nicht. "
             "Bitte versuchen Sie es gleich erneut."
         ),
-        "pt": "O serviço não consegue aceder à base de dados. Tente novamente daqui a pouco.",
         "fil": "Hindi maabot ng serbisyo ang database nito ngayon. Subukan ulit maya-maya.",
-        "hi": "सेवा अभी अपने डेटाबेस तक नहीं पहुँच पा रही। कृपया थोड़ी देर बाद प्रयास करें।",
-        "bn": "সেবাটি এখন তার ডেটাবেসে পৌঁছাতে পারছে না। একটু পরে আবার চেষ্টা করুন।",
-        "he": "השירות אינו מצליח להגיע למסד הנתונים כרגע. נסה שוב בעוד רגע.",
-        "ur": "سروس اس وقت اپنے ڈیٹابیس تک نہیں پہنچ پا رہی۔ تھوڑی دیر بعد کوشش کریں۔",
+        "pl": (
+            "Usługa nie może teraz połączyć się ze swoją bazą danych. "
+            "Spróbuj ponownie za moment."
+        ),
+        "lv": (
+            "Pakalpojums pašlaik nevar sasniegt savu datubāzi. "
+            "Lūdzu, mēģiniet vēlreiz pēc brīža."
+        ),
+        "lt": "Paslauga šiuo metu nepasiekia savo duomenų bazės. Bandykite dar kartą po akimirkos.",
+        "ro": "Serviciul nu poate accesa baza de date acum. Încearcă din nou într-o clipă.",
         "es": (
             "El servicio no puede conectar con su base de datos ahora mismo. "
             "Inténtalo de nuevo en unos instantes."
         ),
+        # Retired locales, kept for in-flight runs.
+        "fr": "Le service ne peut pas joindre sa base de données. Réessayez dans un instant.",
+        "pt": "O serviço não consegue aceder à base de dados. Tente novamente daqui a pouco.",
+        "hi": "सेवा अभी अपने डेटाबेस तक नहीं पहुँच पा रही। कृपया थोड़ी देर बाद प्रयास करें।",
+        "bn": "সেবাটি এখন তার ডেটাবেসে পৌঁছাতে পারছে না। একটু পরে আবার চেষ্টা করুন।",
+        "he": "השירות אינו מצליח להגיע למסד הנתונים כרגע. נסה שוב בעוד רגע.",
+        "ur": "سروس اس وقت اپنے ڈیٹابیس تک نہیں پہنچ پا رہی۔ تھوڑی دیر بعد کوشش کریں۔",
         "ar": "لا يستطيع النظام الوصول إلى قاعدة بياناته حاليًا. يرجى المحاولة مرة أخرى بعد قليل.",
     },
 }
 
-SUPPORTED = ("en", "es", "fr", "de", "pt", "fil", "hi", "bn", "ar", "he", "ur")
+# The offering: what the picker shows and what a new run may be conducted in. Must match
+# frontend/lib/i18n/index.ts LOCALES, which tests/test_i18n.py enforces by reading that
+# file; a tag offered there but missing here would conduct the run in English with no
+# error to explain why. Retired tags live on in MESSAGES/LANGUAGE_NAMES above and below,
+# but never here: parse_locale is what stops NEW runs starting in them.
+SUPPORTED = ("en", "es", "de", "pl", "lv", "lt", "ro", "fil")
+
+# Every tag any run has ever been conducted in, for the coverage test: a tag on a stored
+# run that lost its catalogue entries would resume in the wrong language silently.
+SERVED = SUPPORTED + ("fr", "pt", "hi", "bn", "ar", "he", "ur")
 
 
 def parse_locale(accept_language: str | None) -> str:
@@ -101,21 +139,27 @@ def translate(message_id: str, locale: str) -> str:
     return by_locale.get(locale, by_locale[DEFAULT_LOCALE])
 
 
-# Language names rather than codes. A model handles "Arabic" more reliably than "ar",
+# Language names rather than codes. A model handles "Latvian" more reliably than "lv",
 # and an unlisted code is passed through as-is so adding a locale to the UI needs no
 # change here: the worst case is the model receiving a tag it can still recognise.
 LANGUAGE_NAMES = {
     "en": "English",
     "es": "Spanish",
-    "ar": "Arabic",
-    "he": "Hebrew",
-    "fr": "French",
     "de": "German",
+    "pl": "Polish",
+    "lv": "Latvian",
+    "lt": "Lithuanian",
+    "ro": "Romanian",
+    "fil": "Filipino",
+    # Retired from the picker, still named: a run started in one of these resumes in it,
+    # and "Reply in French" steers a model far more reliably than "Reply in fr".
+    "fr": "French",
     "pt": "Portuguese",
     "hi": "Hindi",
     "bn": "Bengali",
     "ur": "Urdu",
-    "fil": "Filipino",
+    "ar": "Arabic",
+    "he": "Hebrew",
 }
 
 
