@@ -36,15 +36,26 @@ async def export_runs(
     author: User = Depends(require_author),
     session: AsyncSession = Depends(get_session),
 ) -> Response:
-    """Download every answer as a file: CSV (opens directly in Excel) or JSON."""
-    title, rows = await ResultsService(session).export(template_id, author)
-    stem = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-") or "survey"
+    """Download the responses: CSV (opens directly in Excel) or JSON.
+
+    The two are deliberately different shapes rather than the same rows twice. CSV is
+    flat because a spreadsheet cell cannot hold a follow-up, so it stays one row per
+    recorded answer. JSON nests, so it carries the whole survey per run: every question
+    including the ones nobody answered, each follow-up under the question it was asked
+    about, and every value in its stored shape as well as flattened.
+    """
+    service = ResultsService(session)
     if format == "json":
+        document = await service.export_structured(template_id, author)
+        title = document["template"]["title"]
+        stem = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-") or "survey"
         return Response(
-            json.dumps(rows, indent=2),
+            json.dumps(document, indent=2, ensure_ascii=False),
             media_type="application/json",
             headers={"Content-Disposition": f'attachment; filename="{stem}-responses.json"'},
         )
+    title, rows = await service.export(template_id, author)
+    stem = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-") or "survey"
     return Response(
         to_csv(rows),
         media_type="text/csv; charset=utf-8",
