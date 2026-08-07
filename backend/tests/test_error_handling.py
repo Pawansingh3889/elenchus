@@ -6,6 +6,7 @@ stays fast and asserts exactly what a caller receives.
 
 import json
 
+import pytest
 from starlette.requests import Request
 
 from app.llm.client import LLMError, NoToolCallError
@@ -29,6 +30,27 @@ async def test_llm_failure_becomes_a_calm_503_without_raw_detail():
     # the raw upstream detail never reaches the respondent
     assert "429" not in body["error"]["message"]
     assert "quota" not in body["error"]["message"].lower()
+
+
+async def test_a_missing_prompt_does_not_accuse_the_database():
+    """PromptNotFoundError used to be a FileNotFoundError, which is an OSError, which
+    lands on the handler that says the database is unreachable. Renaming a prompt then
+    told the operator to go and investigate a Postgres that was fine, while /health
+    kept answering "ok" and disagreeing with every other endpoint."""
+    from app.errors import AppError
+    from app.llm.prompts import PromptNotFoundError, load_prompt
+
+    with pytest.raises(PromptNotFoundError):
+        load_prompt("no_such_prompt_v1")
+    assert not issubclass(PromptNotFoundError, OSError)
+
+    handler = app.exception_handlers[AppError]
+    response = await handler(_request(), PromptNotFoundError("Prompt not found: conduct_v9"))
+    body = json.loads(response.body)
+
+    assert response.status_code == 500
+    assert body["error"]["code"] == "prompt_not_found"
+    assert "database" not in body["error"]["message"].lower()
 
 
 def test_llm_error_subclasses_resolve_to_the_same_handler():

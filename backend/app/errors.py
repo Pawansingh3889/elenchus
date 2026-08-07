@@ -90,6 +90,12 @@ def register_error_handlers(app: FastAPI) -> None:
     # stops: every endpoint answered with a bare, unexplained 500 while /health still
     # said "ok". The net is deliberately wide because that is the shape the failure
     # arrives in; nothing is swallowed, since the real exception is logged at error level.
+    #
+    # Wide, though, means anything else arriving as an OSError is reported as a database
+    # that has gone away. Whatever lands here must genuinely be one, so anything that can
+    # raise an OSError for its own reasons raises a typed AppError instead and is handled
+    # above: see PromptNotFoundError in app.llm.prompts, which used to reach this handler
+    # as a FileNotFoundError and send operators to look at a healthy database.
     @app.exception_handler(OSError)
     async def _handle_database_unavailable(request: Request, exc: OSError) -> JSONResponse:
         logger.error("database unreachable; returning 503 to client: %r", exc)
