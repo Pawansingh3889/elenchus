@@ -5,6 +5,78 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-08-07. What every call costs, an answer you can take back, eight languages
+
+Most of this came out of a review of the OpenAI-only migration. The migration itself
+was sound; what it had quietly dropped was not, and three of the entries below are
+guarantees the vendored SDK used to provide that nothing replaced.
+
+- **A spend ledger.** Every model call appends one JSONL line: tier, model, parameter
+  count, tokens, latency, status and cost, with the same figures rolled up onto
+  `survey_runs`. The rollup is denormalised on purpose, because a request should not be
+  parsing a telemetry file to answer what a conversation cost. Unknown is not zero: a
+  provider that reports no usage increments `llm_unmetered_calls` rather than folding
+  into the sums, so a total can honestly say "at least". Cost is `Numeric(18, 8)`,
+  being money that gets summed across runs. A local tier bills no tokens but costs the
+  machine while it runs, so it is priced from wall clock against `hardware_watts` and
+  `electricity_price_per_kwh`; reporting a locally served run as free is the one number
+  that is certainly wrong. Parameter count is configuration because no provider reports
+  it, and it is the axis the measurement turns on.
+- **Three guarantees restored** to the OpenAI-compatible client. The old client sent
+  `disable_parallel_tool_use` on every turn; the replacement asked only for
+  `tool_choice: required`, then read `tool_calls[0]` and discarded a second call in
+  silence, so a respondent's answer could vanish. `max_retries=2` disappeared with
+  nothing in its place, and cross-tier failover is no substitute: it does nothing at all
+  when a single tier is enabled. And every error path raised before reaching the ledger,
+  so the calls most worth measuring left no row. `NoToolCallError` also no longer
+  cascades through the chain, because a model that merely chatted is not a downed
+  provider and the engine already answers it with one nudged retry.
+- **Taking back the last answer.** `POST /runs/{run_id}/rewind` removes the most recent
+  scripted answer, its follow-ups and the transcript from that turn on, then refunds the
+  probe and reply budgets of that question *and of every question after it*. Refunded
+  rather than carried forward, because an answer worth probing deserves the probes the
+  first one spent, and budgets spent on later questions during the deleted turns would
+  otherwise stay charged while the transcript that spent them was erased. The endpoint
+  takes no body: which answer this is, is the engine's to decide.
+- **A different set of languages.** The picker now offers en, es, de, pl, lv, lt, ro and
+  fil. The retired tags stay in the backend catalogue, because `survey_runs.language` is
+  fixed when a run starts and a run already under way in French has to be finished in
+  French; deleting those messages would have stranded every run begun under the previous
+  roster. `SUPPORTED` is what the picker offers, `SERVED` is what still resolves.
+- **The `create_all` guard could not see the async idiom.** It flagged the call form
+  only, so `await conn.run_sync(Base.metadata.create_all)` passed straight through, and
+  this repository's own conftest built the test schema exactly that way. The suite was
+  testing the models rather than the migrations while the gate that exists to forbid
+  that reported ok on every run. The planted violation had paired the async idiom with a
+  direct call, so the gate was catching the pair for the wrong reason; it is now planted
+  alone, which is what makes the test mean anything. conftest builds the schema with
+  `alembic upgrade head`, and points the ledger at a temp file so the suite stops
+  writing invented calls into the record real runs are measured in.
+- **A probe's answer could be stored as the wrong thing.** On a select with
+  `allow_other`, `validate_answer` accepts any non-empty string as a write-in, which made
+  the prose path unreachable: free text was recorded as an option the respondent had
+  supposedly picked. A prose string now counts as a re-ask answer only when it names an
+  actual option.
+- **Interface.** The composer and the builder's option rows grow with what is typed
+  instead of scrolling it out of sight. Enter no longer sends mid-word: CJK and Indic
+  keyboards use it to commit a conversion candidate, so every Enter had been submitting
+  a half-composed answer. Renaming an option no longer destroys the conditions naming
+  it, repair having run on every keystroke and cleared them at the first one that
+  stopped matching, with no way back once the author finished typing.
+- **`compose up` no longer waits on the model pull**, revising what the 6 Aug entry
+  below says. Gating the API on a multi-gigabyte download put it on the critical path of
+  every start and left anyone offline unable to reach template CRUD, which needs no
+  model at all. Until the pull lands, tier-4 calls surface as `llm_unavailable`, which is
+  the honest state of the system.
+- **The prod overlay booted green and 503'd on every call.** It defaulted
+  `LLM_TIER1_ENABLED` to true while `LLM_TIER1_MODEL` defaulted to empty, unmentioned in
+  the file's own list of required variables. It now carries a model that works.
+- **`make test` had been broken** since the Makefile was pointed at a `scripts/test.sh`
+  that was never committed. The script is now in the tree, and fails with the cause when
+  Postgres is not up rather than with 200 connection errors halfway through.
+
+328 tests.
+
 ## 2026-08-06. Architecture rules made executable, and the gates proven
 
 Adopted from the copernus project, whose Makefile states the principle: a gate that
