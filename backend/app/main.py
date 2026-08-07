@@ -63,7 +63,17 @@ app.add_middleware(
     expose_headers=["Content-Disposition"],
 )
 register_error_handlers(app)
-app.include_router(users_router)
+# The user list exists to populate the dev-auth picker, and under that shim a user's id
+# is their credential. Outside development the picker does not exist, nobody is seeded,
+# and the endpoint's only remaining use would be handing an attacker the ids. So it is
+# not mounted at all: absent beats guarded, because an endpoint that is not registered
+# cannot be reached by a bug in whatever guards it.
+#
+# This is also the first thing in the codebase that branches on APP_ENV. The deployment
+# file has been carrying a note that setting it changes no behaviour; that stops being
+# true here.
+if get_settings().app_env != "prod":
+    app.include_router(users_router)
 app.include_router(templates_router)
 app.include_router(results_router)
 app.include_router(runs_router)
