@@ -9,12 +9,14 @@ import logging
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from app.i18n import DEFAULT_LOCALE, parse_locale, translate
+
 logger = logging.getLogger("app.errors")
 
-LLM_UNAVAILABLE_MESSAGE = "The assistant is briefly unavailable. Please try again in a moment."
-DATABASE_UNAVAILABLE_MESSAGE = (
-    "The service cannot reach its database right now. Please try again in a moment."
-)
+# Kept as names for anything that imports them, now resolved through the catalogue so
+# the sentence follows the caller's Accept-Language while the error code does not.
+LLM_UNAVAILABLE_MESSAGE = translate("llm_unavailable", DEFAULT_LOCALE)
+DATABASE_UNAVAILABLE_MESSAGE = translate("database_unavailable", DEFAULT_LOCALE)
 
 
 class AppError(Exception):
@@ -68,11 +70,18 @@ def register_error_handlers(app: FastAPI) -> None:
     from app.llm.client import LLMError
 
     @app.exception_handler(LLMError)
-    async def _handle_llm_unavailable(_: Request, exc: LLMError) -> JSONResponse:
+    async def _handle_llm_unavailable(request: Request, exc: LLMError) -> JSONResponse:
         logger.warning("LLM unavailable; returning 503 to client: %s", exc)
         return JSONResponse(
             status_code=503,
-            content={"error": {"code": "llm_unavailable", "message": LLM_UNAVAILABLE_MESSAGE}},
+            content={
+                "error": {
+                    "code": "llm_unavailable",
+                    "message": translate(
+                        "llm_unavailable", parse_locale(request.headers.get("accept-language"))
+                    ),
+                }
+            },
         )
 
     # A database that has gone away gives the same treatment. SQLAlchemy does *not* wrap
@@ -82,11 +91,17 @@ def register_error_handlers(app: FastAPI) -> None:
     # said "ok". The net is deliberately wide because that is the shape the failure
     # arrives in; nothing is swallowed, since the real exception is logged at error level.
     @app.exception_handler(OSError)
-    async def _handle_database_unavailable(_: Request, exc: OSError) -> JSONResponse:
+    async def _handle_database_unavailable(request: Request, exc: OSError) -> JSONResponse:
         logger.error("database unreachable; returning 503 to client: %r", exc)
         return JSONResponse(
             status_code=503,
             content={
-                "error": {"code": "database_unavailable", "message": DATABASE_UNAVAILABLE_MESSAGE}
+                "error": {
+                    "code": "database_unavailable",
+                    "message": translate(
+                        "database_unavailable",
+                        parse_locale(request.headers.get("accept-language")),
+                    ),
+                }
             },
         )

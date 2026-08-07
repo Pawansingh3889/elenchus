@@ -16,53 +16,103 @@ class Settings(BaseSettings):
     database_url: str = Field(
         ..., description="Async SQLAlchemy URL, e.g. postgresql+asyncpg://user:pass@host/db"
     )
-    # Only needed for LLM features; the LLM client validates its presence at use,
-    # so the scaffold and CRUD run without it.
-    anthropic_api_key: str = Field("", description="Anthropic API key")
-    anthropic_model: str = Field("claude-sonnet-5", description="Anthropic model id")
-
-    # Backup LLMs form an ordered failover chain after the Anthropic primary: the first
-    # backup is tried when the primary fails, the second when the first also fails, the
-    # third when both fail. Each is any OpenAI-compatible endpoint (Cerebras, Groq,
-    # OpenRouter, a self-hosted server…). If the primary key is absent the first configured
-    # backup leads. base_url/model are required when a tier is enabled; api_key may be
-    # blank for keyless local servers.
-    llm_backup_enabled: bool = Field(False, description="Enable the first backup LLM")
-    llm_backup_base_url: str = Field(
-        "", description="First backup base URL, e.g. https://api.cerebras.ai/v1"
+    # The LLM tiers form one ordered failover chain. Tier 1 serves every turn until it
+    # raises, then tier 2, and so on; the intended order is OpenAI, Groq, OpenRouter,
+    # then a local Ollama. Every tier speaks the OpenAI Chat Completions API, so any
+    # compatible endpoint fits (OpenAI itself, Groq, OpenRouter, vLLM, Ollama).
+    #
+    # Only the LLM features need these; templates, publishing and results run with no
+    # tier configured at all. base_url and model are required once a tier is enabled and
+    # the client refuses to construct without them, rather than degrading quietly.
+    # api_key stays optional because a local server does not ask for one.
+    llm_tier1_enabled: bool = Field(False, description="Enable tier 1, the first tier tried")
+    llm_tier1_base_url: str = Field(
+        "", description="Tier 1 base URL, e.g. https://api.openai.com/v1"
     )
-    llm_backup_api_key: str = Field("", description="First backup API key (blank if not required)")
-    llm_backup_model: str = Field("", description="First backup model id, e.g. llama-3.3-70b")
+    llm_tier1_api_key: str = Field("", description="Tier 1 API key (blank if not required)")
+    llm_tier1_model: str = Field("", description="Tier 1 model id")
     # Local CPU-served models can take >60s on a cold load; a genuinely unreachable
     # endpoint still fails fast via the separate connect timeout.
-    llm_backup_timeout_seconds: float = Field(
-        120.0, gt=0, description="Read timeout for the first backup, in seconds"
+    llm_tier1_timeout_seconds: float = Field(
+        120.0, gt=0, description="Read timeout for tier 1, in seconds"
     )
 
-    # Second backup, tried only when both the primary and the first backup fail.
-    llm_backup2_enabled: bool = Field(False, description="Enable the second backup LLM")
-    llm_backup2_base_url: str = Field(
-        "", description="Second backup base URL, e.g. https://api.groq.com/openai/v1"
+    llm_tier2_enabled: bool = Field(False, description="Enable tier 2, tried when tier 1 fails")
+    llm_tier2_base_url: str = Field(
+        "", description="Tier 2 base URL, e.g. https://api.groq.com/openai/v1"
     )
-    llm_backup2_api_key: str = Field(
-        "", description="Second backup API key (blank if not required)"
-    )
-    llm_backup2_model: str = Field(
-        "", description="Second backup model id, e.g. llama-3.3-70b-versatile"
-    )
-    llm_backup2_timeout_seconds: float = Field(
-        120.0, gt=0, description="Read timeout for the second backup, in seconds"
+    llm_tier2_api_key: str = Field("", description="Tier 2 API key (blank if not required)")
+    llm_tier2_model: str = Field("", description="Tier 2 model id, e.g. llama-3.3-70b-versatile")
+    llm_tier2_timeout_seconds: float = Field(
+        120.0, gt=0, description="Read timeout for tier 2, in seconds"
     )
 
-    # Third backup, tried only when the primary and both prior backups fail.
-    llm_backup3_enabled: bool = Field(False, description="Enable the third backup LLM")
-    llm_backup3_base_url: str = Field(
-        "", description="Third backup base URL, e.g. https://openrouter.ai/api/v1"
+    llm_tier3_enabled: bool = Field(False, description="Enable tier 3, tried when 1 and 2 fail")
+    llm_tier3_base_url: str = Field(
+        "", description="Tier 3 base URL, e.g. https://openrouter.ai/api/v1"
     )
-    llm_backup3_api_key: str = Field("", description="Third backup API key (blank if not required)")
-    llm_backup3_model: str = Field("", description="Third backup model id, e.g. openrouter/free")
-    llm_backup3_timeout_seconds: float = Field(
-        120.0, gt=0, description="Read timeout for the third backup, in seconds"
+    llm_tier3_api_key: str = Field("", description="Tier 3 API key (blank if not required)")
+    llm_tier3_model: str = Field("", description="Tier 3 model id, e.g. openrouter/free")
+    llm_tier3_timeout_seconds: float = Field(
+        120.0, gt=0, description="Read timeout for tier 3, in seconds"
+    )
+
+    # Last resort, and the one that runs with no credit attached: a local Ollama.
+    llm_tier4_enabled: bool = Field(False, description="Enable tier 4, the last resort")
+    llm_tier4_base_url: str = Field(
+        "", description="Tier 4 base URL, e.g. http://localhost:11434/v1"
+    )
+    llm_tier4_api_key: str = Field("", description="Tier 4 API key (blank if not required)")
+    llm_tier4_model: str = Field("", description="Tier 4 model id, e.g. llama3.2:3b")
+    llm_tier4_timeout_seconds: float = Field(
+        120.0, gt=0, description="Read timeout for tier 4, in seconds"
+    )
+
+    # What each tier costs and what is serving it, for the spend ledger. Separate from
+    # the connection settings above because they answer a different question: those say
+    # how to reach a tier, these say what reaching it is worth.
+    #
+    # params_b is configuration because no provider reports it, and it is the axis the
+    # measurement turns on: the same token count means one thing from a 3B model and
+    # another from a 70B one. Zero reads as "not stated" in the ledger.
+    #
+    # A local tier bills no tokens, so its prices stay zero and `local=True` prices it
+    # from wall clock against hardware_watts and electricity_price_per_kwh instead.
+    # Without that flag a locally served run reports as free, which is the one number
+    # that is certainly wrong.
+    llm_tier1_params_b: float = Field(0.0, ge=0, description="Tier 1 model size in billions")
+    llm_tier1_local: bool = Field(False, description="Tier 1 runs on our own hardware")
+    llm_tier1_price_in_per_mtok: float = Field(0.0, ge=0, description="Tier 1 USD/1M input")
+    llm_tier1_price_out_per_mtok: float = Field(0.0, ge=0, description="Tier 1 USD/1M output")
+
+    llm_tier2_params_b: float = Field(0.0, ge=0, description="Tier 2 model size in billions")
+    llm_tier2_local: bool = Field(False, description="Tier 2 runs on our own hardware")
+    llm_tier2_price_in_per_mtok: float = Field(0.0, ge=0, description="Tier 2 USD/1M input")
+    llm_tier2_price_out_per_mtok: float = Field(0.0, ge=0, description="Tier 2 USD/1M output")
+
+    llm_tier3_params_b: float = Field(0.0, ge=0, description="Tier 3 model size in billions")
+    llm_tier3_local: bool = Field(False, description="Tier 3 runs on our own hardware")
+    llm_tier3_price_in_per_mtok: float = Field(0.0, ge=0, description="Tier 3 USD/1M input")
+    llm_tier3_price_out_per_mtok: float = Field(0.0, ge=0, description="Tier 3 USD/1M output")
+
+    llm_tier4_params_b: float = Field(3.0, ge=0, description="Tier 4 model size in billions")
+    llm_tier4_local: bool = Field(True, description="Tier 4 runs on our own hardware")
+    llm_tier4_price_in_per_mtok: float = Field(0.0, ge=0, description="Tier 4 USD/1M input")
+    llm_tier4_price_out_per_mtok: float = Field(0.0, ge=0, description="Tier 4 USD/1M output")
+
+    # What the machine draws while it is serving a local tier, and what that energy
+    # costs. Defaults are a mid-range desktop under load on a UK domestic tariff; both
+    # are guesses until measured, and the ledger records what it was told rather than
+    # pretending to know. Fold amortised hardware into the tariff if you want it counted.
+    hardware_watts: float = Field(
+        200.0, ge=0, description="Power draw while serving a local tier, in watts"
+    )
+    electricity_price_per_kwh: float = Field(
+        0.32, ge=0, description="Electricity price in USD per kWh"
+    )
+    llm_ledger_path: str = Field(
+        "var/llm_ledger.jsonl",
+        description="Append-only JSONL record of every model call, for offline analysis",
     )
 
     app_env: str = Field("dev", description="dev | prod")

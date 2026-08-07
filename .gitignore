@@ -39,3 +39,11 @@ npm-debug.log*
 
 # One-off local export artifacts
 exports/
+
+# The LLM spend ledger. Append-only telemetry, one line per model call: local to
+# whoever ran the surveys, and it grows without bound. LLM_LEDGER_PATH overrides it.
+backend/var/
+
+# Local-only compose overlay that publishes Postgres to the host for a GUI client;
+# its own header says it is not to be committed.
+docker-compose.dbport.yml

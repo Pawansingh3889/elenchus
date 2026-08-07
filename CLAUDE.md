@@ -29,7 +29,7 @@ A standalone, embeddable survey service, in two halves:
   schema-constrained tool call, validated before use. The conduct engine — not the model —
   owns which question is current, whether the run is complete, and how many follow-ups are
   spent. Prompts are versioned files under `backend/app/llm/prompts/`. One LLM client
-  module owns the SDK, retries, timeouts, and token logging.
+  module owns the HTTP calls, timeouts, and token logging.
 - **No fallbacks**: missing or invalid data fails loudly with a typed error and the correct
   HTTP status. No `.get(x, default)` shrugs over required data.
 
@@ -55,11 +55,12 @@ Must-haves are the bar. Stretch goals only if the must-haves are solid.
 
 - **Commits**: conventional and atomic, on `feature/<slug>` branches merged to main.
   Commit only when a unit is complete and verified (builds, migration applies, tests pass).
-- **Backend quality**: `ruff` + `black` + `mypy` clean. `pytest` + `pytest-asyncio`; the
+- **Backend quality**: `make gate` clean, which is `ruff` + `black` + `mypy` + import
+  contracts + guards + the suite, and is what CI runs. `pytest` + `pytest-asyncio`; the
   conduct engine and publish/versioning logic are the test priorities. The LLM is mocked at
   the client-wrapper boundary so tests run without an API key.
 - **Frontend quality**: `eslint` + `tsc --noEmit` clean. No frontend test harness for the trial.
-- **Secrets**: `.env` is git-ignored, `.env.example` is committed. The Anthropic key never
+- **Secrets**: `.env` is git-ignored, `.env.example` is committed. No provider key ever
   enters the repo.
 - **Prompts as code**: versioned under `backend/app/llm/prompts/`, loaded by name + version.
 
@@ -70,3 +71,14 @@ Must-haves are the bar. Stretch goals only if the must-haves are solid.
 - **Native Postgres enums** for the controlled lists (role, template status, answer type,
   run status, answer kind, message role) — the schema enforces the vocabularies, not just
   the app layer.
+- **Architecture rules are executable, and every gate is proven.** The layering in
+  this file is enforced by import-linter contracts and by guards under
+  `backend/scripts/`, not by review alone. `tests/test_gates.py` plants a violation
+  for each guard and asserts it is rejected, because a gate nobody has watched reject
+  anything is decoration. Guards fail when they cannot run, rather than passing having
+  checked nothing. `make gate` is exactly what CI runs. Adopted from the copernus
+  project on 6 Aug 2026.
+- **One provider protocol, no vendored SDK.** Every LLM tier is reached over the OpenAI
+  Chat Completions API through a single `httpx` client, so adding a provider is config
+  rather than code. The Anthropic SDK and its client were removed on 6 Aug 2026; the
+  chain is OpenAI, Groq, OpenRouter, then a local Ollama, in that order.

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 
 import { LivePreview } from "@/components/LivePreview";
-import { clearedBy, remapConditions } from "@/lib/conditions";
+import { clearedBy, followOptionRename, remapConditions, repairConditionsFor } from "@/lib/conditions";
 import { QuestionEditor } from "@/components/QuestionEditor";
 import {
   useCurrentUser,
@@ -15,6 +15,8 @@ import {
   useTemplate,
   useUpdateTemplate,
 } from "@/lib/queries";
+import { ApiError } from "@/lib/api";
+import { useT } from "@/lib/i18n/useT";
 import { useDraftNoteStore, useUserStore } from "@/lib/store";
 import type { QuestionInput } from "@/lib/types";
 
@@ -29,6 +31,7 @@ const blankQuestion = (): QuestionInput => ({
 });
 
 export default function BuilderPage({ params }: { params: Promise<{ id: string }> }) {
+  const msg = useT();
   const { id } = use(params);
   const currentUserId = useUserStore((s) => s.currentUserId);
   const currentUser = useCurrentUser();
@@ -84,15 +87,34 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
     );
   }
 
-  if (!currentUserId) return <div className="empty">Pick a user in the top bar.</div>;
-  if (isRespondent) return <div className="empty">Taking you to Respond…</div>;
-  if (isLoading) return <div className="muted">Loading…</div>;
+  if (!currentUserId) return <div className="empty">{msg.builder.pickUser}</div>;
+  if (isRespondent) return <div className="empty">{msg.home.goingToRespond}</div>;
+  if (isLoading) return <div className="muted">{msg.common.loading}</div>;
   if (error || !template) {
-    return <div className="error-text">{error ? (error as Error).message : "Not found"}</div>;
+    return <div className="error-text">{error ? (error as Error).message : msg.common.notFound}</div>;
   }
 
+  // Editing a question can orphan a *later* question's condition: change the type and
+  // the options go, remove an option and a condition naming it describes an answer that
+  // can no longer be given. Repositioning is not the only edit conditions depend on.
+  //
+  // An option RENAME is followed before repair judges anything. This runs on every
+  // keystroke, so "Days" being edited to "Nights" passes through "Day", "Da"… and a
+  // repair-only pass cleared the condition at the first non-matching keystroke, then
+  // had no way to restore it when the author finished typing.
   const patchQuestion = (i: number, patch: Partial<QuestionInput>) =>
-    setQuestions((qs) => qs.map((q, j) => (j === i ? { ...q, ...patch } : q)));
+    setQuestions((qs) => {
+      const patched = qs.map((q, j) => (j === i ? { ...q, ...patch } : q));
+      const touchesAnswers = "answer_type" in patch || "options" in patch || "allow_other" in patch;
+      if (!touchesAnswers) return patched;
+      const followed =
+        "options" in patch && patch.options
+          ? followOptionRename(patched, i, qs[i].options, patch.options)
+          : patched;
+      const next = repairConditionsFor(followed, i);
+      setDropped(clearedBy(followed, next));
+      return next;
+    });
   const addQuestion = () => setQuestions((qs) => [...qs, blankQuestion()]);
   // Deleting or reordering shifts positions, and conditions are keyed by position —
   // so both have to repoint them or a condition silently starts referring to whatever
@@ -114,6 +136,24 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
       setDropped(clearedBy(qs, next));
       return next;
     });
+
+  // Which questions the server last objected to, so the complaint can sit on the card
+  // it belongs to. A message under the description is a scroll away from a question far
+  // down the list, and the author has to match "Question 4" to a card by counting.
+  const rejected = [update.error, publish.error, refine.error]
+    .flatMap((e) => (e instanceof ApiError ? e.questions : []))
+    .filter((v, i, all) => all.indexOf(v) === i);
+
+  // Known-bad before the server is even asked: a condition with nothing to match, and a
+  // select with nothing to choose. Both are states the builder can reach, so Publish
+  // should say why it is unavailable rather than failing after a round trip.
+  const blockers = questions.flatMap((q, i) => {
+    const problems: string[] = [];
+    if (q.show_when && !q.show_when.value.trim()) problems.push(msg.builder.conditionHasNoAnswer);
+    if ((q.answer_type === "single_select" || q.answer_type === "multi_select") && !q.options.length)
+      problems.push(msg.builder.selectHasNoOptions);
+    return problems.map((p) => msg.builder.publishBlocker(i + 1, p));
+  });
 
   const body = { title, description: description || null, questions };
   const save = () => update.mutate(body);
@@ -163,35 +203,36 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
             className="builder-title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Survey title"
+            placeholder={msg.builder.titlePlaceholder}
           />
           <div className="builder-actions">
             <span className={`pill pill-${template.status}`}>{template.status}</span>
             <Link href={`/templates/${template.id}/results`} className="btn btn-secondary">
-              Responses
+              {msg.builder.responses}
             </Link>
             <button className="btn btn-secondary" onClick={save} disabled={update.isPending}>
-              {update.isPending ? "Saving…" : "Save"}
+              {update.isPending ? msg.common.saving : msg.common.save}
             </button>
             <button
               className="btn btn-primary"
               onClick={onPublish}
-              disabled={publish.isPending || questions.length === 0}
+              disabled={publish.isPending || questions.length === 0 || blockers.length > 0}
+              title={blockers.length > 0 ? blockers.join("\n") : undefined}
             >
-              {publish.isPending ? "Publishing…" : "Publish"}
+              {publish.isPending ? msg.common.publishing : msg.common.publish}
             </button>
             {confirmingDelete ? (
               <>
                 <button className="btn btn-danger" onClick={onDelete} disabled={remove.isPending}>
-                  {remove.isPending ? "Deleting…" : "Confirm delete"}
+                  {remove.isPending ? msg.common.deleting : msg.common.confirmDelete}
                 </button>
                 <button className="btn btn-secondary" onClick={() => setConfirmingDelete(false)}>
-                  Cancel
+                  {msg.common.cancel}
                 </button>
               </>
             ) : (
               <button className="btn btn-quiet" onClick={() => setConfirmingDelete(true)}>
-                Delete
+                {msg.common.delete}
               </button>
             )}
           </div>
@@ -201,7 +242,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
           className="field builder-desc"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Description (optional)"
+          placeholder={msg.builder.descriptionPlaceholder}
         />
 
         {update.error ? <div className="error-text">{(update.error as Error).message}</div> : null}
@@ -213,10 +254,9 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
         <div className="questions">
           {dropped > 0 ? (
           <div className="notice">
-            {dropped === 1 ? "A visibility condition was" : `${dropped} visibility conditions were`}
-            {" cleared: the question it pointed at was removed or is no longer earlier."}
+            {msg.builder.conditionsCleared(dropped)}
             <button className="link-btn" onClick={() => setDropped(0)}>
-              dismiss
+              {msg.common.dismiss}
             </button>
           </div>
         ) : null}
@@ -226,6 +266,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
               index={i}
               total={questions.length}
               question={q}
+              rejected={rejected.includes(i)}
               onChange={(patch) => patchQuestion(i, patch)}
               earlier={questions.slice(0, i)}
               onRemove={() => removeQuestion(i)}
@@ -233,14 +274,14 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
             />
           ))}
           <button className="add-question" onClick={addQuestion}>
-            + Add question
+            {msg.builder.addQuestion}
           </button>
         </div>
       </div>
 
       <div className="builder-side">
         <div className="card refine-card">
-          <div className="card-label">✦ Refine with AI</div>
+          <div className="card-label">{msg.builder.refineTitle}</div>
           <div className="refine-notes">
             {notes.length === 0 ? (
               <p className="muted refine-hint">
@@ -265,7 +306,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
             <input
               className="field"
               value={instruction}
-              placeholder="Describe a change…"
+              placeholder={msg.builder.refinePlaceholder}
               disabled={refine.isPending || update.isPending}
               onChange={(e) => setInstruction(e.target.value)}
             />

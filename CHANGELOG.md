@@ -5,6 +5,84 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-08-06. Architecture rules made executable, and the gates proven
+
+Adopted from the copernus project, whose Makefile states the principle: a gate that
+has never been observed to reject anything is decoration.
+
+The layering in CLAUDE.md was true only by review. It is now enforced:
+
+- **Import contracts** (`lint-imports`). Inside every domain, imports point downward
+  only, router to service to repository to models. `service` and `models` are optional
+  layers because app.conduct keeps its logic in engine.py and app.users has no service;
+  a layer that is absent is skipped, a layer that exists is ordered. A second contract
+  keeps transport in one module: nothing above `app.llm.openai_compatible` may import
+  httpx, urllib, socket or requests directly.
+- **Guards** (`backend/scripts/`), for the rules a contract cannot express. Only
+  repositories may import the query surface, meaning select, func and selectinload,
+  while a router naming AsyncSession for its dependency is fine and always was; that
+  distinction is below module granularity, and import-linter cannot forbid a subpackage
+  of an external package. Alembic owns the schema, so `create_all` is rejected in app
+  code and in tests. Prompts must be named `<name>_v<N>.md`, and every PROMPT_VERSION
+  constant must resolve to a file that exists, which otherwise fails at the one moment
+  a model is called.
+- **Proof that each gate works** (`tests/test_gates.py`, 15 tests). Each guard is run
+  against a clean fake repository, against one with exactly one planted violation, and
+  against an empty directory. The third case is the one that hides: a naive checker
+  walks no files, finds nothing, and exits 0 having verified nothing at all.
+- **`make gate`**, which is exactly what CI runs, and the repo's first Makefile.
+
+227 tests.
+
+## 2026-08-06. Ported from glance: summary verification and the local tier
+
+The glance project is a parallel build of this same service. Three pieces of it were
+worth taking, and were taken rather than reinvented:
+
+- **A checker on the run summary.** The schema and the verbatim-quote gate cannot
+  decide whether the headline and key facts are *supported* by the answers; a rule can
+  prove a quote verbatim, only a reader can notice a fact the respondent never gave. A
+  second call now reads the draft against the same extract the writer was fed, blind to
+  how it was drafted, and either passes it or sends it back once with notes. Refused
+  twice is a 502 and nothing is stored. The verdict is itself schema-gated: unfaithful
+  while naming no problem is invalid, because it cannot be redrafted against.
+- **A local Ollama as tier 4.** The tier was configurable but unreachable, so the last
+  resort in the chain was decorative. Compose now runs its own, with a healthcheck that
+  asserts the model is pulled rather than that the server answers, and the model kept
+  resident server-side because the /v1 OpenAI shim does not reliably honour a per-request
+  keep_alive. The backend waits on the pull, so a fresh machine downloads weights before
+  the API accepts traffic.
+- **GPU overrides and a deployment compose.** Two GPU files, because Docker Desktop on
+  WSL2 has no nvidia runtime and needs /dev/dxg mapped instead. The prod file pins images
+  by digest, keeps Postgres off the host interface, refuses to start without a password,
+  and skips the seed. Its header states plainly that auth is still the X-User-Id shim, so
+  the stack is not fit for the public internet.
+
+Deliberately not taken: glance's `incidents` and `ask` domains, the first already dead in
+glance and the second specific to a factory floor. Its `sample_data` package needed no
+porting, this repo having the same one already.
+
+## 2026-08-06. One provider protocol: the Anthropic path removed
+
+The Anthropic key had been blank for a while, and the factory only ever built that client
+when a key was set, so in practice every turn was already served by an OpenAI-compatible
+tier. This makes that the design rather than an accident:
+
+- `LLMClient`, the Anthropic SDK wrapper, and the `anthropic` dependency are gone.
+  `app/llm/client.py` now holds only the contract every client satisfies: the typed
+  errors, the one-turn shape, and the protocol. `backup.py` became `openai_compatible.py`
+  and is the single client, reached over `httpx`.
+- The chain is now four ordered tiers: OpenAI, Groq, OpenRouter, then a local Ollama.
+  `LLM_BACKUP*_*` became `LLM_TIER1_*` through `LLM_TIER4_*`, since nothing is a backup
+  once there is no primary. Tier order is positional: disabling one promotes nothing.
+- With no tier enabled the factory now raises rather than returning a client that fails
+  later, further from the cause.
+- A turn cut off at the token limit raises `TruncatedTurnError` instead of arriving as a
+  retryable `NoToolCallError`. Only the Anthropic client had ever made that distinction,
+  and retrying a truncated turn at the same budget stops in the same place. Salvage still
+  runs first, so a call that completed before the cut-off is used.
+- `test_llm_client.py` is deleted along with the SDK path it exercised. 207 tests pass.
+
 ## 2026-08-05 — Client branding removed from the code and from history
 
 The trial ended on 28 July and the client asked that their branding and template styling

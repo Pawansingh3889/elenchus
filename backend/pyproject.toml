@@ -11,10 +11,8 @@ dependencies = [
     "alembic>=1.14",
     "pydantic>=2.10",
     "pydantic-settings>=2.6",
-    "anthropic>=0.40",
-    # Imported at module scope by app/llm/backup.py, which is on the import chain from
-    # app.main. It was dev-only, so the image (uv sync --no-dev) booted only because
-    # anthropic happens to pull httpx in transitively.
+    # The only HTTP client in the app: every LLM tier is reached through it, so it is a
+    # first-class runtime dependency rather than something inherited from an SDK.
     "httpx>=0.28",
 ]
 
@@ -25,6 +23,8 @@ dev = [
     "ruff>=0.8",
     "black>=24.10",
     "mypy>=1.13",
+    "import-linter>=2.13",
+    "pytest-cov>=7.1.0",
 ]
 
 [tool.uv]
@@ -56,3 +56,53 @@ plugins = ["pydantic.mypy"]
 asyncio_mode = "auto"
 pythonpath = ["."]
 testpaths = ["tests"]
+
+# ---------------------------------------------------------------------------
+# Executable architecture. CLAUDE.md and ARCHITECTURE.md state these rules in
+# prose; import-linter is what makes them true. A layering rule that lives only
+# in a document is a rule the next commit can break without anyone noticing.
+# ---------------------------------------------------------------------------
+[tool.importlinter]
+root_packages = ["app"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Layered inside every domain"
+type = "layers"
+layers = ["router", "(service)", "repository", "(models)"]
+containers = ["app.templates", "app.runs", "app.conduct", "app.users"]
+comment = """
+Imports point downward only: router -> service -> repository -> models. The
+contract resolves the real import graph, so an aliased import, a re-export or a
+chain through a third module all fail it.
+
+service and models are parenthesised because they are optional, not because
+they are less binding: app.conduct puts its logic in engine.py and reads the
+run models from app.runs, and app.users has no service. A layer that is absent
+is skipped; a layer that exists is ordered.
+"""
+
+[[tool.importlinter.contracts]]
+name = "One module owns the HTTP calls"
+type = "forbidden"
+source_modules = [
+    "app.llm.client",
+    "app.llm.factory",
+    "app.llm.failover",
+    "app.conduct.engine",
+    "app.runs.summary",
+    "app.templates.generation",
+]
+forbidden_modules = ["httpx", "urllib", "socket", "requests"]
+allow_indirect_imports = "true"
+comment = """
+"One LLM client module owns the HTTP calls, timeouts, and token logging"
+(CLAUDE.md). app.llm.openai_compatible is that module and is deliberately not
+in this list. client.py holds the contract and must stay free of transport, so
+that swapping providers is one module's problem; the engines above it reach a
+provider only through LLMProtocol.
+
+Direct imports only. Reaching a socket through the factory is the design: the
+factory's whole job is to build the client that owns the transport. What this
+forbids is a module opening its own connection beside it.
+"""

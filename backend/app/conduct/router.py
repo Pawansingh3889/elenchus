@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import HTTP_201_CREATED
 
@@ -16,6 +16,7 @@ from app.conduct.schemas import (
     StartRunRequest,
 )
 from app.db.session import get_session
+from app.i18n import parse_locale
 from app.runs.models import SurveyRun
 from app.runs.schemas import AnswerRead, MessageRead
 from app.users.models import User
@@ -55,9 +56,15 @@ async def start_run(
     data: StartRunRequest,
     respondent: User = Depends(require_respondent),
     session: AsyncSession = Depends(get_session),
+    accept_language: str | None = Header(default=None),
 ) -> RunRead:
     engine = ConductEngine(session)
-    run = await engine.start_run(data.template_id, respondent)
+    # The language is settled here, once, and stored on the run. Later turns read it
+    # from the run rather than the header, so resuming somewhere else cannot switch
+    # the interview's language halfway through.
+    run = await engine.start_run(
+        data.template_id, respondent, language=parse_locale(accept_language)
+    )
     return await _to_read(engine, run)
 
 
@@ -103,4 +110,20 @@ async def post_message(
 ) -> RunRead:
     engine = ConductEngine(session)
     run = await engine.handle_message(run_id, data.content, respondent)
+    return await _to_read(engine, run)
+
+
+@router.post("/{run_id}/rewind", response_model=RunRead)
+async def rewind_last_answer(
+    run_id: UUID,
+    respondent: User = Depends(require_respondent),
+    session: AsyncSession = Depends(get_session),
+) -> RunRead:
+    """Take back the most recent answer so the respondent can give a better one.
+
+    No body: which answer this is, is the engine's to decide, not the client's. Asking
+    for one by id would be the same door the model is refused at in ``_rejection``.
+    """
+    engine = ConductEngine(session)
+    run = await engine.rewind_last_answer(run_id, respondent)
     return await _to_read(engine, run)

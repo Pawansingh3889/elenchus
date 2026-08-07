@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Transcript } from "@/components/Transcript";
+import { useT } from "@/lib/i18n/useT";
 import { api } from "@/lib/api";
 import {
   useCurrentUser,
@@ -69,6 +70,7 @@ function readValue(value: Record<string, unknown>): string {
 /** The AI summary panel. Only offered on a completed run: summarising a half-finished
  *  one would describe a response the respondent is still giving. */
 function SummaryCard({ templateId, run }: { templateId: string; run: RunDetail }) {
+  const msg = useT();
   const summarise = useSummariseRun(templateId, run.id);
   const summary = run.summary;
   const done = run.status === "completed";
@@ -76,7 +78,7 @@ function SummaryCard({ templateId, run }: { templateId: string; run: RunDetail }
   return (
     <div className="card">
       <div className="card-label">
-        Summary
+        {msg.results.summary}
         <span className="chip chip-follow">AI</span>
       </div>
 
@@ -141,6 +143,7 @@ function SummaryCard({ templateId, run }: { templateId: string; run: RunDetail }
 }
 
 export default function ResultsPage() {
+  const msg = useT();
   const { id } = useParams<{ id: string }>();
   const currentUserId = useUserStore((s) => s.currentUserId);
   const currentUser = useCurrentUser();
@@ -155,10 +158,10 @@ export default function ResultsPage() {
   }, [isRespondent, router]);
 
   if (!currentUserId) {
-    return <div className="empty">Pick an author in the top bar to see responses.</div>;
+    return <div className="empty">{msg.results.pickAuthor}</div>;
   }
   if (isRespondent) {
-    return <div className="empty">Taking you to Respond…</div>;
+    return <div className="empty">{msg.home.goingToRespond}</div>;
   }
 
   async function download(format: "csv" | "json") {
@@ -178,13 +181,13 @@ export default function ResultsPage() {
   return (
     <div className="page">
       <div className="page-head">
-        <h1>Responses</h1>
+        <h1>{msg.results.title}</h1>
         <div className="page-head-actions">
           <button
             className="btn btn-secondary"
             onClick={() => download("csv")}
             disabled={!runs || runs.length === 0}
-            title="Every answer as a spreadsheet row — opens directly in Excel"
+            title={msg.results.exportCsvHint}
           >
             Export CSV
           </button>
@@ -192,7 +195,7 @@ export default function ResultsPage() {
             className="btn btn-secondary"
             onClick={() => download("json")}
             disabled={!runs || runs.length === 0}
-            title="Every answer as structured JSON"
+            title={msg.results.exportJsonHint}
           >
             Export JSON
           </button>
@@ -202,10 +205,10 @@ export default function ResultsPage() {
         </div>
       </div>
 
-      {isLoading ? <div className="muted">Loading…</div> : null}
+      {isLoading ? <div className="muted">{msg.common.loading}</div> : null}
       {error ? <div className="error-text">{(error as Error).message}</div> : null}
       {runs && runs.length === 0 ? (
-        <div className="muted">No responses yet. Publish the survey and answer it to see it here.</div>
+        <div className="muted">{msg.results.empty}</div>
       ) : null}
 
       {runs && runs.length > 0 ? (
@@ -230,9 +233,9 @@ export default function ResultsPage() {
 
           <div className="results-detail">
             {!selected ? (
-              <div className="muted">Pick a response to read it.</div>
+              <div className="muted">{msg.results.pickOne}</div>
             ) : detail.isLoading ? (
-              <div className="muted">Loading…</div>
+              <div className="muted">{msg.common.loading}</div>
             ) : detail.error ? (
               <div className="error-text">{(detail.error as Error).message}</div>
             ) : detail.data ? (
@@ -240,7 +243,7 @@ export default function ResultsPage() {
                 <SummaryCard templateId={id} run={detail.data} />
 
                 <div className="card">
-                  <div className="card-label">Answers</div>
+                  <div className="card-label">{msg.results.answers}</div>
                   <div className="detail-head">
                     <strong>{detail.data.respondent_name}</strong>
                     <span>version {detail.data.version}</span>
@@ -254,7 +257,7 @@ export default function ResultsPage() {
                         was probed but never answered has no row to hang a chip on. */}
                     {totalProbes(detail.data) > 0 ? (
                       <span>
-                        {totalProbes(detail.data)} follow-up
+                        {totalProbes(detail.data)} {msg.results.followUp}
                         {totalProbes(detail.data) === 1 ? "" : "s"} asked
                       </span>
                     ) : null}
@@ -267,7 +270,7 @@ export default function ResultsPage() {
                           {detail.data.follow_ups_asked?.[group.questionId] ? (
                             <span
                               className="chip chip-follow"
-                              title="Follow-ups the engine allowed on this question. A probe is counted when it is asked, so this can exceed the number of follow-up answers below."
+                              title={msg.results.probeHint}
                             >
                               {detail.data.follow_ups_asked[group.questionId]} probed
                             </span>
@@ -285,13 +288,13 @@ export default function ResultsPage() {
                             </div>
                           </>
                         ) : (
-                          <div className="muted">Not answered</div>
+                          <div className="muted">{msg.results.notAnswered}</div>
                         )}
                         {group.followUps.map((followUp, i) => (
                           <div key={`${group.questionId}-${i}`} className="answer-follow">
                             <div className="answer-q">
                               {followUp.question_text}
-                              <span className="chip chip-follow">follow-up</span>
+                              <span className="chip chip-follow">{msg.results.followUp}</span>
                             </div>
                             <div className="answer-v">{readValue(followUp.value)}</div>
                             <div className="answer-stamp">
@@ -302,13 +305,13 @@ export default function ResultsPage() {
                       </div>
                     ))}
                     {detail.data.answers.length === 0 ? (
-                      <div className="muted">Nothing answered yet.</div>
+                      <div className="muted">{msg.results.nothingAnswered}</div>
                     ) : null}
                   </div>
                 </div>
 
                 <div className="card">
-                  <div className="card-label">Transcript</div>
+                  <div className="card-label">{msg.results.transcript}</div>
                   <Transcript messages={detail.data.messages} flat />
                 </div>
               </>

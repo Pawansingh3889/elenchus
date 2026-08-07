@@ -16,11 +16,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.conduct.repository import RunRepository
 from app.conduct.validation import AnswerValidationError, validate_answer
 from app.errors import ConflictError, ForbiddenError, NotFoundError
+from app.i18n import language_note, translate
+from app.llm import ledger
 from app.llm.client import LLMError, LLMProtocol, NoToolCallError, ToolTurn
 from app.llm.factory import get_llm
 from app.llm.prompts import load_prompt
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
-from app.runs.models import REPLY_PREFIX, Answer, RunMessage, SurveyRun
+from app.runs.models import REPLY_PREFIX, Answer, RunMessage, SurveyRun, add_llm_spend
 from app.templates.snapshot import questions_of
 from app.templates.visibility import next_visible, remaining_possible
 from app.users.models import User
@@ -32,7 +34,9 @@ MAX_REPLIES = 2  # conversational replies per question (record nothing, advance 
 MAX_MODEL_TURNS = 3  # per respondent message
 TRANSCRIPT_WINDOW = 12  # messages replayed per turn; the briefing restates the question
 _REJECTED = "run=%s question=%s tool=%s raw_input=%r raw_text=%r error=%s"
-CLOSING_FALLBACK = "That's everything — thank you, your answers are saved."
+# Said when the model supplies no closing line of its own. Resolved per run rather than
+# fixed, because it is the engine's own sentence: unlike a question's text, no author
+# wrote it, so nothing is lost by saying it in the respondent's language.
 
 RECORD = "record_answer"
 FOLLOW_UP = "ask_follow_up"
@@ -56,7 +60,9 @@ class ConductEngine:
 
     # ---------------------------------------------------------------- lifecycle
 
-    async def start_run(self, template_id: UUID, respondent: User) -> SurveyRun:
+    async def start_run(
+        self, template_id: UUID, respondent: User, language: str = "en"
+    ) -> SurveyRun:
         version = await self.repo.latest_version(template_id)
         if version is None:
             raise ConflictError("This template has no published version to answer.")
@@ -64,7 +70,9 @@ class ConductEngine:
         if not questions:
             raise ConflictError("The published version has no questions.")
 
-        run = SurveyRun(template_version_id=version.id, respondent_id=respondent.id)
+        run = SurveyRun(
+            template_version_id=version.id, respondent_id=respondent.id, language=language
+        )
         run.messages.append(
             RunMessage(
                 role=MessageRole.assistant,
@@ -113,25 +121,107 @@ class ConductEngine:
         return out
 
     async def handle_message(self, run_id: UUID, content: str, respondent: User) -> SurveyRun:
-        # One turn at a time per run. Without this, two messages arriving together — a
-        # double-clicked send, or a client retrying after a timeout — both read the same
-        # current question and the same probe budget, then both write: the run ends up
-        # with two scripted answers for one question, and a follow-up cap of 2 can be
-        # driven past 2 because the JSONB counter is a read-modify-write.
+        run, questions = await self._locked_open_run(run_id, respondent)
+
+        run.messages.append(RunMessage(role=MessageRole.user, content=content))
+        await self.session.flush()
+
+        # Everything the model costs for this message, gathered here and folded into the
+        # run in the same transaction as the answer it produced. A turn that fails partway
+        # still committed nothing, and the ledger file keeps the calls it did make: the
+        # rollup is the app's summary, the file is the record.
+        with ledger.measuring(run.id) as spend:
+            utterance = await self._turn_loop(run, questions)
+        add_llm_spend(run, spend)
+        run.messages.append(RunMessage(role=MessageRole.assistant, content=utterance))
+        await self.session.commit()
+        return await self.load(run_id, respondent)
+
+    async def rewind_last_answer(self, run_id: UUID, respondent: User) -> SurveyRun:
+        """Undo the most recent scripted answer so it can be given again.
+
+        A respondent who answered in a word and then realised there was more to say could
+        otherwise only carry on: the engine refuses any action aimed at an earlier
+        question (``_rejection``), and that refusal is right, because it stops the *model*
+        rewriting history. This is the respondent asking, through the engine, and it is
+        deliberately the only way back.
+
+        Exactly one step, and only while the run is open. Restoring an arbitrary answer
+        would mean re-deciding which of the questions after it are still visible, since a
+        ``show_when`` reads what was recorded before it; stepping back to the last
+        answered question, whose successors hold no answers yet, leaves nothing to
+        reconcile, and ``_advance`` recomputes visibility from the new answer when the
+        respondent replies. A completed run is sealed: the author may already have read
+        it, so it must not change underneath them.
+
+        What goes: the scripted answer, every follow-up hanging off the same question, the
+        transcript from that turn onwards, and the follow-up and reply budgets of that
+        question and every question after it. The budgets are refunded rather than carried
+        over because the question is being asked afresh, not continued, and a second
+        answer worth probing deserves the probes the first one spent.
+        """
+        run, questions = await self._locked_open_run(run_id, respondent)
+
+        last = next((a for a in reversed(run.answers) if a.kind is AnswerKind.scripted), None)
+        if last is None:
+            raise ConflictError("Nothing has been answered yet.")
+        key = str(last.question_id)
+        index = next((i for i, q in enumerate(questions) if q["id"] == key), None)
+        if index is None:
+            # An answer naming a question the frozen version does not contain. No code
+            # path produces this; guessing an index to rewind to would bury it.
+            raise NotFoundError("The answered question is missing from this run's version.")
+
+        # Every answer this question produced. Only the first record for a question is
+        # scripted, so its follow-ups and any declined probe share the same question id.
+        for answer in [a for a in run.answers if str(a.question_id) == key]:
+            run.answers.remove(answer)
+
+        # Timestamps are stamped per row in Python, not by Postgres ``now()`` (see
+        # runs/models.py), so the order within a single turn is real: the respondent's
+        # message, then the answer, then the engine's reply. Cutting above the answer
+        # drops that reply and everything after it; stripping the trailing respondent
+        # turns then drops the message that earned the answer. What is left ends on the
+        # assistant message that last asked something, which is where the run resumes.
+        for message in [m for m in run.messages if m.created_at > last.answered_at]:
+            run.messages.remove(message)
+        while run.messages and run.messages[-1].role is MessageRole.user:
+            run.messages.remove(run.messages[-1])
+
+        # Refund the budgets of the rewound question AND everything after it, not just
+        # its own. The deleted turns can have spent probes or replies on the *next*
+        # question (probing is not gated on an answer existing, and a confused
+        # respondent's questions cost replies), and a budget charged for conversation
+        # that no longer exists would leave the model with no legal way to clarify when
+        # the respondent reaches that question again. Earlier questions keep theirs:
+        # their transcript survives, so their spend is still real.
+        earlier = {q["id"] for q in questions[:index]}
+        run.probes_asked = {
+            k: v for k, v in run.probes_asked.items() if k.removeprefix(REPLY_PREFIX) in earlier
+        }
+        run.current_question_index = index
+        await self.session.commit()
+        return await self.load(run_id, respondent)
+
+    async def _locked_open_run(
+        self, run_id: UUID, respondent: User
+    ) -> tuple[SurveyRun, list[dict[str, Any]]]:
+        """Lock, load, refuse-if-finished, fetch questions: the shared preamble of every
+        entry point that writes to a run.
+
+        One turn at a time per run. Without the lock, two messages arriving together, a
+        double-clicked send or a client retrying after a timeout, both read the same
+        current question and the same probe budget, then both write: two scripted
+        answers for one question, and a cap of 2 driven past 2 because the JSONB counter
+        is a read-modify-write. A rewind racing the turn it rewinds would likewise
+        delete the answer that turn is still writing.
+        """
         if not await self.repo.try_lock(run_id):
             raise ConflictError("This run is already handling a message. Try again in a moment.")
         run = await self.load(run_id, respondent)
         if run.status is not RunStatus.in_progress:
             raise ConflictError("This run is already finished.")
-        questions = await self.questions(run)
-
-        run.messages.append(RunMessage(role=MessageRole.user, content=content))
-        await self.session.flush()
-
-        utterance = await self._turn_loop(run, questions)
-        run.messages.append(RunMessage(role=MessageRole.assistant, content=utterance))
-        await self.session.commit()
-        return await self.load(run_id, respondent)
+        return run, await self.questions(run)
 
     # ------------------------------------------------------------------- engine
 
@@ -180,24 +270,26 @@ class ConductEngine:
             ]
         try:
             turn = await self.llm.tool_turn(
-                system=load_prompt("conduct_v2") + "\n\n" + briefing,
+                system="\n\n".join(
+                    (load_prompt("conduct_v3"), language_note(run.language), briefing)
+                ),
                 messages=messages,
                 tools=tools,
             )
-        except NoToolCallError:
-            # The model chatted instead of acting — responsive but off-script, so one
-            # nudged retry is cheap. Timeouts and transport failures deliberately do
-            # NOT retry here: doubling a 120-second wait helps nobody.
+        except NoToolCallError as exc:
+            # The model chatted, or called several tools at once: responsive but
+            # off-script, so one nudged retry is cheap. Timeouts and transport failures
+            # deliberately do NOT retry here: doubling a 120-second wait helps nobody.
             if previous_error is not None:
                 raise
-            logger.warning("model returned no tool call, retrying: run=%s", run.id)
+            logger.warning("model returned no usable tool call, retrying: run=%s", run.id)
             return await self._decide(
                 run,
                 questions,
                 question,
                 state,
                 tools,
-                "no tool was called — you must call exactly one of the offered tools",
+                f"{exc} You must call exactly one of the offered tools.",
             )
         error = _rejection(question, state, tools, turn)
         if error is None:
@@ -258,7 +350,11 @@ class ConductEngine:
                     question_id=UUID(question["id"]),
                     kind=AnswerKind.scripted if scripted else AnswerKind.follow_up,
                     question_text=question["text"] if scripted else _last_assistant(run),
-                    value=validate_answer(question, turn.tool_input["value"]),
+                    value=(
+                        validate_answer(question, turn.tool_input["value"])
+                        if scripted
+                        else _follow_up_value(question, turn.tool_input["value"])
+                    ),
                     answered_by=run.respondent_id,
                 )
             )
@@ -300,7 +396,15 @@ class ConductEngine:
         if run.current_question_index >= len(questions):
             run.status = RunStatus.completed
             run.completed_at = datetime.now(UTC)
-            return CLOSING_FALLBACK if skipped else (turn.text or CLOSING_FALLBACK)
+            closing = translate("closing", run.language)
+            return closing if skipped else (turn.text or closing)
+        # The author's question text, spoken verbatim when the model offers nothing.
+        # Deliberately not translated, even in a non-English run: this is the survey's
+        # own wording, the thing the author wrote and will read answers against, and
+        # rendering it in another language is survey-content translation, which needs
+        # per-locale question text on the template rather than a guess made here. The
+        # consequence is real and worth knowing: a run conducted in Spanish shows the
+        # English question whenever the model returns an empty utterance.
         asking = str(questions[run.current_question_index]["text"])
         return asking if skipped else (turn.text or asking)
 
@@ -351,13 +455,15 @@ def _transcript(run: SurveyRun) -> list[dict[str, str]]:
 
     Windowing is safe by construction: the briefing restates the current question, type,
     options, and budgets every turn, so distant history is never needed to act — and an
-    unbounded replay overflows the small context of a local backup model long before a
-    survey ends.
+    unbounded replay overflows the small context of a local model long before a survey
+    ends.
 
-    The leading user turn is not cosmetic. Anthropic rejects a message list that starts
-    with the assistant, and every run starts with the engine's opening question — so
-    each of a run's first few turns 400'd on the primary and quietly fell through to a
-    backup. Only the windowed path was safe, because its own head is a user message.
+    The leading user turn is not cosmetic. It was forced by the old Anthropic tier, which
+    rejects a message list starting with the assistant: every run opens with the engine's
+    question, so a run's first few turns 400'd and fell through to the next tier. Only
+    the windowed path was safe, because its own head is a user message. That tier is
+    gone, and the invariant stays: an assistant-first list is the odd thing to hand any
+    provider, and nothing here is cheaper for having dropped it.
     """
     messages = [
         {"role": "assistant" if m.role is MessageRole.assistant else "user", "content": m.content}
@@ -369,6 +475,43 @@ def _transcript(run: SurveyRun) -> list[dict[str, str]]:
     if messages and messages[0]["role"] != "user":
         messages = [{"role": "user", "content": "[survey started]"}, *messages]
     return messages
+
+
+def _follow_up_value(question: dict[str, Any], raw: Any) -> dict[str, Any]:
+    """A follow-up's answer: the scripted question's shape when it fits, prose when not.
+
+    Tried in that order rather than the reverse, because a probe that re-asked the
+    scripted question should stay structured: "which of those two did you mean?"
+    belongs in the results as an option, not as the word "Operations" in a text cell.
+
+    One carve-out inside "when it fits": a write-in. On a select with allow_other,
+    validate_answer accepts ANY non-empty string as a write-in choice, which made the
+    prose path unreachable, so "the scanner drops its connection every few hours" was
+    stored as an option the respondent supposedly picked. A prose string only counts as
+    a re-ask answer when it names an actual option; otherwise it is what the respondent
+    said, recorded as text. A *list* on a multi-select still passes through whole,
+    write-ins included, because a list is unambiguously structured intent.
+
+    Everything else is a new, open question the model wrote, and the honest record of
+    the answer is what the respondent said. A boolean recorded against "could you
+    describe the issues you've encountered?" is not a compressed answer, it is a lost
+    one, and it renders in the author's results as "yes".
+
+    Non-strings that do not fit the parent's shape still fail loudly. The looseness here
+    is about prose being legitimate, not about the gate being optional.
+    """
+    fitted: dict[str, Any] | None
+    try:
+        fitted = validate_answer(question, raw)
+    except AnswerValidationError:
+        fitted = None
+    if fitted is not None and not (isinstance(raw, str) and "other" in fitted):
+        return fitted
+    if not isinstance(raw, str) or not raw.strip():
+        raise AnswerValidationError(
+            f"a follow-up answer must fit the question's type or be text, got {raw!r}"
+        )
+    return {"text": raw.strip()}
 
 
 def _value_schema(question: dict[str, Any]) -> dict[str, Any]:
@@ -398,10 +541,30 @@ def _tools_for(question: dict[str, Any], state: dict[str, Any]) -> list[dict[str
     question_id = {"type": "string", "description": "The current question's id."}
     tools: list[dict[str, Any]] = []
     if not state.get("recorded_this_turn"):
-        value_schema = {
-            "description": "The answer, shaped for the question's type.",
-            **_value_schema(question),
-        }
+        if state.get("scripted_recorded"):
+            # This record can only be a follow-up: the scripted answer is already in.
+            # A probe is a new question the model wrote, and it is usually open ("could
+            # you describe that?"), so the parent's shape is the wrong constraint. It is
+            # offered as well as prose rather than instead of it, because a probe that
+            # re-asks the same question ("which of those did you mean?") should still
+            # record the option and stay structured.
+            #
+            # Without this a follow-up on a yes/no question could return nothing but a
+            # boolean, so "Could you describe the issues you've encountered?" recorded
+            # `true` and the respondent's description was never sent at all.
+            value_schema = {
+                "description": (
+                    "The answer to the follow-up you asked. Use the scripted question's "
+                    "shape only if your follow-up re-asked that question; otherwise give "
+                    "the respondent's answer in their own words as a string."
+                ),
+                "anyOf": [_value_schema(question), {"type": "string"}],
+            }
+        else:
+            value_schema = {
+                "description": "The answer, shaped for the question's type.",
+                **_value_schema(question),
+            }
         tools.append(
             {
                 "name": RECORD,
@@ -530,7 +693,13 @@ def _rejection(
         if "value" not in turn.tool_input:
             return "record_answer requires a value"
         try:
-            validate_answer(question, turn.tool_input["value"])
+            # The same rule as the recording itself, and it has to be, or the value is
+            # judged twice by two standards. This gate runs first, so a follow-up's
+            # prose was rejected here before the recording rule ever saw it.
+            if state["scripted_recorded"]:
+                _follow_up_value(question, turn.tool_input["value"])
+            else:
+                validate_answer(question, turn.tool_input["value"])
         except AnswerValidationError as exc:
             return exc.message
         return None

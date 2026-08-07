@@ -1,6 +1,36 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+import { DEFAULT_LOCALE, isLocale, type Locale } from "./i18n";
+
+interface LocaleState {
+  locale: Locale;
+  setLocale: (locale: Locale) => void;
+}
+
+// The chosen language. Persisted, because being asked again on every reload is the
+// single most irritating thing a language picker can do. The API client reads it out
+// of band for the Accept-Language header, exactly as it does the acting user.
+export const useLocaleStore = create<LocaleState>()(
+  persist(
+    (set) => ({
+      locale: DEFAULT_LOCALE,
+      setLocale: (locale) => set({ locale }),
+    }),
+    {
+      name: "elenchus-locale",
+      // A locale that was dropped from the offered set is still sitting in the browsers
+      // of everyone who picked it. The strings would fall back to English on their own,
+      // but the picker binds to this value and would render with nothing selected, so
+      // the retired tag is resolved to the default on the way out of storage.
+      merge: (persisted, current) => {
+        const saved = (persisted as Partial<LocaleState> | undefined)?.locale;
+        return { ...current, locale: saved && isLocale(saved) ? saved : DEFAULT_LOCALE };
+      },
+    },
+  ),
+);
+
 interface UserState {
   currentUserId: string | null;
   setCurrentUserId: (id: string | null) => void;

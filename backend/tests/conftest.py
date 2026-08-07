@@ -1,13 +1,25 @@
-"""Test fixtures: a real Postgres test database with a fresh schema per test.
+"""Test fixtures: a real Postgres test database whose schema comes from the migrations.
 
 Uses the compose Postgres (a separate ``elenchus_test`` database), so repository and
-service logic is exercised against the real engine, not a stand-in.
+service logic is exercised against the real engine, not a stand-in. The schema is built
+once per session by ``alembic upgrade head`` and each test starts from truncated tables:
+a suite whose schema came from ``Base.metadata`` was testing the models rather than the
+migrations, which is precisely what ``check_no_create_all`` forbids, and this conftest
+sat in that guard's blind spot until the guard learned to see the ``run_sync`` idiom.
 """
 
+import asyncio
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
 import pytest_asyncio
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
+from app.config import get_settings
 from app.db.base import Base
 from app.runs import models as _runs  # noqa: F401  (register tables on metadata)
 from app.templates import models as _templates  # noqa: F401
@@ -18,21 +30,84 @@ from app.users.models import User, UserRole
 
 ADMIN_URL = "postgresql+asyncpg://elenchus:elenchus@localhost:5432/elenchus"
 TEST_URL = "postgresql+asyncpg://elenchus:elenchus@localhost:5432/elenchus_test"
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _ledger_to_a_temp_file(tmp_path_factory):
+    """Keep the suite out of the real spend ledger.
+
+    ``LLM_LEDGER_PATH`` defaults to a path relative to the backend directory, which is
+    where pytest runs from. Without this, every test that drives the LLM client appends
+    invented calls to the same file real runs are measured in, so ``make gate`` quietly
+    corrupts the data set the ledger exists to build. Found by running the suite and then
+    reading the file: it was full of ``nemotron-test`` at tier 0.
+
+    Session-scoped and autouse because the damage is silent and any test can cause it.
+    """
+    path = tmp_path_factory.mktemp("ledger") / "llm_ledger.jsonl"
+    previous = os.environ.get("LLM_LEDGER_PATH")
+    os.environ["LLM_LEDGER_PATH"] = str(path)
+    get_settings.cache_clear()
+    yield
+    if previous is None:
+        os.environ.pop("LLM_LEDGER_PATH", None)
+    else:
+        os.environ["LLM_LEDGER_PATH"] = previous
+    get_settings.cache_clear()
+
+
+@pytest.fixture(scope="session")
+def _migrated_test_schema():
+    """Build the test schema from the migrations, once per session.
+
+    A subprocess rather than the Alembic API, because the async ``migrations/env.py``
+    ends in ``asyncio.run`` and cannot nest inside a pytest event loop; a sync
+    session-scoped fixture runs outside any loop, so its own ``asyncio.run`` for the
+    database reset is safe. The schema is dropped first so a table left behind by an
+    older branch cannot make an upgrade pass that would fail on a clean install.
+    """
+
+    async def reset_database() -> None:
+        admin = create_async_engine(ADMIN_URL, isolation_level="AUTOCOMMIT")
+        async with admin.connect() as conn:
+            found = await conn.scalar(
+                text("SELECT 1 FROM pg_database WHERE datname = 'elenchus_test'")
+            )
+            if not found:
+                await conn.execute(text("CREATE DATABASE elenchus_test"))
+        await admin.dispose()
+        eng = create_async_engine(TEST_URL, isolation_level="AUTOCOMMIT")
+        async with eng.connect() as conn:
+            await conn.execute(text("DROP SCHEMA public CASCADE"))
+            await conn.execute(text("CREATE SCHEMA public"))
+        await eng.dispose()
+
+    asyncio.run(reset_database())
+    result = subprocess.run(
+        [sys.executable, "-m", "alembic", "upgrade", "head"],
+        cwd=BACKEND_DIR,
+        env={**os.environ, "DATABASE_URL": TEST_URL},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            "alembic upgrade head failed on the test database, so the suite cannot "
+            f"run:\n{result.stdout}\n{result.stderr}"
+        )
 
 
 @pytest_asyncio.fixture
-async def engine():
-    admin = create_async_engine(ADMIN_URL, isolation_level="AUTOCOMMIT")
-    async with admin.connect() as conn:
-        found = await conn.scalar(text("SELECT 1 FROM pg_database WHERE datname = 'elenchus_test'"))
-        if not found:
-            await conn.execute(text("CREATE DATABASE elenchus_test"))
-    await admin.dispose()
-
+async def engine(_migrated_test_schema):
     eng = create_async_engine(TEST_URL)
     async with eng.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
+        # Isolation between tests is truncation, not re-creation: the schema itself came
+        # from the migrations above and stays put for the whole session. One statement,
+        # CASCADE for the foreign keys.
+        tables = ", ".join(table.name for table in Base.metadata.sorted_tables)
+        await conn.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
     yield eng
     await eng.dispose()
 
@@ -68,6 +143,33 @@ async def respondent(session):
     session.add(user)
     await session.flush()
     return user
+
+
+@pytest_asyncio.fixture
+async def published_yes_no(session, author):
+    """A published survey whose first question is yes/no and permits follow-ups.
+
+    Its own fixture because the interesting case is a probe hanging off a question
+    whose type cannot express prose: that is where a real run recorded `true` against
+    "could you describe the issues you've encountered?".
+    """
+    svc = TemplateService(session)
+    template = await svc.create_draft(
+        TemplateCreate(
+            title="Support check",
+            questions=[
+                QuestionInput(
+                    text="Have you encountered any issues with our AI product?",
+                    answer_type=AnswerType.yes_no,
+                    allow_follow_ups=True,
+                ),
+                QuestionInput(text="Rate the support you received", answer_type=AnswerType.rating),
+            ],
+        ),
+        author,
+    )
+    await svc.publish(template.id, author)
+    return template
 
 
 @pytest_asyncio.fixture

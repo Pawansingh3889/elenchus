@@ -1,6 +1,6 @@
-"""Backup-provider tests: the failover wrapper and the OpenAI-compatible client.
+"""Provider tests: the failover wrapper and the OpenAI-compatible client.
 
-All offline — the OpenAI-compatible client is driven through an httpx MockTransport, so no
+All offline: the OpenAI-compatible client is driven through an httpx MockTransport, so no
 network or API key is touched, and the failover wrapper uses in-memory doubles.
 """
 
@@ -10,9 +10,16 @@ from typing import Any
 import httpx
 import pytest
 
-from app.llm.backup import OpenAICompatibleLLMClient
-from app.llm.client import LLMError, ToolTurn
+from app.llm.client import LLMError, NoToolCallError, ToolTurn
 from app.llm.failover import FailoverLLM
+from app.llm.openai_compatible import OpenAICompatibleLLMClient
+
+
+@pytest.fixture(autouse=True)
+def _no_retry_backoff(monkeypatch):
+    """The retry loop sleeps between attempts; the suite should not."""
+    monkeypatch.setattr("app.llm.openai_compatible.RETRY_BACKOFF_SECONDS", 0)
+
 
 # ---------------------------------------------------------------- failover wrapper
 
@@ -36,14 +43,14 @@ class _StubLLM:
     async def tool_call(self, **_: Any) -> dict[str, Any]:
         self.tool_call_calls += 1
         if self._fail:
-            raise LLMError("primary down")
+            raise LLMError("tier down")
         assert self._payload is not None
         return self._payload
 
     async def tool_turn(self, **_: Any) -> ToolTurn:
         self.tool_turn_calls += 1
         if self._fail:
-            raise LLMError("primary down")
+            raise LLMError("tier down")
         assert self._turn is not None
         return self._turn
 
@@ -54,53 +61,53 @@ _ARGS: dict[str, Any] = dict(
 _TURN_ARGS: dict[str, Any] = dict(system="s", messages=[], tools=[], max_tokens=16)
 
 
-async def test_failover_prefers_primary_and_never_touches_backup():
-    primary = _StubLLM(payload={"ok": True}, turn=ToolTurn("hi", "move_on", {}))
-    backup = _StubLLM(payload={"ok": False}, turn=ToolTurn("no", "move_on", {}))
-    failover = FailoverLLM(primary, backup)
+async def test_failover_prefers_the_first_tier_and_never_touches_the_second():
+    tier1 = _StubLLM(payload={"ok": True}, turn=ToolTurn("hi", "move_on", {}))
+    tier2 = _StubLLM(payload={"ok": False}, turn=ToolTurn("no", "move_on", {}))
+    failover = FailoverLLM(tier1, tier2)
 
     assert await failover.tool_call(**_ARGS) == {"ok": True}
     assert await failover.tool_turn(**_TURN_ARGS) == ToolTurn("hi", "move_on", {})
-    assert (backup.tool_call_calls, backup.tool_turn_calls) == (0, 0)
+    assert (tier2.tool_call_calls, tier2.tool_turn_calls) == (0, 0)
 
 
-async def test_failover_uses_backup_when_primary_fails():
-    primary = _StubLLM(fail=True)
-    backup = _StubLLM(payload={"from": "backup"}, turn=ToolTurn("hey", "record_answer", {"v": 1}))
-    failover = FailoverLLM(primary, backup)
+async def test_failover_uses_the_second_tier_when_the_first_fails():
+    tier1 = _StubLLM(fail=True)
+    tier2 = _StubLLM(payload={"from": "tier2"}, turn=ToolTurn("hey", "record_answer", {"v": 1}))
+    failover = FailoverLLM(tier1, tier2)
 
-    assert await failover.tool_call(**_ARGS) == {"from": "backup"}
+    assert await failover.tool_call(**_ARGS) == {"from": "tier2"}
     assert await failover.tool_turn(**_TURN_ARGS) == ToolTurn("hey", "record_answer", {"v": 1})
-    assert (primary.tool_call_calls, primary.tool_turn_calls) == (1, 1)
-    assert (backup.tool_call_calls, backup.tool_turn_calls) == (1, 1)
+    assert (tier1.tool_call_calls, tier1.tool_turn_calls) == (1, 1)
+    assert (tier2.tool_call_calls, tier2.tool_turn_calls) == (1, 1)
 
 
-async def test_failover_propagates_backup_failure_loudly():
+async def test_failover_propagates_a_last_tier_failure_loudly():
     failover = FailoverLLM(_StubLLM(fail=True), _StubLLM(fail=True))
     with pytest.raises(LLMError):
         await failover.tool_call(**_ARGS)
 
 
-async def test_failover_chains_through_to_the_second_backup():
-    """Anthropic -> Cerebras -> Groq: both earlier tiers fail, the third answers."""
-    primary = _StubLLM(fail=True)
-    backup1 = _StubLLM(fail=True)
-    backup2 = _StubLLM(payload={"from": "b2"}, turn=ToolTurn("ok", "move_on", {}))
-    failover = FailoverLLM(primary, backup1, backup2)
+async def test_failover_chains_through_to_the_third_tier():
+    """OpenAI -> Groq -> OpenRouter: both earlier tiers fail, the third answers."""
+    tier1 = _StubLLM(fail=True)
+    tier2 = _StubLLM(fail=True)
+    tier3 = _StubLLM(payload={"from": "t3"}, turn=ToolTurn("ok", "move_on", {}))
+    failover = FailoverLLM(tier1, tier2, tier3)
 
-    assert await failover.tool_call(**_ARGS) == {"from": "b2"}
+    assert await failover.tool_call(**_ARGS) == {"from": "t3"}
     assert await failover.tool_turn(**_TURN_ARGS) == ToolTurn("ok", "move_on", {})
-    assert primary.tool_call_calls == backup1.tool_call_calls == backup2.tool_call_calls == 1
+    assert tier1.tool_call_calls == tier2.tool_call_calls == tier3.tool_call_calls == 1
 
 
 async def test_failover_stops_at_the_first_healthy_tier():
-    primary = _StubLLM(fail=True)
-    backup1 = _StubLLM(payload={"from": "b1"}, turn=ToolTurn("ok", "move_on", {}))
-    backup2 = _StubLLM(payload={"from": "b2"}, turn=ToolTurn("no", "move_on", {}))
-    failover = FailoverLLM(primary, backup1, backup2)
+    tier1 = _StubLLM(fail=True)
+    tier2 = _StubLLM(payload={"from": "t2"}, turn=ToolTurn("ok", "move_on", {}))
+    tier3 = _StubLLM(payload={"from": "t3"}, turn=ToolTurn("no", "move_on", {}))
+    failover = FailoverLLM(tier1, tier2, tier3)
 
-    assert await failover.tool_call(**_ARGS) == {"from": "b1"}
-    assert backup2.tool_call_calls == 0  # the second backup is never reached
+    assert await failover.tool_call(**_ARGS) == {"from": "t2"}
+    assert tier3.tool_call_calls == 0  # the third tier is never reached
 
 
 async def test_failover_propagates_the_last_error_when_every_tier_fails():
@@ -119,7 +126,7 @@ def test_failover_needs_at_least_one_client():
 
 def _client(handler: Any) -> OpenAICompatibleLLMClient:
     return OpenAICompatibleLLMClient(
-        base_url="http://backup.local/v1",
+        base_url="http://tier.local/v1",
         api_key="k",
         model="nemotron-test",
         transport=httpx.MockTransport(handler),
@@ -163,12 +170,13 @@ async def test_tool_call_forces_the_named_tool_and_parses_arguments():
 
     assert result == {"title": "Onboarding"}
     assert seen["auth"] == "Bearer k"
-    # The request forced exactly the tool we asked for.
+    # The request forced exactly the tool we asked for, and exactly one call of it.
     assert seen["body"]["tool_choice"] == {
         "type": "function",
         "function": {"name": "draft_survey_template"},
     }
     assert seen["body"]["tools"][0]["function"]["name"] == "draft_survey_template"
+    assert seen["body"]["parallel_tool_calls"] is False
 
 
 async def test_tool_turn_requires_a_tool_and_returns_text_plus_choice():
@@ -190,6 +198,8 @@ async def test_tool_turn_requires_a_tool_and_returns_text_plus_choice():
         text="Thanks.", tool_name="record_answer", tool_input={"value": "Line lead"}
     )
     assert seen["body"]["tool_choice"] == "required"
+    # "required" means at least one call; this is the other half of "exactly one".
+    assert seen["body"]["parallel_tool_calls"] is False
 
 
 async def test_missing_tool_call_fails_loudly():
@@ -251,7 +261,7 @@ async def test_timeout_produces_a_named_error_not_a_blank_line():
         raise httpx.ReadTimeout("")
 
     client = OpenAICompatibleLLMClient(
-        base_url="http://backup.local/v1",
+        base_url="http://tier.local/v1",
         api_key="",
         model="slow-model",
         timeout_seconds=90.0,
@@ -265,7 +275,7 @@ def test_timeout_is_configurable_with_a_fast_connect():
     """A slow local model gets a generous read window; a genuinely unreachable
     endpoint still fails on the short connect timeout."""
     client = OpenAICompatibleLLMClient(
-        base_url="http://backup.local/v1", api_key="", model="m", timeout_seconds=300.0
+        base_url="http://tier.local/v1", api_key="", model="m", timeout_seconds=300.0
     )
     assert client._timeout.read == 300.0
     assert client._timeout.connect == 10.0
@@ -299,6 +309,52 @@ async def test_no_tool_call_raises_the_retryable_error_type():
 
     with pytest.raises(NoToolCallError):
         await _client(handler).tool_turn(system="s", messages=[], tools=[])
+
+
+async def test_a_turn_cut_off_at_the_token_limit_is_not_retryable():
+    """finish_reason "length" means the tokens ran out, not that the model declined to
+    act. Retrying that with a nudge stops in the same place, so it must not arrive as a
+    NoToolCallError."""
+    from app.llm.client import NoToolCallError, TruncatedTurnError
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {"message": {"content": '{"name": "record_'}, "finish_reason": "length"}
+                ]
+            },
+        )
+
+    with pytest.raises(TruncatedTurnError, match="token limit"):
+        await _client(handler).tool_turn(system="s", messages=[], tools=[])
+    # A subclass of LLMError so failover still moves on, but never of the retryable type.
+    assert issubclass(TruncatedTurnError, LLMError)
+    assert not issubclass(TruncatedTurnError, NoToolCallError)
+
+
+async def test_a_complete_call_in_a_truncated_turn_is_still_salvaged():
+    """Truncation is checked after salvage: the model can finish the call and then be cut
+    off mid-prose, and that call is perfectly usable."""
+
+    complete_call = json.dumps({"name": "record_answer", "arguments": {"value": 4}})
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {"content": f"{complete_call} and then it ran ou"},
+                        "finish_reason": "length",
+                    }
+                ]
+            },
+        )
+
+    turn = await _client(handler).tool_turn(system="s", messages=[], tools=[])
+    assert (turn.tool_name, turn.tool_input) == ("record_answer", {"value": 4})
 
 
 @pytest.mark.parametrize(
@@ -398,9 +454,9 @@ async def test_salvage_still_refuses_what_is_not_a_tool_call(label: str, content
         await _client(handler).tool_turn(system="s", messages=[], tools=[])
 
 
-async def test_the_backup_tier_records_its_token_usage(caplog):
-    """A backup can serve any live turn — with no Anthropic key, every turn — and until
-    this was added those tokens were spent with no record whatsoever."""
+async def test_a_tier_records_its_token_usage(caplog):
+    """Any tier can serve any live turn, and until this was added those tokens were
+    spent with no record whatsoever."""
     import logging
 
     def handler(_: httpx.Request) -> httpx.Response:
@@ -408,7 +464,7 @@ async def test_the_backup_tier_records_its_token_usage(caplog):
         body["usage"] = {"prompt_tokens": 812, "completion_tokens": 37, "total_tokens": 849}
         return httpx.Response(200, json=body)
 
-    with caplog.at_level(logging.INFO, logger="app.llm.backup"):
+    with caplog.at_level(logging.INFO, logger="app.llm.openai_compatible"):
         await _client(handler).tool_turn(system="s", messages=[], tools=[])
 
     usage = [r.getMessage() for r in caplog.records if "usage=" in r.getMessage()]
@@ -425,8 +481,184 @@ async def test_a_tier_that_omits_usage_still_logs_cleanly(caplog):
     def handler(_: httpx.Request) -> httpx.Response:
         return _tool_response("move_on", {"question_id": "q"})
 
-    with caplog.at_level(logging.INFO, logger="app.llm.backup"):
+    with caplog.at_level(logging.INFO, logger="app.llm.openai_compatible"):
         turn = await _client(handler).tool_turn(system="s", messages=[], tools=[])
 
     assert turn.tool_name == "move_on"
     assert any("usage=None" in r.getMessage() for r in caplog.records)
+
+
+# ------------------------------------------------- exactly one tool call per turn
+
+
+async def test_a_turn_yields_one_tool_even_if_the_model_sends_two():
+    """The deleted Anthropic-era guard, restored for the OpenAI shape. Taking the first
+    of two calls silently discards the second, and when [move_on, record_answer]
+    arrives, the discarded half is the respondent's answer. Refusing is retryable: the
+    model is responsive, just off-script, which is NoToolCallError's exact case."""
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": "",
+                            "tool_calls": [
+                                {"function": {"name": "move_on", "arguments": "{}"}},
+                                {
+                                    "function": {
+                                        "name": "record_answer",
+                                        "arguments": json.dumps({"value": True}),
+                                    }
+                                },
+                            ],
+                        }
+                    }
+                ]
+            },
+        )
+
+    with pytest.raises(NoToolCallError, match="2 tool calls"):
+        await _client(handler).tool_turn(system="s", messages=[], tools=[])
+
+
+# ------------------------------------------------------------- transient retries
+
+
+def _flaky(responses: list[httpx.Response | Exception]):
+    """A handler that serves the scripted responses in order, counting attempts."""
+    calls = {"n": 0}
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        index = min(calls["n"], len(responses) - 1)
+        calls["n"] += 1
+        item = responses[index]
+        if isinstance(item, Exception):
+            raise item
+        return item
+
+    return handler, calls
+
+
+async def test_a_rate_limited_call_is_retried_in_tier():
+    """The removed SDK client retried transient failures (max_retries=2); a survey turn
+    must not surface a 503 to the respondent over one momentary 429."""
+    handler, calls = _flaky(
+        [httpx.Response(429, text="slow down"), _tool_response("move_on", {"question_id": "q"})]
+    )
+    turn = await _client(handler).tool_turn(system="s", messages=[], tools=[])
+    assert turn.tool_name == "move_on"
+    assert calls["n"] == 2
+
+
+async def test_a_connection_error_is_retried_in_tier():
+    handler, calls = _flaky(
+        [httpx.ConnectError("refused"), _tool_response("move_on", {"question_id": "q"})]
+    )
+    turn = await _client(handler).tool_turn(system="s", messages=[], tools=[])
+    assert turn.tool_name == "move_on"
+    assert calls["n"] == 2
+
+
+async def test_retries_run_out_and_the_typed_error_survives():
+    handler, calls = _flaky([httpx.Response(503, text="upstream unavailable")])
+    with pytest.raises(LLMError, match="503"):
+        await _client(handler).tool_turn(system="s", messages=[], tools=[])
+    assert calls["n"] == 3  # one call plus two retries, the SDK's old budget
+
+
+async def test_a_read_timeout_is_never_retried_in_tier():
+    """Each attempt can cost the full LLM_TIER<n>_TIMEOUT_SECONDS; a model that is
+    merely slow does not get faster for being asked twice."""
+    handler, calls = _flaky([httpx.ReadTimeout("")])
+    with pytest.raises(LLMError, match="timed out"):
+        await _client(handler).tool_turn(system="s", messages=[], tools=[])
+    assert calls["n"] == 1
+
+
+async def test_a_bad_request_is_never_retried():
+    """Retrying a 400 resends the same bad request."""
+    handler, calls = _flaky([httpx.Response(400, text="bad schema")])
+    with pytest.raises(LLMError, match="400"):
+        await _client(handler).tool_turn(system="s", messages=[], tools=[])
+    assert calls["n"] == 1
+
+
+# ------------------------------------------------- failed calls still reach the ledger
+
+
+@pytest.fixture
+def ledger_file(tmp_path, monkeypatch):
+    """Point the ledger at a private file so this test can read what was booked."""
+    from app.config import get_settings
+
+    path = tmp_path / "ledger.jsonl"
+    monkeypatch.setenv("LLM_LEDGER_PATH", str(path))
+    get_settings.cache_clear()
+    yield path
+    get_settings.cache_clear()
+
+
+async def test_failed_calls_leave_ledger_rows_too(ledger_file):
+    """A ledger that records only successes cannot explain a cost spike caused by an
+    afternoon of 429s pushing traffic to a priced tier."""
+    handler, _ = _flaky(
+        [httpx.Response(429, text="slow down"), _tool_response("move_on", {"question_id": "q"})]
+    )
+    await _client(handler).tool_turn(system="s", messages=[], tools=[])
+
+    rows = [json.loads(line) for line in ledger_file.read_text(encoding="utf-8").splitlines()]
+    assert [row["status"] for row in rows] == [429, 200]
+    assert rows[0]["error"] == "slow down"
+    assert rows[1]["error"] is None
+
+
+async def test_a_call_that_never_connected_is_booked_with_status_zero(ledger_file):
+    handler, _ = _flaky([httpx.ConnectError("refused")])
+    with pytest.raises(LLMError):
+        await _client(handler).tool_turn(system="s", messages=[], tools=[])
+
+    rows = [json.loads(line) for line in ledger_file.read_text(encoding="utf-8").splitlines()]
+    assert len(rows) == 3  # every attempt is an event, not just the last
+    assert all(row["status"] == 0 for row in rows)
+    assert all("refused" in row["error"] for row in rows)
+
+
+# ------------------------------------------- failover leaves the nudge to the engine
+
+
+class _ChattyLLM(_StubLLM):
+    """A tier that is up but answered with prose instead of a tool call."""
+
+    async def tool_turn(self, **_: Any) -> ToolTurn:
+        self.tool_turn_calls += 1
+        raise NoToolCallError("LLM tier returned no tool call.")
+
+    async def tool_call(self, **_: Any) -> dict[str, Any]:
+        self.tool_call_calls += 1
+        raise NoToolCallError("LLM tier returned no tool call.")
+
+
+async def test_a_chatty_tier_is_not_failed_over_on_the_conversational_path():
+    """A model that chatted is not a downed provider. The engine answers this error
+    with one nudged retry through the same chain; cascading instead silently handed
+    the respondent's turn to ever weaker tiers while the healthy one was fine."""
+    tier1 = _ChattyLLM()
+    tier2 = _StubLLM(turn=ToolTurn("hi", "move_on", {}))
+    failover = FailoverLLM(tier1, tier2)
+
+    with pytest.raises(NoToolCallError):
+        await failover.tool_turn(**_TURN_ARGS)
+    assert tier2.tool_turn_calls == 0
+
+
+async def test_a_chatty_tier_still_cascades_on_the_one_shot_path():
+    """tool_call has no nudge mechanism, so the next tier is its only recovery."""
+    tier1 = _ChattyLLM()
+    tier2 = _StubLLM(payload={"from": "t2"})
+    failover = FailoverLLM(tier1, tier2)
+
+    assert await failover.tool_call(**_ARGS) == {"from": "t2"}
+    assert tier1.tool_call_calls == 1

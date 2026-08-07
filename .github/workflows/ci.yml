@@ -32,8 +32,8 @@ jobs:
 
     env:
       DATABASE_URL: postgresql+asyncpg://elenchus:elenchus@localhost:5432/elenchus
-      # No ANTHROPIC_API_KEY: the suite fakes the LLM at the client wrapper, so it
-      # must pass without one. If a test ever needs a key, that is the bug.
+      # No LLM tier is configured: the suite fakes the LLM at the client wrapper, so
+      # it must pass without a key. If a test ever needs one, that is the bug.
 
     steps:
       - uses: actions/checkout@v4
@@ -53,11 +53,34 @@ jobs:
         run: uv run ruff check .
 
       - name: black
-        run: uv run black --check app tests
+        run: uv run black --check app tests scripts
 
       - name: mypy
         run: uv run mypy app
 
+      # The architecture rules, enforced rather than described. Layering and the
+      # single-HTTP-client rule are import contracts; the query-surface, create_all
+      # and prompt-version rules are guards, because they need name-level precision
+      # that import-linter cannot express for an external package.
+      - name: import contracts
+        run: uv run lint-imports
+
+      - name: guards
+        env:
+          PYTHONPATH: scripts
+        run: |
+          for guard in scripts/check_query_surface.py \
+                       scripts/check_no_create_all.py \
+                       scripts/check_prompts_versioned.py \
+                       scripts/check_contrast.py \
+                       scripts/check_logical_properties.py; do
+            echo "--> $guard"
+            uv run python "$guard" || exit 1
+          done
+
+      # tests/test_gates.py is inside this run: it plants a violation for each
+      # guard and asserts a non-zero exit, so a gate that has stopped rejecting
+      # anything fails the build rather than passing quietly.
       - name: pytest
         run: uv run pytest -q
 

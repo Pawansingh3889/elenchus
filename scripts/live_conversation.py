@@ -1,4 +1,4 @@
-"""Drive real conversations end to end against the live Anthropic API, and assert.
+"""Drive real conversations end to end against the live tier-1 provider, and assert.
 
 The pytest suite is mocked at the LLM client boundary, deliberately: it runs without a
 key and asserts what the engine offers, accepts and refuses. What it cannot assert is
@@ -26,7 +26,7 @@ red on a real regression:
     python scripts/live_conversation.py numbers_dates injection
     python scripts/live_conversation.py broad
 
-Needs a funded ANTHROPIC_API_KEY in the backend's environment and a running stack.
+Needs a funded LLM_TIER1_API_KEY in the backend's environment and a running stack.
 """
 
 from __future__ import annotations

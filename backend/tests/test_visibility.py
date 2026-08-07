@@ -139,6 +139,63 @@ def test_a_condition_must_want_an_option_the_question_offers() -> None:
         )
 
 
+def test_a_condition_on_a_yes_no_question_is_accepted() -> None:
+    """ "Only if they said yes" is the most natural condition an author writes, and a
+    yes/no question has no options list behind it. Pinned because the obvious way to
+    close the gap below is to refuse conditions on questions without options, which
+    would take this with it."""
+    TemplateCreate(
+        title="T",
+        questions=[
+            QuestionInput(text="Trained?", answer_type=AnswerType.yes_no),
+            QuestionInput(
+                text="On what?",
+                answer_type=AnswerType.long_text,
+                show_when={"question": 0, "op": "is", "value": "yes"},
+            ),
+        ],
+    )
+
+
+def test_a_stale_option_value_against_a_yes_no_question_is_refused() -> None:
+    """The state a builder leaves behind when a select is changed to yes/no: the options
+    go, the condition's value stays. Nothing then matches it, so the dependent question
+    is hidden from every respondent, and until this check the draft saved without a
+    murmur. A condition that can never be true is what this validator exists to stop."""
+    with pytest.raises(ValidationError, match="can only answer"):
+        TemplateCreate(
+            title="T",
+            questions=[
+                QuestionInput(text="Trained?", answer_type=AnswerType.yes_no),
+                QuestionInput(
+                    text="On what?",
+                    answer_type=AnswerType.long_text,
+                    show_when={"question": 0, "op": "is", "value": "Quality Manager"},
+                ),
+            ],
+        )
+
+
+def test_the_refusal_numbers_questions_the_way_the_author_sees_them() -> None:
+    """Field paths are 0-indexed and the builder numbers cards from 1. An error naming
+    the wrong question sends the author to the wrong card."""
+    with pytest.raises(ValidationError) as caught:
+        TemplateCreate(
+            title="T",
+            questions=[
+                QuestionInput(text="Trained?", answer_type=AnswerType.yes_no),
+                QuestionInput(
+                    text="On what?",
+                    answer_type=AnswerType.long_text,
+                    show_when={"question": 0, "op": "is", "value": "Quality Manager"},
+                ),
+            ],
+        )
+    message = str(caught.value)
+    assert "question 2's condition" in message  # the dependent question, not index 1
+    assert "question 1 is" in message  # the target, not index 0
+
+
 def test_a_write_in_question_accepts_any_condition_value() -> None:
     """With allow_other the recorded answer genuinely can be anything."""
     TemplateCreate(
