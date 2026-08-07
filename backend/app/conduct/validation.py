@@ -7,6 +7,7 @@ confused model can never corrupt a run.
 import math
 import re
 from datetime import date
+from difflib import SequenceMatcher
 from typing import Any
 
 from app.errors import AppError
@@ -15,6 +16,64 @@ from app.errors import AppError
 class AnswerValidationError(AppError):
     status_code = 422
     code = "answer_invalid"
+
+
+# How much of a recorded free-text answer must be traceable to what the respondent
+# actually said. Not 1.0: the model legitimately merges several messages into one answer
+# and tidies the joins, and a live run produced a good answer built from two separate
+# turns. Not low either, or an invented sentence sharing a few words passes. 0.6 splits
+# the two cases observed in practice by a wide margin, the good merge scoring above 0.9
+# and an invented answer scoring 0.
+_GROUNDING_THRESHOLD = 0.6
+
+# Close enough to count as the same word, so fixing a typo or an inflection is not
+# treated as invention. "systm" against "system" scores 0.91.
+_SAME_WORD = 0.85
+
+_WORD = re.compile(r"[^\W\d_]+", re.UNICODE)
+
+
+def _content_words(text: str) -> list[str]:
+    """Words worth comparing, casefolded. Punctuation and digits are dropped: they carry
+    no evidence of authorship, and a rating written back as "4" would otherwise count."""
+    return [w.casefold() for w in _WORD.findall(text) if len(w) > 2]
+
+
+def ungrounded_text(recorded: str, said: list[str]) -> str | None:
+    """Why this free-text answer is not the respondent's, or None if it is.
+
+    The engine's gates prove an answer has the right *shape*. Nothing proved it had the
+    right *source*, and a live run showed why that matters: sent a message that was not
+    an answer at all, the model wrote a plausible one and it was stored as the
+    respondent's words, indistinguishable from a real reply. Summaries already refuse
+    invented quotes; this is the same rule one layer earlier, where the invention gets in.
+
+    Deliberately lenient about wording and strict about substance. Words are matched
+    fuzzily so tidying survives, and the whole check is skipped when there is too little
+    text to judge, because a one-word answer offers no evidence either way and refusing
+    it would block real respondents to catch nobody.
+    """
+    words = _content_words(recorded)
+    if len(words) < 3:
+        return None
+
+    pool = [w for message in said for w in _content_words(message)]
+    if not pool:
+        return "the respondent has not said anything this answer could be drawn from"
+
+    matched = sum(
+        1
+        for word in words
+        if word in pool
+        or any(SequenceMatcher(None, word, other).ratio() >= _SAME_WORD for other in pool)
+    )
+    if matched / len(words) >= _GROUNDING_THRESHOLD:
+        return None
+    return (
+        "that answer is not what the respondent said: record their own words, or if "
+        "their message did not answer the question, ask a follow-up or flag it "
+        "unanswerable instead of composing an answer for them"
+    )
 
 
 # What a JSON serializer can actually emit for a number. int()/float() alone are too
