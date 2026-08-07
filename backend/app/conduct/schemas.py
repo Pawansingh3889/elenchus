@@ -33,6 +33,11 @@ class RunRead(BaseModel):
     id: UUID
     status: RunStatus
     current_question: CurrentQuestion | None
+    # The engine is probing: what it last asked is a follow-up it wrote, not the scripted
+    # question below. The client needs telling, because `current_question` still
+    # describes the scripted one and rendering its typed controls against a probe offers
+    # the wrong answer entirely: [Yes] [No] chips under "could you describe the issues?".
+    awaiting_follow_up: bool
     answered: int
     total: int
     messages: list[MessageRead]

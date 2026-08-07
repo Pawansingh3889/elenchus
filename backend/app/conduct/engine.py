@@ -97,6 +97,19 @@ class ConductEngine:
             raise NotFoundError("The run's template version is missing.")
         return questions_of(version.definition)
 
+    def probing(self, run: SurveyRun, questions: list[dict[str, Any]]) -> bool:
+        """True when the last thing asked was a follow-up, not the scripted question.
+
+        The engine records a scripted answer and then loops without advancing when the
+        question still permits probing, so "answer recorded, index unmoved" is exactly
+        the state where what the respondent is looking at is a question the model wrote.
+        Read from the answers already loaded on the run rather than counted again, since
+        every caller here is shaping a response and has them to hand.
+        """
+        if run.current_question_index >= len(questions):
+            return False
+        return questions[run.current_question_index]["id"] in _scripted_answers(run)
+
     def progress(self, run: SurveyRun, questions: list[dict[str, Any]]) -> tuple[int, int]:
         """(answered, total) for the respondent's progress indicator.
 
@@ -107,7 +120,13 @@ class ConductEngine:
         """
         answers = _scripted_answers(run)
         answered = len(answers)
-        remaining = remaining_possible(run.current_question_index, questions, answers)
+        # While probing, the current question is answered but the index has not moved,
+        # and remaining_possible counts from its starting index inclusively. Counting
+        # from there would count that question twice, once in each term: a two-question
+        # survey read "1 of 3" mid-probe, and the denominator shrank to 2 when the probe
+        # finished, which reads as the survey getting shorter while you answer it.
+        unanswered_from = run.current_question_index + int(self.probing(run, questions))
+        remaining = remaining_possible(unanswered_from, questions, answers)
         return answered, answered + remaining
 
     async def resumable(self, respondent: User) -> list[tuple[SurveyRun, UUID, str, int, int]]:

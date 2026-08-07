@@ -42,6 +42,7 @@ async def _to_read(engine: ConductEngine, run: SurveyRun) -> RunRead:
         id=run.id,
         status=run.status,
         current_question=current,
+        awaiting_follow_up=engine.probing(run, questions),
         answered=answered,
         total=total,
         messages=[
