@@ -11,14 +11,14 @@ in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Stack
 
-- **Backend** — Python 3.12, FastAPI (async), SQLAlchemy 2.x async + Alembic, PostgreSQL, Pydantic v2
-- **Frontend** — Next.js (App Router) + TypeScript, TanStack Query, Zustand
-- **LLM** — an ordered chain of up to four OpenAI-compatible tiers, tried until one
+- **Backend**: Python 3.12, FastAPI (async), SQLAlchemy 2.x async + Alembic, PostgreSQL, Pydantic v2
+- **Frontend**: Next.js (App Router) + TypeScript, TanStack Query, Zustand
+- **LLM**: an ordered chain of up to four OpenAI-compatible tiers, tried until one
   answers: OpenAI, then Groq, then OpenRouter, then a local Ollama. One client speaks to
   all of them, so no provider SDK is vendored. A tier that is not enabled is skipped, and
   when every tier fails the API returns a calm 503 rather than a raw upstream error. See
   `LLM_TIER*_*` in `.env.example`
-- **Dev** — docker-compose (postgres + backend + frontend)
+- **Dev**: docker-compose (postgres + backend + frontend)
 
 ## Prerequisites
 
@@ -85,7 +85,7 @@ Two more things worth trying:
   and the respondent's progress counts only what they will actually be asked.
 - **Leaving mid-survey.** Close the tab, or use **Finish later**. Every turn is already saved
   server-side, so the run reappears on **Respond** as **Continue** with the progress you left
-  at — rather than starting a second, competing run.
+  at, rather than starting a second, competing run.
 
 Answering needs at least one working tier, configured via `LLM_TIER1_*` through
 `LLM_TIER4_*` (any OpenAI-compatible endpoint). With several enabled, the app uses the
@@ -132,8 +132,8 @@ cd backend
 DATABASE_URL=postgresql+asyncpg://elenchus:elenchus@localhost:5432/elenchus uv run pytest -q
 ```
 
-The suite runs against a real Postgres — the repository layer is exercised against the engine
-it ships on — and fakes the LLM at the client wrapper, so it needs no API key. If a test ever
+The suite runs against a real Postgres (the repository layer is exercised against the engine
+it ships on) and fakes the LLM at the client wrapper, so it needs no API key. If a test ever
 needs one, that is the bug. The tiers follow the same rule: the OpenAI-compatible client is
 driven through an in-process mock transport, so failover coverage runs offline too.
 
@@ -141,7 +141,7 @@ GitHub Actions runs the same gates on every pull request: `alembic upgrade head`
 database, `ruff`, `black`, `mypy` and `pytest` for the backend; `tsc --noEmit`, `eslint` and
 `next build` for the frontend. Both are required to pass before `main` will accept a merge.
 
-`.github/workflows/live-conduct.yml` is the opposite check — it drives real conversations
+`.github/workflows/live-conduct.yml` is the opposite check: it drives real conversations
 through a real model and only runs when you press *Run workflow*, since it costs credit. It
 needs an `LLM_TIER1_API_KEY` repository secret.
 
