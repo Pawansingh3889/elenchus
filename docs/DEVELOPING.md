@@ -113,16 +113,9 @@ Use it whenever the data gets messy, and before showing the app to anyone.
 
 ## 8. The other compose files
 
-```bash
-docker compose -f docker-compose.yml -f docker-compose.gpu.yml up      # NVIDIA on Linux
-docker compose -f docker-compose.yml -f docker-compose.gpu-wsl.yml up  # Docker Desktop on WSL2
-```
-
-Both accelerate the tier-4 Ollama and nothing else, and both are overrides rather than
-part of the base file: a device reservation on a machine without a GPU does not degrade,
-it refuses to start the service. Each file's header records the driver requirement and
-the failure mode when it is not met, which is not an error but a silent fall back to the
-CPU for ever.
+There used to be two GPU overlays here. They accelerated the tier-4 Ollama and nothing
+else, so they went with it on 8 Aug 2026. `docker-compose.dbport.yml` is local-only and
+uncommitted: it publishes Postgres to the host for a GUI client.
 
 `docker-compose.prod.yml` is a separate file rather than a pile of overrides, because
 almost everything the development stack does is wrong for an install: bind-mounting
@@ -133,10 +126,9 @@ something that does the authenticating and not on the public internet.
 
 ## Traps
 
-**The first `compose up` after this change downloads a model.** The backend waits on
-`ollama-pull`, which fetches several GB before the API accepts traffic. It happens once:
-the weights live in a named volume that survives `compose down`. Set `OLLAMA_MODEL` to
-something smaller if that is not what you want.
+**No model runs locally any more.** The stack has no inference service, so every LLM
+feature needs a key for one of the hosted tiers in `.env`. With none configured, template
+CRUD, publishing and results all work; generation and conducting return 503.
 
 **Only one stack at a time.** A second copy of the project cannot bind 3000, 8000 or
 5432 while the first is up — and neither can another project's Postgres. `docker compose

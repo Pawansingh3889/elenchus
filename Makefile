@@ -13,7 +13,7 @@ GUARD_ENV := PYTHONPATH=scripts
 
 help:
 	@echo "make setup       Install backend and frontend dependencies"
-	@echo "make stack-up    Start the stack (postgres, ollama, backend, frontend)"
+	@echo "make stack-up    Start the stack (postgres, backend, frontend)"
 	@echo "make test        Run the backend suite"
 	@echo "make gate        Every architecture check (what CI runs)"
 	@echo "make gate-proof  Prove each gate rejects a planted violation"

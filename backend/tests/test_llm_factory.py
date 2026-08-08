@@ -36,10 +36,12 @@ _OPENROUTER = {
     "llm_tier3_base_url": "https://openrouter.ai/api/v1",
     "llm_tier3_model": "openrouter/free",
 }
-_OLLAMA = {
+# Tier 4 is a spare slot with nothing shipped in it, so this stands for whatever an
+# operator points at: a self-hosted server here, but the chain does not care which.
+_TIER4 = {
     "llm_tier4_enabled": True,
     "llm_tier4_base_url": "http://localhost:11434/v1",
-    "llm_tier4_model": "llama3.2:3b",
+    "llm_tier4_model": "a-local-model",
 }
 
 
@@ -57,12 +59,12 @@ def test_two_tiers_chain_in_configured_order(monkeypatch):
     assert llm._clients[1]._base_url == "https://api.groq.com/openai/v1"  # Groq second
 
 
-def test_the_whole_chain_runs_openai_groq_openrouter_ollama(monkeypatch):
+def test_the_whole_chain_runs_all_four_tiers_in_order(monkeypatch):
     """The configured order, and the one the failover wrapper walks."""
     monkeypatch.setattr(
         factory,
         "get_settings",
-        lambda: _settings(**_OPENAI, **_GROQ, **_OPENROUTER, **_OLLAMA),
+        lambda: _settings(**_OPENAI, **_GROQ, **_OPENROUTER, **_TIER4),
     )
 
     llm = factory.get_llm()
@@ -72,7 +74,7 @@ def test_the_whole_chain_runs_openai_groq_openrouter_ollama(monkeypatch):
         "https://api.openai.com/v1",
         "https://api.groq.com/openai/v1",
         "https://openrouter.ai/api/v1",
-        "http://localhost:11434/v1",  # last resort, and the only one that costs nothing
+        "http://localhost:11434/v1",  # last resort
     ]
 
 
@@ -80,7 +82,7 @@ def test_a_gap_in_the_middle_does_not_reorder_the_rest(monkeypatch):
     """Tier order is positional. Disabling tier 2 promotes nothing: 1, 3 and 4 keep
     their relative order rather than sliding into the free slot."""
     monkeypatch.setattr(
-        factory, "get_settings", lambda: _settings(**_OPENAI, **_OPENROUTER, **_OLLAMA)
+        factory, "get_settings", lambda: _settings(**_OPENAI, **_OPENROUTER, **_TIER4)
     )
 
     llm = factory.get_llm()

@@ -1,7 +1,8 @@
 """Provider failover: try each LLM in an ordered chain until one answers.
 
-The chain runs in tier order, lowest first: OpenAI, then Groq, then OpenRouter, then a
-local Ollama. A tier is reached only when every tier before it raises an ``LLMError``
+The chain runs in tier order, lowest first: OpenAI, then Groq, then OpenRouter, then
+whatever tier 4 has been pointed at, if anything. A tier is reached only when every
+tier before it raises an ``LLMError``
 (transport down, rate limited, credit exhausted, malformed tool call). If every tier
 fails, the last error propagates: the system still fails loudly, never silently
 degrading.

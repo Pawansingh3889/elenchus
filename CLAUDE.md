@@ -81,4 +81,10 @@ Must-haves are the bar. Stretch goals only if the must-haves are solid.
 - **One provider protocol, no vendored SDK.** Every LLM tier is reached over the OpenAI
   Chat Completions API through a single `httpx` client, so adding a provider is config
   rather than code. The Anthropic SDK and its client were removed on 6 Aug 2026; the
-  chain is OpenAI, Groq, OpenRouter, then a local Ollama, in that order.
+  chain is OpenAI, Groq, then OpenRouter, in that order.
+- **Nothing is served locally.** The compose stack ran an Ollama as tier 4 until
+  8 Aug 2026. It was removed: three hosted tiers cover failover, and the weights cost
+  1.9 GB and a cold-load penalty to carry. Tier 4 survives as an empty slot any
+  OpenAI-compatible server can fill from `.env`, so this is config to undo, not code.
+  Do not reintroduce an inference service to the stack without a reason that names
+  what the hosted tiers cannot do.

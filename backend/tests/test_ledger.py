@@ -18,7 +18,12 @@ from app.llm.ledger import TierEconomics, cost_usd
 
 @pytest.fixture
 def ledger_file(tmp_path, monkeypatch):
-    """Point the ledger at a temp file and clear the settings cache around it."""
+    """Point the ledger at a temp file and clear the settings cache around it.
+
+    ``tier=4`` throughout this module means the local tier; conftest configures it as one
+    for the whole suite, since it stopped being local by default when the Ollama service
+    was removed.
+    """
     path = tmp_path / "ledger.jsonl"
     get_settings.cache_clear()
     monkeypatch.setenv("LLM_LEDGER_PATH", str(path))
