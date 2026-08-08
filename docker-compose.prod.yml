@@ -26,8 +26,11 @@
 #                        while 503ing every model call, which is why the model carries
 #                        a real default rather than an empty one.
 #
-# APP_ENV is set to prod below for the deployment's own records. Note that nothing in
-# the code branches on it yet, so it changes no behaviour today.
+# APP_ENV is set to prod below, and it now changes behaviour rather than only recording
+# intent: app.main does not mount the user-list route outside development. That route
+# backs the dev-auth picker, and under the shim a user's id is their credential, so
+# publishing every id is publishing every credential. Here nobody is seeded and there is
+# no picker, so the endpoint has no use that is not an attacker's.
 
 name: elenchus-prod
 

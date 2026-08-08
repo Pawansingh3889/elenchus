@@ -7,7 +7,7 @@ provider supplies the caller.
 
 import pytest
 
-from app.auth.dependencies import require_author, require_respondent
+from app.auth.dependencies import get_current_user, require_author, require_respondent
 from app.conduct.engine import ConductEngine
 from app.errors import ForbiddenError, NotFoundError
 from app.runs.service import ResultsService
@@ -94,3 +94,42 @@ async def test_published_surveys_stay_visible_to_everyone(session, author, other
 
     assert [t.title for t, _, _ in listed] == ["Open"]
     assert all(t.status is TemplateStatus.published for t, _, _ in listed)
+
+
+# --- the dev-auth user list, which must not outlive the dev auth -----------------
+
+
+def test_the_user_list_requires_a_known_caller():
+    """Under the shim a user's id IS their credential, so an open list of every id was an
+    open list of every credential. Requiring a caller means the list can no longer be how
+    someone gets their first id."""
+    from app.users.router import router
+
+    route = next(r for r in router.routes if getattr(r, "path", "") == "/api/v1/users")
+    assert get_current_user in {d.call for d in route.dependant.dependencies}
+
+
+def test_the_user_list_is_not_mounted_outside_development(monkeypatch):
+    """Absent beats guarded. An endpoint that was never registered cannot be reached by a
+    bug in whatever guards it, and a deployment seeds nobody, so the picker this exists
+    for would have nothing to show.
+
+    Also the first thing in the codebase to branch on APP_ENV, which the deployment file
+    has been carrying a note about changing no behaviour.
+    """
+    import importlib
+
+    import app.main
+    from app.config import get_settings
+
+    def mounted_paths() -> set[str]:
+        # The generated spec rather than app.routes: included routers nest rather than
+        # flatten, so walking routes misses everything mounted through include_router.
+        get_settings.cache_clear()
+        return set(importlib.reload(app.main).app.openapi()["paths"])
+
+    monkeypatch.setenv("APP_ENV", "prod")
+    assert "/api/v1/users" not in mounted_paths()
+
+    monkeypatch.setenv("APP_ENV", "dev")
+    assert "/api/v1/users" in mounted_paths()  # restores the module for later tests
