@@ -17,9 +17,9 @@ class Settings(BaseSettings):
         ..., description="Async SQLAlchemy URL, e.g. postgresql+asyncpg://user:pass@host/db"
     )
     # The LLM tiers form one ordered failover chain. Tier 1 serves every turn until it
-    # raises, then tier 2, and so on; the intended order is OpenAI, Groq, OpenRouter,
-    # then a local Ollama. Every tier speaks the OpenAI Chat Completions API, so any
-    # compatible endpoint fits (OpenAI itself, Groq, OpenRouter, vLLM, Ollama).
+    # raises, then tier 2, and so on; the intended order is OpenAI, Groq, then OpenRouter,
+    # with tier 4 left as a spare slot. Every tier speaks the OpenAI Chat Completions API,
+    # so any compatible endpoint fits (OpenAI itself, Groq, OpenRouter, vLLM, Ollama).
     #
     # Only the LLM features need these; templates, publishing and results run with no
     # tier configured at all. base_url and model are required once a tier is enabled and
@@ -57,13 +57,15 @@ class Settings(BaseSettings):
         120.0, gt=0, description="Read timeout for tier 3, in seconds"
     )
 
-    # Last resort, and the one that runs with no credit attached: a local Ollama.
+    # Last resort, and an empty slot by default. This held a local Ollama shipped in
+    # docker-compose.yml until 8 Aug 2026; nothing is wired here now, so the tier stays
+    # off unless someone points it at a server of their own.
     llm_tier4_enabled: bool = Field(False, description="Enable tier 4, the last resort")
     llm_tier4_base_url: str = Field(
         "", description="Tier 4 base URL, e.g. http://localhost:11434/v1"
     )
     llm_tier4_api_key: str = Field("", description="Tier 4 API key (blank if not required)")
-    llm_tier4_model: str = Field("", description="Tier 4 model id, e.g. llama3.2:3b")
+    llm_tier4_model: str = Field("", description="Tier 4 model id")
     llm_tier4_timeout_seconds: float = Field(
         120.0, gt=0, description="Read timeout for tier 4, in seconds"
     )
@@ -95,8 +97,11 @@ class Settings(BaseSettings):
     llm_tier3_price_in_per_mtok: float = Field(0.0, ge=0, description="Tier 3 USD/1M input")
     llm_tier3_price_out_per_mtok: float = Field(0.0, ge=0, description="Tier 3 USD/1M output")
 
-    llm_tier4_params_b: float = Field(3.0, ge=0, description="Tier 4 model size in billions")
-    llm_tier4_local: bool = Field(True, description="Tier 4 runs on our own hardware")
+    # Tier 4 now defaults like the rest rather than describing the 3B local model that
+    # used to be wired into it. Anyone filling the slot with a model they serve
+    # themselves has to say so, which is what the .env.example note beside these is for.
+    llm_tier4_params_b: float = Field(0.0, ge=0, description="Tier 4 model size in billions")
+    llm_tier4_local: bool = Field(False, description="Tier 4 runs on our own hardware")
     llm_tier4_price_in_per_mtok: float = Field(0.0, ge=0, description="Tier 4 USD/1M input")
     llm_tier4_price_out_per_mtok: float = Field(0.0, ge=0, description="Tier 4 USD/1M output")
 

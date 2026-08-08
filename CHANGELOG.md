@@ -5,6 +5,42 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-08-08. The local model tier removed, and two hosted backstops turned on
+
+The stack ran its own Ollama as tier 4, the backstop reached only when all three hosted
+tiers failed. It is gone. Three hosted tiers already cover failover, and carrying a
+fourth cost 1.9 GB of model weights, a container in every `compose up`, and a cold-load
+penalty severe enough that it was the sole reason tier 4's timeout was 300s.
+
+- **Removed from both compose files**: the `ollama` service, the `ollama-pull` job that
+  fetched the weights, and the named volume that kept them. `docker-compose.gpu.yml` and
+  `docker-compose.gpu-wsl.yml` went with them, since accelerating that one service was
+  the only thing either file did.
+- **Tier 4 survives as an empty slot**, off by default and pointing nowhere. Removing it
+  outright would have been the larger change and bought nothing: the tier is only a base
+  URL and a model id, so any OpenAI-compatible server can take the slot from `.env` with
+  no code change. What went is the service, not the capability.
+- **Groq and OpenRouter are enabled** as tiers 2 and 3. Failover that exists but is never
+  reached is not failover: with one tier enabled the chain does nothing at all, and
+  removing the backstop without turning these on would have left OpenAI as a single point
+  of failure for every conducted survey.
+- **Tier 4's economics now default like every other tier's**, hosted and unpriced,
+  rather than describing the 3B local model that used to be wired into it. Anyone
+  filling the slot with a model they serve themselves has to say so, because a local
+  tier bills no tokens and is priced from wall clock instead.
+- **The compose check that guarded this inverted.** It asserted tier 4 was marked local,
+  the risk then being that a tier billing no tokens would record as free. With nothing
+  served locally the risk runs the other way: an inference service comes back and the
+  pricing question goes unasked. It now rejects any tier defaulted to local without the
+  wall-clock inputs to price it, and carries a planted violation of its own, because the
+  condition is unreachable against the files as they currently ship.
+- **The suite had been leaning on that default.** Six tests asserted spend reaches a run
+  by way of tier 4 being local out of the box, which is a test depending on a shipped
+  default rather than on what it means to test. The assumption is now stated once in
+  conftest.
+
+`make gate` clean, 356 tests.
+
 ## 2026-08-07. What every call costs, an answer you can take back, eight languages
 
 Most of this came out of a review of the OpenAI-only migration. The migration itself

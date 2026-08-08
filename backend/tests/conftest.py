@@ -57,6 +57,32 @@ def _ledger_to_a_temp_file(tmp_path_factory):
     get_settings.cache_clear()
 
 
+@pytest.fixture(autouse=True, scope="session")
+def _a_tier_that_costs_something(_ledger_to_a_temp_file):
+    """Give the suite one tier whose calls have a non-zero price.
+
+    Several tests assert that spend reaches a run at all, which needs some tier that is
+    not free. That used to come free with the defaults: tier 4 was the shipped Ollama and
+    carried ``local=True``, so its calls priced from the clock. The service was removed on
+    8 Aug 2026 and the slot now defaults hosted with zero prices like every other, which
+    made those assertions read ``0 > 0``.
+
+    Set here rather than per test so the suite states its assumption once, and so no test
+    silently depends on whatever the shipped defaults happen to be next.
+    """
+    previous = {name: os.environ.get(name) for name in ("LLM_TIER4_LOCAL", "LLM_TIER4_PARAMS_B")}
+    os.environ["LLM_TIER4_LOCAL"] = "true"
+    os.environ["LLM_TIER4_PARAMS_B"] = "3"
+    get_settings.cache_clear()
+    yield
+    for name, value in previous.items():
+        if value is None:
+            os.environ.pop(name, None)
+        else:
+            os.environ[name] = value
+    get_settings.cache_clear()
+
+
 @pytest.fixture(scope="session")
 def _migrated_test_schema():
     """Build the test schema from the migrations, once per session.

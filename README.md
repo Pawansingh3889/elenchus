@@ -14,10 +14,10 @@ in [`CHANGELOG.md`](CHANGELOG.md).
 - **Backend**: Python 3.12, FastAPI (async), SQLAlchemy 2.x async + Alembic, PostgreSQL, Pydantic v2
 - **Frontend**: Next.js (App Router) + TypeScript, TanStack Query, Zustand
 - **LLM**: an ordered chain of up to four OpenAI-compatible tiers, tried until one
-  answers: OpenAI, then Groq, then OpenRouter, then a local Ollama. One client speaks to
-  all of them, so no provider SDK is vendored. A tier that is not enabled is skipped, and
-  when every tier fails the API returns a calm 503 rather than a raw upstream error. See
-  `LLM_TIER*_*` in `.env.example`
+  answers: OpenAI, then Groq, then OpenRouter, with a fourth slot free for anything else
+  that speaks the same API. One client speaks to all of them, so no provider SDK is
+  vendored. A tier that is not enabled is skipped, and when every tier fails the API
+  returns a calm 503 rather than a raw upstream error. See `LLM_TIER*_*` in `.env.example`
 - **Dev**: docker-compose (postgres + backend + frontend)
 
 ## Prerequisites
@@ -119,9 +119,7 @@ frontend/
     runs/[id]/         the conversational runner
   lib/                 typed API client, TanStack Query hooks, Zustand store,
                        conditions.ts (repointing show_when when questions move)
-docker-compose.yml        development stack, including the tier-4 Ollama
-docker-compose.gpu.yml    GPU for Ollama on a Linux host with NVIDIA hardware
-docker-compose.gpu-wsl.yml  GPU under Docker Desktop on WSL2, where the above fails
+docker-compose.yml        development stack: postgres, backend, frontend
 docker-compose.prod.yml   deployment: pinned digests, no seeding, no bind mounts
 ```
 
