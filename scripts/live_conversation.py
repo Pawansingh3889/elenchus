@@ -93,7 +93,11 @@ def build_survey(scenario: dict) -> dict:
     """Create + publish the survey and return the template (questions carry id/position)."""
     spec = scenario["build"]
     if "prompt" in spec:
-        template = call("POST", "/templates/generate", AUTHOR, {"prompt": spec["prompt"]})
+        # /generate answers with {"template": ..., "note": ...}, the note being the
+        # model's account of what it built. POST /templates answers with the template
+        # itself, so only this branch has a wrapper to unwrap.
+        drafted = call("POST", "/templates/generate", AUTHOR, {"prompt": spec["prompt"]})
+        template = drafted["template"]
     else:
         template = call(
             "POST",
