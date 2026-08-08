@@ -5,6 +5,36 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-08-08. A yes nobody said, and the live check that could not reach it
+
+Both of these came out of running the live check against gpt-4o-mini rather than reading
+it. The mocked suite cannot find either: one is a real model's judgement, the other is a
+crash in the check harness itself.
+
+- **A yes/no can be invented too.** Asked "Would you recommend the new handover process?",
+  a respondent sent the single message `4` and the engine recorded `yes`. The grounding
+  gate added on 7 Aug covers free text only, on the stated reasoning that free text is the
+  only shape that can be invented wholesale. A yes/no is the cheaper invention: two values,
+  one of them right by luck half the time, and it renders in the author's results as a
+  recommendation nobody made. Recording a boolean now requires the respondent's latest
+  message to contain letters.
+- **Judged on the latest message, not the run.** `ungrounded_text` pools every message the
+  respondent has sent, which is the right leniency for prose the model merges across turns.
+  It is useless here: every respondent types words eventually, so a run-wide check passes
+  the moment anyone says anything, and this exact failure would go through it.
+- **"Any letters", not "any content word".** `_content_words` keeps only words longer than
+  two characters. Reusing it would refuse a plain `no`, and refuse every yes and no in
+  Chinese and Japanese, where each is a single character. In a service that conducts in
+  eight languages that is the expensive way to be wrong.
+- **The live check could not run its two prompt-generated scenarios.** `POST /templates`
+  answers with the template; `POST /templates/generate` answers with `{"template": ...,
+  "note": ...}`. `build_survey` read both as the same shape, so `broad` and `evasive` died
+  on `KeyError: 'id'` before their first question. Since the live-conduct workflow defaults
+  its scenario input to `all`, its default invocation crashed at `broad`, after paying for
+  the eight scripted scenarios ahead of it. Both now run clean.
+
+`make gate` clean, 361 tests.
+
 ## 2026-08-08. The local model tier removed, and two hosted backstops turned on
 
 The stack ran its own Ollama as tier 4, the backstop reached only when all three hosted

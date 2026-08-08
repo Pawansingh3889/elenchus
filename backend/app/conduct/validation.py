@@ -76,6 +76,32 @@ def ungrounded_text(recorded: str, said: list[str]) -> str | None:
     )
 
 
+def ungrounded_yes_no(said: list[str]) -> str | None:
+    """Why this yes/no is not the respondent's, or None if it could be.
+
+    Free text is not the only shape that can be invented. A live run answered "Would you
+    recommend the new handover process?" from the single message "4" and stored yes, which
+    reads in the author's results as a recommendation nobody made. A bare number carries no
+    yes and no no.
+
+    Judged on the latest message alone, unlike `ungrounded_text`, which pools the whole run.
+    That pool is the right leniency for prose, where the model legitimately merges earlier
+    turns, but it cannot work here: every respondent types words eventually, so a run-wide
+    check passes the moment anyone says anything, and the live case above would have slipped
+    straight through it.
+
+    The test is "any letters at all", not `_content_words`, which drops words of two letters
+    or fewer. A plain "no" is two letters, and a yes or no is a single character in Chinese
+    and Japanese; keying on content words would refuse those real answers.
+    """
+    if said and _WORD.search(said[-1]):
+        return None
+    return (
+        "the respondent's message contains no words, so it says neither yes nor no: ask "
+        "a follow-up or flag it unanswerable instead of reading one into it"
+    )
+
+
 # What a JSON serializer can actually emit for a number. int()/float() alone are too
 # permissive as a gate: they also parse Python-isms no serializer produces — "4_000",
 # "nan", "Infinity", full-width digits ("４") — which would then sail through the type

@@ -14,7 +14,12 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.conduct.repository import RunRepository
-from app.conduct.validation import AnswerValidationError, ungrounded_text, validate_answer
+from app.conduct.validation import (
+    AnswerValidationError,
+    ungrounded_text,
+    ungrounded_yes_no,
+    validate_answer,
+)
 from app.errors import ConflictError, ForbiddenError, NotFoundError
 from app.i18n import language_note, translate
 from app.llm import ledger
@@ -747,10 +752,13 @@ def _rejection(
             return exc.message
         # Shape proven, now source. Everything above establishes the answer is the right
         # kind of thing; none of it asks whether the respondent said it. Free text is the
-        # only shape that can be invented wholesale, and it is the one an author reads as
-        # a quotation.
+        # shape that can be invented wholesale, and it is the one an author reads as a
+        # quotation. A yes/no is the cheaper invention: two values, one of them right by
+        # luck half the time, and a live run recorded "yes" from the message "4".
         if isinstance(value.get("text"), str):
             return ungrounded_text(value["text"], said)
+        if isinstance(value.get("yes_no"), bool):
+            return ungrounded_yes_no(said)
         return None
 
     return None
