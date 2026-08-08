@@ -5,6 +5,45 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-08-09. The live check audits itself, and stops forgetting
+
+Yesterday's invented `yes` was found by a human reading a transcript, and could not be
+reproduced against a real model minutes later: the model answered in words the second time.
+Both halves of that sentence are problems. This fixes both.
+
+- **Every run audits itself.** A second model pass reads the finished transcript and judges
+  each recorded answer against what the respondent actually typed. It calls the provider
+  directly rather than through our API, because a second opinion routed back through the
+  engine it is auditing is not one. Replaying yesterday's transcript, it flags the invented
+  `yes` and passes the four sound answers.
+- **Its verdicts are soft**, printed and excluded from the exit code, for the reason already
+  written above the checks: a judge is a model, and a build that goes red on judgement
+  teaches people that red means nothing. `--strict-judge` promotes them once we know how
+  often it cries wolf; `--no-judge` buys a cheaper run.
+- **Two false-positive classes turned up while building it**, both fixed in the prompt and
+  both worth knowing about, because they will recur if it is retuned. `unanswerable` is
+  judged by the opposite test to a value: it records that someone did *not* answer, so a
+  refusal supports it, and the first draft flagged three correct refusals while giving
+  reasons that argued for them. And normalisation is not invention: a date is stored as ISO
+  and a rating as an integer, so the stored value shares no characters with what was typed.
+- **Every run is now written down.** Each conversation lands in `backend/tests/live_runs`
+  as a fixture, captured turn by turn so each answer carries the messages the grounding
+  gates actually saw when it was recorded. A run-wide snapshot taken at the end could not
+  replay a yes/no, which is judged on the latest message alone.
+- **The mocked suite replays the saved runs on every push**, free and without a key, in two
+  directions. Every answer a real model produced and the engine accepted must still be
+  accepted, which is what catches a gate tightened too far. And any answer a human has
+  marked `"invented": true` must be refused, which is how a live finding becomes permanent.
+  The judge's verdict is recorded in each fixture for a reader and never used as ground
+  truth, because it is a model too.
+- **Pull requests touching the conduct engine, the answer gate or the prompts** now run two
+  scenarios automatically, one scripted and one prompt-generated, roughly a tenth of the
+  calls of a full sweep. The `generate` shape crash sat in main precisely because nothing
+  ran this on a change. CI keeps each run's transcripts as an artifact; nothing is committed
+  from CI, because a run that lands in tests/live_runs unread is one nobody has judged.
+
+`make gate` clean, 373 tests.
+
 ## 2026-08-08. A yes nobody said, and the live check that could not reach it
 
 Both of these came out of running the live check against gpt-4o-mini rather than reading

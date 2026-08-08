@@ -82,6 +82,15 @@ Must-haves are the bar. Stretch goals only if the must-haves are solid.
   Chat Completions API through a single `httpx` client, so adding a provider is config
   rather than code. The Anthropic SDK and its client were removed on 6 Aug 2026; the
   chain is OpenAI, Groq, then OpenRouter, in that order.
+- **The live check writes everything down, and judges itself.** Real conversations are the
+  only thing that finds fabrication, and a live finding neither keeps nor reproduces. So
+  every run captures its transcript to `backend/tests/live_runs/`, and the mocked suite
+  replays those runs on every push: answers accepted live must stay accepted, and answers a
+  human marks `"invented"` must be refused. A second model pass judges each recorded answer
+  during the run, but its verdicts are soft everywhere and are never ground truth for a
+  test, because it is a model and it produced false positives in two distinct classes on
+  the day it was written. Adopted 9 Aug 2026. Do not promote the judge to a hard failure
+  without a measured false-positive rate to point at.
 - **Nothing is served locally.** The compose stack ran an Ollama as tier 4 until
   8 Aug 2026. It was removed: three hosted tiers cover failover, and the weights cost
   1.9 GB and a cold-load penalty to carry. Tier 4 survives as an empty slot any

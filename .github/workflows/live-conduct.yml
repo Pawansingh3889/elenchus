@@ -140,6 +140,19 @@ jobs:
           LLM_TIER1_MODEL: ${{ inputs.model || vars.LLM_TIER1_MODEL || 'gpt-4o-mini' }}
         run: python3 scripts/live_conversation.py ${{ inputs.scenario || 'skip_heavy evasive' }}
 
+      # Every run writes its transcript to backend/tests/live_runs. On CI that directory is
+      # thrown away with the runner, so it leaves as an artifact instead. Download it,
+      # read it, and commit the ones worth replaying forever: the mocked suite replays
+      # whatever is committed, on every push, without a key. Nothing is committed from
+      # here, because a run that lands in tests/live_runs unread is one nobody has judged.
+      - name: Keep the transcripts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-transcripts-${{ github.run_id }}
+          path: backend/tests/live_runs/*.json
+          if-no-files-found: error
+
       - name: Stop the backend
         if: always()
         run: kill "$(cat /tmp/uvicorn.pid)" 2>/dev/null || true

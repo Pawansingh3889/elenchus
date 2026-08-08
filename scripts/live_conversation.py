@@ -179,6 +179,12 @@ class Run:
         self.answers: list[dict] = []
         self.messages: list[dict] = []
         self.status = ""
+        # Each answer paired with what the respondent had said when it was recorded, which
+        # is the whole point of capturing during the conversation rather than reading the
+        # finished run. The grounding gates judge a yes/no on the latest message alone, so
+        # a run-wide snapshot taken at the end cannot replay one.
+        self.captured: list[dict] = []
+        self.judge_verdicts: list[dict] = []
 
     def question_by_id(self, qid: str) -> dict | None:
         for x in self.qmeta:
@@ -192,6 +198,8 @@ def conduct(scenario: dict, run: Run, template: dict) -> None:
     print(f"  assistant: {convo['messages'][-1]['content']}")
 
     seen: dict[str, int] = {}
+    said: list[str] = []
+    recorded: set[tuple] = set()
     max_turns = 3 * run.total + 10
     for turn in range(max_turns):
         if convo["status"] != "in_progress" or convo["current_question"] is None:
@@ -212,6 +220,13 @@ def conduct(scenario: dict, run: Run, template: dict) -> None:
         convo = call("POST", f"/runs/{convo['id']}/messages", RESPONDENT, {"content": reply})
         print(f"  assistant: {convo['messages'][-1]['content']}")
         print(f"             [{convo['answered']} of {convo['total']} answered]")
+
+        said.append(reply)
+        for answer in convo["answers"]:
+            key = (answer["question_id"], answer["kind"])
+            if key not in recorded:
+                recorded.add(key)
+                run.captured.append({"answer": answer, "said": list(said)})
 
     run.status = convo["status"]
     run.answers = convo["answers"]
@@ -862,7 +877,9 @@ def judge_checks(run: Run, strict: bool) -> list[tuple]:
     if not run.answers:
         return []
     try:
-        verdicts = _ask_judge(run)
+        # Kept on the run as well as returned, so the fixture written afterwards carries
+        # the judge's reasoning next to the answer it was about.
+        verdicts = run.judge_verdicts = _ask_judge(run)
     except (urllib.error.URLError, KeyError, ValueError, TimeoutError) as exc:
         # The judge failing is not the run failing. Say so loudly and leave the exit code
         # to the checks that do not depend on a second provider call.
@@ -883,6 +900,76 @@ def judge_checks(run: Run, strict: bool) -> list[tuple]:
             )
         )
     return out
+
+
+# ----------------------------------------------------------------------- saved runs
+# A live finding is expensive and does not keep. It costs credit, it needs a stack and a
+# key, and it does not reproduce: the fix for the invented yes could not be demonstrated
+# against a real model even minutes later, because the model answered in words the second
+# time. So every run writes its transcript down, and the mocked suite replays the lot for
+# free on every push. See backend/tests/test_live_replay.py for what replaying proves.
+#
+# Written on every run, committed on purpose. Capturing is free and a fixture nobody kept
+# is a finding thrown away, but a saved run is only worth having if what lands in git is
+# read first, so `git add` stays a decision.
+
+# Anchored to this file, not to the working directory. The workflow runs the script from
+# the repo root and a developer runs it from wherever they are; a relative path would
+# scatter fixtures into whichever directory happened to be current.
+LIVE_RUNS = os.path.normpath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "backend", "tests", "live_runs")
+)
+
+
+def write_fixture(key: str, run: Run, template: dict, model: str) -> str:
+    """Write this run down as a replayable fixture and return the path."""
+    by_index = {v.get("index"): v for v in run.judge_verdicts if isinstance(v.get("index"), int)}
+    question_by_id = {x["id"]: x for x in run.qmeta}
+
+    answers = []
+    for index, entry in enumerate(run.captured):
+        answer = entry["answer"]
+        question = question_by_id.get(answer["question_id"], {})
+        verdict = by_index.get(index, {})
+        answers.append(
+            {
+                "question_text": answer["question_text"],
+                "answer_type": question.get("answer_type"),
+                "options": question.get("options", []),
+                "allow_other": question.get("allow_other", False),
+                "kind": answer["kind"],
+                "value": answer["value"],
+                # Exactly what the grounding gates saw when this was recorded.
+                "said": entry["said"],
+                "judge": {"supported": verdict.get("supported"), "why": verdict.get("why")},
+                # Set by hand, and the only field a human writes. See the replay test: an
+                # answer marked true must be refused by today's gates, which is how a live
+                # finding becomes a permanent test. The judge's opinion is recorded above
+                # but never used as ground truth, because it is a model too.
+                "invented": False,
+            }
+        )
+
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    path = os.path.join(LIVE_RUNS, f"{key}-{stamp}.json")
+    os.makedirs(LIVE_RUNS, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(
+            {
+                "scenario": key,
+                "captured_at": datetime.now(UTC).isoformat(),
+                "model": model,
+                "survey_title": template["title"],
+                "status": run.status,
+                "respondent_messages": [m["content"] for m in run.messages if m["role"] == "user"],
+                "answers": answers,
+            },
+            handle,
+            indent=2,
+            ensure_ascii=False,
+        )
+        handle.write("\n")
+    return path
 
 
 # --------------------------------------------------------------------------- driver
@@ -908,6 +995,9 @@ def run_scenario(key: str, judge: bool, strict: bool) -> int:
     if judge:
         print("\n  --- judge ---")
         hard_failures += _report(judge_checks(run, strict))
+
+    config = judge_config()
+    print(f"\n  captured: {write_fixture(key, run, template, config[2] if config else 'unknown')}")
     return hard_failures
 
 
