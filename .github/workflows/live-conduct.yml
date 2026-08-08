@@ -2,10 +2,26 @@ name: Live conduct check
 
 # The CI workflow runs the mocked suite on every push and never needs a key.
 # This one is the opposite: it drives real conversations through the real model,
-# which costs credit, so it only runs when you press "Run workflow" (Actions tab,
-# or the GitHub Actions panel in VS Code). It is the check that has found every
-# fabrication bug the mocked tests could not - a fake LLM does what the test tells
-# it to and never tries to work around the engine's design.
+# which costs credit. It is the check that has found every fabrication bug the
+# mocked tests could not - a fake LLM does what the test tells it to and never
+# tries to work around the engine's design.
+#
+# It runs two ways, and the difference is scope, not kind:
+#
+#   by hand      "Run workflow" (Actions tab, or the GitHub Actions panel in
+#                VS Code). Pick any scenario, or all of them, ~150 model calls.
+#   on a PR      automatically, but only when the pull request touches the code
+#                that decides how a conversation goes: the conduct engine, the
+#                answer gate, or the prompts. Two scenarios, one scripted and one
+#                prompt-generated, for about a tenth of the calls. The generate
+#                shape crash that blocked both prompt-generated scenarios sat in
+#                main unnoticed precisely because nothing ran this on a change.
+#
+# Every run also audits itself: a second model pass reads each finished transcript
+# and asks whether the respondent really supplied each recorded answer. Those
+# verdicts print but never fail the build, because a judge is a model and a red
+# that turns on judgement gets ignored. Read them; they are where the next
+# invented answer shows up first.
 #
 # Setup once: repo Settings -> Secrets and variables -> Actions -> New repository
 # secret, name LLM_TIER1_API_KEY, holding a key for the tier-1 provider. Nothing
@@ -35,6 +51,11 @@ on:
         description: "Tier-1 model id"
         type: string
         required: true
+  pull_request:
+    paths:
+      - "backend/app/conduct/**"
+      - "backend/app/llm/prompts/**"
+      - "scripts/live_conversation.py"
 
 jobs:
   live:
@@ -60,7 +81,10 @@ jobs:
       LLM_TIER1_ENABLED: "true"
       LLM_TIER1_BASE_URL: ${{ vars.LLM_TIER1_BASE_URL || 'https://api.openai.com/v1' }}
       LLM_TIER1_API_KEY: ${{ secrets.LLM_TIER1_API_KEY }}
-      LLM_TIER1_MODEL: ${{ inputs.model }}
+      # inputs.* exist only on workflow_dispatch. On a pull request they are empty, and an
+      # empty model id disables the tier, which surfaces as a 503 mid-conversation rather
+      # than as anything naming the cause. Hence the fallbacks here and on the run step.
+      LLM_TIER1_MODEL: ${{ inputs.model || vars.LLM_TIER1_MODEL || 'gpt-4o-mini' }}
 
     steps:
       - name: Require the API key secret
@@ -102,8 +126,19 @@ jobs:
 
       - name: Drive the conversation(s)
         # The script prints each transcript and its checks, and exits non-zero on any
-        # hard-check failure, so a real regression turns this step red.
-        run: python3 scripts/live_conversation.py "${{ inputs.scenario }}"
+        # hard-check failure, so a real regression turns this step red. The judge's
+        # verdicts print in the same output and deliberately do not affect the exit code.
+        #
+        # A pull request gets two scenarios rather than all ten: skip_heavy is the
+        # scripted survey whose checks are strongest, and evasive is prompt-generated and
+        # is where both inventions found so far turned up. The judge needs the tier-1
+        # credentials in its own environment, not just the backend's, because it calls the
+        # provider directly.
+        env:
+          LLM_TIER1_BASE_URL: ${{ vars.LLM_TIER1_BASE_URL || 'https://api.openai.com/v1' }}
+          LLM_TIER1_API_KEY: ${{ secrets.LLM_TIER1_API_KEY }}
+          LLM_TIER1_MODEL: ${{ inputs.model || vars.LLM_TIER1_MODEL || 'gpt-4o-mini' }}
+        run: python3 scripts/live_conversation.py ${{ inputs.scenario || 'skip_heavy evasive' }}
 
       - name: Stop the backend
         if: always()
