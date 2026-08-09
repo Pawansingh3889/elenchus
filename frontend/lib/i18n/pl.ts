@@ -61,6 +61,9 @@ export const pl: Messages = {
     moveDown: "Przenieś w dół",
     removeQuestion: "Usuń pytanie",
     removeOption: "Usuń opcję",
+    audienceTitle: "Dla kogo jest",
+    audienceFrozen:
+      "Po opublikowaniu bez zmian: odpowiedzi z dwóch różnych grup nie da się później rozdzielić.",
     answerTypesTitle: "Typy odpowiedzi",
     answerTypesHint:
       "Zaznacz typy, których może użyć ta ankieta. Brak zaznaczeń oznacza, że dozwolony jest każdy typ. AI trzyma się tego przy każdym dopracowaniu.",

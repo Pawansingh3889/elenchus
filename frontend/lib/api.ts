@@ -39,6 +39,8 @@ const FIELD_LABELS: Record<string, string> = {
   show_when: "visibility condition",
   title: "title",
   description: "description",
+  audience: "audience",
+  allowed_answer_types: "allowed answer types",
 };
 
 /**

@@ -12,8 +12,9 @@ from app.conduct.engine import ConductEngine
 from app.errors import ForbiddenError, NotFoundError
 from app.runs.service import ResultsService
 from app.templates.enums import AnswerType, TemplateStatus
-from app.templates.schemas import QuestionInput, TemplateCreate, TemplateUpdate
+from app.templates.schemas import QuestionInput, TemplateCreate
 from app.templates.service import TemplateService
+from tests.builders import update_of
 from tests.fakes import FakeLLM, move_on, record
 
 
@@ -44,7 +45,7 @@ async def test_another_authors_template_reads_as_absent(session, author, other_a
             await svc.get_draft(mine.id, other_author)
         elif action == "update":
             await svc.update_draft(
-                mine.id, TemplateUpdate(title="Hijacked", questions=[_q("x")]), other_author
+                mine.id, update_of(mine, title="Hijacked", questions=[_q("x")]), other_author
             )
         elif action == "delete":
             await svc.delete_draft(mine.id, other_author)

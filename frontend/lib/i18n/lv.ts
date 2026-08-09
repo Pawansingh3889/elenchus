@@ -61,6 +61,9 @@ export const lv: Messages = {
     moveDown: "Pārvietot lejup",
     removeQuestion: "Dzēst jautājumu",
     removeOption: "Noņemt variantu",
+    audienceTitle: "Kam tā paredzēta",
+    audienceFrozen:
+      "Pēc publicēšanas nemainīgs: divu dažādu grupu atbildes vēlāk vairs nav atdalāmas.",
     answerTypesTitle: "Atbilžu veidi",
     answerTypesHint:
       "Atzīmējiet veidus, ko šī aptauja drīkst izmantot. Ja nekas nav atzīmēts, atļauts jebkurš veids. MI to ievēro katrā uzlabojumā.",

@@ -7,8 +7,9 @@ so both must describe the *published version*, not the draft that has moved on s
 from app.conduct.engine import ConductEngine
 from app.templates.enums import AnswerType
 from app.templates.estimate import estimated_minutes
-from app.templates.schemas import QuestionInput, TemplateCreate, TemplateUpdate
+from app.templates.schemas import QuestionInput, TemplateCreate
 from app.templates.service import TemplateService
+from tests.builders import update_of
 from tests.fakes import FakeLLM, move_on, record
 
 
@@ -85,7 +86,7 @@ async def test_the_published_list_describes_the_version_not_the_draft(session, a
     await svc.publish(template.id, author)
     await svc.update_draft(
         template.id,
-        TemplateUpdate(title="Drift", questions=[_q("one"), _q("two"), _q("three")]),
+        update_of(template, title="Drift", questions=[_q("one"), _q("two"), _q("three")]),
         author,
     )
 
@@ -101,7 +102,7 @@ async def test_republishing_moves_the_list_on_to_the_new_version(session, author
     template = await svc.create_draft(TemplateCreate(title="Grow", questions=[_q("one")]), author)
     await svc.publish(template.id, author)
     await svc.update_draft(
-        template.id, TemplateUpdate(title="Grow", questions=[_q("one"), _q("two")]), author
+        template.id, update_of(template, title="Grow", questions=[_q("one"), _q("two")]), author
     )
     await svc.publish(template.id, author)
 

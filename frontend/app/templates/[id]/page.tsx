@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 
 import { ANSWER_TYPES, isAllowedAnswerType, labelForAnswerType } from "@/lib/answerTypes";
+import { AUDIENCES } from "@/lib/audiences";
 import { LivePreview } from "@/components/LivePreview";
 import { clearedBy, followOptionRename, remapConditions, repairConditionsFor } from "@/lib/conditions";
 import { QuestionEditor } from "@/components/QuestionEditor";
@@ -19,7 +20,7 @@ import {
 import { ApiError } from "@/lib/api";
 import { useT } from "@/lib/i18n/useT";
 import { useDraftNoteStore, useUserStore } from "@/lib/store";
-import type { AnswerType, QuestionInput } from "@/lib/types";
+import type { AnswerType, QuestionInput, SurveyAudience } from "@/lib/types";
 
 // The first type the survey actually permits, so adding a question to a survey that
 // bans free text does not seed a card the author cannot save.
@@ -50,6 +51,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
   const [description, setDescription] = useState("");
   const [questions, setQuestions] = useState<QuestionInput[]>([]);
   const [allowedTypes, setAllowedTypes] = useState<AnswerType[]>([]);
+  const [audience, setAudience] = useState<SurveyAudience>("respondents");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   // How many visibility conditions the last reorder/delete had to clear.
   const [dropped, setDropped] = useState(0);
@@ -79,6 +81,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
     setTitle(template.title);
     setDescription(template.description ?? "");
     setAllowedTypes(template.allowed_answer_types);
+    setAudience(template.audience);
     setQuestions(
       template.questions.map((q) => ({
         text: q.text,
@@ -169,6 +172,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
   const body = {
     title,
     description: description || null,
+    audience,
     allowed_answer_types: allowedTypes,
     questions,
   };
@@ -195,6 +199,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
       // cannot change it, so this only ever re-states what was already saved. Re-seeding
       // it with the rest keeps one source of truth for the whole form.
       setAllowedTypes(revised.allowed_answer_types);
+      setAudience(revised.audience);
       setQuestions(
         revised.questions.map((q) => ({
           text: q.text,
@@ -264,6 +269,27 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
           onChange={(e) => setDescription(e.target.value)}
           placeholder={msg.builder.descriptionPlaceholder}
         />
+
+        <div className="card types-card">
+          <div className="card-label">{msg.builder.audienceTitle}</div>
+          <select
+            className="field"
+            value={audience}
+            onChange={(e) => setAudience(e.target.value as SurveyAudience)}
+            // Frozen once published, which is the rule the service enforces with a 409.
+            // Offering the control anyway would be offering the author that error.
+            disabled={template.status !== "draft"}
+          >
+            {AUDIENCES.map((a) => (
+              <option key={a.value} value={a.value}>
+                {a.label}
+              </option>
+            ))}
+          </select>
+          {template.status !== "draft" ? (
+            <p className="muted types-hint">{msg.builder.audienceFrozen}</p>
+          ) : null}
+        </div>
 
         <div className="card types-card">
           <div className="card-label">{msg.builder.answerTypesTitle}</div>

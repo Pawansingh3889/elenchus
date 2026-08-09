@@ -69,6 +69,9 @@ export const en = {
     moveDown: "Move down",
     removeQuestion: "Delete question",
     removeOption: "Remove option",
+    audienceTitle: "Who it is for",
+    audienceFrozen:
+      "Fixed once published: results drawn from two different populations cannot be told apart afterwards.",
     answerTypesTitle: "Answer types",
     answerTypesHint:
       "Tick the types this survey may use. Nothing ticked allows any type. The AI keeps to this on every refine.",
