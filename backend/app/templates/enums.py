@@ -21,6 +21,7 @@ class SurveyAudience(str, enum.Enum):
     hr = "hr"
     operations = "operations"
     finance = "finance"
+    technical = "technical"
 
 
 class TemplateStatus(str, enum.Enum):

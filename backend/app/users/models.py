@@ -31,6 +31,7 @@ class CreatorDepartment(str, enum.Enum):
     hr = "hr"
     operations = "operations"
     finance = "finance"
+    technical = "technical"
 
 
 class User(Base):

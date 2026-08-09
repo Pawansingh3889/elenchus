@@ -18,6 +18,7 @@ _AUDIENCE_DEPARTMENT: dict[SurveyAudience, CreatorDepartment] = {
     SurveyAudience.hr: CreatorDepartment.hr,
     SurveyAudience.operations: CreatorDepartment.operations,
     SurveyAudience.finance: CreatorDepartment.finance,
+    SurveyAudience.technical: CreatorDepartment.technical,
 }
 
 

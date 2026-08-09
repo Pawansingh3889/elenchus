@@ -53,6 +53,13 @@ SEED_USERS: list[tuple[UUID, str, str, UserRole, CreatorDepartment | None]] = [
         CreatorDepartment.admin,
     ),
     (
+        UUID("00000000-0000-0000-0000-0000000000a5"),
+        "tomas@elenchus.dev",
+        "Tomas Author",
+        UserRole.author,
+        CreatorDepartment.technical,
+    ),
+    (
         UUID("00000000-0000-0000-0000-0000000000b1"),
         "rosa@elenchus.dev",
         "Rosa Respondent",

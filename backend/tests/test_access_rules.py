@@ -36,6 +36,7 @@ def _user(role: UserRole, department: CreatorDepartment | None = None, **kw) -> 
 AUTHOR = _user(UserRole.author, CreatorDepartment.hr, id=AUTHOR_ID, email="author@test.dev")
 HR = _user(UserRole.author, CreatorDepartment.hr)
 FINANCE = _user(UserRole.author, CreatorDepartment.finance)
+TECHNICAL = _user(UserRole.author, CreatorDepartment.technical)
 NO_DEPARTMENT = _user(UserRole.author, None)
 RESPONDENT = _user(UserRole.respondent)
 
@@ -57,6 +58,9 @@ RESPONDENT = _user(UserRole.respondent)
         # Admin reaches everything, and so does the survey's own author.
         (FINANCE, SurveyAudience.hr, True, True),
         (AUTHOR, SurveyAudience.finance, False, True),
+        # Technical, the fifth department, behaves like the rest of them.
+        (TECHNICAL, SurveyAudience.technical, False, True),
+        (HR, SurveyAudience.technical, False, False),
         # Fails closed: no department cannot be matched to any audience.
         (NO_DEPARTMENT, SurveyAudience.hr, False, False),
     ],
@@ -146,3 +150,29 @@ def test_admin_comes_from_the_allowlist_and_ignores_case():
 
 def test_an_empty_allowlist_grants_nobody():
     assert not is_admin(AUTHOR, frozenset())
+
+
+# ------------------------------------------------------------------- completeness
+
+
+def test_every_department_audience_maps_to_a_department():
+    """The failure this exists for is silent and fatal. `may_answer` looks the audience up
+    in `_AUDIENCE_DEPARTMENT` with no fallback, so an audience added to the enum without a
+    matching entry does not refuse anyone: it raises KeyError the first time somebody opens
+    that survey. Enumerating the enum means the next department cannot be half-added.
+
+    `respondents` is excluded deliberately. No department answers it, respondents do.
+    """
+    from app.access.rules import _AUDIENCE_DEPARTMENT
+
+    departmental = {a for a in SurveyAudience if a is not SurveyAudience.respondents}
+    assert departmental == set(
+        _AUDIENCE_DEPARTMENT
+    ), "every departmental audience needs an entry in _AUDIENCE_DEPARTMENT"
+
+
+def test_every_department_can_be_aimed_at_except_admin():
+    """Admin is grouping, not a team to survey, which is why the two enums are separate.
+    Every other department should have an audience that reaches it."""
+    aimable = {d.value for d in CreatorDepartment} - {"admin"}
+    assert aimable <= {a.value for a in SurveyAudience}
