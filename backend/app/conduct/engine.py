@@ -17,6 +17,7 @@ from app.access import is_admin_by_config, may_answer
 from app.conduct.repository import RunRepository
 from app.conduct.validation import (
     AnswerValidationError,
+    ungrounded_choice,
     ungrounded_text,
     ungrounded_yes_no,
     validate_answer,
@@ -816,6 +817,15 @@ def _rejection(
             return ungrounded_text(value["text"], said)
         if isinstance(value.get("yes_no"), bool):
             return ungrounded_yes_no(said)
+        # A write-in is prose the respondent supposedly typed, so it is judged as prose.
+        if isinstance(value.get("other"), str):
+            return ungrounded_text(value["other"], said)
+        if isinstance(value.get("option"), str):
+            return ungrounded_choice(value["option"], said)
+        for chosen in value.get("options", []) or []:
+            problem = ungrounded_choice(chosen, said)
+            if problem is not None:
+                return problem
         return None
 
     return None

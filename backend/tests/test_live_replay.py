@@ -34,6 +34,7 @@ import pytest
 
 from app.conduct.validation import (
     AnswerValidationError,
+    ungrounded_choice,
     ungrounded_text,
     ungrounded_yes_no,
     validate_answer,
@@ -48,12 +49,26 @@ def _load(path: Path) -> dict[str, Any]:
 
 
 def _grounding_problem(answer: dict[str, Any]) -> str | None:
-    """The engine's source gate, applied exactly as app.conduct.engine applies it."""
+    """The engine's source gate, applied exactly as app.conduct.engine applies it.
+
+    Kept deliberately in step with `_rejection`. If the engine grows a branch and this does
+    not, the corpus quietly stops replaying the shape that was just added, which is the
+    moment a regression suite becomes decoration.
+    """
     value = answer["value"]
+    said = answer["said"]
     if isinstance(value.get("text"), str):
-        return ungrounded_text(value["text"], answer["said"])
+        return ungrounded_text(value["text"], said)
     if isinstance(value.get("yes_no"), bool):
-        return ungrounded_yes_no(answer["said"])
+        return ungrounded_yes_no(said)
+    if isinstance(value.get("other"), str):
+        return ungrounded_text(value["other"], said)
+    if isinstance(value.get("option"), str):
+        return ungrounded_choice(value["option"], said)
+    for chosen in value.get("options", []) or []:
+        problem = ungrounded_choice(chosen, said)
+        if problem is not None:
+            return problem
     return None
 
 
