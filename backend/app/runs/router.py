@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import require_author
 from app.db.session import get_session
-from app.runs.schemas import DashboardRow, RunDetail, RunSummary
+from app.runs.schemas import DashboardRow, RunDetail, RunSummary, SurveyReport
 from app.runs.service import ResultsService, to_csv
 from app.runs.summary import RunSummaryContent, RunSummaryService
 from app.users.models import User
@@ -44,6 +44,18 @@ async def list_runs(
 
 # Declared before the {run_id} route so the literal path segment "export" is never
 # parsed as a run id.
+@router.get("/{template_id}/report", response_model=SurveyReport)
+async def survey_report(
+    template_id: UUID,
+    author: User = Depends(require_author),
+    session: AsyncSession = Depends(get_session),
+) -> SurveyReport:
+    """What the survey found, question by question. Declared before /{template_id}/runs
+    is irrelevant here (different literal), but it is grouped with the other read
+    endpoints for the same reason they are: one service call, shaped by the schema."""
+    return await ResultsService(session).report(template_id, author)
+
+
 @router.get("/{template_id}/runs/export")
 async def export_runs(
     template_id: UUID,

@@ -209,3 +209,39 @@ export interface DashboardRow {
   last_completed_at: string | null;
   completion_rate: number | null;
 }
+
+/** One row of a select question's tally. `label` is the option as the author wrote it,
+ *  or the respondent's own words for a write-in. */
+export interface OptionCount {
+  label: string;
+  count: number;
+  write_in: boolean;
+}
+
+/** One question, as the whole survey answered it. `answered` and `declined` are apart
+ *  because a question everyone skipped and one nobody reached are different findings. */
+export interface QuestionReport {
+  id: string;
+  position: number;
+  text: string;
+  answer_type: AnswerType;
+  answered: number;
+  declined: number;
+  counts: OptionCount[];
+  /** Ratings and numbers only. Null when nobody answered, not 0. */
+  average: number | null;
+  /** Free text and write-ins, verbatim and in full. Counted on the page, shown on click. */
+  verbatim: string[];
+}
+
+export interface SurveyReport {
+  template_id: string;
+  title: string;
+  version: number;
+  runs_total: number;
+  runs_completed: number;
+  /** Answered against an earlier published version, so counted apart rather than folded
+   *  in: their questions are not these questions. */
+  runs_on_earlier_versions: number;
+  questions: QuestionReport[];
+}

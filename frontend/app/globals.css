@@ -1511,3 +1511,74 @@ select.field {
     scroll-behavior: auto !important;
   }
 }
+
+/* The survey report: what people said, question by question.
+
+   Bars are a share of the largest count, not of the number who answered, so a question
+   nobody agreed on still reads as a shape. The count is printed beside every bar because
+   the bar is for comparing at a glance and the number is the finding. */
+.report-question {
+  font-size: var(--text-md);
+  font-weight: 700;
+  margin-block-end: var(--space-1);
+}
+.report-meta {
+  font-size: var(--text-sm);
+  font-style: normal;
+  margin-block-end: var(--space-3);
+}
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  list-style: none;
+}
+.bars li {
+  display: grid;
+  grid-template-columns: minmax(6rem, 14rem) 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+}
+.bar-track {
+  background: var(--highlight-soft);
+  border-radius: 999px;
+  block-size: 10px;
+  overflow: hidden;
+}
+.bar-fill {
+  display: block;
+  block-size: 100%;
+  background: var(--accent-strong);
+  border-radius: 999px;
+  transition: inline-size var(--dur-slow) var(--ease);
+}
+.bar-count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+.verbatim > summary {
+  font-size: var(--text-sm);
+  cursor: pointer;
+  min-block-size: var(--tap);
+  align-content: center;
+}
+.verbatim ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-block-start: var(--space-2);
+  padding-inline-start: var(--space-4);
+  font-size: var(--text-sm);
+}
+
+/* One column on a phone: a three-column grid puts the label, the bar and the count all
+   at unreadable widths long before the page itself runs out of room. */
+@media (max-width: 640px) {
+  .bars li {
+    grid-template-columns: 1fr auto;
+  }
+  .bar-track {
+    grid-column: 1 / -1;
+  }
+}

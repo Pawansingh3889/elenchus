@@ -58,6 +58,15 @@ export function useTemplate(id: string) {
   });
 }
 
+export function useReport(id: string) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["report", id, userId],
+    queryFn: () => api.report(id),
+    enabled: Boolean(userId),
+  });
+}
+
 export function useCreateTemplate() {
   const qc = useQueryClient();
   return useMutation({

@@ -165,6 +165,9 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
           />
           <div className="builder-actions">
             <span className={`pill pill-${template.status}`}>{template.status}</span>
+            <Link href={`/templates/${template.id}/report`} className="btn btn-secondary">
+              {msg.builder.report}
+            </Link>
             <Link href={`/templates/${template.id}/results`} className="btn btn-secondary">
               {msg.builder.responses}
             </Link>
