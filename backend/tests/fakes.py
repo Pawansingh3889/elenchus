@@ -56,8 +56,18 @@ def record(value: Any, say: str = "Thanks.") -> ToolTurn:
     return ToolTurn(text=say, tool_name="record_answer", tool_input={"value": value})
 
 
-def follow_up(text: str) -> ToolTurn:
-    return ToolTurn(text="", tool_name="ask_follow_up", tool_input={"follow_up_text": text})
+def follow_up(text: str, answer_so_far: Any = None) -> ToolTurn:
+    """A probe. `answer_so_far` is what the reply already answered, banked before asking.
+
+    Defaults to None, the "their reply held no answer to the question" case, because
+    that is what every probe in these tests was written to mean. A test about banking
+    passes a value; the engine ignores the field once a scripted answer exists.
+    """
+    return ToolTurn(
+        text="",
+        tool_name="ask_follow_up",
+        tool_input={"follow_up_text": text, "answer_so_far": answer_so_far},
+    )
 
 
 def reply(text: str) -> ToolTurn:

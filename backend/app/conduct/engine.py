@@ -358,7 +358,7 @@ class ConductEngine:
         try:
             turn = await self.llm.tool_turn(
                 system="\n\n".join(
-                    (load_prompt("conduct_v5"), language_note(run.language), briefing)
+                    (load_prompt("conduct_v6"), language_note(run.language), briefing)
                 ),
                 messages=messages,
                 tools=tools,
@@ -426,6 +426,25 @@ class ConductEngine:
     ) -> str | None:
         """Apply a validated action. Returns the assistant's utterance, or None to loop."""
         if turn.tool_name == FOLLOW_UP:
+            # Bank the answer their reply already held, before asking for more. A probe
+            # can go nowhere: they drift, or answer the follow-up and not the question,
+            # and until this existed the whole question was then flagged unanswerable,
+            # because nothing had been recorded for it. The answer they did give was lost
+            # to make room for a note saying they gave none.
+            banked = turn.tool_input.get("answer_so_far")
+            if banked is not None and not state["scripted_recorded"]:
+                run.answers.append(
+                    Answer(
+                        question_id=UUID(question["id"]),
+                        kind=AnswerKind.scripted,
+                        question_text=question["text"],
+                        value=validate_answer(question, banked),
+                        answered_by=run.respondent_id,
+                    )
+                )
+                # Recorded, so a later flag can only be about the probe. _state is read
+                # fresh next turn; this keeps the rest of the current one honest.
+                state["scripted_recorded"] = True
             # Spend the budget here, when the probe is issued. Reassigned rather than
             # mutated so SQLAlchemy sees the change to the JSONB column.
             key = question["id"]
@@ -693,6 +712,31 @@ def _tools_for(question: dict[str, Any], state: dict[str, Any]) -> list[dict[str
     # wanted to clarify a vague reply had to record something to unlock the tool, and it
     # duly invented plausible values to get there. The cap still bounds it.
     if _may_probe(question, state["follow_ups_used"]):
+        probe_properties: dict[str, Any] = {
+            "question_id": question_id,
+            "follow_up_text": {"type": "string"},
+        }
+        required = ["question_id", "follow_up_text"]
+        if not state["scripted_recorded"]:
+            # Banked before the probe is asked, because a probe that goes badly used to
+            # take the answer with it: nothing was recorded, so flag_unanswerable landed
+            # on the question itself. A respondent who said "temperature" and then drifted
+            # on the follow-up had their answer stored as "did not answer".
+            #
+            # Required and nullable, not optional. Null is always available and costs
+            # nothing, so this does not reintroduce the pressure to invent a value to
+            # unlock the tool; but a model that has an answer can no longer skip past the
+            # field without saying so. What it puts here is validated and grounded exactly
+            # as record_answer's value is, so it cannot bank something never said.
+            probe_properties["answer_so_far"] = {
+                "description": (
+                    "The answer to the CURRENT QUESTION that their reply already "
+                    "contains, shaped for the question's type, recorded before your "
+                    "follow-up is asked. Null if their reply contained no answer to it."
+                ),
+                "anyOf": [_value_schema(question), {"type": "null"}],
+            }
+            required.append("answer_so_far")
         tools.append(
             {
                 "name": FOLLOW_UP,
@@ -702,11 +746,8 @@ def _tools_for(question: dict[str, Any], state: dict[str, Any]) -> list[dict[str
                 ),
                 "input_schema": {
                     "type": "object",
-                    "properties": {
-                        "question_id": question_id,
-                        "follow_up_text": {"type": "string"},
-                    },
-                    "required": ["question_id", "follow_up_text"],
+                    "properties": probe_properties,
+                    "required": required,
                 },
             }
         )
@@ -793,7 +834,20 @@ def _rejection(
             return "follow-ups are not permitted for this question, or the limit is spent"
         if not str(turn.tool_input.get("follow_up_text", "")).strip():
             return "follow_up_text must not be empty"
-        return None
+        if state["scripted_recorded"]:
+            return None
+        # Banking an answer before the probe is a recording, so it answers to the
+        # recording rules. Judged by the same helper as record_answer's value, because
+        # two standards for one act is how a value refused on one path gets in by the
+        # other. Absent is not the same as null: null is the model saying there was no
+        # answer, and absent is the model not having been asked the question.
+        if "answer_so_far" not in turn.tool_input:
+            return (
+                "ask_follow_up requires answer_so_far: the answer to the current "
+                "question their reply already contains, or null if it contained none"
+            )
+        banked = turn.tool_input["answer_so_far"]
+        return None if banked is None else _unrecordable(question, state, banked, said)
 
     if turn.tool_name == REPLY:
         if not str(turn.tool_input.get("reply_text", "")).strip():
@@ -803,36 +857,50 @@ def _rejection(
     if turn.tool_name == RECORD:
         if "value" not in turn.tool_input:
             return "record_answer requires a value"
-        try:
-            # The same rule as the recording itself, and it has to be, or the value is
-            # judged twice by two standards. This gate runs first, so a follow-up's
-            # prose was rejected here before the recording rule ever saw it.
-            if state["scripted_recorded"]:
-                value = _follow_up_value(question, turn.tool_input["value"])
-            else:
-                value = validate_answer(question, turn.tool_input["value"])
-        except AnswerValidationError as exc:
-            return exc.message
-        # Shape proven, now source. Everything above establishes the answer is the right
-        # kind of thing; none of it asks whether the respondent said it. Free text is the
-        # shape that can be invented wholesale, and it is the one an author reads as a
-        # quotation. A yes/no is the cheaper invention: two values, one of them right by
-        # luck half the time, and a live run recorded "yes" from the message "4".
-        if isinstance(value.get("text"), str):
-            return ungrounded_text(value["text"], said)
-        if isinstance(value.get("yes_no"), bool):
-            return ungrounded_yes_no(said)
-        # A write-in is prose the respondent supposedly typed, so it is judged as prose.
-        if isinstance(value.get("other"), str):
-            return ungrounded_text(value["other"], said)
-        if isinstance(value.get("option"), str):
-            return ungrounded_choice(value["option"], said)
-        for chosen in value.get("options", []) or []:
-            problem = ungrounded_choice(chosen, said)
-            if problem is not None:
-                return problem
-        return None
+        return _unrecordable(question, state, turn.tool_input["value"], said)
 
+    return None
+
+
+def _unrecordable(
+    question: dict[str, Any],
+    state: dict[str, Any],
+    raw: Any,
+    said: list[str],
+) -> str | None:
+    """Why this value may not be recorded, or None if it may.
+
+    Shared by record_answer and by the answer ask_follow_up banks before probing, so
+    both are held to one standard: shape first, then source.
+    """
+    try:
+        # The same rule as the recording itself, and it has to be, or the value is
+        # judged twice by two standards. This gate runs first, so a follow-up's
+        # prose was rejected here before the recording rule ever saw it.
+        if state["scripted_recorded"]:
+            value = _follow_up_value(question, raw)
+        else:
+            value = validate_answer(question, raw)
+    except AnswerValidationError as exc:
+        return exc.message
+    # Shape proven, now source. Everything above establishes the answer is the right
+    # kind of thing; none of it asks whether the respondent said it. Free text is the
+    # shape that can be invented wholesale, and it is the one an author reads as a
+    # quotation. A yes/no is the cheaper invention: two values, one of them right by
+    # luck half the time, and a live run recorded "yes" from the message "4".
+    if isinstance(value.get("text"), str):
+        return ungrounded_text(value["text"], said)
+    if isinstance(value.get("yes_no"), bool):
+        return ungrounded_yes_no(said)
+    # A write-in is prose the respondent supposedly typed, so it is judged as prose.
+    if isinstance(value.get("other"), str):
+        return ungrounded_text(value["other"], said)
+    if isinstance(value.get("option"), str):
+        return ungrounded_choice(value["option"], said)
+    for chosen in value.get("options", []) or []:
+        problem = ungrounded_choice(chosen, said)
+        if problem is not None:
+            return problem
     return None
 
 

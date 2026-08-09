@@ -1,0 +1,90 @@
+{
+  "scenario": "compliance",
+  "captured_at": "2026-08-09T14:44:24+00:00",
+  "model": "gpt-4o-mini",
+  "survey_title": "Compliance Check Survey for Line Leaders",
+  "status": "completed",
+  "note": "A real run through the UI, transcribed from run_messages and answers rather than captured by scripts/live_conversation.py, which is why it is here by hand. Question 3 is the reason: asked what challenges they face, the respondent said 'tempereture'. The model probed instead of recording, the reply to the probe ('was around 6c') was about the reading rather than the challenge, and the model then flagged the question unanswerable. Nothing had been recorded, so the flag landed on the question itself and a real answer was replaced by a note saying none was given. That is a flow bug, not a gate one: no gate refused 'tempereture', it was never offered to one. So the regression lives in test_conduct.py (test_a_probe_banks_the_answer_the_reply_already_held) and ask_follow_up now carries answer_so_far. This file is kept faithful to what was actually stored, unanswerable and all, so the four sound answers keep replaying and the record of the loss stays readable.",
+  "respondent_messages": [
+    "5",
+    "Always",
+    "tempereture",
+    "was around 6c",
+    "Yes",
+    "ice"
+  ],
+  "answers": [
+    {
+      "question_text": "How familiar are you with the current compliance standards in your department?",
+      "answer_type": "rating",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": { "rating": 5 },
+      "said": ["5"],
+      "judge": {
+        "supported": true,
+        "why": "They typed 5 and 5 was recorded."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How often do you ensure your team follows compliance procedures?",
+      "answer_type": "single_select",
+      "options": ["Always", "Often", "Sometimes", "Rarely", "Never"],
+      "allow_other": true,
+      "kind": "scripted",
+      "value": { "option": "Always" },
+      "said": ["5", "Always"],
+      "judge": {
+        "supported": true,
+        "why": "They named the option exactly."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "What challenges do you face in maintaining compliance within your team?",
+      "answer_type": "short_text",
+      "options": [],
+      "allow_other": true,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "The response did not answer the question about challenges faced in maintaining compliance."
+      },
+      "said": ["5", "Always", "tempereture", "was around 6c"],
+      "judge": {
+        "supported": false,
+        "why": "They said temperature, which answers the question. The probe drew out a reading rather than a challenge, and giving up on the probe discarded the answer they had already given."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Have you received adequate training related to compliance standards?",
+      "answer_type": "yes_no",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": { "yes_no": true },
+      "said": ["5", "Always", "tempereture", "was around 6c", "Yes"],
+      "judge": {
+        "supported": true,
+        "why": "They said Yes."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "What resources would help you better ensure compliance in your department?",
+      "answer_type": "short_text",
+      "options": [],
+      "allow_other": true,
+      "kind": "scripted",
+      "value": { "text": "ice" },
+      "said": ["5", "Always", "tempereture", "was around 6c", "Yes", "ice"],
+      "judge": {
+        "supported": true,
+        "why": "Their whole reply was the word recorded."
+      },
+      "invented": false
+    }
+  ]
+}
