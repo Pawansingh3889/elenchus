@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "./api";
 import { useUserStore } from "./store";
-import type { RunDetail, TemplateWrite } from "./types";
+import type { AnswerType, RunDetail, TemplateWrite } from "./types";
 
 export function useUsers() {
   return useQuery({ queryKey: ["users"], queryFn: api.listUsers });
@@ -99,7 +99,8 @@ export function usePublishTemplate(id: string) {
 export function useGenerateTemplate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (prompt: string) => api.generateTemplate(prompt),
+    mutationFn: (args: { prompt: string; allowedAnswerTypes: AnswerType[] }) =>
+      api.generateTemplate(args.prompt, args.allowedAnswerTypes),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["templates"] }),
   });
 }

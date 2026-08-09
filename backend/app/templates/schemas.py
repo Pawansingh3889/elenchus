@@ -215,6 +215,11 @@ class TemplateUpdate(TemplateWrite):
 
 class GenerateRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=4000)
+    # The answer-type policy, stated before the survey exists. Generate had no way to
+    # take one, so an author who wrote "no text questions" in the description box was
+    # relying on the model reading it and nothing enforcing it, which is the failure the
+    # policy was introduced to end. Empty is every type, as everywhere else.
+    allowed_answer_types: list[AnswerType] = Field(default_factory=list)
 
 
 class RefineRequest(BaseModel):

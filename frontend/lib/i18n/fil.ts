@@ -40,6 +40,8 @@ export const fil: Messages = {
     pickUser: "Pumili ng user sa itaas para magsimulang gumawa.",
     goingToRespond: "Dinadala ka sa Sumagot…",
     empty: "Wala pang template. Gumawa ng isa o ipadraft sa AI.",
+    answerTypesHint:
+      "Anong mga uri ng sagot ang maaari nitong gamitin? Sinusunod ito ng AI sa pagbuo at sa bawat susunod na pagbabago.",
     draftWithAi: "✦ Idraft gamit ang AI",
     describePlaceholder: "Ilarawan ang survey… hal. Isang onboarding survey para sa mga empleyado sa pabrika: ang kanilang tungkulin, ang mga sistemang ginagamit araw-araw, at ang pinakamalaking problema nila sa datos.",
   },
@@ -70,9 +72,18 @@ export const fil: Messages = {
       "Konteksto para sa AI na nagsasagawa ng survey na ito; hindi ito ipinapakita sa sumasagot. Ilarawan ang lugar ng trabaho at kung ano ang nagpapasya kung tiyak o malabo ang isang sagot.",
     settingPlaceholder:
       "hal. Planta ng pinalamig na isda. Ang sariwang isda ay nasa yelo sa 0 hanggang 2 degrees; mas mataas diyan ay problema sa cold chain. Mga line leader ang sumasagot.",
+    settingsTitle: "Mga setting ng survey",
+    typesAll: "lahat ng uri",
+    typesSome: (n: number) => `${n} uri ng sagot`,
+    settingWritten: "may konteksto",
     audienceTitle: "Para kanino ito",
     audienceFrozen:
       "Hindi na mababago kapag nailathala: hindi na mapaghihiwalay ang mga sagot mula sa dalawang magkaibang grupo.",
+    presetAny: "Kahit anong uri",
+    presetNoFreeText: "Walang malayang teksto",
+    presetClosedOnly: "Saradong sagot lamang",
+    presetCustom: "Pasadya",
+    presetAdvanced: "Piliin ang bawat uri",
     answerTypesTitle: "Mga uri ng sagot",
     answerTypesHint:
       "Piliin ang mga uri na maaaring gamitin ng survey na ito. Kung walang napili, pinapayagan ang lahat ng uri. Sinusunod ito ng AI sa bawat pagpino.",

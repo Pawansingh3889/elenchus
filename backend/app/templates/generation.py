@@ -72,12 +72,23 @@ class GenerationService:
         self.llm: LLMProtocol = llm or get_llm()
         self.templates = TemplateService(session)
 
-    async def generate_draft(self, prompt: str, author: User) -> tuple[SurveyTemplate, str]:
+    async def generate_draft(
+        self, prompt: str, author: User, allowed: list[AnswerType] | None = None
+    ) -> tuple[SurveyTemplate, str]:
         """Draft a new survey from a description. Returns the saved draft and the model's
-        short note on what it built."""
-        system = load_prompt("generate_template_v2")
+        short note on what it built.
+
+        The policy is stated up front rather than read from a template, because there is
+        no template yet. It is then stored on the draft this creates, so the constraint
+        the author stated once holds for every later refine instead of expiring with the
+        first answer the model gave."""
+        allowed = allowed or []
+        system = load_prompt("generate_template_v3")
         template_in, note = await self._draft(
-            system, [{"role": "user", "content": prompt}], allowed=[], previous_error=None
+            system,
+            [{"role": "user", "content": f"{prompt}\n\n{_policy(allowed)}"}],
+            allowed=allowed,
+            previous_error=None,
         )
         template = await self.templates.create_draft(_without_catch_alls(template_in), author)
         return template, note

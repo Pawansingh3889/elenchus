@@ -40,6 +40,8 @@ export const pl: Messages = {
     pickUser: "Wybierz użytkownika na górnym pasku, aby zacząć tworzyć.",
     goingToRespond: "Przechodzimy do Odpowiadaj…",
     empty: "Nie ma jeszcze szablonów. Utwórz jeden lub napisz go z pomocą AI.",
+    answerTypesHint:
+      "Jakich typów odpowiedzi może użyć? AI trzyma się tego przy tworzeniu i przy każdej późniejszej zmianie.",
     draftWithAi: "✦ Napisz z AI",
     describePlaceholder:
       "Opisz ankietę… np. Ankieta wdrożeniowa dla pracowników zakładu: ich stanowisko, systemy używane na co dzień i największe problemy z danymi.",
@@ -71,9 +73,18 @@ export const pl: Messages = {
       "Kontekst dla AI prowadzącej tę ankietę; nigdy nie jest pokazywany odpowiadającym. Opisz miejsce pracy i to, co decyduje, czy odpowiedź jest konkretna, czy ogólnikowa.",
     settingPlaceholder:
       "np. Zakład przetwórstwa ryb chłodzonych. Świeża ryba leży na lodzie w 0-2 stopniach; powyżej to problem łańcucha chłodniczego. Odpowiadają liderzy linii.",
+    settingsTitle: "Ustawienia ankiety",
+    typesAll: "wszystkie typy",
+    typesSome: (n: number) => `${n} typy odpowiedzi`,
+    settingWritten: "kontekst zapisany",
     audienceTitle: "Dla kogo jest",
     audienceFrozen:
       "Po opublikowaniu bez zmian: odpowiedzi z dwóch różnych grup nie da się później rozdzielić.",
+    presetAny: "Dowolny typ",
+    presetNoFreeText: "Bez wolnego tekstu",
+    presetClosedOnly: "Tylko odpowiedzi zamknięte",
+    presetCustom: "Własne",
+    presetAdvanced: "Wybierz każdy typ",
     answerTypesTitle: "Typy odpowiedzi",
     answerTypesHint:
       "Zaznacz typy, których może użyć ta ankieta. Brak zaznaczeń oznacza, że dozwolony jest każdy typ. AI trzyma się tego przy każdym dopracowaniu.",

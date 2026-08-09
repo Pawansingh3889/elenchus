@@ -11,8 +11,10 @@ import {
   useDashboard,
   useGenerateTemplate,
 } from "@/lib/queries";
+import { AnswerTypePolicy } from "@/components/AnswerTypePolicy";
 import { useT } from "@/lib/i18n/useT";
 import { useDraftNoteStore, useUserStore } from "@/lib/store";
+import type { AnswerType } from "@/lib/types";
 
 export default function Home() {
   const { common, home } = useT();
@@ -26,6 +28,9 @@ export default function Home() {
   const generate = useGenerateTemplate();
   const router = useRouter();
   const [prompt, setPrompt] = useState("");
+  // Stated before the survey exists, and stored on the draft this creates, so the
+  // constraint holds for every later refine rather than expiring with the first answer.
+  const [allowedTypes, setAllowedTypes] = useState<AnswerType[]>([]);
   const setPendingNote = useDraftNoteStore((s) => s.setPendingNote);
 
   // Build is author-only on the backend; a respondent landing here (e.g. after
@@ -56,7 +61,10 @@ export default function Home() {
 
   async function onGenerate() {
     if (!prompt.trim()) return;
-    const { template, note } = await generate.mutateAsync(prompt.trim());
+    const { template, note } = await generate.mutateAsync({
+      prompt: prompt.trim(),
+      allowedAnswerTypes: allowedTypes,
+    });
     // Hand the note to the builder, then drop straight into it with the questions.
     if (note) setPendingNote(template.id, note);
     router.push(`/templates/${template.id}`);
@@ -119,6 +127,11 @@ export default function Home() {
           placeholder={home.describePlaceholder}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
+        />
+        <AnswerTypePolicy
+          allowedTypes={allowedTypes}
+          onChange={setAllowedTypes}
+          hint={home.answerTypesHint}
         />
         <div className="generate-actions">
           <button

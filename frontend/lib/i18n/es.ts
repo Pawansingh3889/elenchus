@@ -40,6 +40,8 @@ export const es: Messages = {
     pickUser: "Elige un usuario en la barra superior para empezar a crear.",
     goingToRespond: "Llevándote a Responder…",
     empty: "Aún no hay plantillas. Crea una o redáctala con IA.",
+    answerTypesHint:
+      "¿Qué tipos de respuesta puede usar? La IA lo respeta al redactar y se mantiene en cada cambio posterior.",
     draftWithAi: "✦ Redactar con IA",
     describePlaceholder:
       "Describe la encuesta… p. ej. Una encuesta de incorporación para personal de fábrica: su puesto, los sistemas que usan a diario y sus mayores frustraciones con los datos.",
@@ -71,9 +73,18 @@ export const es: Messages = {
       "Contexto para la IA que realiza esta encuesta; nunca se muestra a quien responde. Describa el lugar de trabajo y lo que determina si una respuesta es concreta o vaga.",
     settingPlaceholder:
       "p. ej. Planta de pescado refrigerado. El pescado fresco se mantiene en hielo entre 0 y 2 grados; por encima hay un problema de cadena de frío. Responden jefes de línea.",
+    settingsTitle: "Ajustes de la encuesta",
+    typesAll: "todos los tipos",
+    typesSome: (n: number) => `${n} tipos de respuesta`,
+    settingWritten: "contexto escrito",
     audienceTitle: "Para quién es",
     audienceFrozen:
       "Fijo una vez publicada: las respuestas de dos poblaciones distintas ya no se pueden separar después.",
+    presetAny: "Cualquier tipo",
+    presetNoFreeText: "Sin texto libre",
+    presetClosedOnly: "Solo respuestas cerradas",
+    presetCustom: "Personalizado",
+    presetAdvanced: "Elegir cada tipo",
     answerTypesTitle: "Tipos de respuesta",
     answerTypesHint:
       "Marque los tipos que esta encuesta puede usar. Sin marcar nada se permite cualquier tipo. La IA lo respeta en cada refinamiento.",

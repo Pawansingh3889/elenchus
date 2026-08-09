@@ -59,7 +59,9 @@ async def generate_template(
     author: User = Depends(require_author),
     session: AsyncSession = Depends(get_session),
 ) -> GeneratedTemplate:
-    template, note = await GenerationService(session).generate_draft(data.prompt, author)
+    template, note = await GenerationService(session).generate_draft(
+        data.prompt, author, data.allowed_answer_types
+    )
     return GeneratedTemplate(template=TemplateRead.model_validate(template), note=note)
 
 

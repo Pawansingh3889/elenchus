@@ -41,6 +41,8 @@ export const de: Messages = {
     pickUser: "Wählen Sie oben einen Benutzer, um mit dem Erstellen zu beginnen.",
     goingToRespond: "Weiter zu Antworten…",
     empty: "Noch keine Vorlagen. Erstellen Sie eine oder entwerfen Sie sie mit KI.",
+    answerTypesHint:
+      "Welche Antworttypen darf sie verwenden? Die KI hält sich beim Entwerfen daran, und es gilt für jede spätere Änderung.",
     draftWithAi: "✦ Mit KI entwerfen",
     describePlaceholder: "Beschreiben Sie die Umfrage… z. B. Eine Einarbeitungsumfrage für Fabrikpersonal: ihre Rolle, die täglich genutzten Systeme und ihre größten Datenprobleme.",
   },
@@ -71,9 +73,18 @@ export const de: Messages = {
       "Hintergrund für die KI, die diese Umfrage führt; wird Befragten nie angezeigt. Beschreiben Sie den Arbeitsplatz und alles, woran sich entscheidet, ob eine Antwort konkret oder vage ist.",
     settingPlaceholder:
       "z. B. Betrieb für gekühlten Fisch. Frischer Fisch liegt bei 0 bis 2 Grad auf Eis; darüber ist die Kühlkette gefährdet. Befragte sind Schichtleiter.",
+    settingsTitle: "Umfrage-Einstellungen",
+    typesAll: "alle Antworttypen",
+    typesSome: (n: number) => `${n} Antworttypen`,
+    settingWritten: "Kontext hinterlegt",
     audienceTitle: "Für wen sie ist",
     audienceFrozen:
       "Nach der Veröffentlichung fest: Ergebnisse aus zwei verschiedenen Gruppen lassen sich nachträglich nicht mehr trennen.",
+    presetAny: "Alle Typen",
+    presetNoFreeText: "Kein Freitext",
+    presetClosedOnly: "Nur geschlossene Antworten",
+    presetCustom: "Eigene Auswahl",
+    presetAdvanced: "Typen einzeln wählen",
     answerTypesTitle: "Antworttypen",
     answerTypesHint:
       "Wählen Sie die Typen, die diese Umfrage verwenden darf. Nichts ausgewählt erlaubt jeden Typ. Die KI hält sich bei jeder Verfeinerung daran.",

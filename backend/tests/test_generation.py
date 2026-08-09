@@ -481,3 +481,52 @@ async def test_refine_refuses_another_authors_template(session, author, other_au
         await GenerationService(session, llm=FakeLLM(_VALID)).refine_draft(
             original.id, "change it", other_author
         )
+
+
+async def test_generate_takes_a_policy_and_stores_it_on_the_draft(session, author):
+    """The gap the policy left open. There is no template when you generate, so there was
+    nothing to read a policy from and generate passed an empty one: an author who wrote
+    "no text questions" in the description box was relying on the model reading it, with
+    nothing enforcing it. Stated up front, it is enforced now and kept, so it also holds
+    for every later refine instead of expiring with the first answer."""
+    allowed = [AnswerType.rating, AnswerType.single_select]
+    payload = {
+        "title": "Compliance check",
+        "questions": [
+            {"text": "How familiar are you?", "answer_type": "rating"},
+            {"text": "How often?", "answer_type": "single_select", "options": ["Always", "Never"]},
+        ],
+    }
+    fake = FakeLLM(payload)
+    template, _ = await GenerationService(session, llm=fake).generate_draft(
+        "compliance for line leaders", author, allowed
+    )
+
+    assert template.allowed_answer_types == ["rating", "single_select"]
+    assert "ONLY rating, single_select" in fake.messages_seen[0][0]["content"]
+
+
+async def test_generate_refuses_a_draft_that_breaks_the_stated_policy(session, author):
+    """Same rails as refine: rejected, retried with the reason, and loud if it will not
+    comply. Otherwise the policy is advice on the one path where the author states it
+    before anything exists to check it against."""
+    banned = {
+        "title": "Compliance check",
+        "questions": [{"text": "What challenges?", "answer_type": "short_text"}],
+    }
+    fake = FakeLLM(banned, banned)
+    with pytest.raises(LLMError, match="short_text"):
+        await GenerationService(session, llm=fake).generate_draft(
+            "compliance", author, [AnswerType.rating]
+        )
+    assert fake.calls == 2
+
+
+async def test_generate_without_a_policy_is_unchanged(session, author):
+    """The common case. An author who states nothing has restricted nothing, and the
+    draft they get is the draft they always got."""
+    template, _ = await GenerationService(session, llm=FakeLLM(_VALID)).generate_draft(
+        "onboarding", author
+    )
+    assert template.allowed_answer_types == []
+    assert AnswerType.short_text in {q.answer_type for q in template.questions}

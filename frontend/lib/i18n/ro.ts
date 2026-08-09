@@ -40,6 +40,8 @@ export const ro: Messages = {
     pickUser: "Alege un utilizator din bara de sus pentru a începe să creezi.",
     goingToRespond: "Te ducem la Răspunde…",
     empty: "Încă nu există șabloane. Creează unul sau redactează-l cu AI.",
+    answerTypesHint:
+      "Ce tipuri de răspuns poate folosi? IA respectă acest lucru la redactare și la fiecare modificare ulterioară.",
     draftWithAi: "✦ Redactează cu AI",
     describePlaceholder:
       "Descrie sondajul… de ex. Un sondaj de integrare pentru personalul din fabrică: postul lor, sistemele folosite zilnic și cele mai mari probleme cu datele.",
@@ -71,9 +73,18 @@ export const ro: Messages = {
       "Context pentru IA care conduce acest chestionar; nu este arătat niciodată respondenților. Descrieți locul de muncă și ce anume decide dacă un răspuns este concret sau vag.",
     settingPlaceholder:
       "ex. Fabrică de pește refrigerat. Peștele proaspăt stă pe gheață la 0-2 grade; peste asta este o problemă de lanț frigorific. Răspund șefii de linie.",
+    settingsTitle: "Setările chestionarului",
+    typesAll: "toate tipurile",
+    typesSome: (n: number) => `${n} tipuri de răspuns`,
+    settingWritten: "context scris",
     audienceTitle: "Pentru cine este",
     audienceFrozen:
       "Fix după publicare: răspunsurile din două populații diferite nu mai pot fi separate ulterior.",
+    presetAny: "Orice tip",
+    presetNoFreeText: "Fără text liber",
+    presetClosedOnly: "Doar răspunsuri închise",
+    presetCustom: "Personalizat",
+    presetAdvanced: "Alege fiecare tip",
     answerTypesTitle: "Tipuri de răspuns",
     answerTypesHint:
       "Bifați tipurile pe care le poate folosi acest chestionar. Fără nicio bifă, este permis orice tip. IA respectă acest lucru la fiecare rafinare.",

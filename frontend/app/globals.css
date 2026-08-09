@@ -615,7 +615,103 @@ textarea {
   min-height: 48px;
 }
 
-/* Answer-type policy, above the questions: what this survey is allowed to ask for */
+/* Survey settings: one disclosure above the questions rather than three open cards.
+   Native `details`, so the open/closed state, keyboard handling and screen-reader
+   semantics come from the browser. The marker is restyled, not replaced. */
+.settings-panel > summary {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  cursor: pointer;
+  /* A summary is a 44px-tall target on a phone like every other control here. */
+  min-block-size: var(--tap);
+  align-content: center;
+  flex-wrap: wrap;
+}
+.settings-panel > summary::marker {
+  color: var(--muted);
+}
+.settings-panel > summary .card-label {
+  margin-bottom: 0;
+}
+.settings-summary {
+  font-size: var(--text-sm);
+  font-style: normal;
+}
+.settings-panel[open] > summary {
+  margin-block-end: var(--space-3);
+  border-block-end: 1px solid var(--border-faint);
+  padding-block-end: var(--space-2);
+}
+.settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Answer-type policy: one choice, with the eight types behind a reveal. Chips are
+   radios, so arrow-key selection and the checked state come from the browser rather
+   than from click handlers on divs. */
+.policy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.policy-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-block-size: var(--tap);
+  padding-inline: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.chip:hover {
+  border-color: var(--accent);
+}
+.chip-on {
+  background: var(--ai-fill);
+  border-color: var(--ai-border);
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+/* The radio itself is redundant once the chip shows the state, but it stays in the DOM
+   and focusable: removing it would take the keyboard and the screen reader with it. */
+.chip input {
+  position: absolute;
+  opacity: 0;
+  inline-size: 1px;
+  block-size: 1px;
+}
+.chip:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.policy-advanced > summary {
+  font-size: var(--text-sm);
+  cursor: pointer;
+  min-block-size: var(--tap);
+  align-content: center;
+}
+.policy-advanced[open] > summary {
+  margin-block-end: var(--space-2);
+}
+
+/* Answer-type policy: what this survey is allowed to ask for */
 .types-card {
   display: flex;
   flex-direction: column;

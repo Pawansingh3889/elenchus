@@ -40,6 +40,8 @@ export const lv: Messages = {
     pickUser: "Izvēlieties lietotāju augšējā joslā, lai sāktu veidot.",
     goingToRespond: "Pārejam uz Atbildēt…",
     empty: "Vēl nav neviena veidne. Izveidojiet to vai uzrakstiet ar MI palīdzību.",
+    answerTypesHint:
+      "Kādus atbilžu veidus tā drīkst izmantot? MI to ievēro, sastādot aptauju, un katrā vēlākā izmaiņā.",
     draftWithAi: "✦ Uzrakstīt ar MI",
     describePlaceholder:
       "Aprakstiet aptauju… piem., Ievadaptauja rūpnīcas darbiniekiem: viņu amats, ikdienā lietotās sistēmas un lielākās problēmas ar datiem.",
@@ -71,9 +73,18 @@ export const lv: Messages = {
       "Konteksts MI, kas vada šo aptauju; respondentiem to nekad nerāda. Aprakstiet darba vietu un to, kas nosaka, vai atbilde ir konkrēta vai neskaidra.",
     settingPlaceholder:
       "piem. Atdzesētas zivs pārstrādes rūpnīca. Svaigu zivi tur uz ledus 0-2 grādos; augstāk ir aukstuma ķēdes problēma. Atbild līniju vadītāji.",
+    settingsTitle: "Aptaujas iestatījumi",
+    typesAll: "visi veidi",
+    typesSome: (n: number) => `${n} atbilžu veidi`,
+    settingWritten: "konteksts ierakstīts",
     audienceTitle: "Kam tā paredzēta",
     audienceFrozen:
       "Pēc publicēšanas nemainīgs: divu dažādu grupu atbildes vēlāk vairs nav atdalāmas.",
+    presetAny: "Jebkurš veids",
+    presetNoFreeText: "Bez brīvā teksta",
+    presetClosedOnly: "Tikai slēgtas atbildes",
+    presetCustom: "Pielāgots",
+    presetAdvanced: "Izvēlēties katru veidu",
     answerTypesTitle: "Atbilžu veidi",
     answerTypesHint:
       "Atzīmējiet veidus, ko šī aptauja drīkst izmantot. Ja nekas nav atzīmēts, atļauts jebkurš veids. MI to ievēro katrā uzlabojumā.",

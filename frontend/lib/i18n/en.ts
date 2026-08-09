@@ -48,6 +48,8 @@ export const en = {
     pickUser: "Pick a user in the top bar to start authoring.",
     goingToRespond: "Taking you to Respond…",
     empty: "No templates yet. Create one or draft with AI.",
+    answerTypesHint:
+      "Which answer types may it use? The AI keeps to this when drafting, and it holds for every later change.",
     draftWithAi: "✦ Draft with AI",
     describePlaceholder:
       "Describe the survey… e.g. An onboarding survey for factory staff: their role, the systems they use daily, and their biggest data frustrations.",
@@ -79,9 +81,18 @@ export const en = {
       "Background for the AI that conducts this survey, never shown to respondents. Describe the workplace and anything that decides whether an answer is specific or vague.",
     settingPlaceholder:
       "e.g. Chilled fish processing plant. Fresh fish is held on ice at 0 to 2 degrees; above that is a chill-chain problem. Respondents are line leaders.",
+    settingsTitle: "Survey settings",
+    typesAll: "all answer types",
+    typesSome: (n: number) => `${n} answer types`,
+    settingWritten: "setting written",
     audienceTitle: "Who it is for",
     audienceFrozen:
       "Fixed once published: results drawn from two different populations cannot be told apart afterwards.",
+    presetAny: "Any type",
+    presetNoFreeText: "No free text",
+    presetClosedOnly: "Closed answers only",
+    presetCustom: "Custom",
+    presetAdvanced: "Choose each type",
     answerTypesTitle: "Answer types",
     answerTypesHint:
       "Tick the types this survey may use. Nothing ticked allows any type. The AI keeps to this on every refine.",

@@ -1,5 +1,6 @@
 import { useLocaleStore, useUserStore } from "./store";
 import type {
+  AnswerType,
   DashboardRow,
   GeneratedTemplate,
   Run,
@@ -146,10 +147,10 @@ export const api = {
     request<TemplateVersion>(`/templates/${id}/publish`, { method: "POST" }),
   closeTemplate: (id: string) =>
     request<Template>(`/templates/${id}/close`, { method: "POST" }),
-  generateTemplate: (prompt: string) =>
+  generateTemplate: (prompt: string, allowedAnswerTypes: AnswerType[]) =>
     request<GeneratedTemplate>("/templates/generate", {
       method: "POST",
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify({ prompt, allowed_answer_types: allowedAnswerTypes }),
     }),
   refineTemplate: (id: string, instruction: string) =>
     request<GeneratedTemplate>(`/templates/${id}/refine`, {

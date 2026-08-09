@@ -40,6 +40,8 @@ export const lt: Messages = {
     pickUser: "Pasirinkite naudotoją viršutinėje juostoje, kad pradėtumėte kurti.",
     goingToRespond: "Nukreipiame į Atsakyti…",
     empty: "Šablonų dar nėra. Sukurkite jį arba parenkite su DI.",
+    answerTypesHint:
+      "Kokius atsakymų tipus ji gali naudoti? DI to laikosi rengdamas ir kiekvieną vėlesnį kartą.",
     draftWithAi: "✦ Parengti su DI",
     describePlaceholder:
       "Aprašykite apklausą… pvz., Įvadinė apklausa gamyklos darbuotojams: jų pareigos, kasdien naudojamos sistemos ir didžiausios duomenų problemos.",
@@ -71,9 +73,18 @@ export const lt: Messages = {
       "Kontekstas DI, kuris veda šią apklausą; respondentams niekada nerodoma. Aprašykite darbo vietą ir tai, kas lemia, ar atsakymas konkretus, ar miglotas.",
     settingPlaceholder:
       "pvz. Šaldytos žuvies perdirbimo įmonė. Šviežia žuvis laikoma ant ledo 0-2 laipsnių; aukščiau - šaldymo grandinės problema. Atsako linijų vadovai.",
+    settingsTitle: "Apklausos nustatymai",
+    typesAll: "visi tipai",
+    typesSome: (n: number) => `${n} atsakymų tipai`,
+    settingWritten: "kontekstas įrašytas",
     audienceTitle: "Kam ji skirta",
     audienceFrozen:
       "Paskelbus nebekeičiama: dviejų skirtingų grupių atsakymų vėliau nebeatskirsite.",
+    presetAny: "Bet koks tipas",
+    presetNoFreeText: "Jokio laisvo teksto",
+    presetClosedOnly: "Tik uždari atsakymai",
+    presetCustom: "Pasirinktinis",
+    presetAdvanced: "Rinktis kiekvieną tipą",
     answerTypesTitle: "Atsakymų tipai",
     answerTypesHint:
       "Pažymėkite tipus, kuriuos gali naudoti ši apklausa. Nieko nepažymėjus leidžiami visi tipai. DI to laikosi kiekvieną kartą tobulindamas.",
