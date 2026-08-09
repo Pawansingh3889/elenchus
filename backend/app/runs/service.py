@@ -17,7 +17,7 @@ from app.errors import NotFoundError
 from app.runs.enums import AnswerKind
 from app.runs.models import REPLY_PREFIX, SurveyRun
 from app.runs.repository import ResultsRepository
-from app.runs.schemas import AnswerRead, MessageRead, RunDetail, RunSummary
+from app.runs.schemas import AnswerRead, DashboardRow, MessageRead, RunDetail, RunSummary
 from app.templates.models import SurveyTemplate, SurveyTemplateVersion
 from app.templates.repository import TemplateRepository
 from app.templates.snapshot import questions_of
@@ -43,6 +43,38 @@ class ResultsService:
         self.session = session
         self.repo = ResultsRepository(session)
         self.templates = TemplateRepository(session)
+
+    async def dashboard(self, author: User) -> list[DashboardRow]:
+        """Every survey this author owns, with how each one is going.
+
+        Author-scoped in the query rather than filtered afterwards, so another author's
+        survey is never loaded in the first place.
+        """
+        rows = await self.repo.dashboard_rows(author.id)
+        return [
+            DashboardRow(
+                id=template.id,
+                title=template.title,
+                status=template.status,
+                updated_at=template.updated_at,
+                closed_at=template.closed_at,
+                started=started,
+                completed=completed,
+                in_progress=in_progress,
+                abandoned=abandoned,
+                last_started_at=last_started_at,
+                last_completed_at=last_completed_at,
+            )
+            for (
+                template,
+                started,
+                completed,
+                in_progress,
+                abandoned,
+                last_started_at,
+                last_completed_at,
+            ) in rows
+        ]
 
     async def list_runs(self, template_id: UUID, author: User) -> list[RunSummary]:
         await self._owned_or_404(template_id, author)
