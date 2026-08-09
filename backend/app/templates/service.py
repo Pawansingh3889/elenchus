@@ -32,7 +32,10 @@ class TemplateService:
 
     async def create_draft(self, data: TemplateCreate, author: User) -> SurveyTemplate:
         template = SurveyTemplate(
-            title=data.title, description=data.description, created_by=author.id
+            title=data.title,
+            description=data.description,
+            audience=data.audience,
+            created_by=author.id,
         )
         template.questions = [_to_question(q, i) for i, q in enumerate(data.questions)]
         self.repo.add(template)
@@ -76,8 +79,17 @@ class TemplateService:
         self, template_id: UUID, data: TemplateUpdate, author: User
     ) -> SurveyTemplate:
         template = await self._get_or_404(template_id, author)
+        # Frozen once published. The audience is part of what was published, like the
+        # questions: a survey that starts collecting Finance answers and is then pointed
+        # at HR ends up with one set of results drawn from two different populations, and
+        # nothing in the data records that it moved.
+        if data.audience is not template.audience and template.status is not TemplateStatus.draft:
+            raise ConflictError(
+                "A published survey's audience cannot change. Publish a new survey instead."
+            )
         template.title = data.title
         template.description = data.description
+        template.audience = data.audience
         # Full replace of questions covers add / edit / reorder / delete. Delete the
         # old rows first so the (template_id, position) unique constraint can't clash.
         template.questions.clear()

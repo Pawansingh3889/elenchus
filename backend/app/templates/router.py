@@ -37,6 +37,7 @@ def _summary(
         status=template.status,
         updated_at=template.updated_at,
         closed_at=template.closed_at,
+        audience=template.audience,
         question_count=question_count,
         estimated_minutes=estimated_minutes,
     )
