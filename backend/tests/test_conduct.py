@@ -1216,3 +1216,87 @@ async def test_a_follow_up_naming_an_actual_option_stays_structured_despite_allo
 
     follow_ups = [a for a in run.answers if a.kind is AnswerKind.follow_up]
     assert follow_ups[0].value == {"option": "Terminal"}
+
+
+async def test_a_probe_banks_the_answer_the_reply_already_held(session, respondent, published):
+    """The live run this exists for.
+
+    Asked what challenges they faced, the respondent said "tempereture". The model probed
+    instead of recording, the respondent's reply to the probe was about the reading rather
+    than the challenge, and the model then flagged the question unanswerable. Nothing had
+    been recorded, so that flag landed on the question itself: a real answer replaced by a
+    note saying none was given. Banking it before the probe is asked is what survives a
+    probe that goes nowhere.
+    """
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    probe = FakeLLM(_follow_up("How is temperature a challenge?", answer_so_far="tempereture"))
+    run = await ConductEngine(session, llm=probe).handle_message(run.id, "tempereture", respondent)
+
+    banked = [a for a in run.answers if a.kind is AnswerKind.scripted]
+    assert [a.value for a in banked] == [{"text": "tempereture"}]
+    assert run.current_question_index == 0  # banked, not advanced: the probe still stands
+    assert run.messages[-1].content == "How is temperature a challenge?"
+
+    # The probe goes nowhere and the model gives up on it. The banked answer is untouched,
+    # and the flag attaches to the probe rather than to the question.
+    giving_up = FakeLLM(_decline("did not answer the question about challenges"))
+    run = await ConductEngine(session, llm=giving_up).handle_message(
+        run.id, "was around 6c", respondent
+    )
+
+    scripted = [a for a in run.answers if a.kind is AnswerKind.scripted]
+    assert [a.value for a in scripted] == [{"text": "tempereture"}]
+    assert [a.value for a in run.answers if a.kind is AnswerKind.follow_up] == [
+        {"unanswerable": "did not answer the question about challenges"}
+    ]
+
+
+async def test_a_probe_must_say_whether_the_reply_held_an_answer(session, respondent, published):
+    """Required and nullable, not optional. A model that has an answer must not be able to
+    walk past the field without saying so, which is how the answer went missing."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    silent = FakeLLM(
+        ToolTurn(text="", tool_name="ask_follow_up", tool_input={"follow_up_text": "Say more?"}),
+        ToolTurn(text="", tool_name="ask_follow_up", tool_input={"follow_up_text": "Say more?"}),
+    )
+    with pytest.raises(LLMError, match="answer_so_far"):
+        await ConductEngine(session, llm=silent).handle_message(run.id, "tempereture", respondent)
+
+
+async def test_a_banked_answer_is_held_to_the_recording_rules(session, respondent, published):
+    """Banking is recording, so it answers to the same gates. Otherwise ask_follow_up is
+    a second door into the answers table with no grounding check on it, and the fabricated
+    free text the 0.6 gate exists to catch walks straight through."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    invented = FakeLLM(
+        _follow_up("Which line?", answer_so_far="Senior maintenance engineer, night shift"),
+        _follow_up("Which line?", answer_so_far="Senior maintenance engineer, night shift"),
+    )
+    with pytest.raises(LLMError):
+        await ConductEngine(session, llm=invented).handle_message(
+            run.id, "dunno really", respondent
+        )
+    assert not run.answers
+
+
+async def test_banking_is_not_offered_once_the_answer_is_in(session, respondent, published):
+    """A second scripted answer is not a thing that exists. Once one is recorded the probe
+    tool goes back to its old shape, and the model records the probe's answer as a
+    follow-up in the normal way."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    # Two turns: recording does not advance while the question still permits probing, so
+    # the engine loops and the model decides again with the answer now in.
+    first = FakeLLM(_record("Line lead"), _move_on())
+    run = await ConductEngine(session, llm=first).handle_message(run.id, "line lead", respondent)
+
+    probing = [t for t in first.tools_seen[-1] if t["name"] == "ask_follow_up"]
+    assert probing, "the question permits probing, so the tool must still be offered"
+    assert "answer_so_far" not in probing[0]["input_schema"]["properties"]
