@@ -74,6 +74,11 @@ export const en = {
     moveDown: "Move down",
     removeQuestion: "Delete question",
     removeOption: "Remove option",
+    settingTitle: "What the interviewer should know",
+    settingHint:
+      "Background for the AI that conducts this survey, never shown to respondents. Describe the workplace and anything that decides whether an answer is specific or vague.",
+    settingPlaceholder:
+      "e.g. Chilled fish processing plant. Fresh fish is held on ice at 0 to 2 degrees; above that is a chill-chain problem. Respondents are line leaders.",
     audienceTitle: "Who it is for",
     audienceFrozen:
       "Fixed once published: results drawn from two different populations cannot be told apart afterwards.",

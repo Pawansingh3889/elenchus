@@ -35,6 +35,7 @@ class TemplateService:
             title=data.title,
             description=data.description,
             audience=data.audience,
+            setting=data.setting,
             allowed_answer_types=[t.value for t in data.allowed_answer_types],
             created_by=author.id,
         )
@@ -91,6 +92,7 @@ class TemplateService:
         template.title = data.title
         template.description = data.description
         template.audience = data.audience
+        template.setting = data.setting
         template.allowed_answer_types = [t.value for t in data.allowed_answer_types]
         # Full replace of questions covers add / edit / reorder / delete. Delete the
         # old rows first so the (template_id, position) unique constraint can't clash.
@@ -188,6 +190,9 @@ def _snapshot(template: SurveyTemplate) -> dict[str, Any]:
     return {
         "title": template.title,
         "description": template.description,
+        # Frozen with the questions: a run is conducted against the setting the
+        # author published, not whatever the draft says by the time it is answered.
+        "setting": template.setting,
         "questions": [
             {
                 "id": str(q.id),

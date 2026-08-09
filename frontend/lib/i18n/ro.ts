@@ -66,6 +66,11 @@ export const ro: Messages = {
     moveDown: "Mută mai jos",
     removeQuestion: "Șterge întrebarea",
     removeOption: "Elimină opțiunea",
+    settingTitle: "Ce trebuie să știe intervievatorul",
+    settingHint:
+      "Context pentru IA care conduce acest chestionar; nu este arătat niciodată respondenților. Descrieți locul de muncă și ce anume decide dacă un răspuns este concret sau vag.",
+    settingPlaceholder:
+      "ex. Fabrică de pește refrigerat. Peștele proaspăt stă pe gheață la 0-2 grade; peste asta este o problemă de lanț frigorific. Răspund șefii de linie.",
     audienceTitle: "Pentru cine este",
     audienceFrozen:
       "Fix după publicare: răspunsurile din două populații diferite nu mai pot fi separate ulterior.",

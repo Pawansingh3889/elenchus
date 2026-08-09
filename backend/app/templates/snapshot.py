@@ -50,6 +50,25 @@ class SnapshotQuestion(BaseModel):
     show_when: ShowWhen | None = None
 
 
+def setting_of(definition: dict[str, Any]) -> str | None:
+    """The workplace the author described, or None if they described none.
+
+    Read here rather than subscripted at the call site, for the reason at the top of this
+    module: a missing key must mean one thing everywhere. Absent is a real default, like
+    ``show_when``'s. Versions published before the field existed do not carry it, and
+    their authors had no way to describe the setting, so "not described" is true of them
+    rather than assumed about them.
+
+    A blank or whitespace-only value reads as None too. An author who cleared the box has
+    described nothing, and passing "" down would put an empty heading in the briefing
+    that says a setting follows and then does not.
+    """
+    raw = definition.get("setting")
+    if not isinstance(raw, str):
+        return None
+    return raw.strip() or None
+
+
 def questions_of(definition: dict[str, Any]) -> list[dict[str, Any]]:
     """Validated, position-sorted questions from a version's ``definition``.
 

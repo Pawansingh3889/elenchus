@@ -56,6 +56,16 @@ class SurveyTemplate(Base):
     allowed_answer_types: Mapped[list[str]] = mapped_column(
         JSONB, default=list, server_default="[]"
     )
+    # What the interviewer needs to know about the workplace to read answers here, in the
+    # author's words. Nullable, because most surveys need none and an empty one is not a
+    # fault: a survey with no stated setting is exactly what every survey was before this.
+    #
+    # Distinct from `description`, which is written for the respondent. This is written
+    # for the model, and it exists because the engine cannot judge domain answers without
+    # it. A respondent asked what compliance challenges they face answered "temperature",
+    # then "was around 6c"; whether that is a breach or unremarkable depends on the plant,
+    # and no gate can settle it. The author knows, so the author says.
+    setting: Mapped[str | None] = mapped_column(Text, default=None)
 
     questions: Mapped[list["SurveyQuestion"]] = relationship(
         back_populates="template",
