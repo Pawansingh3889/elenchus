@@ -37,7 +37,12 @@ from app.users.models import User
 
 logger = logging.getLogger("app.conduct")
 
-MAX_FOLLOW_UPS = 2
+# Three, raised from two on 9 Aug 2026. The extra turn is for the case the pivot to
+# closed answers creates: a respondent whose answer is not on the option list, where one
+# exchange is often not enough to draw out what they actually mean. It is a ceiling and
+# the prompt says so, because three rounds of questioning on one question is a long time
+# to spend on a phone at work.
+MAX_FOLLOW_UPS = 3
 MAX_REPLIES = 2  # conversational replies per question (record nothing, advance nothing)
 MAX_MODEL_TURNS = 3  # per respondent message
 TRANSCRIPT_WINDOW = 12  # messages replayed per turn; the briefing restates the question
@@ -353,7 +358,7 @@ class ConductEngine:
         try:
             turn = await self.llm.tool_turn(
                 system="\n\n".join(
-                    (load_prompt("conduct_v4"), language_note(run.language), briefing)
+                    (load_prompt("conduct_v5"), language_note(run.language), briefing)
                 ),
                 messages=messages,
                 tools=tools,

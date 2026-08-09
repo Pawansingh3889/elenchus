@@ -126,9 +126,11 @@ def ungrounded_choice(chosen: str, said: list[str]) -> str | None:
     if supported:
         return None
     return (
-        f"nothing the respondent said supports the option {chosen!r}: choose the option "
-        "they actually described, record their own words as a write-in if the list has "
-        "nothing for them, or flag it unanswerable"
+        f"nothing the respondent said supports the option {chosen!r}. Drop it. If the list "
+        "has nothing for what they described and the question allows a write-in, pass their "
+        "own words as the value, or as an item in the list for a multi_select: anything "
+        "that is not one of the options is kept as their write-in. Do not prefix it with "
+        "'Other:'. If no write-in is allowed, ask a follow-up or flag it unanswerable."
     )
 
 

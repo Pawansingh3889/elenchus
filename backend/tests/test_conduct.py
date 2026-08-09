@@ -129,14 +129,17 @@ async def test_engine_withholds_follow_up_once_the_cap_is_spent(session, respond
     engine = ConductEngine(session, llm=FakeLLM())
     run = await engine.start_run(published.id, respondent)
 
-    # Answer, then probe. Twice — that exhausts the cap.
-    for reply in ("What does that involve?", "Anything else?"):
+    # Answer, then probe, as many times as the cap allows. Driven by MAX_FOLLOW_UPS
+    # rather than a fixed count, because a test that hardcodes "twice" while asserting
+    # against the constant only passes while the constant happens to be two.
+    for i in range(MAX_FOLLOW_UPS):
+        reply = f"Probe {i + 1}, what does that involve?"
         llm = FakeLLM(_record("Line lead"), _follow_up(reply))
         run = await ConductEngine(session, llm=llm).handle_message(run.id, "…", respondent)
         assert run.current_question_index == 0  # a follow-up must not advance the survey
         assert run.messages[-1].content == reply
 
-    # The third answer lands with the cap spent, so ask_follow_up is no longer offered.
+    # The next answer lands with the cap spent, so ask_follow_up is no longer offered.
     llm = FakeLLM(_record("Not really"), _move_on())
     run = await ConductEngine(session, llm=llm).handle_message(run.id, "no", respondent)
 
@@ -174,20 +177,24 @@ async def test_the_cap_counts_probes_asked_not_answers_recorded(session, respond
     first = FakeLLM(_record("Line lead"), _follow_up("What does that involve?"))
     run = await ConductEngine(session, llm=first).handle_message(run.id, "line lead", respondent)
 
-    # Reply evasively; the model probes again without recording anything. Probe 2.
-    second = FakeLLM(_follow_up("Could you say a bit more?"))
-    run = await ConductEngine(session, llm=second).handle_message(
-        run.id, "dunno really", respondent
-    )
+    # Reply evasively; the model probes again without recording anything, until the
+    # budget is gone. One probe is already spent above, hence the minus one.
+    for i in range(MAX_FOLLOW_UPS - 1):
+        again = FakeLLM(_follow_up(f"Could you say a bit more? ({i + 1})"))
+        run = await ConductEngine(session, llm=again).handle_message(
+            run.id, "dunno really", respondent
+        )
 
     assert run.probes_asked == {published_question_id(run): MAX_FOLLOW_UPS}
     assert not [a for a in run.answers if a.kind is AnswerKind.follow_up]  # nothing recorded
 
     # The budget is now spent even though no follow-up answer exists.
-    third = FakeLLM(_follow_up("And anything else?"))
+    over_budget = FakeLLM(_follow_up("And anything else?"))
     with pytest.raises(LLMError):
-        await ConductEngine(session, llm=third).handle_message(run.id, "still dunno", respondent)
-    assert "ask_follow_up" not in third.offered[-1]
+        await ConductEngine(session, llm=over_budget).handle_message(
+            run.id, "still dunno", respondent
+        )
+    assert "ask_follow_up" not in over_budget.offered[-1]
 
 
 def published_question_id(run):
