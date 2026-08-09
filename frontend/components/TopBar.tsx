@@ -32,7 +32,7 @@ export function TopBar() {
         <nav className="topbar-nav">
           {/* Roles don't cross: authors build, respondents answer. */}
           {isAuthor ? (
-            <Link href="/">{topbar.build}</Link>
+            <Link href="/">{topbar.dashboard}</Link>
           ) : (
             <Link href="/respond">{topbar.respond}</Link>
           )}

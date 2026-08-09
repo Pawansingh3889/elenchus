@@ -66,9 +66,10 @@ trying endpoints from `/docs`, add the header yourself.
 
 ## Walk through it
 
-1. Pick **Ava Author** in the top bar. On **Build**, write a survey or describe one in the
-   "Draft with AI" box, then **Publish** it. Publishing freezes the current draft as an
-   immutable version; the draft carries on evolving separately.
+1. Pick **Ava Author** in the top bar. On **Dashboard**, which lists your surveys and how
+   each is going, write a survey or describe one in the "Draft with AI" box, then
+   **Publish** it. Publishing freezes the current draft as an immutable version; the
+   draft carries on evolving separately.
 2. Switch to **Rosa Respondent** and open **Respond**. Start the survey and answer it in
    the chat. Chips, stars and date pickers appear with the question, but they only produce
    text: the engine validates every answer against the question's type either way.
