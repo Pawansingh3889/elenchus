@@ -28,6 +28,7 @@ is a survey shown to people it was not meant for.
 from app.access.rules import (
     AccessDecision,
     is_admin,
+    is_admin_by_config,
     may_answer,
     may_list,
     may_read_rows,
@@ -37,6 +38,7 @@ from app.access.rules import (
 __all__ = [
     "AccessDecision",
     "is_admin",
+    "is_admin_by_config",
     "may_answer",
     "may_list",
     "may_read_rows",

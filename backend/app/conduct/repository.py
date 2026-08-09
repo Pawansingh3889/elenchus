@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.runs.enums import AnswerKind, RunStatus
 from app.runs.models import Answer, RunMessage, SurveyRun
-from app.templates.enums import TemplateStatus
+from app.templates.enums import SurveyAudience, TemplateStatus
 from app.templates.models import SurveyTemplate, SurveyTemplateVersion
 
 # Postgres SQLSTATE for "could not obtain lock" under FOR UPDATE NOWAIT.
@@ -73,6 +73,22 @@ class RunRepository:
 
     async def get_version(self, version_id: UUID) -> SurveyTemplateVersion | None:
         return await self.session.get(SurveyTemplateVersion, version_id)
+
+    async def template_gate(
+        self, template_id: UUID
+    ) -> tuple[TemplateStatus, SurveyAudience, UUID] | None:
+        """The three facts conducting needs about a survey before it will start a run:
+        whether it is still open, who it is for, and who owns it. None if no such survey.
+
+        One query returning three columns rather than three calls or a whole template.
+        Conduct has no business holding an author's aggregate, and starting a run should
+        not drag the questions across to read a status and an audience.
+        """
+        stmt = select(
+            SurveyTemplate.status, SurveyTemplate.audience, SurveyTemplate.created_by
+        ).where(SurveyTemplate.id == template_id)
+        row = (await self.session.execute(stmt)).first()
+        return (row[0], row[1], row[2]) if row else None
 
     async def template_status(self, template_id: UUID) -> TemplateStatus | None:
         """The template's status, or None if there is no such template.

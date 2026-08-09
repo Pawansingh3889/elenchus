@@ -54,6 +54,18 @@ def is_admin(user: User, admin_emails: frozenset[str]) -> bool:
     return granted
 
 
+def is_admin_by_config(user: User) -> bool:
+    """`is_admin` against the configured allowlist, which is what callers actually want.
+
+    Separate from `is_admin` so the rule stays a pure function of its inputs and remains
+    testable without settings, while services get one call rather than each of them
+    reaching for `get_settings()` and remembering which field holds the parsed set.
+    """
+    from app.config import get_settings
+
+    return is_admin(user, get_settings().admin_email_set)
+
+
 def _owns(user: User, created_by: UUID) -> bool:
     return created_by == user.id
 

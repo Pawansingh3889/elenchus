@@ -76,10 +76,10 @@ async def list_templates(
 # signed-in user: a published survey is what a respondent is meant to be able to answer.
 @router.get("/published", response_model=list[TemplateSummary])
 async def list_published(
-    _: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> list[TemplateSummary]:
-    rows = await TemplateService(session).list_published()
+    rows = await TemplateService(session).list_published(user)
     return [_summary(t, n, minutes) for t, n, minutes in rows]
 
 

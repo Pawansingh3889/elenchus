@@ -83,17 +83,24 @@ async def test_only_authors_can_build(author, respondent):
         await require_author(user=respondent)
 
 
-async def test_published_surveys_stay_visible_to_everyone(session, author, other_author):
-    """Published surveys aren't scoped per author; only starting a run is role-gated
-    (respondent-only), and authoring/results stay author-scoped."""
+async def test_the_published_list_is_what_the_reader_may_actually_start(
+    session, author, respondent, other_author
+):
+    """This used to assert published surveys were visible to everyone, which was true
+    when every survey was aimed at the whole respondent pool and is the assumption
+    audiences exist to replace. A survey aimed at respondents still reaches every
+    respondent, so the old behaviour is intact where it was ever meant to apply. What has
+    changed is that the list is now an answer to "what may *you* start", not a catalogue:
+    another author, who cannot answer it, is not shown it either."""
     svc = TemplateService(session)
     mine = await svc.create_draft(TemplateCreate(title="Open", questions=[_q("a")]), author)
     await svc.publish(mine.id, author)
 
-    listed = await svc.list_published()
-
+    listed = await svc.list_published(respondent)
     assert [t.title for t, _, _ in listed] == ["Open"]
     assert all(t.status is TemplateStatus.published for t, _, _ in listed)
+
+    assert await svc.list_published(other_author) == []
 
 
 # --- the dev-auth user list, which must not outlive the dev auth -----------------

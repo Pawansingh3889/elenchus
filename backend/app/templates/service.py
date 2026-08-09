@@ -4,6 +4,7 @@ Publishing freezes the current draft into a new immutable version (n+1). The dra
 keeps evolving afterwards; respondents only ever see published versions.
 """
 
+import logging
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
@@ -11,6 +12,7 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.access import is_admin_by_config, may_answer, may_list
 from app.errors import ConflictError, NotFoundError
 from app.templates.enums import TemplateStatus
 from app.templates.estimate import estimated_minutes
@@ -19,6 +21,8 @@ from app.templates.repository import TemplateRepository
 from app.templates.schemas import QuestionInput, TemplateCreate, TemplateUpdate
 from app.templates.snapshot import questions_of
 from app.users.models import User
+
+logger = logging.getLogger("app.templates")
 
 
 class TemplateService:
@@ -41,15 +45,30 @@ class TemplateService:
     async def list_drafts(
         self, status: TemplateStatus | None, author: User
     ) -> list[tuple[SurveyTemplate, int]]:
-        return await self.repo.list_summaries(status, created_by=author.id)
+        """An author's own workspace. Already scoped to them in the query; filtered again
+        here so the one rule decides, rather than the query agreeing with it by luck."""
+        admin = is_admin_by_config(author)
+        return [
+            row
+            for row in await self.repo.list_summaries(status, created_by=author.id)
+            if may_list(author, row[0].audience, row[0].created_by, admin)
+        ]
 
-    async def list_published(self) -> list[tuple[SurveyTemplate, int, int]]:
-        """Every published survey with the count and time estimate a respondent will
-        actually face — read from the published version, never the evolving draft."""
+    async def list_published(self, user: User) -> list[tuple[SurveyTemplate, int, int]]:
+        """Every published survey this user may actually start, with the count and time
+        estimate they will face, read from the published version rather than the evolving
+        draft.
+
+        Filtered by may_answer rather than may_list, because this list is an invitation:
+        every row on it is something the reader is about to be offered a Start button for.
+        Before audiences existed this method took no user at all and returned everything
+        published, which is precisely the bug audiences were introduced to fix."""
+        admin = is_admin_by_config(user)
         rows = await self.repo.list_published_latest()
         return [
             (template, len(questions), estimated_minutes(questions))
             for template, definition in rows
+            if may_answer(user, template.audience, template.created_by, admin)
             for questions in [questions_of(definition)]
         ]
 
@@ -118,9 +137,22 @@ class TemplateService:
 
     async def _get_or_404(self, template_id: UUID, author: User) -> SurveyTemplate:
         template = await self.repo.get(template_id)
+        if template is None:
+            raise NotFoundError("Template not found.")
         # Someone else's template reads as absent rather than forbidden, so the API
-        # can't be used to enumerate which ids exist.
-        if template is None or template.created_by != author.id:
+        # can't be used to enumerate which ids exist. The rule itself lives in
+        # app/access: this used to compare created_by here, which was the same rule
+        # written in a second place and free to drift from the one the engine uses.
+        decision = may_list(
+            author, template.audience, template.created_by, is_admin_by_config(author)
+        )
+        if not decision:
+            logger.info(
+                "template hidden: template=%s user=%s reason=%s",
+                template_id,
+                author.id,
+                decision.reason,
+            )
             raise NotFoundError("Template not found.")
         return template
 

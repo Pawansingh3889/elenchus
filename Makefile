@@ -3,6 +3,7 @@
 
 PY := uv run
 GUARDS := scripts/check_query_surface.py \
+          scripts/check_access_consulted.py \
           scripts/check_no_create_all.py \
           scripts/check_prompts_versioned.py \
           scripts/check_contrast.py \
