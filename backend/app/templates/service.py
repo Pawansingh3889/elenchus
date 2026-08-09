@@ -4,6 +4,7 @@ Publishing freezes the current draft into a new immutable version (n+1). The dra
 keeps evolving afterwards; respondents only ever see published versions.
 """
 
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -91,6 +92,29 @@ class TemplateService:
         await self.session.commit()
         await self.session.refresh(version)
         return version
+
+    async def close(self, template_id: UUID, author: User) -> SurveyTemplate:
+        """Stop this survey taking new answers. Runs already in progress are untouched.
+
+        Only a published survey can be closed. Closing a draft would be closing something
+        that never opened, and closing a closed one twice would move closed_at, which is
+        the date an author will quote when they report the numbers.
+
+        Nothing here reaches into the runs. The engine refuses to start a new one against
+        a closed survey, and a conversation already under way finishes on its own terms:
+        stopping mid-question would lose answers a respondent has already given, and for a
+        chat that is a worse bargain than a final count that settles a few minutes late.
+        """
+        template = await self._get_or_404(template_id, author)
+        if template.status is not TemplateStatus.published:
+            raise ConflictError(
+                f"Only a published survey can be closed; this one is {template.status.value}."
+            )
+        template.status = TemplateStatus.closed
+        template.closed_at = datetime.now(UTC)
+        await self.session.commit()
+        await self.session.refresh(template)
+        return template
 
     async def _get_or_404(self, template_id: UUID, author: User) -> SurveyTemplate:
         template = await self.repo.get(template_id)

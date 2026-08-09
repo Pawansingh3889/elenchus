@@ -28,6 +28,7 @@ from app.llm.factory import get_llm
 from app.llm.prompts import load_prompt
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
 from app.runs.models import REPLY_PREFIX, Answer, RunMessage, SurveyRun, add_llm_spend
+from app.templates.enums import TemplateStatus
 from app.templates.snapshot import questions_of
 from app.templates.visibility import next_visible, remaining_possible
 from app.users.models import User
@@ -68,6 +69,14 @@ class ConductEngine:
     async def start_run(
         self, template_id: UUID, respondent: User, language: str = "en"
     ) -> SurveyRun:
+        # Checked before the version, because "this survey is closed" is the truer answer
+        # for a respondent following an old link than "it has no published version", and
+        # a closed survey usually has one. Only closed refuses: archived means the author
+        # has tidied it out of their list, which is not a statement about whether anyone
+        # may still answer, and changing that belongs with whoever wants it changed.
+        if await self.repo.template_status(template_id) is TemplateStatus.closed:
+            raise ConflictError("This survey is closed and is no longer taking answers.")
+
         version = await self.repo.latest_version(template_id)
         if version is None:
             raise ConflictError("This template has no published version to answer.")

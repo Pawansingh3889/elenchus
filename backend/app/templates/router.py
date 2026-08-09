@@ -36,6 +36,7 @@ def _summary(
         description=template.description,
         status=template.status,
         updated_at=template.updated_at,
+        closed_at=template.closed_at,
         question_count=question_count,
         estimated_minutes=estimated_minutes,
     )
@@ -135,3 +136,14 @@ async def publish_template(
 ) -> TemplateVersionRead:
     version = await TemplateService(session).publish(template_id, author)
     return TemplateVersionRead.model_validate(version)
+
+
+@router.post("/{template_id}/close", response_model=TemplateRead)
+async def close_template(
+    template_id: UUID,
+    author: User = Depends(require_author),
+    session: AsyncSession = Depends(get_session),
+) -> TemplateRead:
+    """Stop the survey taking new answers. Conversations already under way finish."""
+    template = await TemplateService(session).close(template_id, author)
+    return TemplateRead.model_validate(template)

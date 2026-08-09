@@ -181,6 +181,7 @@ class TemplateRead(BaseModel):
     created_by: UUID
     created_at: datetime
     updated_at: datetime
+    closed_at: datetime | None
     questions: list[QuestionRead]
 
 
@@ -197,6 +198,7 @@ class TemplateSummary(BaseModel):
     description: str | None
     status: TemplateStatus
     updated_at: datetime
+    closed_at: datetime | None = None
     question_count: int
     # Only populated for the published list a respondent chooses from; a draft has no
     # meaningful estimate because it is not what anyone will be asked.

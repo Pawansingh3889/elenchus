@@ -9,7 +9,8 @@ from sqlalchemy.orm import selectinload
 
 from app.runs.enums import AnswerKind, RunStatus
 from app.runs.models import Answer, RunMessage, SurveyRun
-from app.templates.models import SurveyTemplateVersion
+from app.templates.enums import TemplateStatus
+from app.templates.models import SurveyTemplate, SurveyTemplateVersion
 
 # Postgres SQLSTATE for "could not obtain lock" under FOR UPDATE NOWAIT.
 LOCK_NOT_AVAILABLE = "55P03"
@@ -72,6 +73,16 @@ class RunRepository:
 
     async def get_version(self, version_id: UUID) -> SurveyTemplateVersion | None:
         return await self.session.get(SurveyTemplateVersion, version_id)
+
+    async def template_status(self, template_id: UUID) -> TemplateStatus | None:
+        """The template's status, or None if there is no such template.
+
+        Selects the one column rather than loading the template: conduct has no business
+        holding an author's aggregate, and starting a run should not pull its questions
+        across just to read a status it will compare once.
+        """
+        stmt = select(SurveyTemplate.status).where(SurveyTemplate.id == template_id)
+        return (await self.session.execute(stmt)).scalar_one_or_none()
 
     async def count_answers(self, run_id: UUID, question_id: UUID, kind: AnswerKind) -> int:
         stmt = (
