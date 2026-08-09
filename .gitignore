@@ -47,3 +47,9 @@ backend/var/
 # Local-only compose overlay that publishes Postgres to the host for a GUI client;
 # its own header says it is not to be committed.
 docker-compose.dbport.yml
+
+# Coverage output. Written by `pytest --cov`, which is not part of `make gate` and is
+# run on demand, so these are local artefacts rather than anything the repo carries.
+backend/.coverage
+backend/coverage.lcov
+backend/htmlcov/

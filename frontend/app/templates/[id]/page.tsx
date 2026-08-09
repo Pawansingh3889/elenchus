@@ -4,11 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 
-import { ANSWER_TYPES, isAllowedAnswerType, labelForAnswerType } from "@/lib/answerTypes";
-import { AUDIENCES } from "@/lib/audiences";
 import { LivePreview } from "@/components/LivePreview";
-import { clearedBy, followOptionRename, remapConditions, repairConditionsFor } from "@/lib/conditions";
 import { QuestionEditor } from "@/components/QuestionEditor";
+import { SurveySettings } from "@/components/SurveySettings";
+import { publishBlockers } from "@/lib/publishBlockers";
+import { useDraftQuestions } from "@/lib/useDraftQuestions";
 import {
   useCurrentUser,
   useDeleteTemplate,
@@ -20,19 +20,7 @@ import {
 import { ApiError } from "@/lib/api";
 import { useT } from "@/lib/i18n/useT";
 import { useDraftNoteStore, useUserStore } from "@/lib/store";
-import type { AnswerType, QuestionInput, SurveyAudience } from "@/lib/types";
-
-// The first type the survey actually permits, so adding a question to a survey that
-// bans free text does not seed a card the author cannot save.
-const blankQuestion = (allowed: AnswerType[]): QuestionInput => ({
-  text: "",
-  answer_type: allowed.length ? allowed[0] : "short_text",
-  options: [],
-  allow_other: false,
-  required: true,
-  allow_follow_ups: false,
-  show_when: null,
-});
+import type { AnswerType, SurveyAudience } from "@/lib/types";
 
 export default function BuilderPage({ params }: { params: Promise<{ id: string }> }) {
   const msg = useT();
@@ -49,13 +37,12 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
   const [loadedId, setLoadedId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [questions, setQuestions] = useState<QuestionInput[]>([]);
+  const draft = useDraftQuestions();
+  const questions = draft.questions;
   const [allowedTypes, setAllowedTypes] = useState<AnswerType[]>([]);
   const [audience, setAudience] = useState<SurveyAudience>("respondents");
   const [setting, setSetting] = useState("");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  // How many visibility conditions the last reorder/delete had to clear.
-  const [dropped, setDropped] = useState(0);
   const [instruction, setInstruction] = useState("");
   // Seed the Refine panel with the note from the generate that opened this draft…
   const [notes, setNotes] = useState<string[]>(() => {
@@ -84,7 +71,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
     setAllowedTypes(template.allowed_answer_types);
     setAudience(template.audience);
     setSetting(template.setting ?? "");
-    setQuestions(
+    draft.reset(
       template.questions.map((q) => ({
         text: q.text,
         answer_type: q.answer_type,
@@ -104,49 +91,6 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
     return <div className="error-text">{error ? (error as Error).message : msg.common.notFound}</div>;
   }
 
-  // Editing a question can orphan a *later* question's condition: change the type and
-  // the options go, remove an option and a condition naming it describes an answer that
-  // can no longer be given. Repositioning is not the only edit conditions depend on.
-  //
-  // An option RENAME is followed before repair judges anything. This runs on every
-  // keystroke, so "Days" being edited to "Nights" passes through "Day", "Da"… and a
-  // repair-only pass cleared the condition at the first non-matching keystroke, then
-  // had no way to restore it when the author finished typing.
-  const patchQuestion = (i: number, patch: Partial<QuestionInput>) =>
-    setQuestions((qs) => {
-      const patched = qs.map((q, j) => (j === i ? { ...q, ...patch } : q));
-      const touchesAnswers = "answer_type" in patch || "options" in patch || "allow_other" in patch;
-      if (!touchesAnswers) return patched;
-      const followed =
-        "options" in patch && patch.options
-          ? followOptionRename(patched, i, qs[i].options, patch.options)
-          : patched;
-      const next = repairConditionsFor(followed, i);
-      setDropped(clearedBy(followed, next));
-      return next;
-    });
-  const addQuestion = () => setQuestions((qs) => [...qs, blankQuestion(allowedTypes)]);
-  // Deleting or reordering shifts positions, and conditions are keyed by position —
-  // so both have to repoint them or a condition silently starts referring to whatever
-  // question moved into that slot.
-  const removeQuestion = (i: number) =>
-    setQuestions((qs) => {
-      const order = qs.map((_, j) => j).filter((j) => j !== i);
-      const next = remapConditions(order.map((j) => qs[j]), order);
-      setDropped(clearedBy(qs, next));
-      return next;
-    });
-  const moveQuestion = (i: number, dir: number) =>
-    setQuestions((qs) => {
-      const j = i + dir;
-      if (j < 0 || j >= qs.length) return qs;
-      const order = qs.map((_, k) => k);
-      [order[i], order[j]] = [order[j], order[i]];
-      const next = remapConditions(order.map((k) => qs[k]), order);
-      setDropped(clearedBy(qs, next));
-      return next;
-    });
-
   // Which questions the server last objected to, so the complaint can sit on the card
   // it belongs to. A message under the description is a scroll away from a question far
   // down the list, and the author has to match "Question 4" to a card by counting.
@@ -154,20 +98,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
     .flatMap((e) => (e instanceof ApiError ? e.questions : []))
     .filter((v, i, all) => all.indexOf(v) === i);
 
-  // Known-bad before the server is even asked: a condition with nothing to match, and a
-  // select with nothing to choose. Both are states the builder can reach, so Publish
-  // should say why it is unavailable rather than failing after a round trip.
-  const blockers = questions.flatMap((q, i) => {
-    const problems: string[] = [];
-    if (q.show_when && !q.show_when.value.trim()) problems.push(msg.builder.conditionHasNoAnswer);
-    if ((q.answer_type === "single_select" || q.answer_type === "multi_select") && !q.options.length)
-      problems.push(msg.builder.selectHasNoOptions);
-    // Narrowing the policy can strand a question that was legal when it was written.
-    // Say so here rather than on a failed save, so the author sees which card to fix.
-    if (!isAllowedAnswerType(q.answer_type, allowedTypes))
-      problems.push(msg.builder.typeNotAllowed(labelForAnswerType(q.answer_type)));
-    return problems.map((p) => msg.builder.publishBlocker(i + 1, p));
-  });
+  const blockers = publishBlockers(questions, allowedTypes, msg.builder);
 
   // allowed_answer_types rides on every write. A save replaces the whole template, so
   // leaving it out would clear the policy on the next save the author made.
@@ -206,7 +137,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
       setAllowedTypes(revised.allowed_answer_types);
       setAudience(revised.audience);
       setSetting(revised.setting ?? "");
-      setQuestions(
+      draft.reset(
         revised.questions.map((q) => ({
           text: q.text,
           answer_type: q.answer_type,
@@ -276,61 +207,15 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
           placeholder={msg.builder.descriptionPlaceholder}
         />
 
-        <div className="card types-card">
-          <div className="card-label">{msg.builder.audienceTitle}</div>
-          <select
-            className="field"
-            value={audience}
-            onChange={(e) => setAudience(e.target.value as SurveyAudience)}
-            // Frozen once published, which is the rule the service enforces with a 409.
-            // Offering the control anyway would be offering the author that error.
-            disabled={template.status !== "draft"}
-          >
-            {AUDIENCES.map((a) => (
-              <option key={a.value} value={a.value}>
-                {a.label}
-              </option>
-            ))}
-          </select>
-          {template.status !== "draft" ? (
-            <p className="muted types-hint">{msg.builder.audienceFrozen}</p>
-          ) : null}
-        </div>
-
-        <div className="card types-card">
-          <div className="card-label">{msg.builder.settingTitle}</div>
-          <p className="muted types-hint">{msg.builder.settingHint}</p>
-          <textarea
-            className="field builder-desc"
-            value={setting}
-            onChange={(e) => setSetting(e.target.value)}
-            placeholder={msg.builder.settingPlaceholder}
-            maxLength={2000}
-          />
-        </div>
-
-        <div className="card types-card">
-          <div className="card-label">{msg.builder.answerTypesTitle}</div>
-          <p className="muted types-hint">{msg.builder.answerTypesHint}</p>
-          <div className="types-grid">
-            {ANSWER_TYPES.map((t) => (
-              <label key={t.value}>
-                <input
-                  type="checkbox"
-                  checked={allowedTypes.includes(t.value)}
-                  onChange={(e) =>
-                    setAllowedTypes((current) =>
-                      e.target.checked
-                        ? [...current, t.value]
-                        : current.filter((v) => v !== t.value),
-                    )
-                  }
-                />
-                {t.label}
-              </label>
-            ))}
-          </div>
-        </div>
+        <SurveySettings
+          audience={audience}
+          onAudienceChange={setAudience}
+          setting={setting}
+          onSettingChange={setSetting}
+          allowedTypes={allowedTypes}
+          onAllowedTypesChange={setAllowedTypes}
+          status={template.status}
+        />
 
         {update.error ? <div className="error-text">{(update.error as Error).message}</div> : null}
         {publish.error ? (
@@ -339,10 +224,10 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
         {remove.error ? <div className="error-text">{(remove.error as Error).message}</div> : null}
 
         <div className="questions">
-          {dropped > 0 ? (
+          {draft.dropped > 0 ? (
           <div className="notice">
-            {msg.builder.conditionsCleared(dropped)}
-            <button className="link-btn" onClick={() => setDropped(0)}>
+            {msg.builder.conditionsCleared(draft.dropped)}
+            <button className="link-btn" onClick={draft.dismissDropped}>
               {msg.common.dismiss}
             </button>
           </div>
@@ -354,14 +239,14 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
               total={questions.length}
               question={q}
               rejected={rejected.includes(i)}
-              onChange={(patch) => patchQuestion(i, patch)}
+              onChange={(patch) => draft.patch(i, patch)}
               earlier={questions.slice(0, i)}
               allowedTypes={allowedTypes}
-              onRemove={() => removeQuestion(i)}
-              onMove={(dir) => moveQuestion(i, dir)}
+              onRemove={() => draft.remove(i)}
+              onMove={(dir) => draft.move(i, dir)}
             />
           ))}
-          <button className="add-question" onClick={addQuestion}>
+          <button className="add-question" onClick={() => draft.add(allowedTypes)}>
             {msg.builder.addQuestion}
           </button>
         </div>
