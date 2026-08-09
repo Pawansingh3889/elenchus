@@ -61,6 +61,10 @@ export const pl: Messages = {
     moveDown: "Przenieś w dół",
     removeQuestion: "Usuń pytanie",
     removeOption: "Usuń opcję",
+    answerTypesTitle: "Typy odpowiedzi",
+    answerTypesHint:
+      "Zaznacz typy, których może użyć ta ankieta. Brak zaznaczeń oznacza, że dozwolony jest każdy typ. AI trzyma się tego przy każdym dopracowaniu.",
+    typeNotAllowed: (typeLabel: string) => `ta ankieta nie dopuszcza typu ${typeLabel}`,
     refineTitle: "✦ Dopracuj z AI",
     refinePlaceholder: "Opisz zmianę…",
     refine: "Dopracuj",

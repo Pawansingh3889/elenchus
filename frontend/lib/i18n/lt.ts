@@ -61,6 +61,10 @@ export const lt: Messages = {
     moveDown: "Perkelti žemyn",
     removeQuestion: "Ištrinti klausimą",
     removeOption: "Pašalinti variantą",
+    answerTypesTitle: "Atsakymų tipai",
+    answerTypesHint:
+      "Pažymėkite tipus, kuriuos gali naudoti ši apklausa. Nieko nepažymėjus leidžiami visi tipai. DI to laikosi kiekvieną kartą tobulindamas.",
+    typeNotAllowed: (typeLabel: string) => `ši apklausa neleidžia tipo ${typeLabel}`,
     refineTitle: "✦ Patobulinti su DI",
     refinePlaceholder: "Aprašykite pakeitimą…",
     refine: "Patobulinti",

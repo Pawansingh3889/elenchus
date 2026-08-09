@@ -61,6 +61,10 @@ export const ro: Messages = {
     moveDown: "Mută mai jos",
     removeQuestion: "Șterge întrebarea",
     removeOption: "Elimină opțiunea",
+    answerTypesTitle: "Tipuri de răspuns",
+    answerTypesHint:
+      "Bifați tipurile pe care le poate folosi acest chestionar. Fără nicio bifă, este permis orice tip. IA respectă acest lucru la fiecare rafinare.",
+    typeNotAllowed: (typeLabel: string) => `acest chestionar nu permite ${typeLabel}`,
     refineTitle: "✦ Rafinează cu AI",
     refinePlaceholder: "Descrie o modificare…",
     refine: "Rafinează",

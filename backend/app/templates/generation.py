@@ -18,6 +18,7 @@ from app.llm.client import LLMError, LLMProtocol
 from app.llm.decoding import decode_stringified
 from app.llm.factory import get_llm
 from app.llm.prompts import load_prompt
+from app.templates.enums import AnswerType
 from app.templates.models import SurveyTemplate
 from app.templates.schemas import TemplateCreate, TemplateUpdate
 from app.templates.service import TemplateService
@@ -43,11 +44,25 @@ class _DraftToolInput(TemplateCreate):
 
 _TOOL_NAME = "draft_survey_template"
 _TOOL_DESCRIPTION = "Return a complete survey template as structured data, plus a short note."
-_TOOL_SCHEMA: dict[str, Any] = _DraftToolInput.model_json_schema()
+
+
+def _tool_schema() -> dict[str, Any]:
+    """The draft tool's input schema, minus the fields the model does not get to set.
+
+    ``allowed_answer_types`` is the author's policy, not a design choice: offering it
+    would let a model that finds the restriction inconvenient return a wider policy and
+    then satisfy it, which is the failure this whole field exists to stop. The engine
+    fills it in from the stored template before validation instead.
+    """
+    schema = _DraftToolInput.model_json_schema()
+    schema["properties"].pop("allowed_answer_types", None)
+    return schema
+
+
 _TOOL: dict[str, Any] = {
     "name": _TOOL_NAME,
     "description": _TOOL_DESCRIPTION,
-    "input_schema": _TOOL_SCHEMA,
+    "input_schema": _tool_schema(),
 }
 
 
@@ -62,7 +77,7 @@ class GenerationService:
         short note on what it built."""
         system = load_prompt("generate_template_v2")
         template_in, note = await self._draft(
-            system, [{"role": "user", "content": prompt}], previous_error=None
+            system, [{"role": "user", "content": prompt}], allowed=[], previous_error=None
         )
         template = await self.templates.create_draft(_without_catch_alls(template_in), author)
         return template, note
@@ -74,13 +89,14 @@ class GenerationService:
         the model's note on what changed. The whole survey is re-drafted and re-validated,
         so a follow-up can never leave the draft in an invalid shape."""
         current = await self.templates.get_draft(template_id, author)
-        system = load_prompt("refine_template_v2")
+        allowed = [AnswerType(t) for t in current.allowed_answer_types]
+        system = load_prompt("refine_template_v3")
         message = (
-            f"{_describe(current)}\n\nRequested change: {instruction}\n\n"
+            f"{_describe(current)}\n{_policy(allowed)}\n\nRequested change: {instruction}\n\n"
             "Return the complete revised survey."
         )
         template_in, note = await self._draft(
-            system, [{"role": "user", "content": message}], previous_error=None
+            system, [{"role": "user", "content": message}], allowed=allowed, previous_error=None
         )
         updated = await self.templates.update_draft(
             template_id, _to_update(_without_catch_alls(template_in)), author
@@ -88,7 +104,11 @@ class GenerationService:
         return updated, note
 
     async def _draft(
-        self, system: str, messages: list[dict[str, str]], previous_error: str | None
+        self,
+        system: str,
+        messages: list[dict[str, str]],
+        allowed: list[AnswerType],
+        previous_error: str | None,
     ) -> tuple[TemplateCreate, str]:
         turn_messages = (
             messages
@@ -106,6 +126,9 @@ class GenerationService:
             system=system, messages=turn_messages, tools=[_TOOL], max_tokens=4096
         )
         raw = _decode_stringified_fields(turn.tool_input)
+        # The author's policy, not the model's: set here so validation checks the draft
+        # against it, and so a model that returned the field anyway cannot widen it.
+        raw["allowed_answer_types"] = [t.value for t in allowed]
         # Prefer the schema's note field; fall back to any spoken text a model does emit.
         note = str(raw.get("note") or turn.text or "").strip()
         error = _validation_error(raw)
@@ -113,7 +136,7 @@ class GenerationService:
             return TemplateCreate.model_validate(raw), note
         if previous_error is None:
             logger.warning("generated template rejected, retrying: raw=%r error=%s", raw, error)
-            return await self._draft(system, messages, previous_error=error)
+            return await self._draft(system, messages, allowed, previous_error=error)
         # The rejection reason describes the fault but not the draft, so keep the raw
         # payload before failing (ARCHITECTURE.md 3.3).
         logger.error("template generation failed after one retry: raw=%r error=%s", raw, error)
@@ -229,6 +252,25 @@ def _describe(template: SurveyTemplate) -> str:
             )
         lines.append("  " + " · ".join(parts))
     return "\n".join(lines)
+
+
+def _policy(allowed: list[AnswerType]) -> str:
+    """State the author's answer-type policy as a line the model reads with the draft.
+
+    The schema check is what actually holds the line, but a rejection costs the one
+    retry and comes back as a validator message, so it is worth telling the model the
+    rule up front and spending the retry on a genuine mistake instead.
+    """
+    if not allowed:
+        return "Answer types allowed: any of the types listed in your rules."
+    permitted = ", ".join(t.value for t in allowed)
+    return (
+        f"Answer types allowed: ONLY {permitted}. The author set this for the whole "
+        "survey, and it holds for every question you keep, change or add, whatever the "
+        "requested change is about. A question that needs a type not on this list does "
+        "not belong in this survey: leave it out rather than reaching for a type that "
+        "fits badly."
+    )
 
 
 def _validation_error(raw: dict[str, Any]) -> str | None:

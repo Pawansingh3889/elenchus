@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 
+import { ANSWER_TYPES, isAllowedAnswerType, labelForAnswerType } from "@/lib/answerTypes";
 import { LivePreview } from "@/components/LivePreview";
 import { clearedBy, followOptionRename, remapConditions, repairConditionsFor } from "@/lib/conditions";
 import { QuestionEditor } from "@/components/QuestionEditor";
@@ -18,11 +19,13 @@ import {
 import { ApiError } from "@/lib/api";
 import { useT } from "@/lib/i18n/useT";
 import { useDraftNoteStore, useUserStore } from "@/lib/store";
-import type { QuestionInput } from "@/lib/types";
+import type { AnswerType, QuestionInput } from "@/lib/types";
 
-const blankQuestion = (): QuestionInput => ({
+// The first type the survey actually permits, so adding a question to a survey that
+// bans free text does not seed a card the author cannot save.
+const blankQuestion = (allowed: AnswerType[]): QuestionInput => ({
   text: "",
-  answer_type: "short_text",
+  answer_type: allowed.length ? allowed[0] : "short_text",
   options: [],
   allow_other: false,
   required: true,
@@ -46,6 +49,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [questions, setQuestions] = useState<QuestionInput[]>([]);
+  const [allowedTypes, setAllowedTypes] = useState<AnswerType[]>([]);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   // How many visibility conditions the last reorder/delete had to clear.
   const [dropped, setDropped] = useState(0);
@@ -74,6 +78,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
     setLoadedId(formKey);
     setTitle(template.title);
     setDescription(template.description ?? "");
+    setAllowedTypes(template.allowed_answer_types);
     setQuestions(
       template.questions.map((q) => ({
         text: q.text,
@@ -115,7 +120,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
       setDropped(clearedBy(followed, next));
       return next;
     });
-  const addQuestion = () => setQuestions((qs) => [...qs, blankQuestion()]);
+  const addQuestion = () => setQuestions((qs) => [...qs, blankQuestion(allowedTypes)]);
   // Deleting or reordering shifts positions, and conditions are keyed by position —
   // so both have to repoint them or a condition silently starts referring to whatever
   // question moved into that slot.
@@ -152,10 +157,21 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
     if (q.show_when && !q.show_when.value.trim()) problems.push(msg.builder.conditionHasNoAnswer);
     if ((q.answer_type === "single_select" || q.answer_type === "multi_select") && !q.options.length)
       problems.push(msg.builder.selectHasNoOptions);
+    // Narrowing the policy can strand a question that was legal when it was written.
+    // Say so here rather than on a failed save, so the author sees which card to fix.
+    if (!isAllowedAnswerType(q.answer_type, allowedTypes))
+      problems.push(msg.builder.typeNotAllowed(labelForAnswerType(q.answer_type)));
     return problems.map((p) => msg.builder.publishBlocker(i + 1, p));
   });
 
-  const body = { title, description: description || null, questions };
+  // allowed_answer_types rides on every write. A save replaces the whole template, so
+  // leaving it out would clear the policy on the next save the author made.
+  const body = {
+    title,
+    description: description || null,
+    allowed_answer_types: allowedTypes,
+    questions,
+  };
   const save = () => update.mutate(body);
   const onPublish = async () => {
     try {
@@ -175,6 +191,10 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
       const { template: revised, note } = await refine.mutateAsync(text);
       setTitle(revised.title);
       setDescription(revised.description ?? "");
+      // The server's policy, not the local copy: refine is not offered the field and
+      // cannot change it, so this only ever re-states what was already saved. Re-seeding
+      // it with the rest keeps one source of truth for the whole form.
+      setAllowedTypes(revised.allowed_answer_types);
       setQuestions(
         revised.questions.map((q) => ({
           text: q.text,
@@ -245,6 +265,29 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
           placeholder={msg.builder.descriptionPlaceholder}
         />
 
+        <div className="card types-card">
+          <div className="card-label">{msg.builder.answerTypesTitle}</div>
+          <p className="muted types-hint">{msg.builder.answerTypesHint}</p>
+          <div className="types-grid">
+            {ANSWER_TYPES.map((t) => (
+              <label key={t.value}>
+                <input
+                  type="checkbox"
+                  checked={allowedTypes.includes(t.value)}
+                  onChange={(e) =>
+                    setAllowedTypes((current) =>
+                      e.target.checked
+                        ? [...current, t.value]
+                        : current.filter((v) => v !== t.value),
+                    )
+                  }
+                />
+                {t.label}
+              </label>
+            ))}
+          </div>
+        </div>
+
         {update.error ? <div className="error-text">{(update.error as Error).message}</div> : null}
         {publish.error ? (
           <div className="error-text">{(publish.error as Error).message}</div>
@@ -269,6 +312,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
               rejected={rejected.includes(i)}
               onChange={(patch) => patchQuestion(i, patch)}
               earlier={questions.slice(0, i)}
+              allowedTypes={allowedTypes}
               onRemove={() => removeQuestion(i)}
               onMove={(dir) => moveQuestion(i, dir)}
             />

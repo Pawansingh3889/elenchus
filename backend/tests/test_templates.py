@@ -116,3 +116,63 @@ def test_options_that_collide_case_insensitively_are_refused():
         text="q", answer_type=AnswerType.single_select, options=[" Days ", "Nights"]
     )
     assert kept.options == ["Days", "Nights"]
+
+
+def test_a_question_outside_the_answer_type_policy_is_refused():
+    """The policy is not advice to the model: it is checked on every write, so a hand
+    edit in the builder cannot put back the type an author has ruled out either."""
+    with pytest.raises(ValidationError, match="short_text"):
+        TemplateCreate(
+            title="Compliance",
+            allowed_answer_types=[AnswerType.rating, AnswerType.multi_select],
+            questions=[_q("How familiar are you?", AnswerType.rating), _q("What challenges?")],
+        )
+
+
+def test_a_policy_names_every_question_that_breaks_it():
+    """One save, one list. Fixing a survey a question at a time means a round trip each."""
+    with pytest.raises(ValidationError, match="question 1 is short_text; question 3 is date"):
+        TemplateCreate(
+            title="Compliance",
+            allowed_answer_types=[AnswerType.rating],
+            questions=[_q("a"), _q("b", AnswerType.rating), _q("c", AnswerType.date)],
+        )
+
+
+def test_an_empty_policy_allows_every_type():
+    """Empty is the whole vocabulary, not "unset". Every draft written before the policy
+    existed has one, and none of them changed meaning."""
+    template = TemplateCreate(title="T", questions=[_q("a"), _q("b", AnswerType.date)])
+    assert template.allowed_answer_types == []
+
+
+def test_a_policy_is_stored_as_a_set_not_a_list():
+    """Order says nothing and a repeat says nothing twice, so two spellings of the same
+    policy must not compare unequal."""
+    template = TemplateCreate(
+        title="T",
+        allowed_answer_types=[AnswerType.rating, AnswerType.rating],
+        questions=[_q("a", AnswerType.rating)],
+    )
+    assert template.allowed_answer_types == [AnswerType.rating]
+
+
+async def test_the_policy_round_trips_through_a_save(session, author):
+    svc = TemplateService(session)
+    created = await svc.create_draft(
+        TemplateCreate(
+            title="T",
+            allowed_answer_types=[AnswerType.rating],
+            questions=[_q("a", AnswerType.rating)],
+        ),
+        author,
+    )
+    assert created.allowed_answer_types == ["rating"]
+
+    updated = await svc.update_draft(
+        created.id,
+        TemplateUpdate(title="T", questions=[_q("a", AnswerType.rating)]),
+        author,
+    )
+    # Cleared deliberately: an author who lifts the restriction is not fought about it.
+    assert updated.allowed_answer_types == []

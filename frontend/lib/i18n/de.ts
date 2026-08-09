@@ -61,6 +61,10 @@ export const de: Messages = {
     moveDown: "Nach unten",
     removeQuestion: "Frage löschen",
     removeOption: "Option entfernen",
+    answerTypesTitle: "Antworttypen",
+    answerTypesHint:
+      "Wählen Sie die Typen, die diese Umfrage verwenden darf. Nichts ausgewählt erlaubt jeden Typ. Die KI hält sich bei jeder Verfeinerung daran.",
+    typeNotAllowed: (typeLabel: string) => `diese Umfrage erlaubt ${typeLabel} nicht`,
     refineTitle: "✦ Mit KI verfeinern",
     refinePlaceholder: "Änderung beschreiben…",
     refine: "Verfeinern",

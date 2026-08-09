@@ -2,24 +2,14 @@
 
 import { useRef } from "react";
 
+import { ANSWER_TYPES, isAllowedAnswerType, labelForAnswerType } from "@/lib/answerTypes";
 import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
 import { useT } from "@/lib/i18n/useT";
 import type { AnswerType, QuestionInput, ShowWhenOp } from "@/lib/types";
 
-const TYPES: { value: AnswerType; label: string }[] = [
-  { value: "single_select", label: "Single select" },
-  { value: "multi_select", label: "Multi select" },
-  { value: "yes_no", label: "Yes / No" },
-  { value: "short_text", label: "Short text" },
-  { value: "long_text", label: "Long text" },
-  { value: "rating", label: "Rating (1–5)" },
-  { value: "number", label: "Number" },
-  { value: "date", label: "Date" },
-];
-
 const SELECT_TYPES: AnswerType[] = ["single_select", "multi_select"];
 const isSelect = (t: AnswerType) => SELECT_TYPES.includes(t);
-const labelFor = (t: AnswerType) => TYPES.find((x) => x.value === t)?.label ?? t;
+const labelFor = labelForAnswerType;
 
 interface Props {
   index: number;
@@ -30,6 +20,10 @@ interface Props {
   rejected?: boolean;
   /** Every question before this one — what a condition may reference. */
   earlier: QuestionInput[];
+  /** The survey's answer-type policy. Empty allows everything. Types outside it are not
+   *  offered, so the author picks from what will actually save rather than choosing a
+   *  type and learning from a rejected save that this survey does not permit it. */
+  allowedTypes: AnswerType[];
   onChange: (patch: Partial<QuestionInput>) => void;
   onRemove: () => void;
   onMove: (dir: number) => void;
@@ -41,6 +35,7 @@ export function QuestionEditor({
   question,
   rejected = false,
   earlier,
+  allowedTypes,
   onChange,
   onRemove,
   onMove,
@@ -117,7 +112,12 @@ export function QuestionEditor({
               value={question.answer_type}
               onChange={(e) => setType(e.target.value as AnswerType)}
             >
-              {TYPES.map((t) => (
+              {ANSWER_TYPES.filter(
+                // The question's own type stays listed even when the policy has since
+                // been narrowed, so a select shows what it actually is rather than
+                // silently reading as the first type that survived the filter.
+                (t) => isAllowedAnswerType(t.value, allowedTypes) || t.value === question.answer_type,
+              ).map((t) => (
                 <option key={t.value} value={t.value}>
                   {t.label}
                 </option>
