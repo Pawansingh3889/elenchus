@@ -21,6 +21,11 @@ services:
     build: ./backend
     environment:
       DATABASE_URL: postgresql+asyncpg://elenchus:elenchus@postgres:5432/elenchus
+      # Who is an administrator, passed through explicitly like everything else here.
+      # Without this line the container never sees the allowlist and admin is silently
+      # never granted: the setting would appear to work on the host, where the backend
+      # is started with --env-file, and do nothing at all in the stack.
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       # The OpenAI-compatible LLM tiers, tried in order (see .env.example). Passed
       # through explicitly: without these the container never sees the settings and the
       # chain silently can't engage.
