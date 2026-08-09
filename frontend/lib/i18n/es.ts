@@ -61,6 +61,9 @@ export const es: Messages = {
     moveDown: "Bajar",
     removeQuestion: "Eliminar pregunta",
     removeOption: "Quitar opción",
+    audienceTitle: "Para quién es",
+    audienceFrozen:
+      "Fijo una vez publicada: las respuestas de dos poblaciones distintas ya no se pueden separar después.",
     answerTypesTitle: "Tipos de respuesta",
     answerTypesHint:
       "Marque los tipos que esta encuesta puede usar. Sin marcar nada se permite cualquier tipo. La IA lo respeta en cada refinamiento.",

@@ -61,6 +61,9 @@ export const lt: Messages = {
     moveDown: "Perkelti žemyn",
     removeQuestion: "Ištrinti klausimą",
     removeOption: "Pašalinti variantą",
+    audienceTitle: "Kam ji skirta",
+    audienceFrozen:
+      "Paskelbus nebekeičiama: dviejų skirtingų grupių atsakymų vėliau nebeatskirsite.",
     answerTypesTitle: "Atsakymų tipai",
     answerTypesHint:
       "Pažymėkite tipus, kuriuos gali naudoti ši apklausa. Nieko nepažymėjus leidžiami visi tipai. DI to laikosi kiekvieną kartą tobulindamas.",

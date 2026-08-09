@@ -60,6 +60,9 @@ export const fil: Messages = {
     moveDown: "Ibaba",
     removeQuestion: "Tanggalin ang tanong",
     removeOption: "Alisin ang opsyon",
+    audienceTitle: "Para kanino ito",
+    audienceFrozen:
+      "Hindi na mababago kapag nailathala: hindi na mapaghihiwalay ang mga sagot mula sa dalawang magkaibang grupo.",
     answerTypesTitle: "Mga uri ng sagot",
     answerTypesHint:
       "Piliin ang mga uri na maaaring gamitin ng survey na ito. Kung walang napili, pinapayagan ang lahat ng uri. Sinusunod ito ng AI sa bawat pagpino.",

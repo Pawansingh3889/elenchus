@@ -81,8 +81,8 @@ class QuestionInput(BaseModel):
 class TemplateWrite(BaseModel):
     title: str = Field(min_length=1, max_length=300)
     description: str | None = None
-    # Defaulted rather than required, so every existing client keeps working and an author
-    # who says nothing gets what they used to get: a survey for the respondent pool.
+    # Who the survey is for. Defaulted on a new draft, where "nothing said yet" honestly
+    # means the respondent pool. Required on an update: see TemplateUpdate.
     audience: SurveyAudience = SurveyAudience.respondents
     # Answer types the author will allow. Empty is every type, not "unset": an author who
     # says nothing has restricted nothing, which is what a survey with no stated policy
@@ -191,7 +191,21 @@ class TemplateCreate(TemplateWrite):
 
 
 class TemplateUpdate(TemplateWrite):
-    pass
+    """A full replacement of the draft, so the settings it carries are not optional.
+
+    An update replaces every column it names, and a field with a default is named on
+    every request whether the client sent it or not. The builder never sent `audience`,
+    so each save quietly reset an HR survey to the whole respondent pool: no error, no
+    trace in the row, and a different set of people able to answer it. Requiring the
+    settings here turns "the client forgot" into a 422 the caller can see, rather than a
+    silent change to who a survey is for.
+
+    Create keeps the defaults. A brand-new draft with no opinion yet is a real state;
+    an update that has lost one is not.
+    """
+
+    audience: SurveyAudience
+    allowed_answer_types: list[AnswerType]
 
 
 class GenerateRequest(BaseModel):

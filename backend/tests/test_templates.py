@@ -8,8 +8,9 @@ from pydantic import ValidationError
 from app.errors import ConflictError, NotFoundError
 from app.templates.enums import AnswerType, TemplateStatus
 from app.templates.models import SurveyTemplateVersion
-from app.templates.schemas import QuestionInput, TemplateCreate, TemplateUpdate
+from app.templates.schemas import QuestionInput, TemplateCreate
 from app.templates.service import TemplateService
+from tests.builders import update_of
 
 
 def _q(text: str, answer_type: AnswerType = AnswerType.short_text) -> QuestionInput:
@@ -44,7 +45,7 @@ async def test_republish_increments_and_v1_is_immutable(session, author):
 
     # Edit the draft, then re-publish.
     await svc.update_draft(
-        t.id, TemplateUpdate(title="Changed", questions=[_q("q1"), _q("q2")]), author
+        t.id, update_of(t, title="Changed", questions=[_q("q1"), _q("q2")]), author
     )
     v2 = await svc.publish(t.id, author)
     assert v2.version == 2
@@ -75,9 +76,7 @@ async def test_update_replaces_questions(session, author):
     t = await svc.create_draft(
         TemplateCreate(title="T", questions=[_q("a"), _q("b"), _q("c")]), author
     )
-    updated = await svc.update_draft(
-        t.id, TemplateUpdate(title="T", questions=[_q("c"), _q("a")]), author
-    )
+    updated = await svc.update_draft(t.id, update_of(t, questions=[_q("c"), _q("a")]), author)
     assert [q.text for q in updated.questions] == ["c", "a"]
     assert [q.position for q in updated.questions] == [0, 1]
 
@@ -171,8 +170,9 @@ async def test_the_policy_round_trips_through_a_save(session, author):
 
     updated = await svc.update_draft(
         created.id,
-        TemplateUpdate(title="T", questions=[_q("a", AnswerType.rating)]),
+        update_of(created, allowed_answer_types=[]),
         author,
     )
     # Cleared deliberately: an author who lifts the restriction is not fought about it.
+    # Said out loud, though. Omitting the field is no longer how you clear it.
     assert updated.allowed_answer_types == []
