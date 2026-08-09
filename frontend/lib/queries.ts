@@ -26,6 +26,29 @@ export function useTemplates() {
   });
 }
 
+export function useDashboard() {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["dashboard", userId],
+    queryFn: api.dashboard,
+    enabled: !!userId,
+  });
+}
+
+export function useCloseTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.closeTemplate(id),
+    onSuccess: (_data, id) => {
+      // The dashboard shows the status, the template page shows it too, and the
+      // template list is what Build renders. All three are stale the moment this lands.
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["template", id] });
+      qc.invalidateQueries({ queryKey: ["templates"] });
+    },
+  });
+}
+
 export function useTemplate(id: string) {
   const userId = useUserStore((s) => s.currentUserId);
   return useQuery({

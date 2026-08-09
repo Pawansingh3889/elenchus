@@ -4,7 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { useCreateTemplate, useCurrentUser, useGenerateTemplate, useTemplates } from "@/lib/queries";
+import {
+  useCloseTemplate,
+  useCreateTemplate,
+  useCurrentUser,
+  useDashboard,
+  useGenerateTemplate,
+} from "@/lib/queries";
 import { useT } from "@/lib/i18n/useT";
 import { useDraftNoteStore, useUserStore } from "@/lib/store";
 
@@ -12,7 +18,10 @@ export default function Home() {
   const { common, home } = useT();
   const currentUserId = useUserStore((s) => s.currentUserId);
   const currentUser = useCurrentUser();
-  const { data: templates, isLoading, error } = useTemplates();
+  // One request for the whole page: each survey and how it is going. The old list
+  // showed a question count, which says what the survey is, not how it is doing.
+  const { data: rows, isLoading, error } = useDashboard();
+  const close = useCloseTemplate();
   const create = useCreateTemplate();
   const generate = useGenerateTemplate();
   const router = useRouter();
@@ -84,27 +93,45 @@ export default function Home() {
       {error ? <div className="error-text">{(error as Error).message}</div> : null}
 
       <div className="template-list">
-        {templates?.map((t) => (
-          <Link key={t.id} href={`/templates/${t.id}`} className="template-row">
-            <div>
-              <div className="template-title">{t.title}</div>
+        {rows?.map((r) => (
+          <div key={r.id} className="template-row">
+            <Link href={`/templates/${r.id}`} className="template-row-main">
+              <div className="template-title">{r.title}</div>
               <div className="template-meta">
-                {t.question_count} question{t.question_count === 1 ? "" : "s"}
-                {" · edited "}
-                {new Date(t.updated_at).toLocaleString(undefined, {
-                  day: "numeric",
-                  month: "short",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+                {r.started === 0 ? (
+                  home.noResponses
+                ) : (
+                  <>
+                    {r.started} {home.started}
+                    {" · "}
+                    {r.completed} {home.completedLabel}
+                    {r.in_progress > 0 ? ` · ${r.in_progress} ${home.inProgress}` : ""}
+                    {r.completion_rate !== null
+                      ? ` · ${Math.round(r.completion_rate * 100)}%`
+                      : ""}
+                  </>
+                )}
               </div>
+            </Link>
+            <div className="template-row-actions">
+              <span className={`pill pill-${r.status}`}>{r.status}</span>
+              {/* Only a published survey can be closed, which is the same rule the
+                  service enforces. Offering it on a draft would be offering a 409. */}
+              {r.status === "published" ? (
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => close.mutate(r.id)}
+                  disabled={close.isPending}
+                >
+                  {close.isPending && close.variables === r.id
+                    ? home.closing
+                    : home.closeSurvey}
+                </button>
+              ) : null}
             </div>
-            <span className={`pill pill-${t.status}`}>{t.status}</span>
-          </Link>
+          </div>
         ))}
-        {templates && templates.length === 0 ? (
-          <div className="muted">{home.empty}</div>
-        ) : null}
+        {rows && rows.length === 0 ? <div className="muted">{home.empty}</div> : null}
       </div>
     </div>
   );

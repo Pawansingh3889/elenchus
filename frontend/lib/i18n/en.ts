@@ -33,6 +33,12 @@ export const en = {
     language: "Language",
   },
   home: {
+    started: "started",
+    completedLabel: "completed",
+    inProgress: "in progress",
+    closeSurvey: "Close survey",
+    closing: "Closing…",
+    noResponses: "No responses yet",
     title: "Survey templates",
     pickUser: "Pick a user in the top bar to start authoring.",
     goingToRespond: "Taking you to Respond…",

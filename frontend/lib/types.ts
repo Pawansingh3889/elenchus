@@ -8,7 +8,7 @@ export type AnswerType =
   | "number"
   | "date";
 
-export type TemplateStatus = "draft" | "published" | "archived";
+export type TemplateStatus = "draft" | "published" | "closed" | "archived";
 export type UserRole = "author" | "respondent";
 
 export interface User {
@@ -180,4 +180,22 @@ export interface RunDetail {
    *  this is the only place a probed question shows up as probed. */
   follow_ups_asked: Record<string, number>;
   summary: StoredRunSummary | null;
+}
+
+/** One survey on the author's dashboard: what it is, and how it is going.
+ *  completion_rate is null rather than 0 when nobody has started, because zero would
+ *  read as everyone abandoning. */
+export interface DashboardRow {
+  id: string;
+  title: string;
+  status: TemplateStatus;
+  updated_at: string;
+  closed_at: string | null;
+  started: number;
+  completed: number;
+  in_progress: number;
+  abandoned: number;
+  last_started_at: string | null;
+  last_completed_at: string | null;
+  completion_rate: number | null;
 }

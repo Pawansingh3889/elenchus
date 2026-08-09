@@ -25,6 +25,12 @@ export const fil: Messages = {
     language: "Wika",
   },
   home: {
+    started: "nasimulan",
+    completedLabel: "natapos",
+    inProgress: "kasalukuyang isinasagot",
+    closeSurvey: "Isara ang survey",
+    closing: "Isinasara…",
+    noResponses: "Wala pang sagot",
     title: "Mga template ng survey",
     pickUser: "Pumili ng user sa itaas para magsimulang gumawa.",
     goingToRespond: "Dinadala ka sa Sumagot…",

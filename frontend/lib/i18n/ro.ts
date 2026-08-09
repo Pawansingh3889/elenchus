@@ -25,6 +25,12 @@ export const ro: Messages = {
     language: "Limbă",
   },
   home: {
+    started: "începute",
+    completedLabel: "finalizate",
+    inProgress: "în curs",
+    closeSurvey: "Închide sondajul",
+    closing: "Se închide…",
+    noResponses: "Încă niciun răspuns",
     title: "Șabloane de sondaj",
     pickUser: "Alege un utilizator din bara de sus pentru a începe să creezi.",
     goingToRespond: "Te ducem la Răspunde…",

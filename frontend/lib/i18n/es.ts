@@ -25,6 +25,12 @@ export const es: Messages = {
     language: "Idioma",
   },
   home: {
+    started: "iniciadas",
+    completedLabel: "completadas",
+    inProgress: "en curso",
+    closeSurvey: "Cerrar encuesta",
+    closing: "Cerrando…",
+    noResponses: "Aún no hay respuestas",
     title: "Plantillas de encuesta",
     pickUser: "Elige un usuario en la barra superior para empezar a crear.",
     goingToRespond: "Llevándote a Responder…",
