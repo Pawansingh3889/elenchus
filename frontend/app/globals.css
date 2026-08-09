@@ -1,35 +1,37 @@
 :root {
-  --ink: #23262b;
-  --canvas: #eceef0;
-  --surface: #f7f8f9;
+  --ink: #1c2226;
+  --canvas: #e7eaec;
+  --surface: #f4f6f7;
   --raised: #ffffff;
-  --on-ink: #eceef0;
+  --on-ink: #e7eaec;
   /* Text greys are chosen by contrast, not by eye. --muted carries real sentences
      (.empty, .muted), so it clears 4.5:1 on all three backgrounds it can land on:
-     white 5.26, surface 4.95, canvas 4.52. It was #98a0a8, which was 2.65:1 and
-     unreadable. --muted-light is deliberately untouched: it is never text, only
+     white 5.86, surface 5.41, canvas 4.85. It was #98a0a8 once, at 2.65:1 and
+     unreadable, and #646d76 until the palette turned steel, where canvas cleared the
+     floor by 0.02 and any nudge to a background would have failed the build.
+     --muted-light is deliberately untouched by that rule: it is never text, only
      borders and the typing dots, where text contrast does not apply. */
-  --muted: #646d76;
-  --muted-light: #c9ced3;
-  --secondary: #636b73;
-  --accent: #9ec6e0;
-  /* Focus needs its own token. --accent is decorative and measures 1.81:1, well under
+  --muted: #5d666c;
+  --muted-light: #c3c9cd;
+  --secondary: #5a6369;
+  --accent: #8fb8cc;
+  /* Focus needs its own token. --accent is decorative and measures 2.12:1, well under
      the 3:1 a focus indicator has to reach; one colour cannot be both. This clears 3:1
-     on every background (white 3.50, surface 3.30, canvas 3.01). */
-  --focus: #4190c2;
-  --accent-strong: #3c5570;
-  --highlight: #e2b23c;
-  --highlight-soft: #dfe4e8;
-  --border: rgba(35, 38, 43, 0.1);
-  --border-faint: rgba(35, 38, 43, 0.06);
-  --warn-fill: #fdf3d9;
-  --warn-text: #7a4a06;
-  --warn-border: rgba(122, 74, 6, 0.25);
-  --err-fill: #fadbd5;
+     on every background (white 4.55, surface 4.19, canvas 3.76). */
+  --focus: #2f7da8;
+  --accent-strong: #2c4a5c;
+  --highlight: #d9a021;
+  --highlight-soft: #dbe1e4;
+  --border: rgba(28, 34, 38, 0.1);
+  --border-faint: rgba(28, 34, 38, 0.06);
+  --warn-fill: #fbf0d5;
+  --warn-text: #6f4406;
+  --warn-border: rgba(111, 68, 6, 0.25);
+  --err-fill: #f8d9d3;
   --err-text: #8a2c18;
   --err-border: rgba(138, 44, 24, 0.25);
-  --ai-fill: #e9eef5;
-  --ai-border: rgba(60, 85, 112, 0.2);
+  --ai-fill: #e4ecf1;
+  --ai-border: rgba(44, 74, 92, 0.2);
   --radius: 8px;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
@@ -76,13 +78,13 @@
   /* The dark slab: the top bar and the primary button. Separate from --ink because
      --ink is body text, and in a dark theme text goes light while a slab must not.
      One token doing both jobs turned the top bar light, with light text on it. */
-  --slab: #23262b;
-  --on-slab: #eceef0;
+  --slab: #1f272b;
+  --on-slab: #e7eaec;
 
   --overlay-weak: rgba(255, 255, 255, 0.08);
   --overlay-line: rgba(255, 255, 255, 0.15);
-  --shadow-sm: 0 1px 3px rgba(35, 38, 43, 0.06);
-  --shadow-md: 0 4px 12px rgba(35, 38, 43, 0.1);
+  --shadow-sm: 0 1px 3px rgba(28, 34, 38, 0.06);
+  --shadow-md: 0 4px 12px rgba(28, 34, 38, 0.1);
 
   color-scheme: light;
 }
@@ -104,31 +106,31 @@
    --------------------------------------------------------------------------- */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --canvas: #15171a;
-    --surface: #1c1f24;
-    --raised: #212429;
-    --ink: #e6e8ea;
-    --on-ink: #e6e8ea;
-    --slab: #0f1114;
-    --on-slab: #e6e8ea;
-    --muted: #9aa4ae;
-    --muted-light: #4a525b;
-    --secondary: #b3bcc5;
-    --accent: #6da4cd;
-    --accent-strong: #a9c9e4;
-    --focus: #6db3e8;
-    --highlight: #e2b23c;
-    --highlight-soft: #2c3138;
+    --canvas: #12171a;
+    --surface: #191f23;
+    --raised: #1e252a;
+    --ink: #e4e9ec;
+    --on-ink: #e4e9ec;
+    --slab: #0d1114;
+    --on-slab: #e4e9ec;
+    --muted: #97a3ab;
+    --muted-light: #475057;
+    --secondary: #b0bac1;
+    --accent: #6aa8c8;
+    --accent-strong: #a5c7dc;
+    --focus: #62b0dc;
+    --highlight: #dfae43;
+    --highlight-soft: #293036;
     --border: rgba(255, 255, 255, 0.12);
     --border-faint: rgba(255, 255, 255, 0.07);
-    --warn-fill: #39290b;
-    --warn-text: #f0cf8a;
-    --warn-border: rgba(240, 207, 138, 0.25);
-    --err-fill: #3a1a13;
-    --err-text: #f4b3a3;
-    --err-border: rgba(244, 179, 163, 0.25);
-    --ai-fill: #1d2733;
-    --ai-border: rgba(169, 201, 228, 0.22);
+    --warn-fill: #362708;
+    --warn-text: #eecd85;
+    --warn-border: rgba(238, 205, 133, 0.25);
+    --err-fill: #38190f;
+    --err-text: #f2b1a1;
+    --err-border: rgba(242, 177, 161, 0.25);
+    --ai-fill: #1a242c;
+    --ai-border: rgba(165, 199, 220, 0.22);
     /* Elevation reads as light on a dark surface, not as a cast shadow. */
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
@@ -141,31 +143,31 @@
    one is worse than no toggle. Nothing sets this attribute yet; it is the hook a
    preference control will use. */
 :root[data-theme="dark"] {
-  --canvas: #15171a;
-  --surface: #1c1f24;
-  --raised: #212429;
-  --ink: #e6e8ea;
-  --on-ink: #e6e8ea;
-  --slab: #0f1114;
-  --on-slab: #e6e8ea;
-  --muted: #9aa4ae;
-  --muted-light: #4a525b;
-  --secondary: #b3bcc5;
-  --accent: #6da4cd;
-  --accent-strong: #a9c9e4;
-  --focus: #6db3e8;
-  --highlight: #e2b23c;
-  --highlight-soft: #2c3138;
+  --canvas: #12171a;
+  --surface: #191f23;
+  --raised: #1e252a;
+  --ink: #e4e9ec;
+  --on-ink: #e4e9ec;
+  --slab: #0d1114;
+  --on-slab: #e4e9ec;
+  --muted: #97a3ab;
+  --muted-light: #475057;
+  --secondary: #b0bac1;
+  --accent: #6aa8c8;
+  --accent-strong: #a5c7dc;
+  --focus: #62b0dc;
+  --highlight: #dfae43;
+  --highlight-soft: #293036;
   --border: rgba(255, 255, 255, 0.12);
   --border-faint: rgba(255, 255, 255, 0.07);
-  --warn-fill: #39290b;
-  --warn-text: #f0cf8a;
-  --warn-border: rgba(240, 207, 138, 0.25);
-  --err-fill: #3a1a13;
-  --err-text: #f4b3a3;
-  --err-border: rgba(244, 179, 163, 0.25);
-  --ai-fill: #1d2733;
-  --ai-border: rgba(169, 201, 228, 0.22);
+  --warn-fill: #362708;
+  --warn-text: #eecd85;
+  --warn-border: rgba(238, 205, 133, 0.25);
+  --err-fill: #38190f;
+  --err-text: #f2b1a1;
+  --err-border: rgba(242, 177, 161, 0.25);
+  --ai-fill: #1a242c;
+  --ai-border: rgba(165, 199, 220, 0.22);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
   color-scheme: dark;
