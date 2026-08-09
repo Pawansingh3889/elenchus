@@ -61,6 +61,9 @@ export const de: Messages = {
     moveDown: "Nach unten",
     removeQuestion: "Frage löschen",
     removeOption: "Option entfernen",
+    audienceTitle: "Für wen sie ist",
+    audienceFrozen:
+      "Nach der Veröffentlichung fest: Ergebnisse aus zwei verschiedenen Gruppen lassen sich nachträglich nicht mehr trennen.",
     answerTypesTitle: "Antworttypen",
     answerTypesHint:
       "Wählen Sie die Typen, die diese Umfrage verwenden darf. Nichts ausgewählt erlaubt jeden Typ. Die KI hält sich bei jeder Verfeinerung daran.",

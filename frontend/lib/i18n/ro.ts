@@ -61,6 +61,9 @@ export const ro: Messages = {
     moveDown: "Mută mai jos",
     removeQuestion: "Șterge întrebarea",
     removeOption: "Elimină opțiunea",
+    audienceTitle: "Pentru cine este",
+    audienceFrozen:
+      "Fix după publicare: răspunsurile din două populații diferite nu mai pot fi separate ulterior.",
     answerTypesTitle: "Tipuri de răspuns",
     answerTypesHint:
       "Bifați tipurile pe care le poate folosi acest chestionar. Fără nicio bifă, este permis orice tip. IA respectă acest lucru la fiecare rafinare.",

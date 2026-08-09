@@ -9,6 +9,8 @@ export type AnswerType =
   | "date";
 
 export type TemplateStatus = "draft" | "published" | "closed" | "archived";
+/** Who a survey is for: the whole respondent pool, or one creator department. */
+export type SurveyAudience = "respondents" | "hr" | "operations" | "finance" | "technical";
 export type UserRole = "author" | "respondent";
 
 export interface User {
@@ -53,6 +55,7 @@ export interface Template {
   created_by: string;
   created_at: string;
   updated_at: string;
+  audience: SurveyAudience;
   allowed_answer_types: AnswerType[];
   questions: Question[];
 }
@@ -87,6 +90,9 @@ export interface GeneratedTemplate {
 export interface TemplateWrite {
   title: string;
   description?: string | null;
+  /** Who the survey is for. Required on an update, where omitting it used to reset an
+   *  HR survey to the whole respondent pool on every save. */
+  audience: SurveyAudience;
   /** The answer types this survey allows. Empty is every type, not "unset".
    *
    *  Must be sent on every save. A write replaces the whole template, so omitting this

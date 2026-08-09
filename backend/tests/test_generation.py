@@ -342,6 +342,7 @@ async def _constrained_draft(session, author, *types: AnswerType):
         template.id,
         TemplateUpdate(
             title=template.title,
+            audience=template.audience,
             allowed_answer_types=list(types),
             questions=[
                 QuestionInput(

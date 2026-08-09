@@ -43,9 +43,11 @@ export default function Home() {
   }
 
   async function onCreate() {
-    // No answer-type policy: a blank survey restricts nothing until its author says so.
+    // A blank survey restricts nothing and is aimed nowhere in particular until its
+    // author says so, which is what the respondent pool means.
     const t = await create.mutateAsync({
       title: "Untitled survey",
+      audience: "respondents",
       allowed_answer_types: [],
       questions: [],
     });

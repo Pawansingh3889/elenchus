@@ -14,8 +14,9 @@ from app.runs.enums import AnswerKind, RunStatus
 from app.runs.models import REPLY_PREFIX
 from app.runs.service import ResultsService
 from app.templates.enums import AnswerType
-from app.templates.schemas import QuestionInput, TemplateCreate, TemplateUpdate
+from app.templates.schemas import QuestionInput, TemplateCreate
 from app.templates.service import TemplateService
+from tests.builders import update_of
 from tests.fakes import FakeLLM, follow_up, move_on, record, reply
 
 
@@ -50,7 +51,8 @@ async def test_a_run_is_reported_against_the_version_it_answered(
     svc = TemplateService(session)
     await svc.update_draft(
         published.id,
-        TemplateUpdate(
+        update_of(
+            published,
             title="Rewritten",
             questions=[QuestionInput(text="One question now", answer_type=AnswerType.long_text)],
         ),

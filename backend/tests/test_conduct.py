@@ -23,8 +23,9 @@ from app.llm.client import LLMError, NoToolCallError, ToolTurn
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
 from app.runs.models import RunMessage, SurveyRun
 from app.templates.enums import AnswerType
-from app.templates.schemas import QuestionInput, TemplateCreate, TemplateUpdate
+from app.templates.schemas import QuestionInput, TemplateCreate
 from app.templates.service import TemplateService
+from tests.builders import update_of
 from tests.fakes import FakeLLM
 from tests.fakes import follow_up as _follow_up
 from tests.fakes import move_on as _move_on
@@ -288,7 +289,8 @@ async def test_republishing_leaves_an_in_flight_run_alone(session, author, respo
     svc = TemplateService(session)
     await svc.update_draft(
         published.id,
-        TemplateUpdate(
+        update_of(
+            published,
             title="Something else entirely",
             questions=[
                 QuestionInput(text="A brand new question", answer_type=AnswerType.long_text)
