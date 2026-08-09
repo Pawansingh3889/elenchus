@@ -66,6 +66,11 @@ export const lv: Messages = {
     moveDown: "Pārvietot lejup",
     removeQuestion: "Dzēst jautājumu",
     removeOption: "Noņemt variantu",
+    settingTitle: "Kas jāzina intervētājam",
+    settingHint:
+      "Konteksts MI, kas vada šo aptauju; respondentiem to nekad nerāda. Aprakstiet darba vietu un to, kas nosaka, vai atbilde ir konkrēta vai neskaidra.",
+    settingPlaceholder:
+      "piem. Atdzesētas zivs pārstrādes rūpnīca. Svaigu zivi tur uz ledus 0-2 grādos; augstāk ir aukstuma ķēdes problēma. Atbild līniju vadītāji.",
     audienceTitle: "Kam tā paredzēta",
     audienceFrozen:
       "Pēc publicēšanas nemainīgs: divu dažādu grupu atbildes vēlāk vairs nav atdalāmas.",

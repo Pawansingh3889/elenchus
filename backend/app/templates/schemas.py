@@ -84,6 +84,11 @@ class TemplateWrite(BaseModel):
     # Who the survey is for. Defaulted on a new draft, where "nothing said yet" honestly
     # means the respondent pool. Required on an update: see TemplateUpdate.
     audience: SurveyAudience = SurveyAudience.respondents
+    # The workplace, for the interviewer rather than the respondent. See SurveyTemplate.
+    # Optional everywhere, including on an update: unlike the settings above there is no
+    # value that is true of a survey whose author has not written one, so None keeps
+    # meaning "not described" rather than becoming a thing an update can silently clear.
+    setting: str | None = Field(default=None, max_length=2000)
     # Answer types the author will allow. Empty is every type, not "unset": an author who
     # says nothing has restricted nothing, which is what a survey with no stated policy
     # has always meant here.
@@ -242,6 +247,7 @@ class TemplateRead(BaseModel):
     updated_at: datetime
     closed_at: datetime | None
     audience: SurveyAudience
+    setting: str | None
     allowed_answer_types: list[AnswerType]
     questions: list[QuestionRead]
 

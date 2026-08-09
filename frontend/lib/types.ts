@@ -56,6 +56,7 @@ export interface Template {
   created_at: string;
   updated_at: string;
   audience: SurveyAudience;
+  setting: string | null;
   allowed_answer_types: AnswerType[];
   questions: Question[];
 }
@@ -93,6 +94,9 @@ export interface TemplateWrite {
   /** Who the survey is for. Required on an update, where omitting it used to reset an
    *  HR survey to the whole respondent pool on every save. */
   audience: SurveyAudience;
+  /** What the interviewer needs to know about the workplace to read answers here.
+   *  Never shown to the respondent. Optional: most surveys need none. */
+  setting?: string | null;
   /** The answer types this survey allows. Empty is every type, not "unset".
    *
    *  Must be sent on every save. A write replaces the whole template, so omitting this

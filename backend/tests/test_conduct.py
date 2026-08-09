@@ -1300,3 +1300,106 @@ async def test_banking_is_not_offered_once_the_answer_is_in(session, respondent,
     probing = [t for t in first.tools_seen[-1] if t["name"] == "ask_follow_up"]
     assert probing, "the question permits probing, so the tool must still be offered"
     assert "answer_so_far" not in probing[0]["input_schema"]["properties"]
+
+
+async def _published_with_setting(session, author, setting: str | None):
+    """A one-question survey whose author has described the workplace."""
+    svc = TemplateService(session)
+    template = await svc.create_draft(
+        TemplateCreate(
+            title="Compliance check",
+            setting=setting,
+            questions=[
+                QuestionInput(
+                    text="What challenges do you face maintaining compliance?",
+                    answer_type=AnswerType.short_text,
+                    allow_follow_ups=True,
+                )
+            ],
+        ),
+        author,
+    )
+    await svc.publish(template.id, author)
+    return template
+
+
+_PLANT = (
+    "Chilled fish processing plant. Fresh fish is held on ice at 0 to 2 degrees; "
+    "anything above that is a chill-chain problem. Respondents are line leaders."
+)
+
+
+async def test_the_setting_reaches_the_interviewer(session, author, respondent):
+    """Without it a reply in the trade's own vocabulary reads as evasive. A respondent
+    answering "temperature" and then a reading in degrees is being specific."""
+    published = await _published_with_setting(session, author, _PLANT)
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    llm = FakeLLM(_record("temperature"), _move_on())
+    await ConductEngine(session, llm=llm).handle_message(run.id, "tempereture", respondent)
+
+    briefing = llm.briefings[0]
+    assert "THE SETTING" in briefing
+    assert "held on ice at 0 to 2 degrees" in briefing
+
+
+async def test_a_survey_with_no_setting_briefs_without_one(session, author, respondent):
+    """Most surveys have none, and an empty heading announcing a setting that follows and
+    then does not is worse than silence."""
+    published = await _published_with_setting(session, author, None)
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    llm = FakeLLM(_record("paperwork"), _move_on())
+    await ConductEngine(session, llm=llm).handle_message(run.id, "paperwork", respondent)
+
+    assert "THE SETTING" not in llm.briefings[0]
+
+
+async def test_a_blank_setting_is_the_same_as_none(session, author, respondent):
+    """An author who cleared the box has described nothing. Whitespace is not a setting."""
+    published = await _published_with_setting(session, author, "   ")
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    llm = FakeLLM(_record("paperwork"), _move_on())
+    await ConductEngine(session, llm=llm).handle_message(run.id, "paperwork", respondent)
+
+    assert "THE SETTING" not in llm.briefings[0]
+
+
+async def test_the_setting_is_never_said_to_the_respondent(session, author, respondent):
+    """It is written for the interviewer. The engine's own words are the opening line and
+    the closing one, and neither may carry the author's private notes into the chat."""
+    published = await _published_with_setting(session, author, _PLANT)
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    llm = FakeLLM(_record("temperature"), _move_on())
+    run = await ConductEngine(session, llm=llm).handle_message(run.id, "tempereture", respondent)
+
+    spoken = " ".join(m.content for m in run.messages)
+    assert "held on ice" not in spoken
+    assert "line leaders" not in spoken
+
+
+async def test_the_setting_is_frozen_at_publish(session, author, respondent):
+    """A run is conducted against what was published. An author rewriting the draft
+    mid-study must not change how answers already being given are read."""
+    published = await _published_with_setting(session, author, _PLANT)
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    svc = TemplateService(session)
+    template = await svc.get_draft(published.id, author)
+    await svc.update_draft(
+        published.id, update_of(template, setting="Completely different workplace."), author
+    )
+
+    llm = FakeLLM(_record("temperature"), _move_on())
+    await ConductEngine(session, llm=llm).handle_message(run.id, "tempereture", respondent)
+
+    briefing = llm.briefings[0]
+    assert "held on ice at 0 to 2 degrees" in briefing
+    assert "Completely different workplace" not in briefing

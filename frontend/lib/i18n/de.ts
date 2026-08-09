@@ -66,6 +66,11 @@ export const de: Messages = {
     moveDown: "Nach unten",
     removeQuestion: "Frage löschen",
     removeOption: "Option entfernen",
+    settingTitle: "Was der Interviewer wissen sollte",
+    settingHint:
+      "Hintergrund für die KI, die diese Umfrage führt; wird Befragten nie angezeigt. Beschreiben Sie den Arbeitsplatz und alles, woran sich entscheidet, ob eine Antwort konkret oder vage ist.",
+    settingPlaceholder:
+      "z. B. Betrieb für gekühlten Fisch. Frischer Fisch liegt bei 0 bis 2 Grad auf Eis; darüber ist die Kühlkette gefährdet. Befragte sind Schichtleiter.",
     audienceTitle: "Für wen sie ist",
     audienceFrozen:
       "Nach der Veröffentlichung fest: Ergebnisse aus zwei verschiedenen Gruppen lassen sich nachträglich nicht mehr trennen.",

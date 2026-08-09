@@ -96,10 +96,10 @@ def test_a_validated_question_briefs_as_required() -> None:
     """The reader that used to default to True now reads a guaranteed key."""
     questions = questions_of({"questions": [_snap(required=True)]})
     state = {"scripted_recorded": False, "follow_ups_used": 0}
-    assert "- This question is required" in _briefing(questions, 0, questions[0], state, None)
+    assert "- This question is required" in _briefing(questions, 0, questions[0], state, None, None)
 
 
 def test_a_validated_optional_question_briefs_as_optional() -> None:
     questions = questions_of({"questions": [_snap(required=False)]})
     state = {"scripted_recorded": False, "follow_ups_used": 0}
-    assert "OPTIONAL" in _briefing(questions, 0, questions[0], state, None)
+    assert "OPTIONAL" in _briefing(questions, 0, questions[0], state, None, None)

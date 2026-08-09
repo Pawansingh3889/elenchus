@@ -52,6 +52,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
   const [questions, setQuestions] = useState<QuestionInput[]>([]);
   const [allowedTypes, setAllowedTypes] = useState<AnswerType[]>([]);
   const [audience, setAudience] = useState<SurveyAudience>("respondents");
+  const [setting, setSetting] = useState("");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   // How many visibility conditions the last reorder/delete had to clear.
   const [dropped, setDropped] = useState(0);
@@ -82,6 +83,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
     setDescription(template.description ?? "");
     setAllowedTypes(template.allowed_answer_types);
     setAudience(template.audience);
+    setSetting(template.setting ?? "");
     setQuestions(
       template.questions.map((q) => ({
         text: q.text,
@@ -173,6 +175,9 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
     title,
     description: description || null,
     audience,
+    // Empty box means no setting, not an empty one: null is what "not described" is
+    // stored as, and the engine reads a blank string the same way.
+    setting: setting.trim() || null,
     allowed_answer_types: allowedTypes,
     questions,
   };
@@ -200,6 +205,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
       // it with the rest keeps one source of truth for the whole form.
       setAllowedTypes(revised.allowed_answer_types);
       setAudience(revised.audience);
+      setSetting(revised.setting ?? "");
       setQuestions(
         revised.questions.map((q) => ({
           text: q.text,
@@ -289,6 +295,18 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
           {template.status !== "draft" ? (
             <p className="muted types-hint">{msg.builder.audienceFrozen}</p>
           ) : null}
+        </div>
+
+        <div className="card types-card">
+          <div className="card-label">{msg.builder.settingTitle}</div>
+          <p className="muted types-hint">{msg.builder.settingHint}</p>
+          <textarea
+            className="field builder-desc"
+            value={setting}
+            onChange={(e) => setSetting(e.target.value)}
+            placeholder={msg.builder.settingPlaceholder}
+            maxLength={2000}
+          />
         </div>
 
         <div className="card types-card">

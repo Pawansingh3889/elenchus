@@ -66,6 +66,11 @@ export const pl: Messages = {
     moveDown: "Przenieś w dół",
     removeQuestion: "Usuń pytanie",
     removeOption: "Usuń opcję",
+    settingTitle: "Co powinien wiedzieć prowadzący",
+    settingHint:
+      "Kontekst dla AI prowadzącej tę ankietę; nigdy nie jest pokazywany odpowiadającym. Opisz miejsce pracy i to, co decyduje, czy odpowiedź jest konkretna, czy ogólnikowa.",
+    settingPlaceholder:
+      "np. Zakład przetwórstwa ryb chłodzonych. Świeża ryba leży na lodzie w 0-2 stopniach; powyżej to problem łańcucha chłodniczego. Odpowiadają liderzy linii.",
     audienceTitle: "Dla kogo jest",
     audienceFrozen:
       "Po opublikowaniu bez zmian: odpowiedzi z dwóch różnych grup nie da się później rozdzielić.",
