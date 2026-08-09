@@ -7,9 +7,10 @@ import pytest
 from app.errors import NotFoundError
 from app.llm.client import LLMError, ToolTurn
 from app.templates.enums import AnswerType, TemplateStatus
-from app.templates.generation import _TOOL, GenerationService
-from app.templates.schemas import QuestionInput, TemplateUpdate
+from app.templates.generation import GenerationService
+from app.templates.schemas import QuestionInput
 from app.templates.service import TemplateService
+from tests.builders import update_of
 
 
 class FakeLLM:
@@ -35,7 +36,7 @@ _VALID: dict[str, Any] = {
     "title": "Onboarding",
     "description": "New starter survey",
     "questions": [
-        {"text": "Your role?", "answer_type": "short_text"},
+        {"text": "Your role?", "answer_type": "single_select", "options": ["Lead", "Operator"]},
         {"text": "Systems used?", "answer_type": "multi_select", "options": ["ERP", "BI"]},
     ],
 }
@@ -169,7 +170,7 @@ async def test_stringified_questions_are_decoded_before_validation(session, auth
         "description": "",
         "questions": json.dumps(
             [
-                {"text": "Your role?", "answer_type": "short_text"},
+                {"text": "Your role?", "answer_type": "yes_no"},
                 {
                     "text": "Which shift?",
                     "answer_type": "single_select",
@@ -192,7 +193,7 @@ async def test_almost_json_with_model_corruptions_is_still_decoded(session, auth
     defeat the repair: a literal newline inside a string value (invalid in strict
     JSON) and the Python-style \\' escape (never valid JSON). A live run failed on a
     stringified list that plain json.loads refused."""
-    with_newline = '[{"text": "How often do you\nreview dashboards?", "answer_type": "short_text"}]'
+    with_newline = '[{"text": "How often do you\nreview dashboards?", "answer_type": "number"}]'
     escaped_quote = (
         '[{"text": "Does the platform\\\'s feature set meet your needs?",'
         ' "answer_type": "yes_no"}]'
@@ -245,7 +246,7 @@ async def test_refine_updates_the_draft_in_place_and_returns_a_note(session, aut
 
     revised = {
         "title": "Onboarding (short)",
-        "questions": [{"text": "Your role?", "answer_type": "short_text"}],
+        "questions": [{"text": "Your role?", "answer_type": "yes_no"}],
     }
     fake = FakeLLM(revised, note="Trimmed it to a single question.")
     updated, note = await GenerationService(session, llm=fake).refine_draft(
@@ -315,165 +316,6 @@ async def test_refine_re_validates_so_a_bad_change_fails_loudly(session, author)
         await GenerationService(session, llm=fake).refine_draft(original.id, "break it", author)
 
 
-_CONSTRAINED: dict[str, Any] = {
-    "title": "Compliance check",
-    "questions": [
-        {"text": "How familiar are you with the standards?", "answer_type": "rating"},
-        {
-            "text": "What challenges do you face?",
-            "answer_type": "multi_select",
-            "options": ["Time", "Training", "Equipment"],
-        },
-    ],
-}
-
-
-async def _constrained_draft(session, author, *types: AnswerType):
-    """A saved draft whose author has restricted which answer types may appear.
-
-    Questions outside the new policy are dropped on the way in, because a draft that
-    already breaks it could not be saved: setting a policy is itself a write, and the
-    same check runs on it.
-    """
-    template, _ = await GenerationService(session, llm=FakeLLM(_CONSTRAINED)).generate_draft(
-        "compliance", author
-    )
-    return await TemplateService(session).update_draft(
-        template.id,
-        TemplateUpdate(
-            title=template.title,
-            audience=template.audience,
-            allowed_answer_types=list(types),
-            questions=[
-                QuestionInput(
-                    text=q.text,
-                    answer_type=q.answer_type,
-                    options=q.options,
-                    allow_other=q.allow_other,
-                    required=q.required,
-                    allow_follow_ups=q.allow_follow_ups,
-                )
-                for q in sorted(template.questions, key=lambda q: q.position)
-                if q.answer_type in types
-            ],
-        ),
-        author,
-    )
-
-
-async def test_a_refine_may_not_reintroduce_a_banned_answer_type(session, author):
-    """The bug this field exists for, replayed.
-
-    A refine carries one instruction and no memory of the last. An author who said "no
-    text questions" had them removed, and then "add a question about training" put a
-    short_text straight back, because nothing carried the ban forward. Live, that cycle
-    ran four times. The policy is checked on the way in now, so the first answer is
-    rejected and the retry is what reaches the draft.
-    """
-    original = await _constrained_draft(session, author, AnswerType.rating, AnswerType.multi_select)
-
-    reintroduced = {
-        **_CONSTRAINED,
-        "questions": [
-            *_CONSTRAINED["questions"],
-            {"text": "What training would help most?", "answer_type": "short_text"},
-        ],
-    }
-    complied = {
-        **_CONSTRAINED,
-        "questions": [
-            *_CONSTRAINED["questions"],
-            {
-                "text": "What training would help most?",
-                "answer_type": "multi_select",
-                "options": ["Induction", "Refreshers", "On the job"],
-            },
-        ],
-    }
-    fake = FakeLLM(reintroduced, complied, note="Added a training question.")
-    updated, _ = await GenerationService(session, llm=fake).refine_draft(
-        original.id, "add a question about training", author
-    )
-
-    assert fake.calls == 2  # rejected, then retried with the reason
-    assert AnswerType.short_text not in {q.answer_type for q in updated.questions}
-    assert [q.text for q in sorted(updated.questions, key=lambda q: q.position)][-1] == (
-        "What training would help most?"
-    )
-
-
-async def test_a_refine_that_will_not_comply_fails_loudly(session, author):
-    """No silent repair: a model that keeps returning a banned type is an error, not a
-    draft quietly stripped of the question the author asked for."""
-    original = await _constrained_draft(session, author, AnswerType.rating)
-
-    stubborn = {
-        "title": "Compliance check",
-        "questions": [{"text": "What challenges?", "answer_type": "short_text"}],
-    }
-    fake = FakeLLM(stubborn, stubborn)
-    with pytest.raises(LLMError, match="short_text"):
-        await GenerationService(session, llm=fake).refine_draft(original.id, "add one", author)
-
-
-async def test_the_policy_is_stated_in_the_brief(session, author):
-    """The check holds the line, but stating the rule spends the retry on real mistakes."""
-    original = await _constrained_draft(session, author, AnswerType.rating, AnswerType.multi_select)
-
-    fake = FakeLLM(_CONSTRAINED, note="Unchanged.")
-    await GenerationService(session, llm=fake).refine_draft(original.id, "no change", author)
-
-    brief = fake.messages_seen[0][0]["content"]
-    assert "ONLY rating, multi_select" in brief
-
-
-async def test_the_model_cannot_widen_the_policy_it_was_given(session, author):
-    """The field is the author's, so it is not on the tool schema. A model that returns
-    it anyway must not be able to permit itself the type it wants to use."""
-    original = await _constrained_draft(session, author, AnswerType.rating)
-
-    helping_itself = {
-        "title": "Compliance check",
-        "allowed_answer_types": ["rating", "short_text"],
-        "questions": [{"text": "What challenges?", "answer_type": "short_text"}],
-    }
-    fake = FakeLLM(helping_itself, helping_itself)
-    with pytest.raises(LLMError, match="short_text"):
-        await GenerationService(session, llm=fake).refine_draft(original.id, "add one", author)
-
-
-async def test_the_policy_survives_a_refine(session, author):
-    """The model never returns the policy, and a refine replaces every column it does
-    return. A policy that lasted one refine would be no policy at all."""
-    original = await _constrained_draft(session, author, AnswerType.rating, AnswerType.multi_select)
-
-    fake = FakeLLM(_CONSTRAINED, note="Unchanged.")
-    updated, _ = await GenerationService(session, llm=fake).refine_draft(
-        original.id, "no change", author
-    )
-    assert updated.allowed_answer_types == ["rating", "multi_select"]
-
-
-async def test_an_unconstrained_draft_still_takes_any_type(session, author):
-    """Empty means every type. The common case must not start needing a policy."""
-    original, _ = await GenerationService(session, llm=FakeLLM(_VALID)).generate_draft("x", author)
-    assert original.allowed_answer_types == []
-
-    fake = FakeLLM(_VALID, note="Unchanged.")
-    updated, _ = await GenerationService(session, llm=fake).refine_draft(
-        original.id, "no change", author
-    )
-    assert fake.calls == 1
-    assert AnswerType.short_text in {q.answer_type for q in updated.questions}
-
-
-async def test_the_draft_tool_never_offers_the_policy_field(session, author):
-    """Belt and braces on the schema itself: if the field reappears in the tool input,
-    the model is being invited to set the author's policy."""
-    assert "allowed_answer_types" not in _TOOL["input_schema"]["properties"]
-    assert "questions" in _TOOL["input_schema"]["properties"]
-
-
 async def test_refine_refuses_another_authors_template(session, author, other_author):
     original, _ = await GenerationService(session, llm=FakeLLM(_VALID)).generate_draft("x", author)
 
@@ -481,3 +323,134 @@ async def test_refine_refuses_another_authors_template(session, author, other_au
         await GenerationService(session, llm=FakeLLM(_VALID)).refine_draft(
             original.id, "change it", other_author
         )
+
+
+_FREE_TEXT_DRAFT: dict[str, Any] = {
+    "title": "Compliance check",
+    "questions": [
+        {"text": "How familiar are you with the standards?", "answer_type": "rating"},
+        {"text": "What challenges do you face?", "answer_type": "short_text"},
+    ],
+}
+_CLOSED_DRAFT: dict[str, Any] = {
+    "title": "Compliance check",
+    "questions": [
+        {"text": "How familiar are you with the standards?", "answer_type": "rating"},
+        {
+            "text": "What challenges do you face?",
+            "answer_type": "multi_select",
+            "options": ["Time", "Training", "Equipment"],
+            "allow_other": True,
+        },
+    ],
+}
+
+
+async def test_a_generated_survey_has_no_free_text(session, author):
+    """The rule, on the path an author actually uses. Nobody sets this per survey: a
+    drafted survey is conducted by an interviewer that has to judge whether a reply
+    answered the question, and an open box is where that judgement is hardest."""
+    fake = FakeLLM(_FREE_TEXT_DRAFT, _CLOSED_DRAFT)
+    template, _ = await GenerationService(session, llm=fake).generate_draft("compliance", author)
+
+    assert fake.calls == 2  # rejected, then retried with the reason
+    assert AnswerType.short_text not in {q.answer_type for q in template.questions}
+    assert AnswerType.long_text not in {q.answer_type for q in template.questions}
+
+
+async def test_a_model_that_insists_on_free_text_fails_loudly(session, author):
+    """No silent repair. A survey quietly stripped of the question the author asked for
+    is worse than an error, because nobody would know to look for it."""
+    fake = FakeLLM(_FREE_TEXT_DRAFT, _FREE_TEXT_DRAFT)
+    with pytest.raises(LLMError, match="short_text"):
+        await GenerationService(session, llm=fake).generate_draft("compliance", author)
+
+
+async def test_the_rule_is_stated_before_the_model_answers(session, author):
+    """The check holds the line; saying it up front spends the retry on real mistakes."""
+    fake = FakeLLM(_CLOSED_DRAFT)
+    await GenerationService(session, llm=fake).generate_draft("compliance", author)
+
+    brief = fake.messages_seen[0][0]["content"]
+    assert "Free text is not available" in brief
+    assert "short_text" not in brief.split("ONLY")[1].split(".")[0]
+
+
+async def test_a_refine_may_not_introduce_free_text(session, author):
+    """The half that kept coming undone. A refine carries one instruction and no memory
+    of the last, so the rule cannot live in what the author said earlier."""
+    original, _ = await GenerationService(session, llm=FakeLLM(_CLOSED_DRAFT)).generate_draft(
+        "compliance", author
+    )
+
+    added_text = {
+        "title": "Compliance check",
+        "questions": [
+            *_CLOSED_DRAFT["questions"],
+            {"text": "What training would help?", "answer_type": "short_text"},
+        ],
+    }
+    complied = {
+        "title": "Compliance check",
+        "questions": [
+            *_CLOSED_DRAFT["questions"],
+            {
+                "text": "What training would help?",
+                "answer_type": "multi_select",
+                "options": ["Induction", "Refreshers"],
+                "allow_other": True,
+            },
+        ],
+    }
+    fake = FakeLLM(added_text, complied)
+    updated, _ = await GenerationService(session, llm=fake).refine_draft(
+        original.id, "add a question about training", author
+    )
+
+    assert fake.calls == 2
+    assert AnswerType.short_text not in {q.answer_type for q in updated.questions}
+
+
+async def test_a_text_question_the_author_added_survives_a_refine(session, author):
+    """The rule constrains what the model writes on the author's behalf, not what the
+    author may ask for. A blanket check would reject the survey for carrying the author's
+    own question back, and they would find it deleted or every refine failing."""
+    original, _ = await GenerationService(session, llm=FakeLLM(_CLOSED_DRAFT)).generate_draft(
+        "compliance", author
+    )
+    mine = "Anything else we should know?"
+    with_text = await TemplateService(session).update_draft(
+        original.id,
+        update_of(
+            original,
+            questions=[
+                *[
+                    QuestionInput(
+                        text=q.text,
+                        answer_type=q.answer_type,
+                        options=q.options,
+                        allow_other=q.allow_other,
+                    )
+                    for q in sorted(original.questions, key=lambda q: q.position)
+                ],
+                QuestionInput(text=mine, answer_type=AnswerType.long_text),
+            ],
+        ),
+        author,
+    )
+    assert AnswerType.long_text in {q.answer_type for q in with_text.questions}
+
+    returned = {
+        "title": "Compliance check",
+        "questions": [
+            *_CLOSED_DRAFT["questions"],
+            {"text": mine, "answer_type": "long_text"},
+        ],
+    }
+    fake = FakeLLM(returned)
+    updated, _ = await GenerationService(session, llm=fake).refine_draft(
+        original.id, "tidy the wording", author
+    )
+
+    assert fake.calls == 1  # accepted first time: nothing new was introduced
+    assert mine in {q.text for q in updated.questions}

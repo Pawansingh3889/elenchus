@@ -66,18 +66,6 @@ export const es: Messages = {
     moveDown: "Bajar",
     removeQuestion: "Eliminar pregunta",
     removeOption: "Quitar opción",
-    settingTitle: "Lo que debe saber el entrevistador",
-    settingHint:
-      "Contexto para la IA que realiza esta encuesta; nunca se muestra a quien responde. Describa el lugar de trabajo y lo que determina si una respuesta es concreta o vaga.",
-    settingPlaceholder:
-      "p. ej. Planta de pescado refrigerado. El pescado fresco se mantiene en hielo entre 0 y 2 grados; por encima hay un problema de cadena de frío. Responden jefes de línea.",
-    audienceTitle: "Para quién es",
-    audienceFrozen:
-      "Fijo una vez publicada: las respuestas de dos poblaciones distintas ya no se pueden separar después.",
-    answerTypesTitle: "Tipos de respuesta",
-    answerTypesHint:
-      "Marque los tipos que esta encuesta puede usar. Sin marcar nada se permite cualquier tipo. La IA lo respeta en cada refinamiento.",
-    typeNotAllowed: (typeLabel: string) => `esta encuesta no permite ${typeLabel}`,
     refineTitle: "✦ Refinar con IA",
     refinePlaceholder: "Describe un cambio…",
     refine: "Refinar",

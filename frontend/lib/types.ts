@@ -57,7 +57,6 @@ export interface Template {
   updated_at: string;
   audience: SurveyAudience;
   setting: string | null;
-  allowed_answer_types: AnswerType[];
   questions: Question[];
 }
 
@@ -97,11 +96,6 @@ export interface TemplateWrite {
   /** What the interviewer needs to know about the workplace to read answers here.
    *  Never shown to the respondent. Optional: most surveys need none. */
   setting?: string | null;
-  /** The answer types this survey allows. Empty is every type, not "unset".
-   *
-   *  Must be sent on every save. A write replaces the whole template, so omitting this
-   *  clears the policy, which is how "no text questions" kept coming undone. */
-  allowed_answer_types: AnswerType[];
   questions: QuestionInput[];
 }
 

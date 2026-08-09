@@ -28,6 +28,17 @@ logger = logging.getLogger("app.templates.generation")
 
 MAX_GENERATED_QUESTIONS = 20
 
+# What the model may draft. Free text is excluded, always: a drafted survey is conducted
+# by an interviewer that has to judge whether a reply answered the question, and an open
+# box is where that judgement is hardest and where invented answers cost the most. Closed
+# questions with a write-in carry the part the option list could not anticipate.
+#
+# A rule about drafting, not about surveys. An author who wants a text question adds one
+# on the question card and nothing objects: this constrains what the model writes on your
+# behalf, not what you may ask for yourself.
+FREE_TEXT = (AnswerType.short_text, AnswerType.long_text)
+DRAFTABLE = [t for t in AnswerType if t not in FREE_TEXT]
+
 
 class _DraftToolInput(TemplateCreate):
     """The generation tool's input — the template plus a short note. The note is a schema
@@ -46,23 +57,10 @@ _TOOL_NAME = "draft_survey_template"
 _TOOL_DESCRIPTION = "Return a complete survey template as structured data, plus a short note."
 
 
-def _tool_schema() -> dict[str, Any]:
-    """The draft tool's input schema, minus the fields the model does not get to set.
-
-    ``allowed_answer_types`` is the author's policy, not a design choice: offering it
-    would let a model that finds the restriction inconvenient return a wider policy and
-    then satisfy it, which is the failure this whole field exists to stop. The engine
-    fills it in from the stored template before validation instead.
-    """
-    schema = _DraftToolInput.model_json_schema()
-    schema["properties"].pop("allowed_answer_types", None)
-    return schema
-
-
 _TOOL: dict[str, Any] = {
     "name": _TOOL_NAME,
     "description": _TOOL_DESCRIPTION,
-    "input_schema": _tool_schema(),
+    "input_schema": _DraftToolInput.model_json_schema(),
 }
 
 
@@ -75,9 +73,11 @@ class GenerationService:
     async def generate_draft(self, prompt: str, author: User) -> tuple[SurveyTemplate, str]:
         """Draft a new survey from a description. Returns the saved draft and the model's
         short note on what it built."""
-        system = load_prompt("generate_template_v2")
+        system = load_prompt("generate_template_v3")
         template_in, note = await self._draft(
-            system, [{"role": "user", "content": prompt}], allowed=[], previous_error=None
+            system,
+            [{"role": "user", "content": f"{prompt}\n\n{_policy()}"}],
+            previous_error=None,
         )
         template = await self.templates.create_draft(_without_catch_alls(template_in), author)
         return template, note
@@ -89,14 +89,18 @@ class GenerationService:
         the model's note on what changed. The whole survey is re-drafted and re-validated,
         so a follow-up can never leave the draft in an invalid shape."""
         current = await self.templates.get_draft(template_id, author)
-        allowed = [AnswerType(t) for t in current.allowed_answer_types]
-        system = load_prompt("refine_template_v3")
+        system = load_prompt("refine_template_v4")
         message = (
-            f"{_describe(current)}\n{_policy(allowed)}\n\nRequested change: {instruction}\n\n"
+            f"{_describe(current)}\n{_policy()}\n\nRequested change: {instruction}\n\n"
             "Return the complete revised survey."
         )
         template_in, note = await self._draft(
-            system, [{"role": "user", "content": message}], allowed=allowed, previous_error=None
+            system,
+            [{"role": "user", "content": message}],
+            previous_error=None,
+            # The author's own text questions, which a refine returns and must not be
+            # rejected for returning.
+            kept=frozenset(q.text for q in current.questions if q.answer_type in FREE_TEXT),
         )
         updated = await self.templates.update_draft(
             template_id, _to_update(_without_catch_alls(template_in)), author
@@ -107,8 +111,8 @@ class GenerationService:
         self,
         system: str,
         messages: list[dict[str, str]],
-        allowed: list[AnswerType],
         previous_error: str | None,
+        kept: frozenset[str] = frozenset(),
     ) -> tuple[TemplateCreate, str]:
         turn_messages = (
             messages
@@ -126,17 +130,14 @@ class GenerationService:
             system=system, messages=turn_messages, tools=[_TOOL], max_tokens=4096
         )
         raw = _decode_stringified_fields(turn.tool_input)
-        # The author's policy, not the model's: set here so validation checks the draft
-        # against it, and so a model that returned the field anyway cannot widen it.
-        raw["allowed_answer_types"] = [t.value for t in allowed]
         # Prefer the schema's note field; fall back to any spoken text a model does emit.
         note = str(raw.get("note") or turn.text or "").strip()
-        error = _validation_error(raw)
+        error = _validation_error(raw, kept)
         if error is None:
             return TemplateCreate.model_validate(raw), note
         if previous_error is None:
             logger.warning("generated template rejected, retrying: raw=%r error=%s", raw, error)
-            return await self._draft(system, messages, allowed, previous_error=error)
+            return await self._draft(system, messages, previous_error=error, kept=kept)
         # The rejection reason describes the fault but not the draft, so keep the raw
         # payload before failing (ARCHITECTURE.md 3.3).
         logger.error("template generation failed after one retry: raw=%r error=%s", raw, error)
@@ -254,26 +255,46 @@ def _describe(template: SurveyTemplate) -> str:
     return "\n".join(lines)
 
 
-def _policy(allowed: list[AnswerType]) -> str:
-    """State the author's answer-type policy as a line the model reads with the draft.
+def _policy() -> str:
+    """The drafting rule, stated to the model before it answers.
 
-    The schema check is what actually holds the line, but a rejection costs the one
-    retry and comes back as a validator message, so it is worth telling the model the
-    rule up front and spending the retry on a genuine mistake instead.
+    Told up front it usually complies, which saves the retry for a real mistake; the
+    check in ``_free_text_drafted`` is what actually holds the line.
     """
-    if not allowed:
-        return "Answer types allowed: any of the types listed in your rules."
-    permitted = ", ".join(t.value for t in allowed)
+    permitted = ", ".join(t.value for t in DRAFTABLE)
     return (
-        f"Answer types allowed: ONLY {permitted}. The author set this for the whole "
-        "survey, and it holds for every question you keep, change or add, whatever the "
-        "requested change is about. A question that needs a type not on this list does "
-        "not belong in this survey: leave it out rather than reaching for a type that "
-        "fits badly."
+        f"Answer types allowed: ONLY {permitted}. Free text is not available in this "
+        "survey. A question that wants an open answer is asked as a select with real "
+        "options and a write-in, so what the list does not anticipate is still captured; "
+        "it is not converted into a rating, which produces a question nobody can answer."
     )
 
 
-def _validation_error(raw: dict[str, Any]) -> str | None:
+def _free_text_drafted(template_in: TemplateCreate, kept: frozenset[str]) -> str | None:
+    """Why this draft introduces free text, or None.
+
+    Introduces, not contains. An author may add a text question by hand and nothing
+    objects to that: the rule constrains what the model writes on their behalf. A refine
+    returns the COMPLETE survey, so a blanket check would reject the survey for carrying
+    the author's own question back unchanged, and the author would find their question
+    deleted or their refine failing. ``kept`` is the free-text a question already had, by
+    text, so returning it is fine and inventing a new one is not.
+    """
+    offenders = [
+        f"question {i + 1} is {q.answer_type.value}"
+        for i, q in enumerate(template_in.questions)
+        if q.answer_type in FREE_TEXT and q.text not in kept
+    ]
+    if not offenders:
+        return None
+    return (
+        f"{'; '.join(offenders)}. Free text is not available: ask it as a select with "
+        "real options and a write-in, or leave the question out. Any short_text or "
+        "long_text already in the survey was written by the author; keep it as it is."
+    )
+
+
+def _validation_error(raw: dict[str, Any], kept: frozenset[str]) -> str | None:
     try:
         template_in = TemplateCreate.model_validate(raw)
     except PydanticValidationError as exc:
@@ -285,4 +306,5 @@ def _validation_error(raw: dict[str, Any]) -> str | None:
         return "no questions"
     if len(template_in.questions) > MAX_GENERATED_QUESTIONS:
         return f"too many questions (max {MAX_GENERATED_QUESTIONS})"
-    return None
+    # Last, so the rejection an author never sees is about content rather than shape.
+    return _free_text_drafted(template_in, kept)

@@ -22,7 +22,6 @@ def update_of(template: SurveyTemplate, **changes: Any) -> TemplateUpdate:
         "title": template.title,
         "description": template.description,
         "audience": template.audience,
-        "allowed_answer_types": list(template.allowed_answer_types),
         "questions": [
             QuestionInput(
                 text=q.text,

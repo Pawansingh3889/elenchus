@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { clearedBy, followOptionRename, remapConditions, repairConditionsFor } from "@/lib/conditions";
-import type { AnswerType, QuestionInput } from "@/lib/types";
+import type { QuestionInput } from "@/lib/types";
 
 /**
  * The draft's question list, and the condition repair every edit to it has to perform.
@@ -52,14 +52,14 @@ export function useDraftQuestions() {
       return next;
     });
 
-  /** A new card, seeded with the first type the survey actually permits so adding a
-   *  question to a survey that bans free text does not seed one the author cannot save. */
-  const add = (allowed: AnswerType[]) =>
+  /** A new card. Short text, because a question an author is about to type is most
+   *  often an open one, and the type dropdown is right there. */
+  const add = () =>
     setQuestions((qs) => [
       ...qs,
       {
         text: "",
-        answer_type: allowed.length ? allowed[0] : "short_text",
+        answer_type: "short_text",
         options: [],
         allow_other: false,
         required: true,

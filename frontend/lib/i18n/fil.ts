@@ -65,18 +65,6 @@ export const fil: Messages = {
     moveDown: "Ibaba",
     removeQuestion: "Tanggalin ang tanong",
     removeOption: "Alisin ang opsyon",
-    settingTitle: "Dapat malaman ng nag-iinterbyu",
-    settingHint:
-      "Konteksto para sa AI na nagsasagawa ng survey na ito; hindi ito ipinapakita sa sumasagot. Ilarawan ang lugar ng trabaho at kung ano ang nagpapasya kung tiyak o malabo ang isang sagot.",
-    settingPlaceholder:
-      "hal. Planta ng pinalamig na isda. Ang sariwang isda ay nasa yelo sa 0 hanggang 2 degrees; mas mataas diyan ay problema sa cold chain. Mga line leader ang sumasagot.",
-    audienceTitle: "Para kanino ito",
-    audienceFrozen:
-      "Hindi na mababago kapag nailathala: hindi na mapaghihiwalay ang mga sagot mula sa dalawang magkaibang grupo.",
-    answerTypesTitle: "Mga uri ng sagot",
-    answerTypesHint:
-      "Piliin ang mga uri na maaaring gamitin ng survey na ito. Kung walang napili, pinapayagan ang lahat ng uri. Sinusunod ito ng AI sa bawat pagpino.",
-    typeNotAllowed: (typeLabel: string) => `hindi pinapayagan ng survey na ito ang ${typeLabel}`,
     refineTitle: "✦ Pinuhin gamit ang AI",
     refinePlaceholder: "Ilarawan ang pagbabago…",
     refine: "Pinuhin",

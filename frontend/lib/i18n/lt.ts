@@ -66,18 +66,6 @@ export const lt: Messages = {
     moveDown: "Perkelti žemyn",
     removeQuestion: "Ištrinti klausimą",
     removeOption: "Pašalinti variantą",
-    settingTitle: "Ką turi žinoti apklausėjas",
-    settingHint:
-      "Kontekstas DI, kuris veda šią apklausą; respondentams niekada nerodoma. Aprašykite darbo vietą ir tai, kas lemia, ar atsakymas konkretus, ar miglotas.",
-    settingPlaceholder:
-      "pvz. Šaldytos žuvies perdirbimo įmonė. Šviežia žuvis laikoma ant ledo 0-2 laipsnių; aukščiau - šaldymo grandinės problema. Atsako linijų vadovai.",
-    audienceTitle: "Kam ji skirta",
-    audienceFrozen:
-      "Paskelbus nebekeičiama: dviejų skirtingų grupių atsakymų vėliau nebeatskirsite.",
-    answerTypesTitle: "Atsakymų tipai",
-    answerTypesHint:
-      "Pažymėkite tipus, kuriuos gali naudoti ši apklausa. Nieko nepažymėjus leidžiami visi tipai. DI to laikosi kiekvieną kartą tobulindamas.",
-    typeNotAllowed: (typeLabel: string) => `ši apklausa neleidžia tipo ${typeLabel}`,
     refineTitle: "✦ Patobulinti su DI",
     refinePlaceholder: "Aprašykite pakeitimą…",
     refine: "Patobulinti",
