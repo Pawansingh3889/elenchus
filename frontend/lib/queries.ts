@@ -17,15 +17,6 @@ export function useCurrentUser() {
   return users?.find((u) => u.id === userId) ?? null;
 }
 
-export function useTemplates() {
-  const userId = useUserStore((s) => s.currentUserId);
-  return useQuery({
-    queryKey: ["templates", userId],
-    queryFn: api.listTemplates,
-    enabled: !!userId,
-  });
-}
-
 export function useDashboard() {
   const userId = useUserStore((s) => s.currentUserId);
   return useQuery({

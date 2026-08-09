@@ -95,7 +95,6 @@ export const pl: Messages = {
     goingToBuild: "Przechodzimy do Twórz…",
     empty: "Nic jeszcze nie opublikowano. Opublikuj szablon, aby pojawił się tutaj.",
     start: "Rozpocznij",
-    continue: "Kontynuuj",
   },
   run: {
     pickUser: "Wybierz użytkownika na górnym pasku, aby kontynuować tę ankietę.",
@@ -112,7 +111,6 @@ export const pl: Messages = {
     other: "inne…",
     yes: "Tak",
     no: "Nie",
-    progress: (done: number, total: number) => `${done} z ${total}`,
   },
   report: {
     writeIn: "(własna)",

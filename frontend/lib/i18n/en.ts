@@ -103,7 +103,6 @@ export const en = {
     goingToBuild: "Taking you to Build…",
     empty: "Nothing published yet. Publish a template to open it here.",
     start: "Start",
-    continue: "Continue",
   },
   run: {
     pickUser: "Pick a user in the top bar to continue this survey.",
@@ -120,7 +119,6 @@ export const en = {
     other: "other…",
     yes: "Yes",
     no: "No",
-    progress: (done: number, total: number) => `${done} of ${total}`,
   },
   report: {
     writeIn: "(write-in)",

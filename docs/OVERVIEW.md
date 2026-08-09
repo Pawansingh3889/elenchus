@@ -3,7 +3,8 @@
 A plain-English tour of the application — what it is, who uses it, what the AI
 actually does, and what comes out the other end. Read this first; along the way it
 links to the rest of the story: how to [run it](../README.md), how to
-[work on it](DEVELOPING.md), how it's [tested](TESTING_REPORT.md), and
+[work on it](DEVELOPING.md), what each check is asking of the code in
+[CHECKS.md](CHECKS.md), and
 [how it was built, step by step](../CHANGELOG.md).
 
 ## In one sentence
@@ -71,8 +72,8 @@ Technically, every AI output the system acts on comes back through a
 schema-constrained tool call and is validated before use — the AI can only *propose*
 an action; the engine decides whether it happens. The exact instructions the AI is
 given are versioned files checked into the project
-([conduct_v2.md](../backend/app/llm/prompts/conduct_v2.md) for the conversation,
-[generate_template_v2.md](../backend/app/llm/prompts/generate_template_v2.md) for
+([conduct_v7.md](../backend/app/llm/prompts/conduct_v7.md) for the conversation,
+[generate_template_v3.md](../backend/app/llm/prompts/generate_template_v3.md) for
 drafting) — so "what we told the AI" is always reviewable, like any other code.
 
 ## The rules that stop bad answers reaching the database
@@ -106,10 +107,10 @@ enforced in code:
 - **Everything is auditable.** Every stored answer is tied to the exact survey version
   answered and to the full transcript of how it was arrived at.
 
-Each of these rules exists because a test attacks it on every code change — the story
-of the AI's actual misbehaviours and the rules they earned is told in
-[TESTING_REPORT.md](TESTING_REPORT.md), including the tricky-questions round
-(prompt injection, "10/10" on a 1–5 scale, "next Tuesday" dates, and friends).
+Each of these rules exists because a test attacks it on every code change. What each
+check is asking, and the misbehaviour that earned it, is in [CHECKS.md](CHECKS.md);
+the conversations themselves are replayed from `backend/tests/live_runs/` on every
+push, so an answer a real model gave stays a test forever.
 
 ## Resilience: a chain of AI providers
 
@@ -119,8 +120,8 @@ unavailable, the next takes over automatically, and every tier lives under **exa
 same rules**: same validation gate, same budgets, same refusal to save junk. An outage
 pauses nothing and weakens nothing. Turning a tier on is four lines in a config file.
 See the `LLM_TIER*_*` settings in [.env.example](../.env.example), and the
-[testing report](TESTING_REPORT.md#the-live-end-to-end-test-23-july-2026) for the live
-run where every single turn failed over and the survey still completed cleanly.
+[changelog](../CHANGELOG.md) for the live run where every single turn failed over and
+the survey still completed cleanly.
 
 ## How this works in real life
 
@@ -164,8 +165,8 @@ of these — the chat can be embedded where the respondents already are.
   seeded demo users, the walkthrough).
 - **Work on the code** → [DEVELOPING.md](DEVELOPING.md) (editor setup, running the
   test suite, resetting to a clean demo state).
-- **See how we keep the AI honest** → [TESTING_REPORT.md](TESTING_REPORT.md) (the
-  deviations we caught, the rules they earned, and the live failover run).
+- **See how we keep the AI honest** → [CHECKS.md](CHECKS.md) (what every gate is
+  asking, and the misbehaviour that earned it).
 - **How it all got built** → [CHANGELOG.md](../CHANGELOG.md) (the project's history,
   day by day, from the first commit).
 - **The original brief** → [trial-brief/](../trial-brief/README.md)
