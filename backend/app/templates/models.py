@@ -32,6 +32,9 @@ class SurveyTemplate(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+    # When this stopped taking answers. NULL for everything that has never been closed,
+    # which is most of them, and the date the dashboard shows beside the final counts.
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
 
     questions: Mapped[list["SurveyQuestion"]] = relationship(
         back_populates="template",
