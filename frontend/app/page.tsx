@@ -43,7 +43,12 @@ export default function Home() {
   }
 
   async function onCreate() {
-    const t = await create.mutateAsync({ title: "Untitled survey", questions: [] });
+    // No answer-type policy: a blank survey restricts nothing until its author says so.
+    const t = await create.mutateAsync({
+      title: "Untitled survey",
+      allowed_answer_types: [],
+      questions: [],
+    });
     router.push(`/templates/${t.id}`);
   }
 

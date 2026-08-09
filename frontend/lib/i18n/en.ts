@@ -69,6 +69,10 @@ export const en = {
     moveDown: "Move down",
     removeQuestion: "Delete question",
     removeOption: "Remove option",
+    answerTypesTitle: "Answer types",
+    answerTypesHint:
+      "Tick the types this survey may use. Nothing ticked allows any type. The AI keeps to this on every refine.",
+    typeNotAllowed: (typeLabel: string) => `this survey does not allow ${typeLabel}`,
     refineTitle: "✦ Refine with AI",
     refinePlaceholder: "Describe a change…",
     refine: "Refine",

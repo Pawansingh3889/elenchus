@@ -61,6 +61,10 @@ export const lv: Messages = {
     moveDown: "Pārvietot lejup",
     removeQuestion: "Dzēst jautājumu",
     removeOption: "Noņemt variantu",
+    answerTypesTitle: "Atbilžu veidi",
+    answerTypesHint:
+      "Atzīmējiet veidus, ko šī aptauja drīkst izmantot. Ja nekas nav atzīmēts, atļauts jebkurš veids. MI to ievēro katrā uzlabojumā.",
+    typeNotAllowed: (typeLabel: string) => `šī aptauja neatļauj ${typeLabel}`,
     refineTitle: "✦ Uzlabot ar MI",
     refinePlaceholder: "Aprakstiet izmaiņas…",
     refine: "Uzlabot",

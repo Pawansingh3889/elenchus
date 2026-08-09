@@ -53,6 +53,7 @@ export interface Template {
   created_by: string;
   created_at: string;
   updated_at: string;
+  allowed_answer_types: AnswerType[];
   questions: Question[];
 }
 
@@ -86,6 +87,11 @@ export interface GeneratedTemplate {
 export interface TemplateWrite {
   title: string;
   description?: string | null;
+  /** The answer types this survey allows. Empty is every type, not "unset".
+   *
+   *  Must be sent on every save. A write replaces the whole template, so omitting this
+   *  clears the policy, which is how "no text questions" kept coming undone. */
+  allowed_answer_types: AnswerType[];
   questions: QuestionInput[];
 }
 

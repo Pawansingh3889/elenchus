@@ -61,6 +61,10 @@ export const es: Messages = {
     moveDown: "Bajar",
     removeQuestion: "Eliminar pregunta",
     removeOption: "Quitar opción",
+    answerTypesTitle: "Tipos de respuesta",
+    answerTypesHint:
+      "Marque los tipos que esta encuesta puede usar. Sin marcar nada se permite cualquier tipo. La IA lo respeta en cada refinamiento.",
+    typeNotAllowed: (typeLabel: string) => `esta encuesta no permite ${typeLabel}`,
     refineTitle: "✦ Refinar con IA",
     refinePlaceholder: "Describe un cambio…",
     refine: "Refinar",

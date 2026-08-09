@@ -35,6 +35,7 @@ class TemplateService:
             title=data.title,
             description=data.description,
             audience=data.audience,
+            allowed_answer_types=[t.value for t in data.allowed_answer_types],
             created_by=author.id,
         )
         template.questions = [_to_question(q, i) for i, q in enumerate(data.questions)]
@@ -90,6 +91,7 @@ class TemplateService:
         template.title = data.title
         template.description = data.description
         template.audience = data.audience
+        template.allowed_answer_types = [t.value for t in data.allowed_answer_types]
         # Full replace of questions covers add / edit / reorder / delete. Delete the
         # old rows first so the (template_id, position) unique constraint can't clash.
         template.questions.clear()
