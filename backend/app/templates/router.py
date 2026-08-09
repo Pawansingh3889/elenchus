@@ -36,6 +36,8 @@ def _summary(
         description=template.description,
         status=template.status,
         updated_at=template.updated_at,
+        closed_at=template.closed_at,
+        audience=template.audience,
         question_count=question_count,
         estimated_minutes=estimated_minutes,
     )
@@ -75,10 +77,10 @@ async def list_templates(
 # signed-in user: a published survey is what a respondent is meant to be able to answer.
 @router.get("/published", response_model=list[TemplateSummary])
 async def list_published(
-    _: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> list[TemplateSummary]:
-    rows = await TemplateService(session).list_published()
+    rows = await TemplateService(session).list_published(user)
     return [_summary(t, n, minutes) for t, n, minutes in rows]
 
 
@@ -135,3 +137,14 @@ async def publish_template(
 ) -> TemplateVersionRead:
     version = await TemplateService(session).publish(template_id, author)
     return TemplateVersionRead.model_validate(version)
+
+
+@router.post("/{template_id}/close", response_model=TemplateRead)
+async def close_template(
+    template_id: UUID,
+    author: User = Depends(require_author),
+    session: AsyncSession = Depends(get_session),
+) -> TemplateRead:
+    """Stop the survey taking new answers. Conversations already under way finish."""
+    template = await TemplateService(session).close(template_id, author)
+    return TemplateRead.model_validate(template)

@@ -1,5 +1,6 @@
 import { useLocaleStore, useUserStore } from "./store";
 import type {
+  DashboardRow,
   GeneratedTemplate,
   Run,
   ResumableRun,
@@ -132,6 +133,7 @@ async function rawRequest(path: string): Promise<Response> {
 export const api = {
   listUsers: () => request<User[]>("/users"),
   listTemplates: () => request<TemplateSummary[]>("/templates"),
+  dashboard: () => request<DashboardRow[]>("/dashboard"),
   getTemplate: (id: string) => request<Template>(`/templates/${id}`),
   createTemplate: (data: TemplateWrite) =>
     request<Template>("/templates", { method: "POST", body: JSON.stringify(data) }),
@@ -140,6 +142,8 @@ export const api = {
   deleteTemplate: (id: string) => request<void>(`/templates/${id}`, { method: "DELETE" }),
   publishTemplate: (id: string) =>
     request<TemplateVersion>(`/templates/${id}/publish`, { method: "POST" }),
+  closeTemplate: (id: string) =>
+    request<Template>(`/templates/${id}/close`, { method: "POST" }),
   generateTemplate: (prompt: string) =>
     request<GeneratedTemplate>("/templates/generate", {
       method: "POST",

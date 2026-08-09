@@ -8,9 +8,10 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
+from app.templates.enums import TemplateStatus
 
 
 class MessageRead(BaseModel):
@@ -59,3 +60,31 @@ class RunDetail(BaseModel):
     # Null until an author asks for one; the stretch AI summary is generated on request,
     # not as a side effect of the respondent finishing.
     summary: dict[str, Any] | None = None
+
+
+class DashboardRow(BaseModel):
+    """One survey as the author's dashboard shows it: what it is, and how it is going."""
+
+    id: UUID
+    title: str
+    status: TemplateStatus
+    updated_at: datetime
+    closed_at: datetime | None
+
+    started: int
+    completed: int
+    in_progress: int
+    abandoned: int
+    last_started_at: datetime | None
+    last_completed_at: datetime | None
+
+    @computed_field  # type: ignore[prop-decorator]  # pydantic needs the property last
+    @property
+    def completion_rate(self) -> float | None:
+        """Completed as a share of started, or None when nobody has started.
+
+        A property rather than a stored column: it is arithmetic on two numbers already
+        here, and computing it in SQL would mean deciding there what 0/0 means. None says
+        "no answer yet" honestly, where 0.0 would read as "everyone abandoned".
+        """
+        return self.completed / self.started if self.started else None

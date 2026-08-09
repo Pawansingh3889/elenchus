@@ -57,7 +57,7 @@ RESPONDENT = "00000000-0000-0000-0000-0000000000b1"
 
 # Mirrors app.conduct.engine.MAX_FOLLOW_UPS. The check is "<=", so if the engine ever
 # raises its own cap this stays correct; it only fails if a question exceeds this many.
-EXPECTED_FOLLOW_UP_CAP = 2
+EXPECTED_FOLLOW_UP_CAP = 3
 
 TODAY = datetime.now(UTC).date()
 

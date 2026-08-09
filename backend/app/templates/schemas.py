@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.templates.enums import AnswerType, ShowWhenOp, TemplateStatus
+from app.templates.enums import AnswerType, ShowWhenOp, SurveyAudience, TemplateStatus
 
 SELECT_TYPES = {AnswerType.single_select, AnswerType.multi_select}
 
@@ -81,6 +81,9 @@ class QuestionInput(BaseModel):
 class TemplateWrite(BaseModel):
     title: str = Field(min_length=1, max_length=300)
     description: str | None = None
+    # Defaulted rather than required, so every existing client keeps working and an author
+    # who says nothing gets what they used to get: a survey for the respondent pool.
+    audience: SurveyAudience = SurveyAudience.respondents
     questions: list[QuestionInput] = Field(default_factory=list)
 
     @field_validator("title")
@@ -181,6 +184,8 @@ class TemplateRead(BaseModel):
     created_by: UUID
     created_at: datetime
     updated_at: datetime
+    closed_at: datetime | None
+    audience: SurveyAudience
     questions: list[QuestionRead]
 
 
@@ -197,6 +202,8 @@ class TemplateSummary(BaseModel):
     description: str | None
     status: TemplateStatus
     updated_at: datetime
+    closed_at: datetime | None = None
+    audience: SurveyAudience = SurveyAudience.respondents
     question_count: int
     # Only populated for the published list a respondent chooses from; a draft has no
     # meaningful estimate because it is not what anyone will be asked.

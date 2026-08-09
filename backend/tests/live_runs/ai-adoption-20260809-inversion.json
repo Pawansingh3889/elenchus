@@ -1,0 +1,101 @@
+{
+  "scenario": "ai-adoption",
+  "captured_at": "2026-08-09T07:30:00+00:00",
+  "model": "gpt-4o-mini",
+  "survey_title": "Views on introducing AI here",
+  "status": "completed",
+  "note": "A real conducted run, transcribed from the conversation as it happened, before the selection gate existed. Question 5 is the reason this file is here: asked where AI would help most, the respondent described training new starters and the engine recorded 'Nowhere I can see', which is not a near miss but the opposite of what they said. Nothing caught it, because the grounding gates covered free text and yes/no and a selected option had none. The earlier answers are included unchanged so the same file also proves the new gate does not refuse the choices that were right.",
+  "respondent_messages": [
+    "not much really, tried it once or twice",
+    "hard to say honestly",
+    "maybe a 3, i'm not convinced either way",
+    "job security mostly, and nobody asked us before deciding any of this",
+    "yes definitely, we'd need training first",
+    "the paperwork, reporting takes forever",
+    "training new starters, thats where wed feel it"
+  ],
+  "answers": [
+    {
+      "question_text": "How much have you used AI tools in your work so far?",
+      "answer_type": "single_select",
+      "options": ["Never", "Tried it once or twice", "Every so often", "Most weeks", "Every day"],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": { "option": "Tried it once or twice" },
+      "said": ["not much really, tried it once or twice"],
+      "judge": {
+        "supported": true,
+        "why": "The respondent said they tried it once or twice, which is the option recorded."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How confident are you that AI will make your day to day work better?",
+      "answer_type": "rating",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": { "unanswerable": "hard to say honestly" },
+      "said": ["not much really, tried it once or twice", "hard to say honestly"],
+      "judge": {
+        "supported": true,
+        "why": "No rating was given, so unanswerable is correct and no number was invented."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "What worries you most about bringing AI in here?",
+      "answer_type": "multi_select",
+      "options": [
+        "My job security",
+        "It gets things wrong",
+        "Extra training on top of my workload",
+        "How our data is used",
+        "Losing human judgement",
+        "Nothing worries me"
+      ],
+      "allow_other": true,
+      "kind": "scripted",
+      "value": { "options": ["My job security"] },
+      "said": [
+        "not much really, tried it once or twice",
+        "hard to say honestly",
+        "maybe a 3, i'm not convinced either way",
+        "job security mostly, and nobody asked us before deciding any of this"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "They said job security. Their second worry, that nobody asked them, was dropped rather than kept as a write-in, which is a separate gap."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Where would AI help you most?",
+      "answer_type": "single_select",
+      "options": [
+        "Paperwork and reporting",
+        "Planning and scheduling",
+        "Checking quality",
+        "Handovers and communication",
+        "Nowhere I can see"
+      ],
+      "allow_other": true,
+      "kind": "scripted",
+      "value": { "option": "Nowhere I can see" },
+      "said": [
+        "not much really, tried it once or twice",
+        "hard to say honestly",
+        "maybe a 3, i'm not convinced either way",
+        "job security mostly, and nobody asked us before deciding any of this",
+        "yes definitely, we'd need training first",
+        "the paperwork, reporting takes forever",
+        "training new starters, thats where wed feel it"
+      ],
+      "judge": {
+        "supported": false,
+        "why": "They described training new starters. The recorded option says AI would help nowhere, which is the opposite."
+      },
+      "invented": true
+    }
+  ]
+}

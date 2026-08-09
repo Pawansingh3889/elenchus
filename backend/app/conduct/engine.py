@@ -13,9 +13,11 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.access import is_admin_by_config, may_answer
 from app.conduct.repository import RunRepository
 from app.conduct.validation import (
     AnswerValidationError,
+    ungrounded_choice,
     ungrounded_text,
     ungrounded_yes_no,
     validate_answer,
@@ -28,13 +30,19 @@ from app.llm.factory import get_llm
 from app.llm.prompts import load_prompt
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
 from app.runs.models import REPLY_PREFIX, Answer, RunMessage, SurveyRun, add_llm_spend
+from app.templates.enums import TemplateStatus
 from app.templates.snapshot import questions_of
 from app.templates.visibility import next_visible, remaining_possible
 from app.users.models import User
 
 logger = logging.getLogger("app.conduct")
 
-MAX_FOLLOW_UPS = 2
+# Three, raised from two on 9 Aug 2026. The extra turn is for the case the pivot to
+# closed answers creates: a respondent whose answer is not on the option list, where one
+# exchange is often not enough to draw out what they actually mean. It is a ceiling and
+# the prompt says so, because three rounds of questioning on one question is a long time
+# to spend on a phone at work.
+MAX_FOLLOW_UPS = 3
 MAX_REPLIES = 2  # conversational replies per question (record nothing, advance nothing)
 MAX_MODEL_TURNS = 3  # per respondent message
 TRANSCRIPT_WINDOW = 12  # messages replayed per turn; the briefing restates the question
@@ -68,6 +76,32 @@ class ConductEngine:
     async def start_run(
         self, template_id: UUID, respondent: User, language: str = "en"
     ) -> SurveyRun:
+        # Checked before the version, because "this survey is closed" is the truer answer
+        # for a respondent following an old link than "it has no published version", and
+        # a closed survey usually has one. Only closed refuses: archived means the author
+        # has tidied it out of their list, which is not a statement about whether anyone
+        # may still answer, and changing that belongs with whoever wants it changed.
+        gate = await self.repo.template_gate(template_id)
+        if gate is None:
+            raise NotFoundError("Survey not found.")
+        status, audience, created_by = gate
+        if status is TemplateStatus.closed:
+            raise ConflictError("This survey is closed and is no longer taking answers.")
+
+        # Who may answer, asked here rather than at the door. The route used to require
+        # the caller be a respondent, which was never the real question and became wrong
+        # the moment a survey could be aimed at a department, because the people in that
+        # department are creators.
+        decision = may_answer(respondent, audience, created_by, is_admin_by_config(respondent))
+        if not decision:
+            logger.info(
+                "run refused: template=%s user=%s reason=%s",
+                template_id,
+                respondent.id,
+                decision.reason,
+            )
+            raise ForbiddenError(decision.reason)
+
         version = await self.repo.latest_version(template_id)
         if version is None:
             raise ConflictError("This template has no published version to answer.")
@@ -89,6 +123,14 @@ class ConductEngine:
         return await self.load(run.id, respondent)
 
     async def load(self, run_id: UUID, respondent: User) -> SurveyRun:
+        """The run, if it belongs to this respondent.
+
+        access-exempt: this is ownership of a run, not visibility of a survey. A
+        run belongs to exactly one respondent and is never shared, so the identity
+        check below is the whole rule and app/access has nothing to add. Whether
+        this respondent could answer the survey at all was settled once, in
+        start_run.
+        """
         run = await self.repo.get(run_id)
         if run is None:
             raise NotFoundError("Run not found.")
@@ -135,7 +177,14 @@ class ConductEngine:
         return answered, answered + remaining
 
     async def resumable(self, respondent: User) -> list[tuple[SurveyRun, UUID, str, int, int]]:
-        """This respondent's unfinished runs, with the progress each one is at."""
+        """This respondent's unfinished runs, with the progress each one is at.
+
+        access-exempt: this is ownership of a run, not visibility of a survey. A
+        run belongs to exactly one respondent and is never shared, so the identity
+        check below is the whole rule and app/access has nothing to add. Whether
+        this respondent could answer the survey at all was settled once, in
+        start_run.
+        """
         out: list[tuple[SurveyRun, UUID, str, int, int]] = []
         for run, template_id, title in await self.repo.in_progress_for(respondent.id):
             version = await self.repo.get_version(run.template_version_id)
@@ -145,6 +194,14 @@ class ConductEngine:
         return out
 
     async def handle_message(self, run_id: UUID, content: str, respondent: User) -> SurveyRun:
+        """One respondent turn: their message in, the engine's reply out.
+
+        access-exempt: this is ownership of a run, not visibility of a survey. A
+        run belongs to exactly one respondent and is never shared, so the identity
+        check below is the whole rule and app/access has nothing to add. Whether
+        this respondent could answer the survey at all was settled once, in
+        start_run.
+        """
         run, questions = await self._locked_open_run(run_id, respondent)
 
         run.messages.append(RunMessage(role=MessageRole.user, content=content))
@@ -169,6 +226,12 @@ class ConductEngine:
         question (``_rejection``), and that refusal is right, because it stops the *model*
         rewriting history. This is the respondent asking, through the engine, and it is
         deliberately the only way back.
+
+        access-exempt: this is ownership of a run, not visibility of a survey. A
+        run belongs to exactly one respondent and is never shared, so the identity
+        check below is the whole rule and app/access has nothing to add. Whether
+        this respondent could answer the survey at all was settled once, in
+        start_run.
 
         Exactly one step, and only while the run is open. Restoring an arbitrary answer
         would mean re-deciding which of the questions after it are still visible, since a
@@ -295,7 +358,7 @@ class ConductEngine:
         try:
             turn = await self.llm.tool_turn(
                 system="\n\n".join(
-                    (load_prompt("conduct_v4"), language_note(run.language), briefing)
+                    (load_prompt("conduct_v5"), language_note(run.language), briefing)
                 ),
                 messages=messages,
                 tools=tools,
@@ -759,6 +822,15 @@ def _rejection(
             return ungrounded_text(value["text"], said)
         if isinstance(value.get("yes_no"), bool):
             return ungrounded_yes_no(said)
+        # A write-in is prose the respondent supposedly typed, so it is judged as prose.
+        if isinstance(value.get("other"), str):
+            return ungrounded_text(value["other"], said)
+        if isinstance(value.get("option"), str):
+            return ungrounded_choice(value["option"], said)
+        for chosen in value.get("options", []) or []:
+            problem = ungrounded_choice(chosen, said)
+            if problem is not None:
+                return problem
         return None
 
     return None

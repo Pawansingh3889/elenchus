@@ -25,6 +25,12 @@ export const lt: Messages = {
     language: "Kalba",
   },
   home: {
+    started: "pradėta",
+    completedLabel: "užbaigta",
+    inProgress: "vykdoma",
+    closeSurvey: "Uždaryti apklausą",
+    closing: "Uždaroma…",
+    noResponses: "Atsakymų dar nėra",
     title: "Apklausų šablonai",
     pickUser: "Pasirinkite naudotoją viršutinėje juostoje, kad pradėtumėte kurti.",
     goingToRespond: "Nukreipiame į Atsakyti…",

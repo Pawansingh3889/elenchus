@@ -17,6 +17,7 @@ from app.conduct.router import router as runs_router
 from app.config import get_settings
 from app.db.session import get_session
 from app.errors import register_error_handlers
+from app.runs.router import dashboard_router
 from app.runs.router import router as results_router
 from app.templates.router import router as templates_router
 from app.users.router import router as users_router
@@ -76,6 +77,7 @@ if get_settings().app_env != "prod":
     app.include_router(users_router)
 app.include_router(templates_router)
 app.include_router(results_router)
+app.include_router(dashboard_router)
 app.include_router(runs_router)
 
 

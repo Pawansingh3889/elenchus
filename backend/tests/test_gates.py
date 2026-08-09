@@ -31,7 +31,12 @@ import pytest
 BACKEND = Path(__file__).resolve().parent.parent
 SCRIPTS = BACKEND / "scripts"
 
-GUARDS = ("check_query_surface.py", "check_no_create_all.py", "check_prompts_versioned.py")
+GUARDS = (
+    "check_query_surface.py",
+    "check_access_consulted.py",
+    "check_no_create_all.py",
+    "check_prompts_versioned.py",
+)
 
 # check_contrast.py reads one stylesheet rather than a repository tree, so it takes
 # --stylesheet instead of --root and is proven separately below.
@@ -455,3 +460,66 @@ def test_build_output_is_not_scanned(fake_frontend: Path) -> None:
 
 def test_logical_guard_fails_when_it_cannot_run(tmp_path: Path) -> None:
     assert run_logical(tmp_path / "absent").returncode != 0
+
+
+# ------------------------------------------------------------- access consulted
+
+
+def test_access_rejects_a_service_method_that_never_asks(fake_repo: Path) -> None:
+    """The mistake it exists to catch: a method that looks complete, returns the right
+    type, and hands survey data to whoever called it without ever asking who they are."""
+    (fake_repo / "app" / "templates" / "service.py").write_text(
+        "from app.templates.models import SurveyTemplate\n\n\n"
+        "class S:\n"
+        "    async def get(self, tid) -> SurveyTemplate:\n"
+        "        return await self.repo.get(tid)\n",
+        encoding="utf-8",
+    )
+    result = run_guard("check_access_consulted.py", fake_repo)
+    assert result.returncode == 1
+    assert "without consulting app/access" in result.stderr
+
+
+def test_access_accepts_a_method_that_asks_through_a_private_helper(fake_repo: Path) -> None:
+    """How these services are really written: ownership is settled once in a shared
+    helper. A guard blind to that would teach people to write exemptions instead."""
+    (fake_repo / "app" / "templates" / "service.py").write_text(
+        "from app.templates.models import SurveyTemplate\n\n\n"
+        "class S:\n"
+        "    async def get(self, tid) -> SurveyTemplate:\n"
+        "        return await self._owned(tid)\n\n"
+        "    async def _owned(self, tid) -> SurveyTemplate:\n"
+        "        if not may_list(self.user, None, None, False):\n"
+        "            raise NotFoundError()\n"
+        "        return await self.repo.get(tid)\n",
+        encoding="utf-8",
+    )
+    assert run_guard("check_access_consulted.py", fake_repo).returncode == 0
+
+
+def test_access_rejects_an_exemption_with_no_reason(fake_repo: Path) -> None:
+    """An exemption is a sentence somebody has to write. A bare marker is how a rule
+    quietly stops applying."""
+    (fake_repo / "app" / "templates" / "service.py").write_text(
+        "from app.templates.models import SurveyTemplate\n\n\n"
+        "class S:\n"
+        "    async def get(self, tid) -> SurveyTemplate:\n"
+        '        """access-exempt:"""\n'
+        "        return await self.repo.get(tid)\n",
+        encoding="utf-8",
+    )
+    result = run_guard("check_access_consulted.py", fake_repo)
+    assert result.returncode == 1
+    assert "no reason given" in result.stderr
+
+
+def test_access_sees_through_a_wrapped_return_type(fake_repo: Path) -> None:
+    """Wrapping the leak in a list does not make it less of a leak."""
+    (fake_repo / "app" / "templates" / "service.py").write_text(
+        "from app.templates.models import SurveyTemplate\n\n\n"
+        "class S:\n"
+        "    async def all(self) -> list[tuple[SurveyTemplate, int]]:\n"
+        "        return await self.repo.all()\n",
+        encoding="utf-8",
+    )
+    assert run_guard("check_access_consulted.py", fake_repo).returncode == 1

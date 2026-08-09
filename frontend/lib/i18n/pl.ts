@@ -25,6 +25,12 @@ export const pl: Messages = {
     language: "Język",
   },
   home: {
+    started: "rozpoczęte",
+    completedLabel: "ukończone",
+    inProgress: "w trakcie",
+    closeSurvey: "Zamknij ankietę",
+    closing: "Zamykanie…",
+    noResponses: "Brak odpowiedzi",
     title: "Szablony ankiet",
     pickUser: "Wybierz użytkownika na górnym pasku, aby zacząć tworzyć.",
     goingToRespond: "Przechodzimy do Odpowiadaj…",

@@ -32,6 +32,14 @@ _SAME_WORD = 0.85
 
 _WORD = re.compile(r"[^\W\d_]+", re.UNICODE)
 
+# Below this many words in the latest message, a selection is not judged at all. A
+# respondent pointing at the list rather than describing an answer writes something short:
+# "the second one" is three, "that one" is two. A reply that has wandered off the list to
+# describe something the author never offered runs longer, and the live failure this gate
+# exists for was seven. Set where those two populations separate, and deliberately on the
+# lenient side of it.
+_POSITIONAL_WORDS = 4
+
 
 def _content_words(text: str) -> list[str]:
     """Words worth comparing, casefolded. Punctuation and digits are dropped: they carry
@@ -73,6 +81,56 @@ def ungrounded_text(recorded: str, said: list[str]) -> str | None:
         "that answer is not what the respondent said: record their own words, or if "
         "their message did not answer the question, ask a follow-up or flag it "
         "unanswerable instead of composing an answer for them"
+    )
+
+
+def ungrounded_choice(chosen: str, said: list[str]) -> str | None:
+    """Why this selected option is not the respondent's, or None if it could be.
+
+    The live failure this exists for. Asked "Where would AI help you most?", a respondent
+    answered "training new starters, thats where wed feel it" and the engine recorded
+    "Nowhere I can see". Not a near miss: the stored answer says the opposite of what they
+    said, and an author reading the results would count them as seeing no use for it.
+
+    An option is picked from a list the author wrote, so unlike free text it cannot be
+    invented wholesale. What it can be is *wrong*, and wrong in a way nothing else notices,
+    because the value is always a legitimate member of the list and passes every shape
+    check there is.
+
+    So the test is support rather than authorship: at least one substantial word of the
+    chosen option has to appear, fuzzily, in what the respondent actually typed. "Tried it
+    once or twice" is supported by "not much really, tried it once or twice". "Nowhere I
+    can see" is supported by nothing in a sentence about training new starters.
+
+    Skipped when the latest message is too short to judge, which is a sharper problem here
+    than it is for prose. A respondent may answer positionally: "the second one", "b",
+    "that one". Those support no option by word, and refusing them would block a real
+    person to catch nobody. A terse reference is short; a description that has wandered off
+    the list is not, which is what _POSITIONAL_WORDS separates. Judged on the latest message
+    because that is where the choice was made, while the pool of what they said is the whole
+    run, which is the lenient side of both decisions.
+
+    The hole this leaves is a short answer that is genuinely off-list, "training", say. That
+    is the side to be wrong on: the other side records an answer nobody gave.
+    """
+    option_words = _content_words(chosen)
+    pool = [w for message in said for w in _content_words(message)]
+    if not option_words or not said or len(_content_words(said[-1])) < _POSITIONAL_WORDS:
+        return None
+
+    supported = any(
+        word in pool
+        or any(SequenceMatcher(None, word, other).ratio() >= _SAME_WORD for other in pool)
+        for word in option_words
+    )
+    if supported:
+        return None
+    return (
+        f"nothing the respondent said supports the option {chosen!r}. Drop it. If the list "
+        "has nothing for what they described and the question allows a write-in, pass their "
+        "own words as the value, or as an item in the list for a multi_select: anything "
+        "that is not one of the options is kept as their write-in. Do not prefix it with "
+        "'Other:'. If no write-in is allowed, ask a follow-up or flag it unanswerable."
     )
 
 

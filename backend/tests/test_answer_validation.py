@@ -10,6 +10,7 @@ import pytest
 
 from app.conduct.validation import (
     AnswerValidationError,
+    ungrounded_choice,
     ungrounded_text,
     ungrounded_yes_no,
     validate_answer,
@@ -278,3 +279,45 @@ def test_a_single_character_answer_is_kept():
 
 def test_a_yes_no_with_nothing_said_at_all_is_refused():
     assert ungrounded_yes_no([]) is not None
+
+
+# --------------------------------------------------------------- selected options
+
+# The live run this gate came from, verbatim.
+_HELP_MOST = [
+    "not much really, tried it once or twice",
+    "training new starters, thats where wed feel it",
+]
+
+
+def test_an_option_that_says_the_opposite_is_refused():
+    """The failure. Asked where AI would help most, the respondent said training new
+    starters and the engine recorded "Nowhere I can see", which an author reading the
+    results would count as someone seeing no use for it."""
+    problem = ungrounded_choice("Nowhere I can see", _HELP_MOST)
+    assert problem is not None
+    assert "Nowhere I can see" in problem
+
+
+def test_the_option_they_did_describe_is_kept():
+    """The same message must still accept a sensible choice, or the gate is just noise."""
+    assert ungrounded_choice("Training and onboarding", _HELP_MOST) is None
+
+
+def test_a_loosely_worded_answer_still_matches_its_option():
+    """From the same run: 'not much really, tried it once or twice' was correctly recorded
+    as the option 'Tried it once or twice', and must stay that way."""
+    assert ungrounded_choice("Tried it once or twice", _HELP_MOST) is None
+
+
+def test_a_positional_answer_is_left_alone():
+    """The known hole, and the lenient side of the trade. A respondent may answer 'the
+    second one', which supports no option by word. Refusing that blocks a real person to
+    catch nobody."""
+    assert ungrounded_choice("Paperwork and reporting", ["the second one"]) is None
+
+
+def test_a_multi_select_is_judged_option_by_option():
+    said = ["job security mostly, and nobody asked us before deciding any of this"]
+    assert ungrounded_choice("My job security", said) is None
+    assert ungrounded_choice("How our data is used", said) is not None

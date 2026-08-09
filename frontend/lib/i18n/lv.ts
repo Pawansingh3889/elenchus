@@ -25,6 +25,12 @@ export const lv: Messages = {
     language: "Valoda",
   },
   home: {
+    started: "sākts",
+    completedLabel: "pabeigts",
+    inProgress: "notiek",
+    closeSurvey: "Slēgt aptauju",
+    closing: "Aizver…",
+    noResponses: "Vēl nav atbilžu",
     title: "Aptauju veidnes",
     pickUser: "Izvēlieties lietotāju augšējā joslā, lai sāktu veidot.",
     goingToRespond: "Pārejam uz Atbildēt…",

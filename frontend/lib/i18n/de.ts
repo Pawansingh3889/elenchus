@@ -26,6 +26,12 @@ export const de: Messages = {
     language: "Sprache",
   },
   home: {
+    started: "gestartet",
+    completedLabel: "abgeschlossen",
+    inProgress: "in Bearbeitung",
+    closeSurvey: "Umfrage schließen",
+    closing: "Wird geschlossen…",
+    noResponses: "Noch keine Antworten",
     title: "Umfragevorlagen",
     pickUser: "Wählen Sie oben einen Benutzer, um mit dem Erstellen zu beginnen.",
     goingToRespond: "Weiter zu Antworten…",

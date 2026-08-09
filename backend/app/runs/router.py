@@ -10,12 +10,27 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import require_author
 from app.db.session import get_session
-from app.runs.schemas import RunDetail, RunSummary
+from app.runs.schemas import DashboardRow, RunDetail, RunSummary
 from app.runs.service import ResultsService, to_csv
 from app.runs.summary import RunSummaryContent, RunSummaryService
 from app.users.models import User
 
 router = APIRouter(prefix="/api/v1/templates", tags=["results"])
+
+# Its own prefix rather than /api/v1/templates/dashboard. The templates router is
+# registered first and owns /{template_id}, so a literal path added here would be matched
+# as a template id and rejected as a malformed UUID, which is a confusing way to learn
+# about route ordering across two modules.
+dashboard_router = APIRouter(prefix="/api/v1/dashboard", tags=["dashboard"])
+
+
+@dashboard_router.get("", response_model=list[DashboardRow])
+async def dashboard(
+    author: User = Depends(require_author),
+    session: AsyncSession = Depends(get_session),
+) -> list[DashboardRow]:
+    """Every survey this author owns and how each is going, in one request."""
+    return await ResultsService(session).dashboard(author)
 
 
 @router.get("/{template_id}/runs", response_model=list[RunSummary])

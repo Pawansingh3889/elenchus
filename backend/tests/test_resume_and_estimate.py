@@ -89,7 +89,7 @@ async def test_the_published_list_describes_the_version_not_the_draft(session, a
         author,
     )
 
-    listed = [row for row in await svc.list_published() if row[0].id == template.id]
+    listed = [row for row in await svc.list_published(author) if row[0].id == template.id]
     _, question_count, minutes = listed[0]
 
     assert question_count == 2  # what a respondent is actually asked
@@ -105,7 +105,7 @@ async def test_republishing_moves_the_list_on_to_the_new_version(session, author
     )
     await svc.publish(template.id, author)
 
-    listed = [row for row in await svc.list_published() if row[0].id == template.id]
+    listed = [row for row in await svc.list_published(author) if row[0].id == template.id]
     assert listed[0][1] == 2
 
 

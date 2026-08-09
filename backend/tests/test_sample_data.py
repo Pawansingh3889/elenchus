@@ -29,10 +29,10 @@ AUTHOR_KEYS = {"ava", "arjun"}
 @pytest_asyncio.fixture
 async def seeded_users(session) -> dict[str, UUID]:
     """The stable seed users the dataset refers to, keyed by email local-part."""
-    for uid, email, name, role in SEED_USERS:
-        session.add(User(id=uid, email=email, display_name=name, role=role))
+    for uid, email, name, role, department in SEED_USERS:
+        session.add(User(id=uid, email=email, display_name=name, role=role, department=department))
     await session.flush()
-    return {email.split("@", 1)[0]: uid for uid, email, name, role in SEED_USERS}
+    return {row[1].split("@", 1)[0]: row[0] for row in SEED_USERS}
 
 
 def _derive_raw(value: dict[str, Any]) -> Any:

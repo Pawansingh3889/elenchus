@@ -71,6 +71,9 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-elenchus}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD before deploying}@postgres:5432/${POSTGRES_DB:-elenchus}
       APP_ENV: prod
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:?set FRONTEND_ORIGIN to the browser app's origin}
+      # Empty by default, so a deployment that says nothing has no administrators rather
+      # than an accidental one. Granting it is a deliberate line in the environment.
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LLM_TIER1_ENABLED: ${LLM_TIER1_ENABLED:-true}
       LLM_TIER1_BASE_URL: ${LLM_TIER1_BASE_URL:-https://api.openai.com/v1}

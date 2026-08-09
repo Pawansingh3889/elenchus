@@ -120,6 +120,20 @@ class Settings(BaseSettings):
         description="Append-only JSONL record of every model call, for offline analysis",
     )
 
+    # Comma-separated emails that get administrator rights: every survey visible, every
+    # response readable. Configuration rather than a column so that granting it is not a
+    # database edit and so an admin can still belong to a real department. The cost is
+    # that it is easy to change and hard to audit, which is why app.access logs every time
+    # this is what let a request through.
+    admin_emails: str = Field(
+        "", description="Comma-separated admin emails, e.g. you@example.com,ops@example.com"
+    )
+
+    @property
+    def admin_email_set(self) -> frozenset[str]:
+        """The allowlist as a set, case-folded, with blanks and stray spaces dropped."""
+        return frozenset(e.strip().casefold() for e in self.admin_emails.split(",") if e.strip())
+
     app_env: str = Field("dev", description="dev | prod")
     frontend_origin: str = Field(
         "http://localhost:3000", description="Allowed CORS origin for the browser app"

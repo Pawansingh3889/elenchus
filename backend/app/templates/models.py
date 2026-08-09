@@ -15,7 +15,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
-from app.templates.enums import AnswerType, TemplateStatus
+from app.templates.enums import AnswerType, SurveyAudience, TemplateStatus
 
 
 class SurveyTemplate(Base):
@@ -31,6 +31,17 @@ class SurveyTemplate(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    # When this stopped taking answers. NULL for everything that has never been closed,
+    # which is most of them, and the date the dashboard shows beside the final counts.
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    # Who this survey is for. NOT NULL with a default, because "aimed at nobody" is not a
+    # state a survey can be in, and every survey written before this existed was in fact
+    # aimed at the respondent pool. Frozen at publish: see TemplateService.publish.
+    audience: Mapped[SurveyAudience] = mapped_column(
+        SAEnum(SurveyAudience, name="survey_audience"),
+        default=SurveyAudience.respondents,
+        server_default=SurveyAudience.respondents.value,
     )
 
     questions: Mapped[list["SurveyQuestion"]] = relationship(
