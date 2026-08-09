@@ -8,7 +8,12 @@ from typing import Any
 
 import pytest
 
-from app.conduct.validation import AnswerValidationError, ungrounded_text, validate_answer
+from app.conduct.validation import (
+    AnswerValidationError,
+    ungrounded_text,
+    ungrounded_yes_no,
+    validate_answer,
+)
 
 
 def q(answer_type: str, *, options: list[str] | None = None, allow_other: bool = False) -> dict:
@@ -240,3 +245,36 @@ def test_too_short_to_judge_is_left_alone():
 
 def test_an_answer_with_nothing_said_at_all_is_refused():
     assert ungrounded_text("They were very helpful throughout", []) is not None
+
+
+def test_a_bare_number_cannot_say_yes():
+    """The live failure this gate exists for: asked whether they would recommend the new
+    handover process, the respondent sent "4" and the model recorded yes."""
+    problem = ungrounded_yes_no(["i sort of run the line i guess", "rather not say", "4"])
+    assert problem is not None
+    assert "flag it unanswerable" in problem
+
+
+def test_only_the_latest_message_grounds_a_yes_no():
+    """Why this cannot pool the run the way ungrounded_text does. Every respondent types
+    words eventually, so a run-wide check would pass on the earlier prose alone and the
+    live failure above would go straight through."""
+    assert ungrounded_yes_no(["the handover process works well for me", "7"]) is not None
+
+
+def test_a_two_letter_no_is_kept():
+    """Keying on _content_words would drop this: "no" is two letters, and that helper
+    keeps only words longer than two. Refusing a plain no is the expensive way to be
+    wrong."""
+    assert ungrounded_yes_no(["no"]) is None
+
+
+def test_a_single_character_answer_is_kept():
+    """A yes or a no is one character in Chinese and Japanese. A length rule would refuse
+    every such answer, in a service that conducts in eight languages."""
+    assert ungrounded_yes_no(["否"]) is None
+    assert ungrounded_yes_no(["はい"]) is None
+
+
+def test_a_yes_no_with_nothing_said_at_all_is_refused():
+    assert ungrounded_yes_no([]) is not None

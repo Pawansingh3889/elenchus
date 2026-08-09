@@ -2,15 +2,37 @@ name: Live conduct check
 
 # The CI workflow runs the mocked suite on every push and never needs a key.
 # This one is the opposite: it drives real conversations through the real model,
-# which costs credit, so it only runs when you press "Run workflow" (Actions tab,
-# or the GitHub Actions panel in VS Code). It is the check that has found every
-# fabrication bug the mocked tests could not - a fake LLM does what the test tells
-# it to and never tries to work around the engine's design.
+# which costs credit. It is the check that has found every fabrication bug the
+# mocked tests could not - a fake LLM does what the test tells it to and never
+# tries to work around the engine's design.
+#
+# It runs two ways, and the difference is scope, not kind:
+#
+#   by hand      "Run workflow" (Actions tab, or the GitHub Actions panel in
+#                VS Code). Pick any scenario, or all of them, ~150 model calls.
+#   on a PR      automatically, but only when the pull request touches the code
+#                that decides how a conversation goes: the conduct engine, the
+#                answer gate, or the prompts. Two scenarios, one scripted and one
+#                prompt-generated, for about a tenth of the calls. The generate
+#                shape crash that blocked both prompt-generated scenarios sat in
+#                main unnoticed precisely because nothing ran this on a change.
+#
+# Every run also audits itself: a second model pass reads each finished transcript
+# and asks whether the respondent really supplied each recorded answer. Those
+# verdicts print but never fail the build, because a judge is a model and a red
+# that turns on judgement gets ignored. Read them; they are where the next
+# invented answer shows up first.
 #
 # Setup once: repo Settings -> Secrets and variables -> Actions -> New repository
 # secret, name LLM_TIER1_API_KEY, holding a key for the tier-1 provider. Nothing
 # else is required. The run uses tier 1 alone, deliberately: a failover to a weaker
 # tier would still go green and hide the regression this check exists to catch.
+#
+# Without that secret the two triggers part company, because the same absence means
+# different things. Asked for by hand, it fails: you asked for real conversations
+# and would get none. Reached automatically by a pull request, it skips with a
+# warning, because the change may have nothing to do with the model and a check
+# that is red on every conduct PR forever is one nobody reads.
 
 on:
   workflow_dispatch:
@@ -35,9 +57,50 @@ on:
         description: "Tier-1 model id"
         type: string
         required: true
+  pull_request:
+    paths:
+      - "backend/app/conduct/**"
+      - "backend/app/llm/prompts/**"
+      - "scripts/live_conversation.py"
 
 jobs:
+  # Is there a key to run with, and what does a missing one mean? Secrets cannot be read
+  # from a job-level `if`, so the answer has to come out of a step, which is the only
+  # reason this is a separate job rather than a condition on the one below.
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      key: ${{ steps.look.outputs.key }}
+    steps:
+      - id: look
+        env:
+          LLM_TIER1_API_KEY: ${{ secrets.LLM_TIER1_API_KEY }}
+        run: |
+          if [ -n "$LLM_TIER1_API_KEY" ]; then
+            echo "key=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "key=no" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Asking for this run by hand and having no key is a mistake worth stopping for: you
+      # asked for real conversations and would get none. Being handed the same situation
+      # automatically on a pull request is not a mistake, it is a repo without a key, and a
+      # check that is permanently red on every conduct PR is how people learn to ignore red.
+      - name: Say which it is
+        if: steps.look.outputs.key == 'no'
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "::error::No LLM_TIER1_API_KEY secret is set. Add one under" \
+                 "Settings -> Secrets and variables -> Actions, then re-run."
+            exit 1
+          fi
+          echo "::warning::No LLM_TIER1_API_KEY secret is set, so the live conduct check" \
+               "is skipped. Add one under Settings -> Secrets and variables -> Actions to" \
+               "have pull requests conduct real conversations."
+
   live:
+    needs: preflight
+    if: needs.preflight.outputs.key == 'yes'
     runs-on: ubuntu-latest
 
     services:
@@ -60,17 +123,12 @@ jobs:
       LLM_TIER1_ENABLED: "true"
       LLM_TIER1_BASE_URL: ${{ vars.LLM_TIER1_BASE_URL || 'https://api.openai.com/v1' }}
       LLM_TIER1_API_KEY: ${{ secrets.LLM_TIER1_API_KEY }}
-      LLM_TIER1_MODEL: ${{ inputs.model }}
+      # inputs.* exist only on workflow_dispatch. On a pull request they are empty, and an
+      # empty model id disables the tier, which surfaces as a 503 mid-conversation rather
+      # than as anything naming the cause. Hence the fallbacks here and on the run step.
+      LLM_TIER1_MODEL: ${{ inputs.model || vars.LLM_TIER1_MODEL || 'gpt-4o-mini' }}
 
     steps:
-      - name: Require the API key secret
-        run: |
-          if [ -z "$LLM_TIER1_API_KEY" ]; then
-            echo "::error::No LLM_TIER1_API_KEY secret is set. Add one under" \
-                 "Settings -> Secrets and variables -> Actions, then re-run."
-            exit 1
-          fi
-
       - uses: actions/checkout@v4
 
       - uses: astral-sh/setup-uv@v5
@@ -102,8 +160,32 @@ jobs:
 
       - name: Drive the conversation(s)
         # The script prints each transcript and its checks, and exits non-zero on any
-        # hard-check failure, so a real regression turns this step red.
-        run: python3 scripts/live_conversation.py "${{ inputs.scenario }}"
+        # hard-check failure, so a real regression turns this step red. The judge's
+        # verdicts print in the same output and deliberately do not affect the exit code.
+        #
+        # A pull request gets two scenarios rather than all ten: skip_heavy is the
+        # scripted survey whose checks are strongest, and evasive is prompt-generated and
+        # is where both inventions found so far turned up. The judge needs the tier-1
+        # credentials in its own environment, not just the backend's, because it calls the
+        # provider directly.
+        env:
+          LLM_TIER1_BASE_URL: ${{ vars.LLM_TIER1_BASE_URL || 'https://api.openai.com/v1' }}
+          LLM_TIER1_API_KEY: ${{ secrets.LLM_TIER1_API_KEY }}
+          LLM_TIER1_MODEL: ${{ inputs.model || vars.LLM_TIER1_MODEL || 'gpt-4o-mini' }}
+        run: python3 scripts/live_conversation.py ${{ inputs.scenario || 'skip_heavy evasive' }}
+
+      # Every run writes its transcript to backend/tests/live_runs. On CI that directory is
+      # thrown away with the runner, so it leaves as an artifact instead. Download it,
+      # read it, and commit the ones worth replaying forever: the mocked suite replays
+      # whatever is committed, on every push, without a key. Nothing is committed from
+      # here, because a run that lands in tests/live_runs unread is one nobody has judged.
+      - name: Keep the transcripts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-transcripts-${{ github.run_id }}
+          path: backend/tests/live_runs/*.json
+          if-no-files-found: error
 
       - name: Stop the backend
         if: always()

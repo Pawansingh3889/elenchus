@@ -1,0 +1,125 @@
+{
+  "scenario": "evasive",
+  "captured_at": "2026-08-08T22:00:00+00:00",
+  "model": "gpt-4o-mini",
+  "survey_title": "Warehouse Staff Shift Handover Check-in",
+  "status": "completed",
+  "note": "Reconstructed by hand from the printed transcript of the 8 Aug run, because that run predates both the yes/no gate and the capture that now writes these automatically. The respondent messages and recorded values are verbatim from that output; the said lists are read off the [n of 5 answered] counters, which show which answer each message produced. The judge verdicts are from replaying this same transcript through the judge afterwards. Everything captured from here on is written by the script, not by a person.",
+  "respondent_messages": [
+    "i sort of run the line i guess",
+    "mostly making sure the handover actually happens",
+    "honestly it's been a bit of a mess",
+    "rather not say",
+    "eleven out of five",
+    "4"
+  ],
+  "answers": [
+    {
+      "question_text": "What is your role in the warehouse?",
+      "answer_type": "short_text",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "text": "run the line"
+      },
+      "said": [
+        "i sort of run the line i guess"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent's message supports the answer as they mentioned running the line."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "On a scale of 1 to 5, how well do you think the new shift handover process works?",
+      "answer_type": "rating",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "The respondent did not provide a rating for the effectiveness of the new shift handover process."
+      },
+      "said": [
+        "i sort of run the line i guess",
+        "mostly making sure the handover actually happens"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent's answer is unusable for a 1-to-5 rating, supporting the unanswerable."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "What is one thing you would change about the shift handover process?",
+      "answer_type": "long_text",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "respondent declined to provide specific details"
+      },
+      "said": [
+        "i sort of run the line i guess",
+        "mostly making sure the handover actually happens",
+        "honestly it's been a bit of a mess",
+        "rather not say"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent's message 'rather not say' indicates a refusal to provide specific details."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Which shift do you work?",
+      "answer_type": "single_select",
+      "options": [
+        "Early",
+        "Late",
+        "Night"
+      ],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "The respondent provided an unclear answer."
+      },
+      "said": [
+        "i sort of run the line i guess",
+        "mostly making sure the handover actually happens",
+        "honestly it's been a bit of a mess",
+        "rather not say",
+        "eleven out of five"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent's messages do not provide a clear answer about their shift."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Would you recommend the new handover process to a colleague?",
+      "answer_type": "yes_no",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "yes_no": true
+      },
+      "said": [
+        "i sort of run the line i guess",
+        "mostly making sure the handover actually happens",
+        "honestly it's been a bit of a mess",
+        "rather not say",
+        "eleven out of five",
+        "4"
+      ],
+      "judge": {
+        "supported": false,
+        "why": "The respondent did not provide any indication of a recommendation; the recorded answer is unsupported."
+      },
+      "invented": true
+    }
+  ]
+}

@@ -26,12 +26,26 @@ red on a real regression:
     python scripts/live_conversation.py numbers_dates injection
     python scripts/live_conversation.py broad
 
-Needs a funded LLM_TIER1_API_KEY in the backend's environment and a running stack.
+Every run also audits itself. When the tier-1 provider is reachable from this shell, a
+second model pass reads the finished transcript and asks of each recorded answer whether
+the respondent actually supplied it. That is the one question the checks below cannot ask,
+and the reason it exists is that evasive once recorded "yes" from the single message "4"
+with every check passing. Its verdicts are soft: they print, they do not set the exit
+status, because a judge is a model and a red build that turns on judgement gets ignored.
+
+    --strict-judge   promote the judge's verdicts to hard failures
+    --no-judge       skip the audit, for a cheaper run
+
+Needs a funded LLM_TIER1_API_KEY in the backend's environment and a running stack. The
+judge additionally needs LLM_TIER1_BASE_URL, _API_KEY and _MODEL in *this* shell, since it
+calls the provider directly rather than through our API: a second opinion routed back
+through the engine it is auditing would not be one.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import sys
 import urllib.error
 import urllib.request
@@ -93,7 +107,11 @@ def build_survey(scenario: dict) -> dict:
     """Create + publish the survey and return the template (questions carry id/position)."""
     spec = scenario["build"]
     if "prompt" in spec:
-        template = call("POST", "/templates/generate", AUTHOR, {"prompt": spec["prompt"]})
+        # /generate answers with {"template": ..., "note": ...}, the note being the
+        # model's account of what it built. POST /templates answers with the template
+        # itself, so only this branch has a wrapper to unwrap.
+        drafted = call("POST", "/templates/generate", AUTHOR, {"prompt": spec["prompt"]})
+        template = drafted["template"]
     else:
         template = call(
             "POST",
@@ -161,6 +179,12 @@ class Run:
         self.answers: list[dict] = []
         self.messages: list[dict] = []
         self.status = ""
+        # Each answer paired with what the respondent had said when it was recorded, which
+        # is the whole point of capturing during the conversation rather than reading the
+        # finished run. The grounding gates judge a yes/no on the latest message alone, so
+        # a run-wide snapshot taken at the end cannot replay one.
+        self.captured: list[dict] = []
+        self.judge_verdicts: list[dict] = []
 
     def question_by_id(self, qid: str) -> dict | None:
         for x in self.qmeta:
@@ -174,6 +198,8 @@ def conduct(scenario: dict, run: Run, template: dict) -> None:
     print(f"  assistant: {convo['messages'][-1]['content']}")
 
     seen: dict[str, int] = {}
+    said: list[str] = []
+    recorded: set[tuple] = set()
     max_turns = 3 * run.total + 10
     for turn in range(max_turns):
         if convo["status"] != "in_progress" or convo["current_question"] is None:
@@ -194,6 +220,13 @@ def conduct(scenario: dict, run: Run, template: dict) -> None:
         convo = call("POST", f"/runs/{convo['id']}/messages", RESPONDENT, {"content": reply})
         print(f"  assistant: {convo['messages'][-1]['content']}")
         print(f"             [{convo['answered']} of {convo['total']} answered]")
+
+        said.append(reply)
+        for answer in convo["answers"]:
+            key = (answer["question_id"], answer["kind"])
+            if key not in recorded:
+                recorded.add(key)
+                run.captured.append({"answer": answer, "said": list(said)})
 
     run.status = convo["status"]
     run.answers = convo["answers"]
@@ -743,10 +776,206 @@ SCENARIOS: dict[str, dict] = {
 ORDER = list(SCENARIOS)
 
 
+# --------------------------------------------------------------------------- judge
+# Every check above asserts an engine invariant: shape, place-keeping, budgets, counts.
+# None of them can ask the question a human asks when reading a transcript, "did the
+# respondent actually say that?", and the gap is not theoretical. The evasive scenario
+# recorded yes from the single message "4" and every check passed; a person reading the
+# transcript caught it. This is that reader, as a second model pass over the finished run.
+#
+# Soft by default, and the reason is the same one written above the checks: a judge is a
+# model, it gets things wrong, and a check that goes red on judgement teaches people that
+# red means nothing. It reports, a human reads, and --strict-judge promotes its verdicts to
+# hard failures once we know how often it cries wolf.
+
+JUDGE_SYSTEM = """You audit a completed survey transcript for invented answers.
+
+You are given every message the respondent sent, in order, and the answers the system
+recorded for them. Recorded answers come in two kinds and are judged by opposite tests.
+Read which kind you have before deciding.
+
+KIND 1, a recorded value: text, a number, a rating, a yes/no, a selection.
+Supported when the respondent's own messages supply it, in their words or an obvious
+paraphrase. An answer merged from several messages is supported, and so is a tidied typo.
+Not supported when it was composed for them: a value with no basis in anything they typed,
+a yes or no read into a message that says neither, a number read into prose naming none.
+
+Normalisation is not invention, and this is the trap to avoid. Answers are stored
+canonically, so the stored value often shares no characters with what was typed. Judge the
+meaning, never the characters. "last Monday" or "today" is stored as an ISO date, and
+`today` below is given to you so you can resolve it and compare. "four out of five" is
+stored as 4. An option named loosely is stored as its exact option text. All supported.
+
+KIND 2, {"unanswerable": ...}: this records that they did NOT answer. It is a refusal, not
+a claim about them, so the test is inverted. It is SUPPORTED whenever the transcript shows
+they declined, dodged, went quiet, or wrote something unusable. Worked examples, all of
+them supported:
+  "rather not say" -> unanswerable is correct and supported.
+  "eleven out of five" for a 1-to-5 rating -> unusable, so unanswerable is supported.
+  "next", "skip", "pass", or an argument instead of an answer -> supported.
+Mark an unanswerable NOT supported only in the opposite case: the respondent plainly did
+give a usable answer and the system threw it away. If your reason for flagging one would
+read as "they refused", that is a supported unanswerable and you must mark it supported.
+
+Judge only from the transcript. Do not reward plausibility: an answer that sounds right for
+the question but appears nowhere in what the respondent typed is exactly what you are here
+to catch. Reply with JSON only:
+
+{"verdicts": [{"index": <int>, "supported": <bool>, "why": "<short reason>"}]}"""
+
+
+def judge_config() -> tuple[str, str, str] | None:
+    """The tier-1 provider, read straight from the environment. The judge talks to the
+    provider rather than to our API on purpose: it is a second opinion on what the engine
+    stored, so routing it back through the engine would defeat it."""
+    base = os.environ.get("LLM_TIER1_BASE_URL", "").strip().rstrip("/")
+    key = os.environ.get("LLM_TIER1_API_KEY", "").strip()
+    model = os.environ.get("LLM_TIER1_MODEL", "").strip()
+    return (base, key, model) if base and key and model else None
+
+
+def _ask_judge(run: Run) -> list[dict]:
+    config = judge_config()
+    assert config is not None  # callers check; this keeps mypy and the reader honest
+    base, key, model = config
+
+    said = [m["content"] for m in run.messages if m["role"] == "user"]
+    recorded = [
+        {"index": i, "question": a["question_text"], "recorded_answer": a["value"]}
+        for i, a in enumerate(run.answers)
+    ]
+    user = json.dumps(
+        {
+            "today": TODAY.isoformat(),
+            "respondent_messages": said,
+            "recorded_answers": recorded,
+        },
+        indent=2,
+    )
+
+    body = json.dumps(
+        {
+            "model": model,
+            "temperature": 0,
+            "response_format": {"type": "json_object"},
+            "messages": [
+                {"role": "system", "content": JUDGE_SYSTEM},
+                {"role": "user", "content": user},
+            ],
+        }
+    ).encode()
+    request = urllib.request.Request(f"{base}/chat/completions", data=body, method="POST")
+    request.add_header("Authorization", f"Bearer {key}")
+    request.add_header("Content-Type", "application/json")
+    with urllib.request.urlopen(request, timeout=180) as response:
+        payload = json.load(response)
+    return json.loads(payload["choices"][0]["message"]["content"])["verdicts"]
+
+
+def judge_checks(run: Run, strict: bool) -> list[tuple]:
+    """One check per recorded answer, asking whether the respondent supplied it."""
+    if not run.answers:
+        return []
+    try:
+        # Kept on the run as well as returned, so the fixture written afterwards carries
+        # the judge's reasoning next to the answer it was about.
+        verdicts = run.judge_verdicts = _ask_judge(run)
+    except (urllib.error.URLError, KeyError, ValueError, TimeoutError) as exc:
+        # The judge failing is not the run failing. Say so loudly and leave the exit code
+        # to the checks that do not depend on a second provider call.
+        return [(f"judge could not be reached or answered unusably ({exc})", False, False, None)]
+
+    out = []
+    for verdict in verdicts:
+        index = verdict.get("index")
+        if not isinstance(index, int) or not 0 <= index < len(run.answers):
+            continue
+        answer = run.answers[index]
+        out.append(
+            (
+                f"grounded: {answer['question_text']}",
+                bool(verdict.get("supported")),
+                strict,
+                verdict.get("why"),
+            )
+        )
+    return out
+
+
+# ----------------------------------------------------------------------- saved runs
+# A live finding is expensive and does not keep. It costs credit, it needs a stack and a
+# key, and it does not reproduce: the fix for the invented yes could not be demonstrated
+# against a real model even minutes later, because the model answered in words the second
+# time. So every run writes its transcript down, and the mocked suite replays the lot for
+# free on every push. See backend/tests/test_live_replay.py for what replaying proves.
+#
+# Written on every run, committed on purpose. Capturing is free and a fixture nobody kept
+# is a finding thrown away, but a saved run is only worth having if what lands in git is
+# read first, so `git add` stays a decision.
+
+# Anchored to this file, not to the working directory. The workflow runs the script from
+# the repo root and a developer runs it from wherever they are; a relative path would
+# scatter fixtures into whichever directory happened to be current.
+LIVE_RUNS = os.path.normpath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "backend", "tests", "live_runs")
+)
+
+
+def write_fixture(key: str, run: Run, template: dict, model: str) -> str:
+    """Write this run down as a replayable fixture and return the path."""
+    by_index = {v.get("index"): v for v in run.judge_verdicts if isinstance(v.get("index"), int)}
+    question_by_id = {x["id"]: x for x in run.qmeta}
+
+    answers = []
+    for index, entry in enumerate(run.captured):
+        answer = entry["answer"]
+        question = question_by_id.get(answer["question_id"], {})
+        verdict = by_index.get(index, {})
+        answers.append(
+            {
+                "question_text": answer["question_text"],
+                "answer_type": question.get("answer_type"),
+                "options": question.get("options", []),
+                "allow_other": question.get("allow_other", False),
+                "kind": answer["kind"],
+                "value": answer["value"],
+                # Exactly what the grounding gates saw when this was recorded.
+                "said": entry["said"],
+                "judge": {"supported": verdict.get("supported"), "why": verdict.get("why")},
+                # Set by hand, and the only field a human writes. See the replay test: an
+                # answer marked true must be refused by today's gates, which is how a live
+                # finding becomes a permanent test. The judge's opinion is recorded above
+                # but never used as ground truth, because it is a model too.
+                "invented": False,
+            }
+        )
+
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    path = os.path.join(LIVE_RUNS, f"{key}-{stamp}.json")
+    os.makedirs(LIVE_RUNS, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(
+            {
+                "scenario": key,
+                "captured_at": datetime.now(UTC).isoformat(),
+                "model": model,
+                "survey_title": template["title"],
+                "status": run.status,
+                "respondent_messages": [m["content"] for m in run.messages if m["role"] == "user"],
+                "answers": answers,
+            },
+            handle,
+            indent=2,
+            ensure_ascii=False,
+        )
+        handle.write("\n")
+    return path
+
+
 # --------------------------------------------------------------------------- driver
 
 
-def run_scenario(key: str) -> int:
+def run_scenario(key: str, judge: bool, strict: bool) -> int:
     scenario = SCENARIOS[key]
     print(f"\n{'=' * 78}\n{key}: {scenario['title']}\n{'=' * 78}")
     template = build_survey(scenario)
@@ -762,8 +991,20 @@ def run_scenario(key: str) -> int:
         print(f"    {a['question_text']}{tag}\n      -> {a['value']}")
 
     print("\n  --- checks ---")
+    hard_failures = _report(scenario["check"](run))
+    if judge:
+        print("\n  --- judge ---")
+        hard_failures += _report(judge_checks(run, strict))
+
+    config = judge_config()
+    print(f"\n  captured: {write_fixture(key, run, template, config[2] if config else 'unknown')}")
+    return hard_failures
+
+
+def _report(checks: list[tuple]) -> int:
+    """Print each check and return how many hard ones failed."""
     hard_failures = 0
-    for name, ok, hard, detail in scenario["check"](run):
+    for name, ok, hard, detail in checks:
         mark = "PASS" if ok else ("FAIL" if hard else "note")
         extra = "" if ok or detail in (None, [], {}) else f"  ({detail})"
         print(f"    [{mark}] {name}{extra}")
@@ -773,17 +1014,32 @@ def run_scenario(key: str) -> int:
 
 
 def main() -> None:
-    requested = sys.argv[1:] or ["all"]
+    argv = sys.argv[1:]
+    strict = "--strict-judge" in argv
+    no_judge = "--no-judge" in argv
+    requested = [a for a in argv if not a.startswith("-")] or ["all"]
     keys = ORDER if requested == ["all"] else requested
     unknown = [k for k in keys if k not in SCENARIOS]
     if unknown:
         print(f"unknown scenario(s): {', '.join(unknown)}\nchoose from: all, {', '.join(ORDER)}")
         sys.exit(2)
 
+    # Asking for the judge without the means to run it is a mistake worth stopping for.
+    # Not asking for it and not having it is only worth one line, but it is worth that
+    # line: a run that silently audits nothing looks exactly like one that audits and
+    # finds nothing.
+    judge = not no_judge and judge_config() is not None
+    if strict and judge_config() is None:
+        print("--strict-judge needs LLM_TIER1_BASE_URL, LLM_TIER1_API_KEY and LLM_TIER1_MODEL")
+        sys.exit(2)
+    if not judge:
+        why = "--no-judge" if no_judge else "LLM_TIER1_* not set in this shell"
+        print(f"judge: off ({why}). Recorded answers will not be audited for invention.")
+
     total_failures = 0
     for key in keys:
         try:
-            total_failures += run_scenario(key)
+            total_failures += run_scenario(key, judge, strict)
         except urllib.error.HTTPError:
             print(f"  [FAIL] {key} raised an HTTP error mid-conversation")
             total_failures += 1
