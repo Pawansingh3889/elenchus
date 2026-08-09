@@ -2,9 +2,8 @@
 
 A plain-English tour of the application — what it is, who uses it, what the AI
 actually does, and what comes out the other end. Read this first; along the way it
-links to the rest of the story: how to [run it](../README.md), how to
-[work on it](DEVELOPING.md), what each check is asking of the code in
-[CHECKS.md](CHECKS.md), and
+links to the rest of the story: how to [run it](../README.md), what each check is
+asking of the code in [CHECKS.md](CHECKS.md), and
 [how it was built, step by step](../CHANGELOG.md).
 
 ## In one sentence
@@ -163,8 +162,6 @@ of these — the chat can be embedded where the respondents already are.
 
 - **Run it in five minutes** → [README](../README.md) (Docker/Podman quick start,
   seeded demo users, the walkthrough).
-- **Work on the code** → [DEVELOPING.md](DEVELOPING.md) (editor setup, running the
-  test suite, resetting to a clean demo state).
 - **See how we keep the AI honest** → [CHECKS.md](CHECKS.md) (what every gate is
   asking, and the misbehaviour that earned it).
 - **How it all got built** → [CHANGELOG.md](../CHANGELOG.md) (the project's history,
