@@ -62,6 +62,22 @@ export default function Home() {
     router.push(`/templates/${template.id}`);
   }
 
+  // Totals across every survey this author owns, from the rows already fetched. The
+  // per-survey numbers were always here; what was missing was the one line that says
+  // how the whole thing is going, which is the question this page is opened to answer.
+  const totals = rows
+    ? {
+        surveys: rows.length,
+        published: rows.filter((r) => r.status === "published").length,
+        started: rows.reduce((n, r) => n + r.started, 0),
+        completed: rows.reduce((n, r) => n + r.completed, 0),
+      }
+    : null;
+  // Null rather than 0 when nobody has started, the same honesty the row applies:
+  // 0% reads as everyone abandoning, which is a different thing from nobody arriving.
+  const completion =
+    totals && totals.started > 0 ? Math.round((totals.completed / totals.started) * 100) : null;
+
   return (
     <div className="page">
       <div className="page-head">
@@ -73,6 +89,28 @@ export default function Home() {
 
       {create.error ? (
         <div className="error-text">{(create.error as Error).message}</div>
+      ) : null}
+
+      {totals ? (
+        <div className="stat-row">
+          <div className="stat">
+            <div className="stat-value">{totals.surveys}</div>
+            <div className="stat-label">{home.statSurveys}</div>
+          </div>
+          <div className="stat">
+            <div className="stat-value">{totals.published}</div>
+            <div className="stat-label">{home.statPublished}</div>
+          </div>
+          <div className="stat">
+            <div className="stat-value">{totals.started}</div>
+            <div className="stat-label">{home.statResponses}</div>
+          </div>
+          <div className="stat">
+            {/* A plain hyphen, not a zero: nobody has started, so there is no rate yet. */}
+            <div className="stat-value">{completion === null ? "-" : `${completion}%`}</div>
+            <div className="stat-label">{home.statCompletion}</div>
+          </div>
+        </div>
       ) : null}
 
       <div className="card generate-card">
@@ -95,6 +133,8 @@ export default function Home() {
           <div className="error-text">{(generate.error as Error).message}</div>
         ) : null}
       </div>
+
+      <h2 className="section-head">{home.yourSurveys}</h2>
 
       {isLoading ? <div className="muted">{common.loading}</div> : null}
       {error ? <div className="error-text">{(error as Error).message}</div> : null}

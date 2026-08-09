@@ -338,6 +338,39 @@ select {
   font-size: var(--text-sm);
 }
 
+/* Totals across every survey, above the list. Grid rather than flex so the tiles keep
+   equal widths as the numbers grow, and auto-fit so four tiles become two on a phone
+   instead of shrinking until the labels wrap mid-word. */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-3);
+}
+.stat {
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+}
+.stat-value {
+  font-size: var(--text-xl);
+  font-weight: 800;
+  line-height: 1.2;
+}
+.stat-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-weight: 700;
+  margin-block-start: var(--space-1);
+}
+.section-head {
+  font-size: var(--text-md);
+  font-weight: 700;
+  margin-block-end: calc(-1 * var(--space-2));
+}
+
 .card {
   background: var(--raised);
   border: 1px solid var(--border);
