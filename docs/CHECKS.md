@@ -4,8 +4,7 @@ The README lists the tools this project runs. This file says what each one is *f
 a failure actually means, and what to do about it. It also collects every command in one
 place.
 
-For setting up an editor, see [DEVELOPING.md](DEVELOPING.md). For getting the stack
-running the first time, see the [README](../README.md).
+For getting the stack running the first time, see the [README](../README.md).
 
 All commands run from the repository root unless they say otherwise.
 

@@ -89,7 +89,6 @@ export const fil: Messages = {
     goingToBuild: "Dinadala ka sa Gumawa…",
     empty: "Wala pang nailathala. Mag-publish ng template para makita rito.",
     start: "Simulan",
-    continue: "Ipagpatuloy",
   },
   run: {
     pickUser: "Pumili ng user sa itaas para ipagpatuloy ang survey na ito.",
@@ -106,7 +105,6 @@ export const fil: Messages = {
     other: "iba pa…",
     yes: "Oo",
     no: "Hindi",
-    progress: (done: number, total: number) => `${done} sa ${total}`,
   },
   report: {
     writeIn: "(sariling sagot)",

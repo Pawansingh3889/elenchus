@@ -98,8 +98,9 @@ is. The test is therefore support rather than authorship, and it is skipped when
 latest message is under four content words, because a respondent may answer positionally
 ("the second one") and refusing that blocks a real person to catch nobody.
 
-The prompt caused that failure. `conduct_v4` said to "map it to the closest option", which
-is exactly how "training new starters" became "Nowhere I can see". `conduct_v5` says the
+The prompt caused that failure. The conduct prompt of the day said to "map it to the
+closest option", which is exactly how "training new starters" became "Nowhere I can
+see". The current one (`conduct_v7`) says the
 opposite, and states the write-in mechanism, since a model told to use one wrote
 `"Other: ..."` as though Other were a prefix.
 

@@ -134,7 +134,6 @@ async function rawRequest(path: string): Promise<Response> {
 
 export const api = {
   listUsers: () => request<User[]>("/users"),
-  listTemplates: () => request<TemplateSummary[]>("/templates"),
   dashboard: () => request<DashboardRow[]>("/dashboard"),
   report: (id: string) => request<SurveyReport>(`/templates/${id}/report`),
   getTemplate: (id: string) => request<Template>(`/templates/${id}`),

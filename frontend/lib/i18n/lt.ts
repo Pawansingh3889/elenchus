@@ -95,7 +95,6 @@ export const lt: Messages = {
     goingToBuild: "Nukreipiame į Kurti…",
     empty: "Kol kas nieko nepaskelbta. Paskelbkite šabloną, kad jis atsirastų čia.",
     start: "Pradėti",
-    continue: "Tęsti",
   },
   run: {
     pickUser: "Pasirinkite naudotoją viršutinėje juostoje, kad tęstumėte šią apklausą.",
@@ -112,7 +111,6 @@ export const lt: Messages = {
     other: "kita…",
     yes: "Taip",
     no: "Ne",
-    progress: (done: number, total: number) => `${done} iš ${total}`,
   },
   report: {
     writeIn: "(įrašyta)",

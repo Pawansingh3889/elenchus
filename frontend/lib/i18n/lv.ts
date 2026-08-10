@@ -95,7 +95,6 @@ export const lv: Messages = {
     goingToBuild: "Pārejam uz Veidot…",
     empty: "Vēl nekas nav publicēts. Publicējiet veidni, lai tā parādītos šeit.",
     start: "Sākt",
-    continue: "Turpināt",
   },
   run: {
     pickUser: "Izvēlieties lietotāju augšējā joslā, lai turpinātu šo aptauju.",
@@ -112,7 +111,6 @@ export const lv: Messages = {
     other: "cits…",
     yes: "Jā",
     no: "Nē",
-    progress: (done: number, total: number) => `${done} no ${total}`,
   },
   report: {
     writeIn: "(pašu vārdiem)",

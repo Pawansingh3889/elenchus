@@ -6,7 +6,7 @@ surveys through a conversational, LLM-driven runner that keeps the model on rail
 
 Full brief in [`trial-brief/`](trial-brief/README.md); what the app does
 in [`docs/OVERVIEW.md`](docs/OVERVIEW.md); build conventions in [`CLAUDE.md`](CLAUDE.md);
-working on it in an editor in [`docs/DEVELOPING.md`](docs/DEVELOPING.md); project history
+what every check is asking in [`docs/CHECKS.md`](docs/CHECKS.md); project history
 in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Stack

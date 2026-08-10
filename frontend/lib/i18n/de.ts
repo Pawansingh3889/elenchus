@@ -90,7 +90,6 @@ export const de: Messages = {
     goingToBuild: "Weiter zu Erstellen…",
     empty: "Noch nichts veröffentlicht. Veröffentlichen Sie eine Vorlage, um sie hier zu sehen.",
     start: "Starten",
-    continue: "Fortsetzen",
   },
   run: {
     pickUser: "Wählen Sie oben einen Benutzer, um diese Umfrage fortzusetzen.",
@@ -108,7 +107,6 @@ export const de: Messages = {
     other: "Sonstiges…",
     yes: "Ja",
     no: "Nein",
-    progress: (done: number, total: number) => `${done} von ${total}`,
   },
   report: {
     writeIn: "(frei)",
