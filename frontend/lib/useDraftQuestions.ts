@@ -81,14 +81,17 @@ export function useDraftQuestions() {
       return next;
     });
 
+  // `dropped` counts collateral damage, so it is measured against the questions that
+  // SURVIVE the delete, not against the list that still contained the deleted one. A
+  // question taking its own condition with it is the author's own edit; counting it
+  // fired the "a condition was removed" notice on every delete of a conditional
+  // question, which teaches an author to dismiss the one notice that matters.
   const remove = (i: number) =>
     setQuestions((qs) => {
       const order = qs.map((_, j) => j).filter((j) => j !== i);
-      const next = remapConditions(
-        order.map((j) => qs[j]),
-        order,
-      );
-      setDropped(clearedBy(qs, next));
+      const survivors = order.map((j) => qs[j]);
+      const next = remapConditions(survivors, order);
+      setDropped(clearedBy(survivors, next));
       return next;
     });
 
