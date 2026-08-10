@@ -1,3 +1,11 @@
+# pnpm 11 refuses to run a dependency's postinstall script unless it is named here.
+# This file exists for that allowlist alone; there is no `packages:` key because the
+# frontend is a standalone project, not a workspace root.
+#
+# esbuild arrives through Vitest (vitest -> vite -> esbuild) and builds a native binary
+# on install. Left off this list the install still SUCCEEDS and the test runner fails
+# later with a missing binary, which is the worse of the two failure shapes.
 allowBuilds:
   sharp: true
   unrs-resolver: true
+  esbuild: true

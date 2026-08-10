@@ -59,7 +59,12 @@ Must-haves are the bar. Stretch goals only if the must-haves are solid.
   contracts + guards + the suite, and is what CI runs. `pytest` + `pytest-asyncio`; the
   conduct engine and publish/versioning logic are the test priorities. The LLM is mocked at
   the client-wrapper boundary so tests run without an API key.
-- **Frontend quality**: `eslint` + `tsc --noEmit` clean. No frontend test harness for the trial.
+- **Frontend quality**: `make front-gate` clean, which is `tsc --noEmit` + `eslint` +
+  `vitest`, run inside the frontend container because there is no node on the host.
+  Playwright drives a real browser from `frontend/e2e/`; CI runs it, and locally it
+  needs `pnpm exec playwright install --with-deps chromium` in the container first.
+  Frontend tests are written when something breaks, so each one names a bug that
+  actually happened rather than a failure someone imagined.
 - **Secrets**: `.env` is git-ignored, `.env.example` is committed. No provider key ever
   enters the repo.
 - **Prompts as code**: versioned under `backend/app/llm/prompts/`, loaded by name + version.
