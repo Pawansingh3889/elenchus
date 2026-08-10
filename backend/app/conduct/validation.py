@@ -11,6 +11,7 @@ from difflib import SequenceMatcher
 from typing import Any
 
 from app.errors import AppError
+from app.templates.enums import RATING_MAX, RATING_MIN
 
 
 class AnswerValidationError(AppError):
@@ -205,6 +206,43 @@ def _canonical_option(raw: str, options: list[str]) -> str | None:
     return None
 
 
+# The conduct prompt is explicit that a write-in carries no marker ("Do NOT write
+# 'Other: ...' or invent an 'Other' entry"), and a live run obeyed it on a single_select
+# and ignored it on the multi_select in the same conversation: a spot cooler came back as
+# "Other: there's a portable spot cooler we drag around with us". That reaches the
+# author's report with the marker still on it, spending the width the answer needed on a
+# word the respondent never said. An instruction a model follows on one question and not
+# the next is not an instruction, it is a normalisation this layer should be doing.
+#
+# Colon only, deliberately. Allowing a dash would eat the front of "Other-worldly", and
+# the marker we have actually seen, and the one the prompt names, is the colon form.
+_OTHER_MARKER = re.compile(r"^\s*other\s*:\s*", re.IGNORECASE)
+
+
+def _unmarked(raw: str) -> str:
+    return _OTHER_MARKER.sub("", raw, count=1)
+
+
+def _write_in(raw: str) -> str:
+    """A write-in as it should be stored: the respondent's words, and only those."""
+    text = _unmarked(raw).strip()
+    if not text:
+        # Covers a bare "Other:" as well as an empty string. Both are a marker with no
+        # answer behind it, and storing one would be an answer with no content.
+        raise AnswerValidationError("a write-in answer needs text")
+    return text
+
+
+def _chosen_option(raw: str, options: list[str]) -> str | None:
+    """The option the respondent picked, marker or no marker.
+
+    Tried unmarked first so an option genuinely named "Other: ..." still wins. Stripping
+    before giving up matters: "Other: Days" is the option Days wearing a marker, and
+    filing it as a write-in would split one tally into two rows that never add up.
+    """
+    return _canonical_option(raw, options) or _canonical_option(_unmarked(raw), options)
+
+
 def validate_answer(question: dict[str, Any], raw: Any) -> dict[str, Any]:
     """Return the normalised value to store, or raise AnswerValidationError."""
     answer_type = question["answer_type"]
@@ -218,8 +256,10 @@ def validate_answer(question: dict[str, Any], raw: Any) -> dict[str, Any]:
         return {"yes_no": raw}
 
     if answer_type == "rating":
-        if isinstance(raw, bool) or not isinstance(raw, int) or not 1 <= raw <= 5:
-            raise AnswerValidationError("rating expects a whole number from 1 to 5")
+        if isinstance(raw, bool) or not isinstance(raw, int) or not RATING_MIN <= raw <= RATING_MAX:
+            raise AnswerValidationError(
+                f"rating expects a whole number from {RATING_MIN} to {RATING_MAX}"
+            )
         return {"rating": raw}
 
     if answer_type == "number":
@@ -255,15 +295,12 @@ def validate_answer(question: dict[str, Any], raw: Any) -> dict[str, Any]:
             raise AnswerValidationError("single_select expects the option text")
         # A case/whitespace near-miss ("days" for "Days") is the option, not a write-in;
         # matching it canonically keeps the author's results aggregatable.
-        canonical = _canonical_option(raw, options)
+        canonical = _chosen_option(raw, options)
         if canonical is not None:
             return {"option": canonical}
         if allow_other:
             # A write-in is text: same non-empty-and-trimmed rule the text answers enforce.
-            write_in = raw.strip()
-            if not write_in:
-                raise AnswerValidationError("a write-in answer needs text")
-            return {"other": write_in}
+            return {"other": _write_in(raw)}
         raise AnswerValidationError(f"'{raw}' is not one of {options} and 'other' is not allowed")
 
     if answer_type == "multi_select":
@@ -274,16 +311,14 @@ def validate_answer(question: dict[str, Any], raw: Any) -> dict[str, Any]:
         for value in raw:
             if not isinstance(value, str):
                 raise AnswerValidationError("multi_select values must be strings")
-            canonical = _canonical_option(value, options)
+            canonical = _chosen_option(value, options)
             if canonical is not None:
                 # ["Email", "email"] is Email chosen once; canonicalising and then
                 # storing both would double-count the option in the results.
                 if canonical not in chosen:
                     chosen.append(canonical)
             elif allow_other:
-                write_in = value.strip()
-                if not write_in:
-                    raise AnswerValidationError("a write-in answer needs text")
+                write_in = _write_in(value)
                 if write_in not in other:
                     other.append(write_in)
             else:
