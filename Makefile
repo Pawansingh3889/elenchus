@@ -1,5 +1,5 @@
 .PHONY: help setup test gate lint fmt typecheck imports guards gate-proof \
-        stack-up stack-down migrate serve front front-gate clean
+        stack-up stack-down migrate serve front front-gate all-gates clean
 
 PY := uv run
 GUARDS := scripts/check_query_surface.py \
@@ -19,6 +19,7 @@ help:
 	@echo "make gate        Every architecture check (what CI runs)"
 	@echo "make gate-proof  Prove each gate rejects a planted violation"
 	@echo "make front-gate  Frontend checks (tsc, eslint, vitest) in the container"
+	@echo "make all-gates   Both gates, backend then frontend"
 	@echo "make serve       Run the backend on the host, against the compose Postgres"
 
 setup:
@@ -89,6 +90,13 @@ front-gate:
 		./node_modules/.bin/tsc --noEmit && \
 		./node_modules/.bin/eslint . && \
 		pnpm test'
+
+# Both halves, for when you want the whole repo checked and have the stack up.
+# Named `all-gates` rather than `gates`, which is one keystroke from `gate` and would
+# quietly run the wrong thing on a typo.
+all-gates: gate front-gate
+	@echo ""
+	@echo "Backend and frontend both clean."
 
 clean:
 	rm -rf backend/.pytest_cache backend/.ruff_cache backend/.mypy_cache
