@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# playwright
+/playwright-report/
+/test-results/
+/.playwright/
+# pnpm resolves its store here when no global one is configured, which happens inside
+# the container; it is a cache, not source.
+/.pnpm-store/
