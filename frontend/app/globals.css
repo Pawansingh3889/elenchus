@@ -615,29 +615,6 @@ textarea {
   min-height: 48px;
 }
 
-/* Answer-type policy, above the questions: what this survey is allowed to ask for */
-.types-card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.types-hint {
-  font-size: var(--text-sm);
-  margin: 0;
-}
-.types-grid {
-  display: flex;
-  gap: 14px;
-  flex-wrap: wrap;
-  font-size: var(--text-sm);
-  color: var(--secondary);
-}
-.types-grid label {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
 /* Refine-with-AI panel in the builder's right column */
 .builder-side {
   display: flex;

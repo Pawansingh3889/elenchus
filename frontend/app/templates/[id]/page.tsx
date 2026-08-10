@@ -6,7 +6,6 @@ import { use, useEffect, useState } from "react";
 
 import { LivePreview } from "@/components/LivePreview";
 import { QuestionEditor } from "@/components/QuestionEditor";
-import { SurveySettings } from "@/components/SurveySettings";
 import { publishBlockers } from "@/lib/publishBlockers";
 import { useDraftQuestions } from "@/lib/useDraftQuestions";
 import {
@@ -20,7 +19,7 @@ import {
 import { ApiError } from "@/lib/api";
 import { useT } from "@/lib/i18n/useT";
 import { useDraftNoteStore, useUserStore } from "@/lib/store";
-import type { AnswerType, SurveyAudience } from "@/lib/types";
+import type { SurveyAudience } from "@/lib/types";
 
 export default function BuilderPage({ params }: { params: Promise<{ id: string }> }) {
   const msg = useT();
@@ -39,7 +38,6 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
   const [description, setDescription] = useState("");
   const draft = useDraftQuestions();
   const questions = draft.questions;
-  const [allowedTypes, setAllowedTypes] = useState<AnswerType[]>([]);
   const [audience, setAudience] = useState<SurveyAudience>("respondents");
   const [setting, setSetting] = useState("");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -68,7 +66,6 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
     setLoadedId(formKey);
     setTitle(template.title);
     setDescription(template.description ?? "");
-    setAllowedTypes(template.allowed_answer_types);
     setAudience(template.audience);
     setSetting(template.setting ?? "");
     draft.reset(
@@ -98,10 +95,11 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
     .flatMap((e) => (e instanceof ApiError ? e.questions : []))
     .filter((v, i, all) => all.indexOf(v) === i);
 
-  const blockers = publishBlockers(questions, allowedTypes, msg.builder);
+  const blockers = publishBlockers(questions, msg.builder);
 
-  // allowed_answer_types rides on every write. A save replaces the whole template, so
-  // leaving it out would clear the policy on the next save the author made.
+  // audience and setting ride on every write although nothing here edits them: a save
+  // replaces the whole template, so leaving one out clears it. Read from the template,
+  // sent straight back.
   const body = {
     title,
     description: description || null,
@@ -109,7 +107,6 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
     // Empty box means no setting, not an empty one: null is what "not described" is
     // stored as, and the engine reads a blank string the same way.
     setting: setting.trim() || null,
-    allowed_answer_types: allowedTypes,
     questions,
   };
   const save = () => update.mutate(body);
@@ -134,7 +131,6 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
       // The server's policy, not the local copy: refine is not offered the field and
       // cannot change it, so this only ever re-states what was already saved. Re-seeding
       // it with the rest keeps one source of truth for the whole form.
-      setAllowedTypes(revised.allowed_answer_types);
       setAudience(revised.audience);
       setSetting(revised.setting ?? "");
       draft.reset(
@@ -207,16 +203,6 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
           placeholder={msg.builder.descriptionPlaceholder}
         />
 
-        <SurveySettings
-          audience={audience}
-          onAudienceChange={setAudience}
-          setting={setting}
-          onSettingChange={setSetting}
-          allowedTypes={allowedTypes}
-          onAllowedTypesChange={setAllowedTypes}
-          status={template.status}
-        />
-
         {update.error ? <div className="error-text">{(update.error as Error).message}</div> : null}
         {publish.error ? (
           <div className="error-text">{(publish.error as Error).message}</div>
@@ -241,12 +227,11 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
               rejected={rejected.includes(i)}
               onChange={(patch) => draft.patch(i, patch)}
               earlier={questions.slice(0, i)}
-              allowedTypes={allowedTypes}
               onRemove={() => draft.remove(i)}
               onMove={(dir) => draft.move(i, dir)}
             />
           ))}
-          <button className="add-question" onClick={() => draft.add(allowedTypes)}>
+          <button className="add-question" onClick={draft.add}>
             {msg.builder.addQuestion}
           </button>
         </div>

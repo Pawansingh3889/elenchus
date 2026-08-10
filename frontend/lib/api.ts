@@ -40,7 +40,6 @@ const FIELD_LABELS: Record<string, string> = {
   title: "title",
   description: "description",
   audience: "audience",
-  allowed_answer_types: "allowed answer types",
 };
 
 /**

@@ -43,19 +43,6 @@ class SurveyTemplate(Base):
         default=SurveyAudience.respondents,
         server_default=SurveyAudience.respondents.value,
     )
-    # Answer types the author will allow in this survey, as a whitelist. Empty means
-    # unconstrained, which is what every survey written before this was, so the column
-    # is true of history rather than merely populated.
-    #
-    # It lives on the template rather than in the prompt because the author states it
-    # once and means it for the whole draft. A refine carries one instruction and no
-    # memory of the last, so "no text questions" removed them and the next unrelated
-    # refine added a short_text straight back. Held here, it is checked on every write
-    # (see TemplateWrite), which is the only version of the rule the model cannot talk
-    # its way past.
-    allowed_answer_types: Mapped[list[str]] = mapped_column(
-        JSONB, default=list, server_default="[]"
-    )
     # What the interviewer needs to know about the workplace to read answers here, in the
     # author's words. Nullable, because most surveys need none and an empty one is not a
     # fault: a survey with no stated setting is exactly what every survey was before this.

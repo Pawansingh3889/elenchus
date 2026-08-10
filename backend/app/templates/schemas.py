@@ -89,21 +89,7 @@ class TemplateWrite(BaseModel):
     # value that is true of a survey whose author has not written one, so None keeps
     # meaning "not described" rather than becoming a thing an update can silently clear.
     setting: str | None = Field(default=None, max_length=2000)
-    # Answer types the author will allow. Empty is every type, not "unset": an author who
-    # says nothing has restricted nothing, which is what a survey with no stated policy
-    # has always meant here.
-    allowed_answer_types: list[AnswerType] = Field(default_factory=list)
     questions: list[QuestionInput] = Field(default_factory=list)
-
-    @field_validator("allowed_answer_types")
-    @classmethod
-    def _allowed_types_are_a_set(cls, value: list[AnswerType]) -> list[AnswerType]:
-        # Order carries no meaning and a repeat says nothing twice, so collapse both
-        # rather than storing a list that compares unequal to the same policy.
-        seen: dict[AnswerType, None] = {}
-        for answer_type in value:
-            seen.setdefault(answer_type, None)
-        return list(seen)
 
     @field_validator("title")
     @classmethod
@@ -112,34 +98,6 @@ class TemplateWrite(BaseModel):
         if not title:
             raise ValueError("title cannot be blank")
         return title
-
-    @model_validator(mode="after")
-    def _questions_use_an_allowed_answer_type(self) -> "TemplateWrite":
-        """Enforce the author's answer-type policy on every write.
-
-        Checked here rather than asked for in a prompt, because the prompt is advice and
-        this is the rule. A refine sees one instruction at a time: told "no text
-        questions" it removes them, and then the next unrelated change adds a short_text
-        back, because nothing carried the policy forward. Refusing the draft is what
-        makes the model's retry land on something the author actually asked for, and it
-        holds the same line for a hand edit in the builder.
-        """
-        if not self.allowed_answer_types:
-            return self
-        allowed = set(self.allowed_answer_types)
-        offenders = [
-            (position, question.answer_type)
-            for position, question in enumerate(self.questions)
-            if question.answer_type not in allowed
-        ]
-        if offenders:
-            permitted = ", ".join(t.value for t in self.allowed_answer_types)
-            named = "; ".join(f"question {p + 1} is {t.value}" for p, t in offenders)
-            raise ValueError(
-                f"this survey allows only these answer types: {permitted}. "
-                f"{named}. Use an allowed type, or drop the question."
-            )
-        return self
 
     @model_validator(mode="after")
     def _conditions_can_actually_be_evaluated(self) -> "TemplateWrite":
@@ -210,7 +168,6 @@ class TemplateUpdate(TemplateWrite):
     """
 
     audience: SurveyAudience
-    allowed_answer_types: list[AnswerType]
 
 
 class GenerateRequest(BaseModel):
@@ -248,7 +205,6 @@ class TemplateRead(BaseModel):
     closed_at: datetime | None
     audience: SurveyAudience
     setting: str | None
-    allowed_answer_types: list[AnswerType]
     questions: list[QuestionRead]
 
 
