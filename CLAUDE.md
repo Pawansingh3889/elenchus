@@ -39,18 +39,6 @@ See SPEC.md §3. Tables: `users`, `survey_templates`, `survey_questions`,
 `survey_template_versions` (immutable), `survey_runs`, `answers`, `run_messages`.
 Alembic migrations from the first table; no `create_all` in application code.
 
-## Plan (4 working days)
-
-- **Tue** — scaffold (compose, FastAPI skeleton, Next.js skeleton), full data model +
-  initial migration, template CRUD API.
-- **Wed** — builder UI + natural-language template generation (shares the LLM plumbing the
-  runner needs next).
-- **Thu** — conversational runner: conduct engine, answer recording, persistence, resume.
-  *Review call today.*
-- **Fri** — LLM follow-ups, results view, polish, demo.
-
-Must-haves are the bar. Stretch goals only if the must-haves are solid.
-
 ## Conventions
 
 - **Commits**: conventional and atomic, on `feature/<slug>` branches merged to main.
