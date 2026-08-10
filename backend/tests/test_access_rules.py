@@ -10,11 +10,11 @@ questions. Being in a survey's audience means you were asked. It does not mean y
 read what your colleagues answered.
 """
 
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
-from app.access import may_answer, may_list, may_read_rows, may_read_totals
+from app.access import NOBODY, in_audience, may_answer, may_list, may_read_rows, may_read_totals
 from app.access.rules import is_admin
 from app.templates.enums import SurveyAudience
 from app.users.models import CreatorDepartment, User, UserRole
@@ -176,3 +176,30 @@ def test_every_department_can_be_aimed_at_except_admin():
     Every other department should have an audience that reaches it."""
     aimable = {d.value for d in CreatorDepartment} - {"admin"}
     assert aimable <= {a.value for a in SurveyAudience}
+
+
+def test_reach_counts_the_audience_and_not_the_ways_around_it(author, respondent):
+    """`in_audience` is the denominator's rule, and a denominator must count the people a
+    survey was written for. The author testing their own survey and an admin reaching in
+    are how it gets answered by someone it was not aimed at, so neither is counted."""
+    # The author owns nothing here: NOBODY can match no user, so the owner branch is shut.
+    assert in_audience(respondent, SurveyAudience.respondents)
+    assert not in_audience(author, SurveyAudience.respondents)
+    # And the admin branch with it, whatever the allowlist says.
+    assert not in_audience(respondent, SurveyAudience.hr)
+
+
+def test_nobody_is_nobody(author, respondent):
+    """The sentinel only works while no real user carries it. The seeded ids are
+    00000000-0000-0000-0000-0000000000a1-shaped, which is close enough to check."""
+    assert NOBODY == UUID(int=0)
+    assert author.id != NOBODY
+    assert respondent.id != NOBODY
+
+
+def test_a_department_survey_counts_only_that_department(author):
+    """The other audience shape. An author in one department is not part of another's."""
+    author.department = CreatorDepartment.operations
+    assert in_audience(author, SurveyAudience.operations)
+    assert not in_audience(author, SurveyAudience.finance)
+    assert not in_audience(author, SurveyAudience.respondents)

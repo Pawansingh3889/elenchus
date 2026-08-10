@@ -75,12 +75,20 @@ export default function Home() {
         started: rows.reduce((n, r) => n + r.started, 0),
         completed: rows.reduce((n, r) => n + r.completed, 0),
         inProgress: rows.reduce((n, r) => n + r.in_progress, 0),
+        // Summed across surveys, so a person asked twice counts twice. That is right:
+        // this is a rate over invitations, not over people.
+        reach: rows.reduce((n, r) => n + r.reach, 0),
+        peopleCompleted: rows.reduce((n, r) => n + r.people_completed, 0),
       }
     : null;
   // Null rather than 0 when nobody has started, the same honesty the row applies:
   // 0% reads as everyone abandoning, which is a different thing from nobody arriving.
   const completion =
     totals && totals.started > 0 ? Math.round((totals.completed / totals.started) * 100) : null;
+  const responseRate =
+    totals && totals.reach > 0
+      ? Math.round((totals.peopleCompleted / totals.reach) * 100)
+      : null;
 
   return (
     <div className="page">
@@ -117,6 +125,10 @@ export default function Home() {
             {/* A plain hyphen, not a zero: nobody has started, so there is no rate yet. */}
             <div className="stat-value">{completion === null ? "-" : `${completion}%`}</div>
             <div className="stat-label">{home.statCompletion}</div>
+          </div>
+          <div className="stat">
+            <div className="stat-value">{responseRate === null ? "-" : `${responseRate}%`}</div>
+            <div className="stat-label">{home.statResponseRate}</div>
           </div>
         </div>
       ) : null}
@@ -157,12 +169,18 @@ export default function Home() {
                   home.noResponses
                 ) : (
                   <>
-                    {r.started} {home.started}
-                    {" · "}
-                    {r.completed} {home.completedLabel}
+                    {/* People first: "how many of the people this was for have answered"
+                        is the question an author opens the page with. */}
+                    {home.ofPeople(r.people_completed, r.reach)}
+                    {r.response_rate !== null
+                      ? ` · ${Math.round(r.response_rate * 100)}%`
+                      : ""}
                     {r.in_progress > 0 ? ` · ${r.in_progress} ${home.inProgress}` : ""}
-                    {r.completion_rate !== null
-                      ? ` · ${Math.round(r.completion_rate * 100)}%`
+                    {/* Only when the two disagree, which is only on rows written before
+                        one answer per person was enforced. It shrinks to nothing on its
+                        own rather than being a permanent feature of the page. */}
+                    {r.started > r.people_started
+                      ? ` · ${home.runsFromPeople(r.started, r.people_started)}`
                       : ""}
                   </>
                 )}

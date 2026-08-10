@@ -26,7 +26,9 @@ is a survey shown to people it was not meant for.
 """
 
 from app.access.rules import (
+    NOBODY,
     AccessDecision,
+    in_audience,
     is_admin,
     is_admin_by_config,
     may_answer,
@@ -36,9 +38,11 @@ from app.access.rules import (
 )
 
 __all__ = [
+    "NOBODY",
     "AccessDecision",
     "is_admin",
     "is_admin_by_config",
+    "in_audience",
     "may_answer",
     "may_list",
     "may_read_rows",

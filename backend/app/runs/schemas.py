@@ -71,12 +71,36 @@ class DashboardRow(BaseModel):
     updated_at: datetime
     closed_at: datetime | None
 
+    # Runs. "Of the people who turned up, how many finished" is still worth asking, and
+    # not the same question as the one below.
     started: int
     completed: int
     in_progress: int
     abandoned: int
+    # People. How many the survey is for, and how many of them have answered. Separate
+    # fields rather than corrected versions of the ones above, because both questions are
+    # real: after the one-answer-per-person guard the two converge for new data, and rows
+    # written before it keep their history.
+    reach: int
+    people_started: int
+    people_completed: int
     last_started_at: datetime | None
     last_completed_at: datetime | None
+
+    @computed_field  # type: ignore[prop-decorator]  # pydantic needs the property last
+    @property
+    def response_rate(self) -> float | None:
+        """Of the people this survey is for, how many have finished it.
+
+        None when the audience resolves to nobody, never 0: a survey aimed at an empty
+        team has no rate, and 0% would read as everyone refusing.
+
+        Note it can exceed 1. An author testing their own respondent-aimed survey has a
+        run and is not in the audience, so two answers against a reach of one is a real
+        state. Reported rather than clamped: hiding it would mean quietly dropping a real
+        answer from a real person out of the count.
+        """
+        return self.people_completed / self.reach if self.reach else None
 
     @computed_field  # type: ignore[prop-decorator]  # pydantic needs the property last
     @property
@@ -133,6 +157,12 @@ class SurveyReport(BaseModel):
     version: int
     runs_total: int
     runs_completed: int
+    # People rather than runs: how many the survey is for, how many opened it, how many
+    # finished. The tallies below count one vote per run, so before the guard a survey
+    # answered four times by one person tallied four votes.
+    reach: int
+    people_started: int
+    people_completed: int
     # Runs answered against an earlier published version. Their questions are not these
     # questions, so their answers are not counted here rather than being folded in and
     # quietly changing what a number means. Named so the omission is visible.

@@ -13,7 +13,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.access import is_admin_by_config, may_list, may_read_rows
+from app.access import in_audience, is_admin_by_config, may_list, may_read_rows
 from app.errors import NotFoundError
 from app.runs.enums import AnswerKind, RunStatus
 from app.runs.models import REPLY_PREFIX, SurveyRun
@@ -28,11 +28,13 @@ from app.runs.schemas import (
     RunSummary,
     SurveyReport,
 )
+from app.templates.enums import SurveyAudience
 from app.templates.models import SurveyTemplate, SurveyTemplateVersion
 from app.templates.repository import TemplateRepository
 from app.templates.snapshot import questions_of
 from app.templates.visibility import remaining_possible
 from app.users.models import User
+from app.users.repository import UserRepository
 
 logger = logging.getLogger("app.runs.results")
 
@@ -53,6 +55,7 @@ class ResultsService:
         self.session = session
         self.repo = ResultsRepository(session)
         self.templates = TemplateRepository(session)
+        self.users = UserRepository(session)
 
     async def dashboard(self, author: User) -> list[DashboardRow]:
         """Every survey this author owns, with how each one is going.
@@ -62,6 +65,7 @@ class ResultsService:
         """
         rows = await self.repo.dashboard_rows(author.id)
         admin = is_admin_by_config(author)
+        reach = await self._reach_by_audience()
         return [
             DashboardRow(
                 id=template.id,
@@ -73,6 +77,9 @@ class ResultsService:
                 completed=completed,
                 in_progress=in_progress,
                 abandoned=abandoned,
+                reach=reach.get(template.audience, 0),
+                people_started=people_started,
+                people_completed=people_completed,
                 last_started_at=last_started_at,
                 last_completed_at=last_completed_at,
             )
@@ -82,11 +89,33 @@ class ResultsService:
                 completed,
                 in_progress,
                 abandoned,
+                people_started,
+                people_completed,
                 last_started_at,
                 last_completed_at,
             ) in rows
             if may_list(author, template.audience, template.created_by, admin)
         ]
+
+    async def _reach_by_audience(self) -> dict[SurveyAudience, int]:
+        """How many people each audience is, counted once for the whole page.
+
+        The rule is asked, not paraphrased: `in_audience` is `may_answer` with the author
+        and admin escape hatches shut, so this cannot drift from the rule that decides who
+        may actually answer. Writing the same thing in SQL would be a second copy with
+        nothing to catch it diverging.
+
+        Every user is loaded and the predicate run five times over them, which is one
+        query and a few hundred comparisons for a plant's staff list, and the wrong shape
+        at ten thousand users. The escape hatch when that day comes is one grouped query,
+        `SELECT role, department, count(*) GROUP BY 1, 2`, asking the rule once per group
+        instead of once per person.
+        """
+        users = await self.users.list_all()
+        return {
+            audience: sum(1 for user in users if in_audience(user, audience))
+            for audience in SurveyAudience
+        }
 
     async def list_runs(self, template_id: UUID, author: User) -> list[RunSummary]:
         await self._owned_or_404(template_id, author)
@@ -237,10 +266,18 @@ class ResultsService:
         # author's, so counting them here would tally answers to questions nobody chose.
         answers: dict[str, list[dict[str, Any]]] = {q["id"]: [] for q in questions}
         runs_total = runs_completed = on_earlier = 0
+        # People as well as runs, from rows already loaded. A run count answers "how much
+        # material is there"; a person count answers "how many of the people this was for
+        # have answered", and before the one-answer-per-person guard those differed by a
+        # factor of four on a real survey.
+        people_started: set[UUID] = set()
+        people_completed: set[UUID] = set()
         for run, run_version, _ in await self.repo.list_for_template(template_id):
             runs_total += 1
+            people_started.add(run.respondent_id)
             if run.status is RunStatus.completed:
                 runs_completed += 1
+                people_completed.add(run.respondent_id)
             if run_version.id != version.id:
                 on_earlier += 1
                 continue
@@ -257,6 +294,9 @@ class ResultsService:
             version=version.version,
             runs_total=runs_total,
             runs_completed=runs_completed,
+            reach=(await self._reach_by_audience()).get(template.audience, 0),
+            people_started=len(people_started),
+            people_completed=len(people_completed),
             runs_on_earlier_versions=on_earlier,
             questions=[_report_question(q, answers[q["id"]]) for q in questions],
         )
