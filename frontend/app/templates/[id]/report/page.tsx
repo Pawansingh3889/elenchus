@@ -65,12 +65,16 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
 
       <div className="stat-row">
         <div className="stat">
-          <div className="stat-value">{report.runs_total}</div>
-          <div className="stat-label">{msg.report.responses}</div>
+          <div className="stat-value">
+            {report.reach > 0
+              ? `${report.people_completed}/${report.reach}`
+              : report.people_completed}
+          </div>
+          <div className="stat-label">{msg.report.responded}</div>
         </div>
         <div className="stat">
-          <div className="stat-value">{report.runs_completed}</div>
-          <div className="stat-label">{msg.report.completed}</div>
+          <div className="stat-value">{report.runs_total}</div>
+          <div className="stat-label">{msg.report.responses}</div>
         </div>
         <div className="stat">
           <div className="stat-value">v{report.version}</div>
@@ -83,6 +87,15 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
           number means. */}
       {report.runs_on_earlier_versions > 0 ? (
         <div className="notice">{msg.report.earlierVersions(report.runs_on_earlier_versions)}</div>
+      ) : null}
+
+      {/* Only when the two disagree, which is only on answers given before one answer
+          per person was enforced. Said here rather than left as a discrepancy between
+          two numbers on the same page. */}
+      {report.runs_total > report.people_started ? (
+        <div className="notice">
+          {msg.report.moreRunsThanPeople(report.runs_total, report.people_started)}
+        </div>
       ) : null}
 
       {report.runs_total === 0 ? <div className="muted">{msg.report.nobodyYet}</div> : null}

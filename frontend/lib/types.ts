@@ -207,9 +207,20 @@ export interface DashboardRow {
   completed: number;
   in_progress: number;
   abandoned: number;
+  /** People rather than runs: how many this survey is for, and how many of them have
+   *  opened and finished it. Kept beside the run counts rather than replacing them,
+   *  because "how is this going" and "how many of the people it was for have answered"
+   *  are different questions. */
+  reach: number;
+  people_started: number;
+  people_completed: number;
   last_started_at: string | null;
   last_completed_at: string | null;
   completion_rate: number | null;
+  /** Of the people this survey is for, how many finished. Null when it is aimed at
+   *  nobody. Can exceed 1: an author testing their own survey answers it without being
+   *  in its audience, which is reported rather than hidden. */
+  response_rate: number | null;
 }
 
 /** One row of a select question's tally. `label` is the option as the author wrote it,
@@ -242,6 +253,9 @@ export interface SurveyReport {
   version: number;
   runs_total: number;
   runs_completed: number;
+  reach: number;
+  people_started: number;
+  people_completed: number;
   /** Answered against an earlier published version, so counted apart rather than folded
    *  in: their questions are not these questions. */
   runs_on_earlier_versions: number;

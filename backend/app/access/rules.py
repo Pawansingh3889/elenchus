@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from typing import Final
 from uuid import UUID
 
 from app.templates.enums import SurveyAudience
@@ -122,6 +123,31 @@ def may_answer(
     if _owns(user, created_by):
         return AccessDecision(True, "author of this survey")
     return AccessDecision(False, f"this survey is for the {wanted.value} team")
+
+
+# A created_by that can match no user, so `may_answer`'s owner branch cannot fire. Named
+# once here rather than invented per call site, which is how the second caller invents a
+# slightly different one.
+NOBODY: Final[UUID] = UUID(int=0)
+
+
+def in_audience(user: User, audience: SurveyAudience | None) -> AccessDecision:
+    """Whether this user is one of the people a survey was written *for*.
+
+    `may_answer` with both escape hatches shut: not the author testing their own survey,
+    not an admin. Those two are how a survey gets answered by someone it was not aimed
+    at, which is exactly what a denominator must not count.
+
+    Deliberately a call to the rule rather than a copy of it. The audience question is
+    asked in two places now, and the second must not be a paraphrase in SQL that drifts
+    from this one with nothing to catch it: the guard in check_access_consulted.py checks
+    that the question was asked, never that it was asked correctly.
+
+    Do not refactor this and `may_answer` to share a core. `may_answer` refuses
+    non-authors and department-less authors *before* it consults `admin`, and hoisting
+    that order would quietly let a respondent-role admin through.
+    """
+    return may_answer(user, audience, NOBODY, admin=False)
 
 
 def may_read_rows(user: User, created_by: UUID, admin: bool) -> AccessDecision:

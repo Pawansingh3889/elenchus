@@ -6,6 +6,8 @@ survey nobody has answered has to appear, because an outer join is easy to get w
 way that silently hides exactly the surveys an author is most likely to be checking on.
 """
 
+import pytest
+
 from app.conduct.engine import ConductEngine
 from app.runs.service import ResultsService
 from app.templates.enums import AnswerType, TemplateStatus
@@ -14,6 +16,9 @@ from app.templates.service import TemplateService
 from tests.fakes import FakeLLM
 from tests.fakes import move_on as _move_on
 from tests.fakes import record as _record
+
+move_on = _move_on
+record = _record
 
 
 async def test_a_survey_nobody_has_answered_still_appears(session, author, published):
@@ -81,3 +86,37 @@ async def test_a_draft_that_was_never_published_is_listed(session, author, publi
     draft = next(r for r in rows if r.title == "Still a draft")
     assert draft.started == 0
     assert draft.status is TemplateStatus.draft
+
+
+async def test_the_dashboard_counts_people_as_well_as_runs(
+    session, author, respondent, other_respondent, published
+):
+    """Two questions, two numbers. Runs answer "how is this going"; people answer "how
+    many of the people it was for have answered", and one respondent with four runs read
+    as four people until the engine started refusing a second."""
+    for who in (respondent, other_respondent):
+        run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, who)
+        for answer in ("line lead", 4):
+            run = await ConductEngine(
+                session, llm=FakeLLM(record(answer), move_on())
+            ).handle_message(run.id, str(answer), who)
+
+    row = next(r for r in await ResultsService(session).dashboard(author) if r.id == published.id)
+
+    assert (row.started, row.completed) == (2, 2)
+    assert (row.people_started, row.people_completed) == (2, 2)
+    # The audience is every respondent that exists, which here is the two who answered.
+    assert row.reach == 2
+    assert row.response_rate == pytest.approx(1.0)
+
+
+async def test_a_survey_aimed_at_nobody_has_no_rate(session, author, published):
+    """None rather than 0. A survey aimed at a team with nobody in it has no response
+    rate, and 0% would read as everyone refusing rather than as nobody being asked.
+
+    This survey is aimed at respondents and no respondent exists in this test, so the
+    empty audience is real rather than constructed."""
+    row = next(r for r in await ResultsService(session).dashboard(author) if r.id == published.id)
+
+    assert row.reach == 0
+    assert row.response_rate is None

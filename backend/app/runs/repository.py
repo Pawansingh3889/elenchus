@@ -3,7 +3,7 @@
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Row, func, select
+from sqlalchemy import Row, distinct, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -49,6 +49,15 @@ class ResultsRepository:
         completed = func.count(SurveyRun.id).filter(SurveyRun.status == RunStatus.completed)
         in_progress = func.count(SurveyRun.id).filter(SurveyRun.status == RunStatus.in_progress)
         abandoned = func.count(SurveyRun.id).filter(SurveyRun.status == RunStatus.abandoned)
+        # People, alongside runs. The counts above are of *runs*, which is the right
+        # answer to "how is this survey going" and the wrong one to "how many of the
+        # people it was for have answered": one respondent with four runs read as four
+        # people until the engine started refusing a second. `respondent_id` is already
+        # on the run row, so this needs no join and cannot fan the run counts out.
+        people_started = func.count(distinct(SurveyRun.respondent_id))
+        people_completed = func.count(distinct(SurveyRun.respondent_id)).filter(
+            SurveyRun.status == RunStatus.completed
+        )
 
         stmt = (
             select(
@@ -57,6 +66,8 @@ class ResultsRepository:
                 completed.label("completed"),
                 in_progress.label("in_progress"),
                 abandoned.label("abandoned"),
+                people_started.label("people_started"),
+                people_completed.label("people_completed"),
                 func.max(SurveyRun.started_at).label("last_started_at"),
                 func.max(SurveyRun.completed_at).label("last_completed_at"),
             )
