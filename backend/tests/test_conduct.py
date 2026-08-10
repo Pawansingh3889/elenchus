@@ -1403,3 +1403,112 @@ async def test_the_setting_is_frozen_at_publish(session, author, respondent):
     briefing = llm.briefings[0]
     assert "held on ice at 0 to 2 degrees" in briefing
     assert "Completely different workplace" not in briefing
+
+
+_PLANT_CONFIG = (
+    "Chilled fish processing plant, BRCGS certified. Fresh fish is held on ice at 0 to 2 "
+    "degrees; above that is a chill-chain problem. Respondents are line leaders."
+)
+
+
+@pytest.fixture
+def deployment_setting(monkeypatch):
+    """The workplace as deployment config, the way a real install supplies it."""
+    from app.config import get_settings
+
+    monkeypatch.setenv("SURVEY_SETTING", _PLANT_CONFIG)
+    get_settings.cache_clear()
+    yield _PLANT_CONFIG
+    monkeypatch.delenv("SURVEY_SETTING", raising=False)
+    get_settings.cache_clear()
+
+
+async def test_the_deployment_setting_reaches_the_interviewer(
+    session, author, respondent, deployment_setting
+):
+    """The plant does not change between surveys, so asking every author to retype it is
+    how it ends up wrong on half of them. Configured once, it reaches every survey
+    published here without an author writing anything."""
+    published = await _published_with_setting(session, author, None)
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    llm = FakeLLM(_record("temperature"), _move_on())
+    await ConductEngine(session, llm=llm).handle_message(run.id, "tempereture", respondent)
+
+    briefing = llm.briefings[0]
+    assert "THE SETTING" in briefing
+    assert "held on ice at 0 to 2" in briefing
+
+
+async def test_a_surveys_own_setting_beats_the_deployments(
+    session, author, respondent, deployment_setting
+):
+    """The deployment default answers "most surveys"; it does not overrule the author who
+    took the trouble to describe something different."""
+    published = await _published_with_setting(session, author, "A dry goods warehouse.")
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    llm = FakeLLM(_record("paperwork"), _move_on())
+    await ConductEngine(session, llm=llm).handle_message(run.id, "paperwork", respondent)
+
+    briefing = llm.briefings[0]
+    assert "A dry goods warehouse." in briefing
+    assert "held on ice" not in briefing
+
+
+async def test_the_deployment_setting_is_frozen_at_publish(
+    session, author, respondent, monkeypatch
+):
+    """Editing the deployment's description must not change how answers already being
+    given are read, for the same reason editing the draft does not."""
+    from app.config import get_settings
+
+    monkeypatch.setenv("SURVEY_SETTING", _PLANT_CONFIG)
+    get_settings.cache_clear()
+    published = await _published_with_setting(session, author, None)
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+
+    monkeypatch.setenv("SURVEY_SETTING", "Somewhere else entirely.")
+    get_settings.cache_clear()
+
+    llm = FakeLLM(_record("temperature"), _move_on())
+    await ConductEngine(session, llm=llm).handle_message(run.id, "tempereture", respondent)
+
+    briefing = llm.briefings[0]
+    assert "held on ice at 0 to 2" in briefing
+    assert "Somewhere else" not in briefing
+    monkeypatch.delenv("SURVEY_SETTING", raising=False)
+    get_settings.cache_clear()
+
+
+async def test_the_deployment_setting_is_never_said_to_the_respondent(
+    session, author, respondent, deployment_setting
+):
+    """It is written for the interviewer. Asserted rather than assumed, because this is
+    the one that matters: the plant's own description is not a thing to read out to the
+    people working in it."""
+    published = await _published_with_setting(session, author, None)
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    llm = FakeLLM(_record("temperature"), _move_on())
+    run = await ConductEngine(session, llm=llm).handle_message(run.id, "tempereture", respondent)
+
+    spoken = " ".join(m.content for m in run.messages)
+    assert "BRCGS" not in spoken
+    assert "held on ice" not in spoken
+
+
+async def test_no_deployment_setting_means_no_setting(session, author, respondent):
+    """The common case for anyone who is not this plant. An empty config is not a setting,
+    and an empty heading announcing one that follows and then does not is worse."""
+    published = await _published_with_setting(session, author, None)
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    llm = FakeLLM(_record("paperwork"), _move_on())
+    await ConductEngine(session, llm=llm).handle_message(run.id, "paperwork", respondent)
+
+    assert "THE SETTING" not in llm.briefings[0]
