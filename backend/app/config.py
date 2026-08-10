@@ -134,6 +134,23 @@ class Settings(BaseSettings):
         """The allowlist as a set, case-folded, with blanks and stray spaces dropped."""
         return frozenset(e.strip().casefold() for e in self.admin_emails.split(",") if e.strip())
 
+    # What the interviewer should know about this workplace, for every survey published
+    # from this deployment. A survey may still carry its own, and that wins; this is the
+    # answer to "the plant does not change between surveys", which is why it is
+    # deployment config rather than a box on every draft.
+    #
+    # It is background for reading answers, never spoken to a respondent and never an
+    # instruction: the conduct prompt says so, and treats it as data exactly as it treats
+    # a respondent's message. Standards vocabulary belongs here (cold chain, batch codes,
+    # HACCP, BRCGS) because it decides whether a reply is specific or vague, and no gate
+    # can settle that. It does not make anything compliant with anything; it makes the
+    # interviewer able to tell a chill-chain breach from a digression.
+    survey_setting: str = Field(
+        "",
+        description="Background about the workplace for the conducting AI, used by every "
+        "survey published here that does not carry its own. Never shown to respondents.",
+    )
+
     app_env: str = Field("dev", description="dev | prod")
     frontend_origin: str = Field(
         "http://localhost:3000", description="Allowed CORS origin for the browser app"

@@ -13,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.access import is_admin_by_config, may_answer, may_list
+from app.config import get_settings
 from app.errors import ConflictError, NotFoundError
 from app.templates.enums import TemplateStatus
 from app.templates.estimate import estimated_minutes
@@ -190,7 +191,13 @@ def _snapshot(template: SurveyTemplate) -> dict[str, Any]:
         "description": template.description,
         # Frozen with the questions: a run is conducted against the setting the
         # author published, not whatever the draft says by the time it is answered.
-        "setting": template.setting,
+        #
+        # Falls back to the deployment's own, because the plant does not change between
+        # surveys and asking every author to retype it is how it ends up wrong on half
+        # of them. Frozen here rather than read at conduct time for the same reason the
+        # questions are: editing the deployment's description must not change how answers
+        # already being given are read. A survey that carries its own keeps it.
+        "setting": template.setting or get_settings().survey_setting or None,
         "questions": [
             {
                 "id": str(q.id),
