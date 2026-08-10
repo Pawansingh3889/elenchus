@@ -7,6 +7,7 @@ import type {
   RunDetail,
   RunSummary,
   RunSummaryContent,
+  SurveyReport,
   Template,
   TemplateSummary,
   TemplateVersion,
@@ -135,6 +136,7 @@ export const api = {
   listUsers: () => request<User[]>("/users"),
   listTemplates: () => request<TemplateSummary[]>("/templates"),
   dashboard: () => request<DashboardRow[]>("/dashboard"),
+  report: (id: string) => request<SurveyReport>(`/templates/${id}/report`),
   getTemplate: (id: string) => request<Template>(`/templates/${id}`),
   createTemplate: (data: TemplateWrite) =>
     request<Template>("/templates", { method: "POST", body: JSON.stringify(data) }),

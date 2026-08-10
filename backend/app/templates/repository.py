@@ -59,6 +59,21 @@ class TemplateRepository:
     def add_version(self, version: SurveyTemplateVersion) -> None:
         self.session.add(version)
 
+    async def latest_version(self, template_id: UUID) -> SurveyTemplateVersion | None:
+        """The newest published version, or None for a survey never published.
+
+        ``conduct`` has its own copy of this query, and deliberately: it reads versions
+        to conduct a run and owns that read. This one serves the report, which counts
+        answers against the questions as they are published now.
+        """
+        stmt = (
+            select(SurveyTemplateVersion)
+            .where(SurveyTemplateVersion.template_id == template_id)
+            .order_by(SurveyTemplateVersion.version.desc())
+            .limit(1)
+        )
+        return (await self.session.execute(stmt)).scalar_one_or_none()
+
     async def list_published_latest(self) -> list[tuple[SurveyTemplate, dict[str, Any]]]:
         """Published surveys with the definition a respondent would actually be asked.
 

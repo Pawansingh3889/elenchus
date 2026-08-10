@@ -161,6 +161,13 @@ export default function Home() {
             </Link>
             <div className="template-row-actions">
               <span className={`pill pill-${r.status}`}>{r.status}</span>
+              {/* Only where there is something to report on: a draft has no published
+                  version to count against, and the page would only say so. */}
+              {r.started > 0 ? (
+                <Link href={`/templates/${r.id}/report`} className="btn btn-secondary">
+                  {home.report}
+                </Link>
+              ) : null}
               {/* Only a published survey can be closed, which is the same rule the
                   service enforces. Offering it on a draft would be offering a 409. */}
               {r.status === "published" ? (

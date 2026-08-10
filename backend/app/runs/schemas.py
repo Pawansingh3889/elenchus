@@ -11,7 +11,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
-from app.templates.enums import TemplateStatus
+from app.templates.enums import AnswerType, TemplateStatus
 
 
 class MessageRead(BaseModel):
@@ -88,3 +88,53 @@ class DashboardRow(BaseModel):
         "no answer yet" honestly, where 0.0 would read as "everyone abandoned".
         """
         return self.completed / self.started if self.started else None
+
+
+class OptionCount(BaseModel):
+    """One row of a select question's tally. `label` is the option as the author wrote
+    it, or the respondent's own words for a write-in."""
+
+    label: str
+    count: int
+    write_in: bool = False
+
+
+class QuestionReport(BaseModel):
+    """One question, as the whole survey answered it.
+
+    `answered` counts the runs that gave a usable answer; `declined` counts the ones the
+    engine recorded as unanswerable. They are reported apart because a question everyone
+    skipped and a question nobody reached are different findings, and averaging over the
+    wrong denominator is how a survey gets quoted wrongly.
+    """
+
+    id: UUID
+    position: int
+    text: str
+    answer_type: AnswerType
+    answered: int
+    declined: int
+    # Selects, yes/no and ratings: the tally, in the author's option order, write-ins last.
+    counts: list[OptionCount] = Field(default_factory=list)
+    # Ratings and numbers only. None when nobody answered, rather than 0, which would
+    # read as everyone scoring zero.
+    average: float | None = None
+    # Free text and write-ins, verbatim and in full. Counted on the page, shown on click:
+    # nothing here is grouped or characterised, because that is a judgement about what
+    # someone meant and this page is the numbers.
+    verbatim: list[str] = Field(default_factory=list)
+
+
+class SurveyReport(BaseModel):
+    """What the survey found, question by question."""
+
+    template_id: UUID
+    title: str
+    version: int
+    runs_total: int
+    runs_completed: int
+    # Runs answered against an earlier published version. Their questions are not these
+    # questions, so their answers are not counted here rather than being folded in and
+    # quietly changing what a number means. Named so the omission is visible.
+    runs_on_earlier_versions: int
+    questions: list[QuestionReport]

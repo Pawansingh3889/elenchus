@@ -10,6 +10,7 @@ import pytest
 
 from app.conduct.engine import ConductEngine
 from app.errors import NotFoundError
+from app.llm.client import ToolTurn
 from app.runs.enums import AnswerKind, RunStatus
 from app.runs.models import REPLY_PREFIX
 from app.runs.service import ResultsService
@@ -287,3 +288,157 @@ async def test_structured_export_is_scoped_to_the_owning_author(
     await _answer_first(session, run, respondent)
     with pytest.raises(NotFoundError):
         await ResultsService(session).export_structured(published.id, other_author)
+
+
+async def _reportable(session, author):
+    """A published survey with one question of each shape the report tallies."""
+    svc = TemplateService(session)
+    template = await svc.create_draft(
+        TemplateCreate(
+            title="Hygiene on the floor",
+            questions=[
+                QuestionInput(
+                    text="Which aspects need improvement?",
+                    answer_type=AnswerType.multi_select,
+                    options=["Cleaning", "Waste", "PPE"],
+                    allow_other=True,
+                ),
+                QuestionInput(
+                    text="Are practices followed consistently?", answer_type=AnswerType.yes_no
+                ),
+                QuestionInput(text="Rate the hygiene overall", answer_type=AnswerType.rating),
+            ],
+        ),
+        author,
+    )
+    await svc.publish(template.id, author)
+    return template
+
+
+async def _answer_all(session, template, respondent, values):
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(template.id, respondent)
+    for value in values:
+        llm = FakeLLM(record(value), move_on())
+        run = await ConductEngine(session, llm=llm).handle_message(run.id, str(value), respondent)
+    return run
+
+
+async def test_the_report_tallies_every_question(session, author, respondent, other_respondent):
+    """The question a survey is run to answer, which nothing here could answer before:
+    what did people say. The dashboard counts runs and the results page shows one person
+    at a time; an author with forty respondents opened forty runs or a spreadsheet."""
+    template = await _reportable(session, author)
+    await _answer_all(session, template, respondent, [["Cleaning", "Waste"], True, 4])
+    await _answer_all(session, template, other_respondent, [["Cleaning"], False, 2])
+
+    report = await ResultsService(session).report(template.id, author)
+
+    assert report.runs_total == 2
+    aspects, consistent, rated = report.questions
+    # The author's order, and every option present: a zero is a finding, a missing row
+    # reads as an option nobody was offered.
+    assert [(c.label, c.count) for c in aspects.counts] == [
+        ("Cleaning", 2),
+        ("Waste", 1),
+        ("PPE", 0),
+    ]
+    assert [(c.label, c.count) for c in consistent.counts] == [("yes", 1), ("no", 1)]
+    assert rated.average == 3.0
+    assert [(c.label, c.count) for c in rated.counts if c.count] == [("2", 1), ("4", 1)]
+
+
+async def test_a_write_in_is_counted_and_kept_verbatim(session, author, respondent):
+    """The part the option list could not anticipate. Counted as its own row rather than
+    folded into an option, and kept word for word rather than grouped: what someone meant
+    is a judgement, and this page is the numbers."""
+    template = await _reportable(session, author)
+    await _answer_all(
+        session, template, respondent, [["Cleaning", "drains blocked again"], True, 3]
+    )
+
+    aspects = (await ResultsService(session).report(template.id, author)).questions[0]
+
+    write_ins = [c for c in aspects.counts if c.write_in]
+    assert [(c.label, c.count) for c in write_ins] == [("drains blocked again", 1)]
+    assert aspects.verbatim == ["drains blocked again"]
+
+
+async def test_a_declined_question_is_counted_apart_from_an_answered_one(
+    session, author, respondent
+):
+    """A question everyone skipped and a question nobody reached are different findings,
+    and averaging over the wrong denominator is how a survey gets quoted wrongly."""
+    template = await _reportable(session, author)
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(template.id, respondent)
+    declining = FakeLLM(
+        ToolTurn(
+            text="No problem.",
+            tool_name="flag_unanswerable",
+            tool_input={"reason": "would rather not say"},
+        )
+    )
+    await ConductEngine(session, llm=declining).handle_message(run.id, "pass", respondent)
+
+    aspects = (await ResultsService(session).report(template.id, author)).questions[0]
+    assert (aspects.answered, aspects.declined) == (0, 1)
+    assert all(c.count == 0 for c in aspects.counts)
+
+
+async def test_runs_against_an_older_version_are_excluded_and_counted(
+    session, author, respondent, other_respondent
+):
+    """A republish gives every question a new id, so those answers are not answers to
+    these questions. Folding them in would quietly change what a number means, so they
+    are left out and the omission is put on the page."""
+    template = await _reportable(session, author)
+    await _answer_all(session, template, respondent, [["Cleaning"], True, 5])
+
+    svc = TemplateService(session)
+    draft = await svc.get_draft(template.id, author)
+    await svc.update_draft(
+        template.id,
+        update_of(
+            draft,
+            questions=[
+                QuestionInput(
+                    text="Which aspects need improvement?",
+                    answer_type=AnswerType.multi_select,
+                    options=["Cleaning", "Waste", "PPE"],
+                    allow_other=True,
+                )
+            ],
+        ),
+        author,
+    )
+    await svc.publish(template.id, author)
+    await _answer_all(session, template, other_respondent, [["PPE"]])
+
+    report = await ResultsService(session).report(template.id, author)
+    assert report.version == 2
+    assert report.runs_total == 2
+    assert report.runs_on_earlier_versions == 1
+    assert [(c.label, c.count) for c in report.questions[0].counts] == [
+        ("Cleaning", 0),
+        ("Waste", 0),
+        ("PPE", 1),
+    ]
+
+
+async def test_a_report_needs_a_published_version(session, author):
+    """An unpublished draft has no frozen questions to count against, and inventing an
+    empty report would read as a survey nobody answered rather than one never asked."""
+    template = await TemplateService(session).create_draft(
+        TemplateCreate(
+            title="Not published",
+            questions=[QuestionInput(text="q", answer_type=AnswerType.yes_no)],
+        ),
+        author,
+    )
+    with pytest.raises(NotFoundError):
+        await ResultsService(session).report(template.id, author)
+
+
+async def test_the_report_is_scoped_to_the_owning_author(session, author, other_author):
+    template = await _reportable(session, author)
+    with pytest.raises(NotFoundError):
+        await ResultsService(session).report(template.id, other_author)
