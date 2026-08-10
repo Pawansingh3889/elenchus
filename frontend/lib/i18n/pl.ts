@@ -105,6 +105,8 @@ export const pl: Messages = {
     pickUser: "Wybierz użytkownika na górnym pasku, aby kontynuować tę ankietę.",
     answerPlaceholder: "Wpisz swoją odpowiedź…",
     send: "Wyślij",
+    confirm: "Potwierdź",
+    andWhatYouTyped: "i to, co wpisałeś",
     finishLater: "Dokończ później",
     finishLaterHint: "Dotychczasowe odpowiedzi są zapisane; wrócisz do miejsca, w którym skończyłeś.",
     editPrevious: "Popraw moją poprzednią odpowiedź",

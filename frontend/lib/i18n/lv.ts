@@ -105,6 +105,8 @@ export const lv: Messages = {
     pickUser: "Izvēlieties lietotāju augšējā joslā, lai turpinātu šo aptauju.",
     answerPlaceholder: "Ierakstiet savu atbildi…",
     send: "Sūtīt",
+    confirm: "Apstiprināt",
+    andWhatYouTyped: "un to, ko ierakstījāt",
     finishLater: "Pabeigt vēlāk",
     finishLaterHint: "Līdzšinējās atbildes ir saglabātas; turpiniet no vietas, kur beidzāt.",
     editPrevious: "Labot manu iepriekšējo atbildi",

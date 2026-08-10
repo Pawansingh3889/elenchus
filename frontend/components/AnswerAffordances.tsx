@@ -12,10 +12,15 @@ import type { CurrentQuestion } from "@/lib/types";
 export function AnswerAffordances({
   question,
   disabled,
+  pending,
   onAnswer,
 }: {
   question: CurrentQuestion;
   disabled: boolean;
+  /** Whatever is currently typed in the composer below. A multi_select answer can be
+   *  options AND something the list did not anticipate, so Confirm sends both rather
+   *  than making the respondent choose which half of their answer to keep. */
+  pending: string;
   onAnswer: (text: string) => void;
 }) {
   const msg = useT();
@@ -67,6 +72,14 @@ export function AnswerAffordances({
       setPicked((current) =>
         current.includes(option) ? current.filter((o) => o !== option) : [...current, option],
       );
+    // Chips and composer are one answer, not two competing ones. Confirm used to send
+    // only the chips and Send only the text, so a respondent who ticked two options and
+    // typed a third thing lost whichever half they did not submit with. The engine has
+    // always been able to store both: validate_answer sorts each value into the option
+    // list or the write-ins, and a multi_select value carries `options` and `other`
+    // together.
+    const writeIn = question.allow_other ? pending.trim() : "";
+    const parts = [...picked, ...(writeIn ? [writeIn] : [])];
     return (
       <div className="afford">
         {question.options.map((option) => (
@@ -81,11 +94,16 @@ export function AnswerAffordances({
         ))}
         <button
           className="btn btn-secondary"
-          disabled={disabled || picked.length === 0}
-          onClick={() => onAnswer(picked.join(", "))}
+          disabled={disabled || parts.length === 0}
+          onClick={() => onAnswer(parts.join(", "))}
         >
-          Confirm {picked.length ? `(${picked.length})` : ""}
+          {msg.run.confirm} {parts.length ? `(${parts.length})` : ""}
         </button>
+        {writeIn ? (
+          // Said out loud, because the count silently going up by one is not enough to
+          // tell someone their typed words are about to be sent with their ticks.
+          <span className="afford-hint">{msg.run.andWhatYouTyped}</span>
+        ) : null}
       </div>
     );
   }

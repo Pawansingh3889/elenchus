@@ -105,6 +105,8 @@ export const ro: Messages = {
     pickUser: "Alege un utilizator din bara de sus pentru a continua acest sondaj.",
     answerPlaceholder: "Scrie răspunsul tău…",
     send: "Trimite",
+    confirm: "Confirmă",
+    andWhatYouTyped: "și ce ați scris",
     finishLater: "Termină mai târziu",
     finishLaterHint: "Răspunsurile de până acum sunt salvate; continuă de unde ai rămas.",
     editPrevious: "Modifică răspunsul anterior",

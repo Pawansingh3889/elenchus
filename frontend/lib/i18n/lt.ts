@@ -105,6 +105,8 @@ export const lt: Messages = {
     pickUser: "Pasirinkite naudotoją viršutinėje juostoje, kad tęstumėte šią apklausą.",
     answerPlaceholder: "Įrašykite savo atsakymą…",
     send: "Siųsti",
+    confirm: "Patvirtinti",
+    andWhatYouTyped: "ir tai, ką įrašėte",
     finishLater: "Baigti vėliau",
     finishLaterHint: "Iki šiol pateikti atsakymai įrašyti; tęskite nuo tos vietos, kur baigėte.",
     editPrevious: "Taisyti ankstesnį atsakymą",

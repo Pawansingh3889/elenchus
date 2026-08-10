@@ -99,6 +99,8 @@ export const fil: Messages = {
     pickUser: "Pumili ng user sa itaas para ipagpatuloy ang survey na ito.",
     answerPlaceholder: "I-type ang iyong sagot…",
     send: "Ipadala",
+    confirm: "Kumpirmahin",
+    andWhatYouTyped: "at ang iyong tinipa",
     finishLater: "Tapusin mamaya",
     finishLaterHint: "Naka-save ang iyong mga sagot; magpatuloy kung saan ka tumigil.",
     editPrevious: "I-edit ang nakaraang sagot ko",
