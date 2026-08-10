@@ -127,7 +127,9 @@ export const fil: Messages = {
     answeredBy: (n: number) => `${n} ang sumagot`,
     declinedBy: (n: number) => `${n} ang tumanggi`,
     average: (v: string) => `average ${v}`,
+    probedBy: (n: number) => `${n} ang sinundan`,
     inTheirWords: (n: number) => `Sa sarili nilang salita (${n})`,
+    whatProbesFound: (n: number) => `Ang nakuha sa follow-up (${n})`,
     earlierVersions: (n: number) => `${n} sagot ang para sa naunang bersyon at hindi kasama dito: magkaibang tanong iyon.`,
   },
   results: {

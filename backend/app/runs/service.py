@@ -265,6 +265,12 @@ class ResultsService:
         # Scripted answers only. A follow-up answers a question the model wrote, not the
         # author's, so counting them here would tally answers to questions nobody chose.
         answers: dict[str, list[dict[str, Any]]] = {q["id"]: [] for q in questions}
+        # The probes, kept beside the tallies rather than dropped. They were discarded
+        # here until now, which left the elaboration an author most wants to read visible
+        # only in the export and one run at a time: a survey that asked "have you reported
+        # this?" could show four yeses and nothing about what happened next.
+        probes: dict[str, list[dict[str, Any]]] = {q["id"]: [] for q in questions}
+        probed_runs: dict[str, set[UUID]] = {q["id"]: set() for q in questions}
         runs_total = runs_completed = on_earlier = 0
         # People as well as runs, from rows already loaded. A run count answers "how much
         # material is there"; a person count answers "how many of the people this was for
@@ -282,11 +288,14 @@ class ResultsService:
                 on_earlier += 1
                 continue
             for answer in run.answers:
-                if answer.kind is not AnswerKind.scripted:
-                    continue
                 key = str(answer.question_id)
-                if key in answers:
+                if key not in answers:
+                    continue
+                if answer.kind is AnswerKind.scripted:
                     answers[key].append(answer.value)
+                else:
+                    probes[key].append(answer.value)
+                    probed_runs[key].add(run.id)
 
         return SurveyReport(
             template_id=template.id,
@@ -298,7 +307,10 @@ class ResultsService:
             people_started=len(people_started),
             people_completed=len(people_completed),
             runs_on_earlier_versions=on_earlier,
-            questions=[_report_question(q, answers[q["id"]]) for q in questions],
+            questions=[
+                _report_question(q, answers[q["id"]], probes[q["id"]], len(probed_runs[q["id"]]))
+                for q in questions
+            ],
         )
 
     async def _owned_or_404(self, template_id: UUID, author: User) -> SurveyTemplate:
@@ -321,12 +333,21 @@ class ResultsService:
         return template
 
 
-def _report_question(question: dict[str, Any], values: list[dict[str, Any]]) -> QuestionReport:
+def _report_question(
+    question: dict[str, Any],
+    values: list[dict[str, Any]],
+    probe_values: list[dict[str, Any]],
+    probed: int,
+) -> QuestionReport:
     """One question's tally, from the raw stored values.
 
     Shape by shape rather than through ``flatten_answer``, which exists to make one
     printable cell and would have "yes" and a write-in reading "yes" land in the same
     bucket. Counting is where that distinction matters most.
+
+    ``probe_values`` are the follow-up answers, and they are printed rather than counted.
+    Their shape is whatever the model's own question called for, so they belong to no
+    option list and no scale, and every number below is computed without them.
     """
     answered = [v for v in values if "unanswerable" not in v]
     declined = len(values) - len(answered)
@@ -386,6 +407,11 @@ def _report_question(question: dict[str, Any], values: list[dict[str, Any]]) -> 
         counts=counts,
         average=average,
         verbatim=verbatim,
+        # A declined probe is not words the respondent said, so it is left out on the
+        # same rule the tallies use. `probed` still counts the run: the question was
+        # asked, and "asked and declined" is a finding.
+        follow_ups=[flatten_answer(v) for v in probe_values if "unanswerable" not in v],
+        probed=probed,
     )
 
 

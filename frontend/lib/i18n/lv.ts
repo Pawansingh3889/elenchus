@@ -133,7 +133,9 @@ export const lv: Messages = {
     answeredBy: (n: number) => `${n} atbildēja`,
     declinedBy: (n: number) => `${n} atteicās`,
     average: (v: string) => `vidēji ${v}`,
+    probedBy: (n: number) => `${n} precizēti`,
     inTheirWords: (n: number) => `Viņu vārdiem (${n})`,
+    whatProbesFound: (n: number) => `Ko atklāja precizējošie jautājumi (${n})`,
     earlierVersions: (n: number) => `${n} atbildes attiecas uz agrāku versiju un šeit netiek skaitītas: tie bija citi jautājumi.`,
   },
   results: {

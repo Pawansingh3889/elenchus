@@ -133,7 +133,9 @@ export const es: Messages = {
     answeredBy: (n: number) => `${n} respondieron`,
     declinedBy: (n: number) => `${n} declinaron`,
     average: (v: string) => `media ${v}`,
+    probedBy: (n: number) => `${n} con repregunta`,
     inTheirWords: (n: number) => `En sus palabras (${n})`,
+    whatProbesFound: (n: number) => `Lo que revelaron las repreguntas (${n})`,
     earlierVersions: (n: number) => `${n} respuesta${n === 1 ? "" : "s"} corresponden a una versión anterior y no se cuentan aquí: eran otras preguntas.`,
   },
   results: {

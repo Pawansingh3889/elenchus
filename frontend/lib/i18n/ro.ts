@@ -133,7 +133,9 @@ export const ro: Messages = {
     answeredBy: (n: number) => `${n} au răspuns`,
     declinedBy: (n: number) => `${n} au refuzat`,
     average: (v: string) => `medie ${v}`,
+    probedBy: (n: number) => `${n} cu întrebări suplimentare`,
     inTheirWords: (n: number) => `În cuvintele lor (${n})`,
+    whatProbesFound: (n: number) => `Ce au scos la iveală întrebările suplimentare (${n})`,
     earlierVersions: (n: number) => `${n} răspunsuri sunt pentru o versiune anterioară și nu sunt numărate aici: acelea erau alte întrebări.`,
   },
   results: {

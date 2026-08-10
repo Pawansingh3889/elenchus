@@ -245,6 +245,11 @@ export interface QuestionReport {
   average: number | null;
   /** Free text and write-ins, verbatim and in full. Counted on the page, shown on click. */
   verbatim: string[];
+  /** What the probes drew out. Never in `counts` or `average`: a follow-up answers a
+   *  question the model wrote, so it belongs to no option list and no scale. */
+  follow_ups: string[];
+  /** Runs probed on this question, not probes asked, so it reads against `answered`. */
+  probed: number;
 }
 
 export interface SurveyReport {

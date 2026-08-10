@@ -141,7 +141,9 @@ export const en = {
     answeredBy: (n: number) => `${n} answered`,
     declinedBy: (n: number) => `${n} declined`,
     average: (v: string) => `average ${v}`,
+    probedBy: (n: number) => `${n} probed`,
     inTheirWords: (n: number) => `In their words (${n})`,
+    whatProbesFound: (n: number) => `What follow-ups drew out (${n})`,
     earlierVersions: (n: number) => `${n} response${n === 1 ? "" : "s"} answered an earlier version of this survey and are not counted here: those were different questions.`,
   },
   results: {

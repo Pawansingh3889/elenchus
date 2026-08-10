@@ -133,7 +133,9 @@ export const lt: Messages = {
     answeredBy: (n: number) => `${n} atsakė`,
     declinedBy: (n: number) => `${n} atsisakė`,
     average: (v: string) => `vidurkis ${v}`,
+    probedBy: (n: number) => `${n} patikslinta`,
     inTheirWords: (n: number) => `Jų žodžiais (${n})`,
+    whatProbesFound: (n: number) => `Ką atskleidė patikslinamieji klausimai (${n})`,
     earlierVersions: (n: number) => `${n} atsakymai skirti ankstesnei versijai ir čia neskaičiuojami: tai buvo kiti klausimai.`,
   },
   results: {

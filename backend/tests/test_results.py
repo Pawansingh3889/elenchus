@@ -424,6 +424,85 @@ async def test_runs_against_an_older_version_are_excluded_and_counted(
     ]
 
 
+async def test_the_report_shows_what_a_probe_drew_out(session, author, respondent, published):
+    """The report counted scripted answers and discarded every follow-up, so the part of
+    the conversation an author most wants to read was visible only in the export and one
+    run at a time. A live survey asked eight people whether they had reported a heat
+    problem: four said yes, and the page could say nothing about what happened next."""
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    probing = FakeLLM(follow_up("What does that involve day to day?", "Line lead"))
+    run = await ConductEngine(session, llm=probing).handle_message(run.id, "line lead", respondent)
+    elaborating = FakeLLM(record("stock counts and rotas, mostly"), move_on())
+    run = await ConductEngine(session, llm=elaborating).handle_message(
+        run.id, "stock counts and rotas, mostly", respondent
+    )
+    await ConductEngine(session, llm=FakeLLM(record(4), move_on())).handle_message(
+        run.id, "4", respondent
+    )
+
+    role, rated = (await ResultsService(session).report(published.id, author)).questions
+
+    assert role.verbatim == ["Line lead"]  # the scripted answer, as before
+    assert role.follow_ups == ["stock counts and rotas, mostly"]
+    assert role.answered == 1
+    assert role.probed == 1
+    # Counting runs, not probes, so it reads against `answered` on the same scale.
+    assert rated.probed == 0
+    assert rated.follow_ups == []
+
+
+async def test_a_follow_up_never_joins_the_tally(session, author, respondent, published_yes_no):
+    """A probe answers a question the model wrote, in whatever shape that question needed.
+    On a yes/no it comes back as prose, and letting it near `counts` would invent a third
+    row in a two-row tally."""
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(published_yes_no.id, respondent)
+    probing = FakeLLM(follow_up("Which issues have you hit?", True))
+    run = await ConductEngine(session, llm=probing).handle_message(run.id, "yes", respondent)
+    elaborating = FakeLLM(record("the scanner keeps dropping out"), move_on())
+    run = await ConductEngine(session, llm=elaborating).handle_message(
+        run.id, "the scanner keeps dropping out", respondent
+    )
+    await ConductEngine(session, llm=FakeLLM(record(3), move_on())).handle_message(
+        run.id, "3", respondent
+    )
+
+    issues, rated = (await ResultsService(session).report(published_yes_no.id, author)).questions
+
+    assert [(c.label, c.count) for c in issues.counts] == [("yes", 1), ("no", 0)]
+    assert issues.follow_ups == ["the scanner keeps dropping out"]
+    assert issues.probed == 1
+    # The probe is prose on a rated question elsewhere in the survey too: no average moves.
+    assert rated.average == 3.0
+
+
+async def test_a_declined_probe_is_counted_but_not_quoted(session, author, respondent, published):
+    """ "Would rather not say" is not words the respondent gave to the question. It stays
+    out of the quotes on the same rule the tallies use, but the run still counts as
+    probed: asked and declined is a finding, and silence would read as never asked."""
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    probing = FakeLLM(follow_up("What does that involve?", "Line lead"))
+    run = await ConductEngine(session, llm=probing).handle_message(run.id, "line lead", respondent)
+    declining = FakeLLM(
+        ToolTurn(
+            text="",
+            tool_name="flag_unanswerable",
+            tool_input={"question_id": "x", "reason": "would rather not say"},
+        )
+    )
+    run = await ConductEngine(session, llm=declining).handle_message(
+        run.id, "rather not", respondent
+    )
+    await ConductEngine(session, llm=FakeLLM(record(4), move_on())).handle_message(
+        run.id, "4", respondent
+    )
+
+    role = (await ResultsService(session).report(published.id, author)).questions[0]
+
+    assert role.follow_ups == []
+    assert role.probed == 1
+    assert role.answered == 1  # the scripted answer banked before the probe survives
+
+
 async def test_a_report_needs_a_published_version(session, author):
     """An unpublished draft has no frozen questions to count against, and inventing an
     empty report would read as a survey nobody answered rather than one never asked."""

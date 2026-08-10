@@ -109,6 +109,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
               {msg.report.answeredBy(q.answered)}
               {q.declined > 0 ? ` · ${msg.report.declinedBy(q.declined)}` : ""}
               {q.average !== null ? ` · ${msg.report.average(q.average.toFixed(1))}` : ""}
+              {q.probed > 0 ? ` · ${msg.report.probedBy(q.probed)}` : ""}
             </p>
 
             {q.counts.length > 0 ? <Bars question={q} /> : null}
@@ -127,7 +128,21 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
               </details>
             ) : null}
 
-            {q.counts.length === 0 && q.verbatim.length === 0 ? (
+            {/* Its own list, below the answers rather than mixed into them. A follow-up
+                answers a question the model wrote, so presenting it as an answer to this
+                one would credit the author's question with words it never asked for. */}
+            {q.follow_ups.length > 0 ? (
+              <details className="verbatim">
+                <summary className="muted">{msg.report.whatProbesFound(q.follow_ups.length)}</summary>
+                <ul>
+                  {q.follow_ups.map((v, j) => (
+                    <li key={j}>{v}</li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
+
+            {q.counts.length === 0 && q.verbatim.length === 0 && q.follow_ups.length === 0 ? (
               <p className="muted">{msg.report.noAnswers}</p>
             ) : null}
           </div>

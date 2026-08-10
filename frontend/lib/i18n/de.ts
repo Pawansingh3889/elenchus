@@ -129,7 +129,9 @@ export const de: Messages = {
     answeredBy: (n: number) => `${n} beantwortet`,
     declinedBy: (n: number) => `${n} abgelehnt`,
     average: (v: string) => `Durchschnitt ${v}`,
+    probedBy: (n: number) => `${n} nachgefragt`,
     inTheirWords: (n: number) => `In eigenen Worten (${n})`,
+    whatProbesFound: (n: number) => `Was Nachfragen ergaben (${n})`,
     earlierVersions: (n: number) => `${n} Antwort${n === 1 ? "" : "en"} bezogen sich auf eine frühere Version und werden hier nicht gezählt: das waren andere Fragen.`,
   },
   results: {
