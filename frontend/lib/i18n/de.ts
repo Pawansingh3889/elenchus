@@ -100,6 +100,8 @@ export const de: Messages = {
     pickUser: "Wählen Sie oben einen Benutzer, um diese Umfrage fortzusetzen.",
     answerPlaceholder: "Antwort eingeben…",
     send: "Senden",
+    confirm: "Bestätigen",
+    andWhatYouTyped: "und Ihren Text",
     finishLater: "Später beenden",
     finishLaterHint:
       "Ihre bisherigen Antworten sind gespeichert; machen Sie dort weiter, wo Sie aufgehört haben.",

@@ -111,6 +111,7 @@ export default function RunPage() {
               key={run.current_question.id}
               question={run.current_question}
               disabled={busy}
+              pending={draft}
               onAnswer={answer}
             />
           ) : null}

@@ -105,6 +105,8 @@ export const es: Messages = {
     pickUser: "Elige un usuario en la barra superior para continuar esta encuesta.",
     answerPlaceholder: "Escribe tu respuesta…",
     send: "Enviar",
+    confirm: "Confirmar",
+    andWhatYouTyped: "y lo que escribió",
     finishLater: "Terminar más tarde",
     finishLaterHint: "Tus respuestas están guardadas; puedes continuar donde lo dejaste.",
     editPrevious: "Editar mi respuesta anterior",

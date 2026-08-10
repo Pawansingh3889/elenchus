@@ -113,6 +113,8 @@ export const en = {
     pickUser: "Pick a user in the top bar to continue this survey.",
     answerPlaceholder: "Type your answer…",
     send: "Send",
+    confirm: "Confirm",
+    andWhatYouTyped: "and what you typed",
     finishLater: "Finish later",
     finishLaterHint: "Your answers so far are saved; pick up where you left off.",
     editPrevious: "Edit my previous answer",
