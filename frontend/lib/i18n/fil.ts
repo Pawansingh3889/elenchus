@@ -133,6 +133,11 @@ export const fil: Messages = {
     probedBy: (n: number) => `${n} ang sinundan`,
     inTheirWords: (n: number) => `Sa sarili nilang salita (${n})`,
     whatProbesFound: (n: number) => `Ang nakuha sa follow-up (${n})`,
+    recapAsk: "Isulat ang buod",
+    recapAgain: "Isulat muli",
+    recapWorking: "Binabasa ang lahat ng sagot…",
+    recapFrom: (n: number, v: number) => `Buod ng ${n} sagot sa v${v}`,
+    fromQuestion: (n: number, q: string) => `(T${n}: ${q})`,
     earlierVersions: (n: number) => `${n} sagot ang para sa naunang bersyon at hindi kasama dito: magkaibang tanong iyon.`,
   },
   results: {

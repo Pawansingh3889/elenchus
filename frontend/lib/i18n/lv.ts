@@ -139,6 +139,11 @@ export const lv: Messages = {
     probedBy: (n: number) => `${n} precizēti`,
     inTheirWords: (n: number) => `Viņu vārdiem (${n})`,
     whatProbesFound: (n: number) => `Ko atklāja precizējošie jautājumi (${n})`,
+    recapAsk: "Uzrakstīt kopsavilkumu",
+    recapAgain: "Uzrakstīt vēlreiz",
+    recapWorking: "Tiek lasītas visas atbildes…",
+    recapFrom: (n: number, v: number) => `${n} atbilžu kopsavilkums (v${v})`,
+    fromQuestion: (n: number, q: string) => `(${n}. jaut.: ${q})`,
     earlierVersions: (n: number) => `${n} atbildes attiecas uz agrāku versiju un šeit netiek skaitītas: tie bija citi jautājumi.`,
   },
   results: {

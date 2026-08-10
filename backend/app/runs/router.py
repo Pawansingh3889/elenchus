@@ -13,6 +13,7 @@ from app.db.session import get_session
 from app.runs.schemas import DashboardRow, RunDetail, RunSummary, SurveyReport
 from app.runs.service import ResultsService, to_csv
 from app.runs.summary import RunSummaryContent, RunSummaryService
+from app.runs.survey_summary import SurveySummaryRead, SurveySummaryService
 from app.users.models import User
 
 router = APIRouter(prefix="/api/v1/templates", tags=["results"])
@@ -54,6 +55,24 @@ async def survey_report(
     is irrelevant here (different literal), but it is grouped with the other read
     endpoints for the same reason they are: one service call, shaped by the schema."""
     return await ResultsService(session).report(template_id, author)
+
+
+@router.post("/{template_id}/summary", response_model=SurveySummaryRead)
+async def summarise_survey(
+    template_id: UUID,
+    refresh: bool = Query(False, description="Regenerate even if a current recap is stored."),
+    author: User = Depends(require_author),
+    session: AsyncSession = Depends(get_session),
+) -> SurveySummaryRead:
+    """What the whole survey found, across every completed response.
+
+    Author-triggered for the reason the per-run summary is: a model call costs seconds
+    and can fail, and neither belongs in the path of a page an author opens to read
+    numbers. The stored recap is reused only while the version and the completed-run
+    count are what they were when it was written, because a recap of eight responses
+    served after twenty have arrived is not stale, it is wrong.
+    """
+    return await SurveySummaryService(session).summarise(template_id, author, refresh)
 
 
 @router.get("/{template_id}/runs/export")

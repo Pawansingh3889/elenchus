@@ -139,6 +139,11 @@ export const es: Messages = {
     probedBy: (n: number) => `${n} con repregunta`,
     inTheirWords: (n: number) => `En sus palabras (${n})`,
     whatProbesFound: (n: number) => `Lo que revelaron las repreguntas (${n})`,
+    recapAsk: "Escribir el resumen",
+    recapAgain: "Escribirlo de nuevo",
+    recapWorking: "Leyendo todas las respuestas…",
+    recapFrom: (n: number, v: number) => `Resumen de ${n} respuesta${n === 1 ? "" : "s"} a v${v}`,
+    fromQuestion: (n: number, q: string) => `(P${n}: ${q})`,
     earlierVersions: (n: number) => `${n} respuesta${n === 1 ? "" : "s"} corresponden a una versión anterior y no se cuentan aquí: eran otras preguntas.`,
   },
   results: {

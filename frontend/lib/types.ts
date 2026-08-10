@@ -257,6 +257,35 @@ export interface QuestionReport {
   probed: number;
 }
 
+/** One thing the survey found. `statement` carries no figures by design: the model
+ *  names the pattern, and the counts beside it are attached from the report, so a
+ *  number on this page can never be one the model wrote. */
+export interface SurveyFinding {
+  statement: string;
+  question_position: number | null;
+  question_text: string | null;
+  answered: number | null;
+  counts: OptionCount[];
+  average: number | null;
+}
+
+export interface SurveyQuote {
+  question: string;
+  respondent: string;
+  quote: string;
+}
+
+/** The recap of a whole survey. `runs_included` is what it was written from, shown on
+ *  the page because a recap is only true of the responses it read. */
+export interface SurveySummary {
+  headline: string;
+  findings: SurveyFinding[];
+  notable_quotes: SurveyQuote[];
+  version: number;
+  runs_included: number;
+  generated_at: string;
+}
+
 export interface SurveyReport {
   template_id: string;
   title: string;

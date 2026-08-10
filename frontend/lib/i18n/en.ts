@@ -147,6 +147,11 @@ export const en = {
     probedBy: (n: number) => `${n} probed`,
     inTheirWords: (n: number) => `In their words (${n})`,
     whatProbesFound: (n: number) => `What follow-ups drew out (${n})`,
+    recapAsk: "Write the recap",
+    recapAgain: "Write it again",
+    recapWorking: "Reading every response…",
+    recapFrom: (n: number, v: number) => `Recap of ${n} response${n === 1 ? "" : "s"} to v${v}`,
+    fromQuestion: (n: number, q: string) => `(Q${n}: ${q})`,
     earlierVersions: (n: number) => `${n} response${n === 1 ? "" : "s"} answered an earlier version of this survey and are not counted here: those were different questions.`,
   },
   results: {

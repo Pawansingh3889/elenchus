@@ -54,6 +54,12 @@ class SurveyTemplate(Base):
     # and no gate can settle it. The author knows, so the author says.
     setting: Mapped[str | None] = mapped_column(Text, default=None)
 
+    # The author-triggered summary of what the whole survey found. Carries the version
+    # and completed-run count it was generated from, because unlike a run, a survey's
+    # responses keep arriving: serving this after those moved would be serving wrong
+    # numbers in prose nobody can check.
+    summary: Mapped[dict[str, Any] | None] = mapped_column(JSONB, default=None)
+
     questions: Mapped[list["SurveyQuestion"]] = relationship(
         back_populates="template",
         cascade="all, delete-orphan",

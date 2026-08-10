@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { use } from "react";
 
-import { useReport } from "@/lib/queries";
+import { useReport, useSummariseSurvey } from "@/lib/queries";
 import { useT } from "@/lib/i18n/useT";
 import { useUserStore } from "@/lib/store";
-import type { QuestionReport } from "@/lib/types";
+import type { QuestionReport, SurveySummary } from "@/lib/types";
 
 /** The tally, as bars in the author's option order.
  *
@@ -35,11 +35,65 @@ function Bars({ question }: { question: QuestionReport }) {
   );
 }
 
+
+/** The whole-survey recap.
+ *
+ *  Every figure here is read out of the report, never out of the model: a finding is
+ *  prose with no digits in it (the API refuses one that has any) and the tally beside it
+ *  is the question's own. So the words can be arguable and the numbers cannot be wrong.
+ */
+function Recap({ recap }: { recap: SurveySummary }) {
+  const msg = useT();
+  return (
+    <div className="card recap">
+      <div className="card-label">{msg.report.recapFrom(recap.runs_included, recap.version)}</div>
+      <h2 className="recap-headline">{recap.headline}</h2>
+
+      <ul className="recap-findings">
+        {recap.findings.map((f, i) => (
+          <li key={i}>
+            <span className="recap-statement">{f.statement}</span>
+            {f.question_text ? (
+              <span className="muted recap-source">
+                {" "}
+                {msg.report.fromQuestion((f.question_position ?? 0) + 1, f.question_text)}
+              </span>
+            ) : null}
+            {f.counts.length > 0 ? (
+              <span className="recap-counts">
+                {f.counts
+                  .filter((c) => c.count > 0)
+                  .map((c) => `${c.label} ${c.count}`)
+                  .join(" · ")}
+                {f.average !== null ? ` · ${msg.report.average(f.average.toFixed(1))}` : ""}
+              </span>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+
+      {recap.notable_quotes.length > 0 ? (
+        <div className="recap-quotes">
+          {recap.notable_quotes.map((q, i) => (
+            <blockquote key={i}>
+              {q.quote}
+              <cite>
+                {q.respondent} · {q.question}
+              </cite>
+            </blockquote>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function ReportPage({ params }: { params: Promise<{ id: string }> }) {
   const msg = useT();
   const { id } = use(params);
   const currentUserId = useUserStore((s) => s.currentUserId);
   const { data: report, isLoading, error } = useReport(id);
+  const recap = useSummariseSurvey(id);
 
   if (!currentUserId) return <div className="empty">{msg.builder.pickUser}</div>;
   if (isLoading) return <div className="muted">{msg.common.loading}</div>;
@@ -99,6 +153,30 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
       ) : null}
 
       {report.runs_total === 0 ? <div className="muted">{msg.report.nobodyYet}</div> : null}
+
+      {/* Author-triggered, never on render: it costs model calls and can fail, and the
+          numbers below must load either way. */}
+      {report.runs_completed > 0 ? (
+        <div className="recap-block">
+          {recap.data ? <Recap recap={recap.data} /> : null}
+          <div className="recap-actions">
+            <button
+              className="btn btn-secondary"
+              onClick={() => recap.mutate(Boolean(recap.data))}
+              disabled={recap.isPending}
+            >
+              {recap.isPending
+                ? msg.report.recapWorking
+                : recap.data
+                  ? msg.report.recapAgain
+                  : msg.report.recapAsk}
+            </button>
+            {recap.error ? (
+              <span className="error-text">{(recap.error as Error).message}</span>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       <div className="questions">
         {report.questions.map((q, i) => (

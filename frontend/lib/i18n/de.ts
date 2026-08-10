@@ -135,6 +135,11 @@ export const de: Messages = {
     probedBy: (n: number) => `${n} nachgefragt`,
     inTheirWords: (n: number) => `In eigenen Worten (${n})`,
     whatProbesFound: (n: number) => `Was Nachfragen ergaben (${n})`,
+    recapAsk: "Zusammenfassung erstellen",
+    recapAgain: "Neu erstellen",
+    recapWorking: "Alle Antworten werden gelesen…",
+    recapFrom: (n: number, v: number) => `Zusammenfassung von ${n} Antwort${n === 1 ? "" : "en"} zu v${v}`,
+    fromQuestion: (n: number, q: string) => `(F${n}: ${q})`,
     earlierVersions: (n: number) => `${n} Antwort${n === 1 ? "" : "en"} bezogen sich auf eine frühere Version und werden hier nicht gezählt: das waren andere Fragen.`,
   },
   results: {

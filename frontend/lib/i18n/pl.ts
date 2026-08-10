@@ -139,6 +139,11 @@ export const pl: Messages = {
     probedBy: (n: number) => `${n} dopytano`,
     inTheirWords: (n: number) => `Ich słowami (${n})`,
     whatProbesFound: (n: number) => `Co ujawniły pytania pogłębiające (${n})`,
+    recapAsk: "Napisz podsumowanie",
+    recapAgain: "Napisz ponownie",
+    recapWorking: "Czytanie wszystkich odpowiedzi…",
+    recapFrom: (n: number, v: number) => `Podsumowanie ${n} odpowiedzi do v${v}`,
+    fromQuestion: (n: number, q: string) => `(P${n}: ${q})`,
     earlierVersions: (n: number) => `${n} odpowiedzi dotyczy wcześniejszej wersji i nie są tu liczone: to były inne pytania.`,
   },
   results: {

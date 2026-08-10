@@ -139,6 +139,11 @@ export const lt: Messages = {
     probedBy: (n: number) => `${n} patikslinta`,
     inTheirWords: (n: number) => `Jų žodžiais (${n})`,
     whatProbesFound: (n: number) => `Ką atskleidė patikslinamieji klausimai (${n})`,
+    recapAsk: "Parašyti santrauką",
+    recapAgain: "Parašyti iš naujo",
+    recapWorking: "Skaitomi visi atsakymai…",
+    recapFrom: (n: number, v: number) => `${n} atsakymų santrauka (v${v})`,
+    fromQuestion: (n: number, q: string) => `(${n} kl.: ${q})`,
     earlierVersions: (n: number) => `${n} atsakymai skirti ankstesnei versijai ir čia neskaičiuojami: tai buvo kiti klausimai.`,
   },
   results: {

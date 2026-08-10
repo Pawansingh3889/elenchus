@@ -139,6 +139,11 @@ export const ro: Messages = {
     probedBy: (n: number) => `${n} cu întrebări suplimentare`,
     inTheirWords: (n: number) => `În cuvintele lor (${n})`,
     whatProbesFound: (n: number) => `Ce au scos la iveală întrebările suplimentare (${n})`,
+    recapAsk: "Scrie rezumatul",
+    recapAgain: "Scrie din nou",
+    recapWorking: "Se citesc toate răspunsurile…",
+    recapFrom: (n: number, v: number) => `Rezumat a ${n} răspuns${n === 1 ? "" : "uri"} la v${v}`,
+    fromQuestion: (n: number, q: string) => `(Î${n}: ${q})`,
     earlierVersions: (n: number) => `${n} răspunsuri sunt pentru o versiune anterioară și nu sunt numărate aici: acelea erau alte întrebări.`,
   },
   results: {
