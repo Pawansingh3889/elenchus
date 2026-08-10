@@ -40,7 +40,7 @@ def _snap(answer_type: str, **kw: object) -> dict[str, object]:
         "options": [],
         "allow_other": False,
         "required": True,
-        "allow_follow_ups": False,
+        "follow_up_policy": "never",
         "show_when": None,
         **kw,
     }
@@ -63,7 +63,7 @@ def test_questions_that_may_be_probed_cost_more() -> None:
     """Enough questions to clear the rounding to whole minutes — at three the extra
     probing time is real but disappears into the same minute."""
     plain = [_snap("long_text") for _ in range(8)]
-    probed = [_snap("long_text", allow_follow_ups=True) for _ in range(8)]
+    probed = [_snap("long_text", follow_up_policy="when_unclear") for _ in range(8)]
     assert estimated_minutes(probed) > estimated_minutes(plain)
 
 

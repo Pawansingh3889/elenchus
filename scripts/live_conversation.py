@@ -18,6 +18,7 @@ every check keys on an engine-guaranteed invariant rather than on the model's mo
   out_of_order   answers volunteered early or corrected late do not derail place-keeping
   multi_answer   at most one answer is taken per message; a huge or tiny message is safe
   probe_budget   follow-ups per question stay within the cap and the run always terminates
+  forced_probe   an always_once question is probed even when the answer was complete
 
 Run one, several, or all. Exit status is the number of hard-check failures, so CI goes
 red on a real regression:
@@ -92,6 +93,7 @@ def q(
     allow_other: bool = False,
     required: bool = True,
     follow_ups: bool = False,
+    always: bool = False,
 ) -> dict:
     return {
         "text": text,
@@ -99,7 +101,9 @@ def q(
         "options": options or [],
         "allow_other": allow_other,
         "required": required,
-        "allow_follow_ups": follow_ups,
+        "follow_up_policy": (
+            "always_once" if always else "when_unclear" if follow_ups else "never"
+        ),
     }
 
 
@@ -630,6 +634,82 @@ def _probe_questions() -> list[dict]:
     ]
 
 
+def _forced_questions() -> list[dict]:
+    """Two questions the author marked always_once, and a plain one between them.
+
+    Deliberately the shape the mocked suite cannot judge. A fake LLM does what the test
+    tells it to, so it can prove the tool list withholds `record_answer` and nothing
+    about whether a real model then asks a useful question with what is left.
+    """
+    return [
+        q("Has the heat affected your work or your health?", "yes_no", always=True),
+        q("Which shift do you work?", "single_select", options=["Days", "Nights"]),
+        q("What one change would help most?", "long_text", always=True),
+    ]
+
+
+# Complete, unhesitating answers. The point of the scenario: these are exactly the
+# replies that got zero follow-ups when the field was a boolean, because nothing about
+# them is vague and the prompt rightly says a complete answer needs no probe.
+_COMPLETE = [
+    "yes",
+    "days",
+    "better ventilation over the line",
+]
+
+
+def _forced_respond(qq: dict, last: str, seen: int, turn: int) -> str:
+    """Answer by the question's own type, not by turn number.
+
+    Keyed on the question because the forced probes make the turn count unreliable: a
+    scenario that walks a fixed list falls one behind the moment an extra exchange
+    happens, and then answers the shift question with a sentence about ovens.
+    """
+    if qq["answer_type"] == "single_select":
+        return "days"  # the plain question sitting between the two forced ones
+    if seen > 1:
+        return "it is worst after two in the afternoon, near the ovens"
+    return _COMPLETE[0] if qq["answer_type"] == "yes_no" else _COMPLETE[2]
+
+
+def _check_forced(run: Run) -> list[tuple]:
+    out = list(base_checks(run))
+    counts = follow_up_counts(run)
+    always = [x["id"] for x in run.qmeta if x["follow_up_policy"] == "always_once"]
+    missed = [qid for qid in always if counts.get(qid, 0) < 1]
+    out.append(
+        (
+            "every always_once question was probed at least once",
+            not missed,
+            True,
+            {"never probed": missed, "counts": dict(counts)},
+        )
+    )
+    # The probe must produce an answer, not just a question. A forced probe that records
+    # nothing would be a round trip spent on the respondent for no data.
+    answered = {a["question_id"] for a in run.answers if a["kind"] == "follow_up"}
+    out.append(
+        (
+            "each forced probe recorded a follow-up answer",
+            all(qid in answered for qid in always),
+            True,
+            sorted(answered),
+        )
+    )
+    # And the scripted answer must survive the probe: answer_so_far banks it, and losing
+    # it would trade an author's follow-up for the answer they already had.
+    scripted = {a["question_id"] for a in run.answers if a["kind"] == "scripted"}
+    out.append(
+        (
+            "the answer given before the probe was kept",
+            all(qid in scripted for qid in always),
+            True,
+            sorted(scripted),
+        )
+    )
+    return out
+
+
 _VAGUE = [
     "it's fine i suppose",
     "depends really",
@@ -735,6 +815,12 @@ SCENARIOS: dict[str, dict] = {
         "build": {"title": "Quick Review", "questions": _multi_questions()},
         "respond": _multi_respond,
         "check": _check_multi,
+    },
+    "forced_probe": {
+        "title": "always_once questions probe even when the answer was complete",
+        "build": {"title": "Summer Heat On The Floor", "questions": _forced_questions()},
+        "respond": _forced_respond,
+        "check": _check_forced,
     },
     "probe_budget": {
         "title": "Every question probes; respondent stays vague",

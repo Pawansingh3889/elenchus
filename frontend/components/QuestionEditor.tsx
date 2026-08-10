@@ -5,7 +5,7 @@ import { useRef } from "react";
 import { ANSWER_TYPES, labelForAnswerType } from "@/lib/answerTypes";
 import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
 import { useT } from "@/lib/i18n/useT";
-import type { AnswerType, QuestionInput, ShowWhenOp } from "@/lib/types";
+import type { AnswerType, FollowUpPolicy, QuestionInput, ShowWhenOp } from "@/lib/types";
 
 const SELECT_TYPES: AnswerType[] = ["single_select", "multi_select"];
 const isSelect = (t: AnswerType) => SELECT_TYPES.includes(t);
@@ -152,13 +152,21 @@ export function QuestionEditor({
               />
               {msg.builder.required}
             </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={question.allow_follow_ups}
-                onChange={(e) => onChange({ allow_follow_ups: e.target.checked })}
-              />
-              {msg.builder.allowFollowUps}
+            {/* A select rather than a checkbox, because the third value is the point.
+                A tick could only ever say "probing allowed", which the interviewer reads
+                as "probe if the answer is unusable" and then almost never does. */}
+            <label className="qcard-policy">
+              {msg.builder.followUps}
+              <select
+                value={question.follow_up_policy}
+                onChange={(e) =>
+                  onChange({ follow_up_policy: e.target.value as FollowUpPolicy })
+                }
+              >
+                <option value="never">{msg.builder.followUpsNever}</option>
+                <option value="when_unclear">{msg.builder.followUpsWhenUnclear}</option>
+                <option value="always_once">{msg.builder.followUpsAlwaysOnce}</option>
+              </select>
             </label>
             {selectType ? (
               <label>

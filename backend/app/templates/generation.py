@@ -18,7 +18,7 @@ from app.llm.client import LLMError, LLMProtocol
 from app.llm.decoding import decode_stringified
 from app.llm.factory import get_llm
 from app.llm.prompts import load_prompt
-from app.templates.enums import AnswerType
+from app.templates.enums import AnswerType, FollowUpPolicy
 from app.templates.models import SurveyTemplate
 from app.templates.schemas import TemplateCreate, TemplateUpdate
 from app.templates.service import TemplateService
@@ -73,7 +73,7 @@ class GenerationService:
     async def generate_draft(self, prompt: str, author: User) -> tuple[SurveyTemplate, str]:
         """Draft a new survey from a description. Returns the saved draft and the model's
         short note on what it built."""
-        system = load_prompt("generate_template_v3")
+        system = load_prompt("generate_template_v4")
         template_in, note = await self._draft(
             system,
             [{"role": "user", "content": f"{prompt}\n\n{_policy()}"}],
@@ -89,7 +89,7 @@ class GenerationService:
         the model's note on what changed. The whole survey is re-drafted and re-validated,
         so a follow-up can never leave the draft in an invalid shape."""
         current = await self.templates.get_draft(template_id, author)
-        system = load_prompt("refine_template_v4")
+        system = load_prompt("refine_template_v5")
         message = (
             f"{_describe(current)}\n{_policy()}\n\nRequested change: {instruction}\n\n"
             "Return the complete revised survey."
@@ -239,8 +239,8 @@ def _describe(template: SurveyTemplate) -> str:
             parts.append("allows a write-in")
         if not question.required:
             parts.append("optional")
-        if question.allow_follow_ups:
-            parts.append("follow-ups on")
+        if question.follow_up_policy is not FollowUpPolicy.never:
+            parts.append(f"follow-ups: {question.follow_up_policy.value}")
         if question.show_when:
             # Numbered as the listing numbers them, from 1. show_when stores the
             # 0-based position, and handing the model a number that does not match

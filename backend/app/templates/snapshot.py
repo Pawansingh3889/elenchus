@@ -23,10 +23,10 @@ behind it.
 
 from typing import Any
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, model_validator
 
 from app.errors import ValidationError as AppValidationError
-from app.templates.enums import AnswerType
+from app.templates.enums import AnswerType, FollowUpPolicy
 from app.templates.schemas import ShowWhen
 
 
@@ -37,6 +37,13 @@ class SnapshotQuestion(BaseModel):
     arrived with conditional visibility and versions published before it do not carry
     the key. That default is a real one — the absence means "always shown" — not a
     shrug over data that should have been there.
+
+    ``follow_up_policy`` replaced the boolean ``allow_follow_ups``, and a published
+    version is immutable, so both shapes exist in the table forever and always will.
+    Reconciled here rather than at each reader, which is the whole argument of this
+    module: one place decides what a missing key means, or six places disagree about it.
+    Exactly one of the two must be present. A definition carrying neither is a snapshot
+    written by code that never existed, and it fails loudly like any other malformed one.
     """
 
     id: str
@@ -46,8 +53,27 @@ class SnapshotQuestion(BaseModel):
     options: list[str]
     allow_other: bool
     required: bool
-    allow_follow_ups: bool
     show_when: ShowWhen | None = None
+
+    # Both optional to Pydantic and neither optional in fact: the validator below
+    # requires one and emits the policy every reader downstream subscripts.
+    allow_follow_ups: bool | None = None
+    follow_up_policy: FollowUpPolicy | None = None
+
+    @model_validator(mode="after")
+    def _resolve_policy(self) -> "SnapshotQuestion":
+        if self.follow_up_policy is not None:
+            return self
+        if self.allow_follow_ups is None:
+            raise ValueError("follow_up_policy is missing")
+        # A version published under the boolean behaved exactly as when_unclear: probing
+        # was permitted and spent at the model's discretion. Reading it as always_once
+        # would change how surveys already in flight are conducted, which publishing a
+        # version is supposed to make impossible.
+        self.follow_up_policy = (
+            FollowUpPolicy.when_unclear if self.allow_follow_ups else FollowUpPolicy.never
+        )
+        return self
 
 
 def setting_of(definition: dict[str, Any]) -> str | None:

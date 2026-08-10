@@ -63,7 +63,7 @@ export function useDraftQuestions() {
         options: [],
         allow_other: false,
         required: true,
-        allow_follow_ups: false,
+        follow_up_policy: "never",
         show_when: null,
       },
     ]);

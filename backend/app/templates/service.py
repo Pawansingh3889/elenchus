@@ -184,7 +184,7 @@ def _to_question(q: QuestionInput, position: int) -> SurveyQuestion:
         options=q.options,
         allow_other=q.allow_other,
         required=q.required,
-        allow_follow_ups=q.allow_follow_ups,
+        follow_up_policy=q.follow_up_policy,
         show_when=q.show_when.model_dump(mode="json") if q.show_when else None,
     )
 
@@ -211,7 +211,7 @@ def _snapshot(template: SurveyTemplate) -> dict[str, Any]:
                 "options": q.options,
                 "allow_other": q.allow_other,
                 "required": q.required,
-                "allow_follow_ups": q.allow_follow_ups,
+                "follow_up_policy": q.follow_up_policy.value,
                 "show_when": q.show_when,
             }
             for q in sorted(template.questions, key=lambda x: x.position)

@@ -11,7 +11,7 @@ would be false precision.
 
 from typing import Any
 
-from app.templates.enums import AnswerType
+from app.templates.enums import AnswerType, FollowUpPolicy
 
 # Rough seconds to read the question and answer it conversationally.
 SECONDS: dict[AnswerType, int] = {
@@ -42,6 +42,11 @@ def estimated_minutes(questions: list[dict[str, Any]]) -> int:
             total += DEFAULT_SECONDS  # an unknown type is still a question to answer
             continue
         total += SECONDS.get(answer_type, DEFAULT_SECONDS)
-        if question["allow_follow_ups"]:
+        policy = question["follow_up_policy"]
+        if policy == FollowUpPolicy.always_once.value:
+            # Certain rather than possible: this one is asked every time, so it is not a
+            # multiplier over questions that might be probed, it is a question.
+            total += FOLLOW_UP_SECONDS
+        elif policy == FollowUpPolicy.when_unclear.value:
             total += FOLLOW_UP_SECONDS
     return max(1, -(-total // 60))

@@ -5,7 +5,13 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.templates.enums import AnswerType, ShowWhenOp, SurveyAudience, TemplateStatus
+from app.templates.enums import (
+    AnswerType,
+    FollowUpPolicy,
+    ShowWhenOp,
+    SurveyAudience,
+    TemplateStatus,
+)
 
 SELECT_TYPES = {AnswerType.single_select, AnswerType.multi_select}
 
@@ -38,7 +44,7 @@ class QuestionInput(BaseModel):
     options: list[str] = Field(default_factory=list)
     allow_other: bool = False
     required: bool = True
-    allow_follow_ups: bool = False
+    follow_up_policy: FollowUpPolicy = FollowUpPolicy.never
     show_when: ShowWhen | None = None
 
     @field_validator("text")
@@ -188,7 +194,7 @@ class QuestionRead(BaseModel):
     options: list[str]
     allow_other: bool
     required: bool
-    allow_follow_ups: bool
+    follow_up_policy: FollowUpPolicy
     show_when: ShowWhen | None = None
 
 

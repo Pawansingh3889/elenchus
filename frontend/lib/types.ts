@@ -8,6 +8,11 @@ export type AnswerType =
   | "number"
   | "date";
 
+/** Whether the interviewer probes this question, and how hard. `when_unclear` is what
+ *  the old `allow_follow_ups` boolean bought; `always_once` is the one it could not say,
+ *  and the engine enforces it by withholding the ways past the question. */
+export type FollowUpPolicy = "never" | "when_unclear" | "always_once";
+
 export type TemplateStatus = "draft" | "published" | "closed" | "archived";
 /** Who a survey is for: the whole respondent pool, or one creator department. */
 export type SurveyAudience = "respondents" | "hr" | "operations" | "finance" | "technical";
@@ -38,7 +43,7 @@ export interface QuestionInput {
   options: string[];
   allow_other: boolean;
   required: boolean;
-  allow_follow_ups: boolean;
+  follow_up_policy: FollowUpPolicy;
   show_when: ShowWhen | null;
 }
 

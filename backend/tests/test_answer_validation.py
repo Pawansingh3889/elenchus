@@ -25,7 +25,7 @@ def q(answer_type: str, *, options: list[str] | None = None, allow_other: bool =
         "options": options or [],
         "allow_other": allow_other,
         "required": True,
-        "allow_follow_ups": False,
+        "follow_up_policy": "never",
     }
 
 

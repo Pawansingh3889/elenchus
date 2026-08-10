@@ -15,7 +15,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
-from app.templates.enums import AnswerType, SurveyAudience, TemplateStatus
+from app.templates.enums import AnswerType, FollowUpPolicy, SurveyAudience, TemplateStatus
 
 
 class SurveyTemplate(Base):
@@ -72,7 +72,9 @@ class SurveyQuestion(Base):
     options: Mapped[list[str]] = mapped_column(JSONB, default=list)
     allow_other: Mapped[bool] = mapped_column(Boolean, default=False)
     required: Mapped[bool] = mapped_column(Boolean, default=True)
-    allow_follow_ups: Mapped[bool] = mapped_column(Boolean, default=False)
+    follow_up_policy: Mapped[FollowUpPolicy] = mapped_column(
+        SAEnum(FollowUpPolicy, name="follow_up_policy"), default=FollowUpPolicy.never
+    )
     # {"question": <0-based position of an earlier question>, "op": "is"|"is_not",
     # "value": "..."} or NULL for always-visible. Keyed by position, not id: a draft
     # edit replaces every question row, so ids do not survive a save.

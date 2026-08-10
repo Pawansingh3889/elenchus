@@ -30,7 +30,7 @@ from app.llm.factory import get_llm
 from app.llm.prompts import load_prompt
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
 from app.runs.models import REPLY_PREFIX, Answer, RunMessage, SurveyRun, add_llm_spend
-from app.templates.enums import TemplateStatus
+from app.templates.enums import FollowUpPolicy, TemplateStatus
 from app.templates.snapshot import questions_of, setting_of
 from app.templates.visibility import next_visible, remaining_possible
 from app.users.models import User
@@ -592,7 +592,32 @@ def _scripted_answers(run: SurveyRun) -> dict[str, dict[str, Any]]:
 
 
 def _may_probe(question: dict[str, Any], follow_ups_used: int) -> bool:
-    return bool(question["allow_follow_ups"]) and follow_ups_used < MAX_FOLLOW_UPS
+    policy = question["follow_up_policy"]
+    return policy != FollowUpPolicy.never.value and follow_ups_used < MAX_FOLLOW_UPS
+
+
+def _must_probe(question: dict[str, Any], state: dict[str, Any]) -> bool:
+    """Whether this turn has to be a follow-up rather than may be one.
+
+    The gap this closes: `allow_follow_ups` granted permission and the prompt says the
+    budget is a ceiling, so on a question whose whole value is the elaboration the model
+    read a complete answer, recorded it, and moved on. Eight runs of a ten-question
+    survey, four questions permitted to probe, ninety-odd turns, no follow-ups at all.
+
+    Required questions only. `conduct_v7.md` already holds that pressing a respondent who
+    has just deflected is how invented answers get recorded, and an optional question is
+    a courtesy by definition: forcing a probe onto one would spend the author's intent
+    against the one respondent who said they could not help.
+
+    One, not one per turn. `follow_ups_used` is spent when the probe is issued, so the
+    obligation lapses on the next turn and the rest of the budget goes back to the
+    model's judgement.
+    """
+    return (
+        question["follow_up_policy"] == FollowUpPolicy.always_once.value
+        and bool(question["required"])
+        and state["follow_ups_used"] == 0
+    )
 
 
 def _is_uuid(value: str) -> bool:
@@ -704,7 +729,14 @@ def _tools_for(question: dict[str, Any], state: dict[str, Any]) -> list[dict[str
     """Only offer the actions that are legal right now — the engine's first gate."""
     question_id = {"type": "string", "description": "The current question's id."}
     tools: list[dict[str, Any]] = []
-    if not state.get("recorded_this_turn"):
+    # An always_once question owes the respondent one follow-up, so the ways past it are
+    # withheld rather than argued about. `ask_follow_up` already carries `answer_so_far`,
+    # which banks the scripted answer before the probe is asked, so nothing is lost and
+    # no turn is spent: the answer is recorded and the probe issued in the same call.
+    # `flag_unanswerable` is offered below whatever happens, so a respondent who declines
+    # is never cornered, and `reply` stays capped, so a model cannot chat its way out.
+    forced = _must_probe(question, state)
+    if not forced and not state.get("recorded_this_turn"):
         if state.get("scripted_recorded"):
             # This record can only be a follow-up: the scripted answer is already in.
             # A probe is a new question the model wrote, and it is usually open ("could
@@ -786,7 +818,7 @@ def _tools_for(question: dict[str, Any], state: dict[str, Any]) -> list[dict[str
                 },
             }
         )
-    if state["scripted_recorded"]:
+    if state["scripted_recorded"] and not forced:
         tools.append(
             {
                 "name": MOVE_ON,
@@ -970,11 +1002,22 @@ def _briefing(
         else "- This question is OPTIONAL: if they deflect, let it go rather than pressing"
     )
     lines.append(f"- Answer already recorded: {state['scripted_recorded']}")
-    lines.append(
-        f"- Follow-ups asked so far: {state['follow_ups_used']} of {MAX_FOLLOW_UPS}"
-        if question["allow_follow_ups"]
-        else "- Follow-ups: not permitted for this question"
-    )
+    if question["follow_up_policy"] == FollowUpPolicy.never.value:
+        lines.append("- Follow-ups: not permitted for this question")
+    else:
+        lines.append(f"- Follow-ups asked so far: {state['follow_ups_used']} of {MAX_FOLLOW_UPS}")
+    if _must_probe(question, state):
+        # Engine state, which the briefing above tells the model not to argue with, so no
+        # new prompt version: the rules in conduct_v7.md are unchanged and this is a fact
+        # about the current turn. Said out loud as well as enforced by the tool list,
+        # because a model that finds record_answer missing and is told nothing will spend
+        # its retry guessing why.
+        lines.append(
+            "- THIS QUESTION ALWAYS TAKES ONE FOLLOW-UP. The author marked it as one "
+            "where the elaboration is the answer, so you cannot record and move on yet. "
+            "Ask your follow-up, and put whatever their reply already answered into "
+            "answer_so_far so it is saved before you ask."
+        )
     lines.append(
         f"- Next question: {nxt}" if nxt else "- This is the final question; close warmly."
     )

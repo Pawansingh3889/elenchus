@@ -75,7 +75,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
         options: q.options,
         allow_other: q.allow_other,
         required: q.required,
-        allow_follow_ups: q.allow_follow_ups,
+        follow_up_policy: q.follow_up_policy,
         show_when: q.show_when ?? null,
       })),
     );
@@ -140,7 +140,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
           options: q.options,
           allow_other: q.allow_other,
           required: q.required,
-          allow_follow_ups: q.allow_follow_ups,
+          follow_up_policy: q.follow_up_policy,
           // The refined draft is the server's, conditions and all — dropping this would
           // silently strip every condition each time the author refined.
           show_when: q.show_when ?? null,

@@ -52,3 +52,24 @@ class AnswerType(str, enum.Enum):
     rating = "rating"
     number = "number"
     date = "date"
+
+
+class FollowUpPolicy(str, enum.Enum):
+    """Whether the interviewer probes this question, and how hard.
+
+    Replaces the boolean ``allow_follow_ups``, which could only grant permission. That
+    was enough for "you may probe if the answer is unusable" and had no way to say "the
+    elaboration *is* the answer here", so a model reading the two cases saw one case. A
+    live survey with four probe-enabled questions asked eight people ninety-odd turns of
+    questions and never once followed up, which was the prompt behaving exactly as
+    written: the budget is a ceiling, and a complete answer needs no probe.
+
+    ``always_once`` is the missing sentence. It is enforced by the engine withholding
+    ``record_answer`` rather than by asking the model more firmly, because CLAUDE.md
+    already says the engine owns how many follow-ups are spent, and until now whether
+    any were spent at all was the model's call.
+    """
+
+    never = "never"
+    when_unclear = "when_unclear"
+    always_once = "always_once"
