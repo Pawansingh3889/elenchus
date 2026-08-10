@@ -91,6 +91,7 @@ export const de: Messages = {
     goingToBuild: "Weiter zu Erstellen…",
     empty: "Noch nichts veröffentlicht. Veröffentlichen Sie eine Vorlage, um sie hier zu sehen.",
     start: "Starten",
+    answered: "Beantwortet",
   },
   run: {
     pickUser: "Wählen Sie oben einen Benutzer, um diese Umfrage fortzusetzen.",

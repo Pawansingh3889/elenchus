@@ -96,6 +96,7 @@ export const pl: Messages = {
     goingToBuild: "Przechodzimy do Twórz…",
     empty: "Nic jeszcze nie opublikowano. Opublikuj szablon, aby pojawił się tutaj.",
     start: "Rozpocznij",
+    answered: "Wypełniona",
   },
   run: {
     pickUser: "Wybierz użytkownika na górnym pasku, aby kontynuować tę ankietę.",

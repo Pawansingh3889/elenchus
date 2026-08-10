@@ -4,7 +4,11 @@ Both live on the respondent's home, and both describe a survey before it is answ
 so both must describe the *published version*, not the draft that has moved on since.
 """
 
+import pytest
+
 from app.conduct.engine import ConductEngine
+from app.errors import ConflictError
+from app.runs.enums import RunStatus
 from app.templates.enums import AnswerType
 from app.templates.estimate import estimated_minutes
 from app.templates.schemas import QuestionInput, TemplateCreate
@@ -91,7 +95,7 @@ async def test_the_published_list_describes_the_version_not_the_draft(session, a
     )
 
     listed = [row for row in await svc.list_published(author) if row[0].id == template.id]
-    _, question_count, minutes = listed[0]
+    _, question_count, minutes, _answered = listed[0]
 
     assert question_count == 2  # what a respondent is actually asked
     assert minutes >= 1
@@ -153,3 +157,117 @@ async def test_one_respondent_never_sees_another_persons_run(
 
     assert len(await ConductEngine(session).resumable(respondent)) == 1
     assert await ConductEngine(session).resumable(other_respondent) == []
+
+
+async def test_starting_again_returns_the_run_already_under_way(session, respondent, published):
+    """Start becomes Continue rather than opening a second run.
+
+    The respond page already turned Start into Continue when an unfinished run existed,
+    but that was an affordance and not a rule: a direct POST opened a second run and
+    stranded the first half-answered. One respondent accumulated four runs on one survey
+    this way, which the dashboard reported as four responses.
+    """
+    engine = ConductEngine(session, llm=FakeLLM())
+    first = await engine.start_run(published.id, respondent)
+    await ConductEngine(session, llm=FakeLLM(record("Line lead"), move_on())).handle_message(
+        first.id, "line lead", respondent
+    )
+
+    again = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+
+    assert again.id == first.id
+    assert len(again.answers) == 1  # the answer already given is still theirs
+
+
+async def test_a_survey_already_answered_is_refused(session, respondent, published):
+    """The other half. A finished run is the one response this person has, and starting
+    over would let them answer twice and count twice."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+    for answer in ("line lead", "4"):
+        run = await ConductEngine(
+            session, llm=FakeLLM(record(answer if answer != "4" else 4), move_on())
+        ).handle_message(run.id, answer, respondent)
+    assert run.status is RunStatus.completed
+
+    with pytest.raises(ConflictError) as caught:
+        await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    # Three conditions in start_run raise ConflictError, so the message proves which.
+    assert "already answered" in caught.value.message.lower()
+
+
+async def test_one_persons_answer_does_not_block_another(
+    session, respondent, other_respondent, published
+):
+    """The guard is per person. A survey everyone is asked would otherwise be answerable
+    once in total, which is the opposite of the point."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    mine = await engine.start_run(published.id, respondent)
+    theirs = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, other_respondent)
+
+    assert mine.id != theirs.id
+
+
+async def test_republishing_does_not_reopen_a_survey_already_answered(
+    session, author, respondent, published
+):
+    """Keyed on the survey, not the version it was published as.
+
+    A run belongs to the survey it answered. Keying on the version would mean an author
+    fixing a typo and republishing silently reopens the survey to everyone who has been
+    through it, and their second answers would land in the same results as their first.
+    """
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+    for answer in ("line lead", 4):
+        run = await ConductEngine(session, llm=FakeLLM(record(answer), move_on())).handle_message(
+            run.id, str(answer), respondent
+        )
+    assert run.status is RunStatus.completed
+
+    svc = TemplateService(session)
+    draft = await svc.get_draft(published.id, author)
+    await svc.update_draft(published.id, update_of(draft, title="Onboarding check-in v2"), author)
+    await svc.publish(published.id, author)
+
+    with pytest.raises(ConflictError):
+        await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+
+
+async def test_a_survey_already_answered_is_marked_on_the_respondents_list(
+    session, author, respondent, other_respondent, published
+):
+    """The list is an invitation, and after one-answer-per-person a Start button on a
+    survey this reader has finished is a button that can only 409. The row stays: a
+    survey that vanishes reads as a bug rather than as "you have already done it"."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+    for answer in ("line lead", 4):
+        run = await ConductEngine(session, llm=FakeLLM(record(answer), move_on())).handle_message(
+            run.id, str(answer), respondent
+        )
+    assert run.status is RunStatus.completed
+
+    svc = TemplateService(session)
+    mine = {t.id: answered for t, _, _, answered in await svc.list_published(respondent)}
+    theirs = {t.id: answered for t, _, _, answered in await svc.list_published(other_respondent)}
+
+    assert mine[published.id] is True
+    # Per person, not per survey: it is still an invitation for everyone else.
+    assert theirs[published.id] is False
+
+
+async def test_an_unfinished_run_does_not_mark_a_survey_answered(session, respondent, published):
+    """Half-answered is not answered. They are meant to continue it, which is what the
+    resumable list is for, and marking it answered would strip the way back in."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+    await ConductEngine(session, llm=FakeLLM(record("Line lead"), move_on())).handle_message(
+        run.id, "line lead", respondent
+    )
+
+    listed = {
+        t.id: answered
+        for t, _, _, answered in await TemplateService(session).list_published(respondent)
+    }
+    assert listed[published.id] is False

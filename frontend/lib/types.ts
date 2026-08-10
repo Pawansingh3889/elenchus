@@ -79,6 +79,8 @@ export interface TemplateSummary {
   question_count: number;
   /** Only set on the published list a respondent chooses from. */
   estimated_minutes: number | null;
+  /** This reader has already completed it. Only ever true on that same published list. */
+  answered?: boolean;
 }
 
 // A drafted or refined template plus the model's short note on what it did.

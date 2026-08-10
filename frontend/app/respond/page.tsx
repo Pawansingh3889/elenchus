@@ -64,7 +64,12 @@ export default function RespondPage() {
                   {open ? ` · ${open.answered} of ${open.total} answered` : ""}
                 </div>
               </div>
-              {open ? (
+              {survey.answered ? (
+                // Already finished. The row stays rather than vanishing, because a survey
+                // that disappears reads as a bug, and Start here would now be a button
+                // that can only fail: one answer per person is enforced in the engine.
+                <span className="pill pill-closed">{respond.answered}</span>
+              ) : open ? (
                 <button
                   className="btn btn-primary"
                   onClick={() => router.push(`/runs/${open.id}`)}

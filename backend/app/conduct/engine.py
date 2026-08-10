@@ -102,6 +102,24 @@ class ConductEngine:
             )
             raise ForbiddenError(decision.reason)
 
+        # One run per person per survey. Asked after permission and before the structural
+        # checks below, because "you have already answered this" is the truer answer for
+        # the respondent than a complaint about published versions.
+        #
+        # Nothing enforced this until now, and it was not theoretical: one respondent
+        # accumulated four runs on a single survey, which the dashboard reported as four
+        # responses and the report page as four people agreeing with her.
+        #
+        # An unfinished run is returned rather than refused, so pressing Start again is
+        # the same as pressing Continue. The builder already behaves this way (the
+        # respond page turns Start into Continue), but it was only ever an affordance:
+        # a direct POST opened a second run and stranded the first half-answered.
+        existing = await self.repo.answered_already(template_id, respondent.id)
+        if existing is not None:
+            if existing.status is RunStatus.completed:
+                raise ConflictError("You have already answered this survey.")
+            return await self.load(existing.id, respondent)
+
         version = await self.repo.latest_version(template_id)
         if version is None:
             raise ConflictError("This template has no published version to answer.")

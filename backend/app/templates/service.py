@@ -59,7 +59,7 @@ class TemplateService:
             if may_list(author, row[0].audience, row[0].created_by, admin)
         ]
 
-    async def list_published(self, user: User) -> list[tuple[SurveyTemplate, int, int]]:
+    async def list_published(self, user: User) -> list[tuple[SurveyTemplate, int, int, bool]]:
         """Every published survey this user may actually start, with the count and time
         estimate they will face, read from the published version rather than the evolving
         draft.
@@ -70,8 +70,12 @@ class TemplateService:
         published, which is precisely the bug audiences were introduced to fix."""
         admin = is_admin_by_config(user)
         rows = await self.repo.list_published_latest()
+        # One query for the lot, not one per row. A survey this person has finished still
+        # belongs on the list: hiding it looks like the survey disappeared, and the point
+        # is to tell them they have already done it.
+        answered = await self.repo.completed_by(user.id)
         return [
-            (template, len(questions), estimated_minutes(questions))
+            (template, len(questions), estimated_minutes(questions), template.id in answered)
             for template, definition in rows
             if may_answer(user, template.audience, template.created_by, admin)
             for questions in [questions_of(definition)]

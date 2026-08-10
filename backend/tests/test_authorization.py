@@ -98,8 +98,8 @@ async def test_the_published_list_is_what_the_reader_may_actually_start(
     await svc.publish(mine.id, author)
 
     listed = await svc.list_published(respondent)
-    assert [t.title for t, _, _ in listed] == ["Open"]
-    assert all(t.status is TemplateStatus.published for t, _, _ in listed)
+    assert [t.title for t, _, _, _ in listed] == ["Open"]
+    assert all(t.status is TemplateStatus.published for t, _, _, _ in listed)
 
     assert await svc.list_published(other_author) == []
 

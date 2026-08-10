@@ -28,7 +28,10 @@ router = APIRouter(prefix="/api/v1/templates", tags=["templates"])
 
 
 def _summary(
-    template: SurveyTemplate, question_count: int, estimated_minutes: int | None = None
+    template: SurveyTemplate,
+    question_count: int,
+    estimated_minutes: int | None = None,
+    answered: bool = False,
 ) -> TemplateSummary:
     return TemplateSummary(
         id=template.id,
@@ -40,6 +43,7 @@ def _summary(
         audience=template.audience,
         question_count=question_count,
         estimated_minutes=estimated_minutes,
+        answered=answered,
     )
 
 
@@ -81,7 +85,7 @@ async def list_published(
     session: AsyncSession = Depends(get_session),
 ) -> list[TemplateSummary]:
     rows = await TemplateService(session).list_published(user)
-    return [_summary(t, n, minutes) for t, n, minutes in rows]
+    return [_summary(t, n, minutes, answered) for t, n, minutes, answered in rows]
 
 
 @router.get("/{template_id}", response_model=TemplateRead)

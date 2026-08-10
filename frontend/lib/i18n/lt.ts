@@ -96,6 +96,7 @@ export const lt: Messages = {
     goingToBuild: "Nukreipiame į Kurti…",
     empty: "Kol kas nieko nepaskelbta. Paskelbkite šabloną, kad jis atsirastų čia.",
     start: "Pradėti",
+    answered: "Atsakyta",
   },
   run: {
     pickUser: "Pasirinkite naudotoją viršutinėje juostoje, kad tęstumėte šią apklausą.",

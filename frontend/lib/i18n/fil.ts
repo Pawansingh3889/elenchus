@@ -90,6 +90,7 @@ export const fil: Messages = {
     goingToBuild: "Dinadala ka sa Gumawa…",
     empty: "Wala pang nailathala. Mag-publish ng template para makita rito.",
     start: "Simulan",
+    answered: "Nasagot",
   },
   run: {
     pickUser: "Pumili ng user sa itaas para ipagpatuloy ang survey na ito.",

@@ -104,6 +104,7 @@ export const en = {
     goingToBuild: "Taking you to Build…",
     empty: "Nothing published yet. Publish a template to open it here.",
     start: "Start",
+    answered: "Answered",
   },
   run: {
     pickUser: "Pick a user in the top bar to continue this survey.",

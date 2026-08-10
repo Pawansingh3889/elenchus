@@ -108,6 +108,39 @@ class RunRepository:
         )
         return int((await self.session.execute(stmt)).scalar_one())
 
+    async def answered_already(self, template_id: UUID, respondent_id: UUID) -> SurveyRun | None:
+        """This respondent's existing run of this survey, newest first, or None.
+
+        Keyed on the template rather than the version it was published as. A run belongs
+        to the survey it answered: republishing to fix a typo must not silently reopen the
+        survey to everyone who has already been through it, and reissuing it deliberately
+        is a new survey rather than a second version of the old one.
+
+        Abandoned runs are excluded, so a run that is ever aged out stops standing in
+        anyone's way. Nothing sets that status today, which is worth knowing rather than
+        relying on.
+        """
+        stmt = (
+            select(SurveyRun)
+            .join(
+                SurveyTemplateVersion,
+                SurveyRun.template_version_id == SurveyTemplateVersion.id,
+            )
+            .where(
+                SurveyTemplateVersion.template_id == template_id,
+                SurveyRun.respondent_id == respondent_id,
+                SurveyRun.status != RunStatus.abandoned,
+            )
+            # Completed first, so one finished run refuses a restart even if the
+            # respondent has since opened another that is still in progress.
+            .order_by(
+                (SurveyRun.status == RunStatus.completed).desc(),
+                SurveyRun.started_at.desc(),
+            )
+            .limit(1)
+        )
+        return (await self.session.execute(stmt)).scalars().first()
+
     async def in_progress_for(self, respondent_id: UUID) -> list[tuple[SurveyRun, UUID, str]]:
         """This respondent's unfinished runs, newest first, with the survey they belong to.
 
