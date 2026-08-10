@@ -7,6 +7,8 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.runs.enums import RunStatus
+from app.runs.models import SurveyRun
 from app.templates.enums import TemplateStatus
 from app.templates.models import SurveyQuestion, SurveyTemplate, SurveyTemplateVersion
 
@@ -58,6 +60,25 @@ class TemplateRepository:
 
     def add_version(self, version: SurveyTemplateVersion) -> None:
         self.session.add(version)
+
+    async def completed_by(self, respondent_id: UUID) -> set[UUID]:
+        """Templates this person has already finished, across every version.
+
+        The respondent's list is an invitation, and after one-answer-per-person a Start
+        button on a survey they have completed is a button that can only 409. Kept here
+        rather than in `conduct` because this join is `templates` reading its own version
+        table, and `templates` must not import a repository from another domain.
+        """
+        stmt = (
+            select(SurveyTemplateVersion.template_id)
+            .join(SurveyRun, SurveyRun.template_version_id == SurveyTemplateVersion.id)
+            .where(
+                SurveyRun.respondent_id == respondent_id,
+                SurveyRun.status == RunStatus.completed,
+            )
+            .distinct()
+        )
+        return set((await self.session.execute(stmt)).scalars().all())
 
     async def latest_version(self, template_id: UUID) -> SurveyTemplateVersion | None:
         """The newest published version, or None for a survey never published.

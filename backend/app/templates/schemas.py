@@ -227,6 +227,9 @@ class TemplateSummary(BaseModel):
     # Only populated for the published list a respondent chooses from; a draft has no
     # meaningful estimate because it is not what anyone will be asked.
     estimated_minutes: int | None = None
+    # Whether this reader has already completed it. Defaulted, so the author's own drafts
+    # list is unaffected: it is only ever true on the respondent's invitation list.
+    answered: bool = False
 
 
 class TemplateVersionRead(BaseModel):

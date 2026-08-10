@@ -96,6 +96,7 @@ export const ro: Messages = {
     goingToBuild: "Te ducem la Creează…",
     empty: "Nu s-a publicat încă nimic. Publică un șablon pentru a-l deschide aici.",
     start: "Începe",
+    answered: "Completat",
   },
   run: {
     pickUser: "Alege un utilizator din bara de sus pentru a continua acest sondaj.",

@@ -96,6 +96,7 @@ export const lv: Messages = {
     goingToBuild: "Pārejam uz Veidot…",
     empty: "Vēl nekas nav publicēts. Publicējiet veidni, lai tā parādītos šeit.",
     start: "Sākt",
+    answered: "Atbildēts",
   },
   run: {
     pickUser: "Izvēlieties lietotāju augšējā joslā, lai turpinātu šo aptauju.",

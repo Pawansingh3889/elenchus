@@ -20,7 +20,7 @@ from app.runs.service import ResultsService
 from app.sample_data import SAMPLE_RUNS, SAMPLE_SURVEYS, survey_for_run
 from app.sample_data.loader import load_sample_data
 from app.seed import SEED_USERS
-from app.users.models import User
+from app.users.models import User, UserRole
 from tests.fakes import FakeLLM, move_on, record
 
 AUTHOR_KEYS = {"ava", "arjun"}
@@ -104,7 +104,16 @@ REPLAYABLE = [
 async def test_replaying_a_recorded_run_reproduces_its_answers(session, seeded_users, run):
     await load_sample_data(session)
     survey = survey_for_run(run)
-    respondent = await session.get(User, seeded_users[run["respondent"]])
+    # Replayed by a respondent other than the one the fixture records. Loading the sample
+    # data gives that person their one response to this survey, and one response per
+    # person is the rule now, so starting a live run as them is refused. Who answers does
+    # not change what the engine records, which is the whole of what this asserts.
+    others = [
+        email.split("@", 1)[0]
+        for _, email, _, role, _ in SEED_USERS
+        if role is UserRole.respondent and email.split("@", 1)[0] != run["respondent"]
+    ]
+    respondent = await session.get(User, seeded_users[others[0]])
 
     engine = ConductEngine(session, llm=FakeLLM())
     live = await engine.start_run(UUID(survey["template_id"]), respondent)

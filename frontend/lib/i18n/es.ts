@@ -96,6 +96,7 @@ export const es: Messages = {
     goingToBuild: "Llevándote a Crear…",
     empty: "Aún no hay nada publicado. Publica una plantilla para verla aquí.",
     start: "Empezar",
+    answered: "Respondida",
   },
   run: {
     pickUser: "Elige un usuario en la barra superior para continuar esta encuesta.",
