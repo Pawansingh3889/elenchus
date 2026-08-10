@@ -64,12 +64,17 @@ export default function Home() {
   // Totals across every survey this author owns, from the rows already fetched. The
   // per-survey numbers were always here; what was missing was the one line that says
   // how the whole thing is going, which is the question this page is opened to answer.
+  // Completed and in progress rather than one "responses" number. A count of everyone
+  // who opened a survey overstates what an author actually has: two of the six here
+  // walked away mid-conversation, and their part-finished answers are not results.
+  // `started` stays because the completion rate is a share of it, not of the surveys.
   const totals = rows
     ? {
         surveys: rows.length,
         published: rows.filter((r) => r.status === "published").length,
         started: rows.reduce((n, r) => n + r.started, 0),
         completed: rows.reduce((n, r) => n + r.completed, 0),
+        inProgress: rows.reduce((n, r) => n + r.in_progress, 0),
       }
     : null;
   // Null rather than 0 when nobody has started, the same honesty the row applies:
@@ -101,8 +106,12 @@ export default function Home() {
             <div className="stat-label">{home.statPublished}</div>
           </div>
           <div className="stat">
-            <div className="stat-value">{totals.started}</div>
-            <div className="stat-label">{home.statResponses}</div>
+            <div className="stat-value">{totals.completed}</div>
+            <div className="stat-label">{home.statCompleted}</div>
+          </div>
+          <div className="stat">
+            <div className="stat-value">{totals.inProgress}</div>
+            <div className="stat-label">{home.statInProgress}</div>
           </div>
           <div className="stat">
             {/* A plain hyphen, not a zero: nobody has started, so there is no rate yet. */}
