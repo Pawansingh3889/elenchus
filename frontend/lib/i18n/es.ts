@@ -58,6 +58,8 @@ export const es: Messages = {
     goingToRespond: "Llevándote a Responder…",
     empty: "Aún no hay plantillas. Crea una o redáctala con IA.",
     draftWithAi: "✦ Redactar con IA",
+    drafting: "Redactando…",
+    generateDraft: "✦ Generar borrador",
     describePlaceholder:
       "Describe la encuesta… p. ej. Una encuesta de incorporación para personal de fábrica: su puesto, los sistemas que usan a diario y sus mayores frustraciones con los datos.",
   },

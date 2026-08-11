@@ -476,23 +476,6 @@ textarea {
   overflow-wrap: break-word;
 }
 
-.generate-card textarea {
-  width: 100%;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  padding: 10px;
-  min-height: 72px;
-}
-.generate-card textarea:focus {
-  background: var(--raised);
-  border-color: var(--accent);
-}
-.generate-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 10px;
-}
 
 .template-list {
   display: flex;
@@ -1942,4 +1925,41 @@ select.field {
   margin-inline-start: auto;
   font-size: var(--text-sm);
   color: var(--muted);
+}
+
+/* ------------------------------------------------------------------ draft bar */
+/* First on the page, and a bar rather than a card. Describing a survey and having it
+   drafted is the most distinctive thing here, so it leads; but a panel with a tall
+   textarea leading would push the summary and the work below the fold, which is what
+   moving it here would otherwise cost. One line that grows as you type. */
+.draft-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: var(--ai-fill);
+  border: 1px solid var(--ai-border);
+  border-radius: var(--radius);
+}
+.draft-bar .draft-input {
+  flex: 1;
+  min-block-size: 0;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 8px 10px;
+}
+.draft-bar .draft-input:focus {
+  border-color: var(--accent);
+}
+.draft-bar .btn {
+  flex: 0 0 auto;
+}
+@media (max-width: 34rem) {
+  /* The button under the input rather than beside it: side by side, neither has room
+     to say what it is. */
+  .draft-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }

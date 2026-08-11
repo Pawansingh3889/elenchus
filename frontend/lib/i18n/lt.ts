@@ -58,6 +58,8 @@ export const lt: Messages = {
     goingToRespond: "Nukreipiame į Atsakyti…",
     empty: "Šablonų dar nėra. Sukurkite jį arba parenkite su DI.",
     draftWithAi: "✦ Parengti su DI",
+    drafting: "Rengiama…",
+    generateDraft: "✦ Sukurti juodraštį",
     describePlaceholder:
       "Aprašykite apklausą… pvz., Įvadinė apklausa gamyklos darbuotojams: jų pareigos, kasdien naudojamos sistemos ir didžiausios duomenų problemos.",
   },

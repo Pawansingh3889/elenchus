@@ -58,6 +58,8 @@ export const fil: Messages = {
     goingToRespond: "Dinadala ka sa Sumagot…",
     empty: "Wala pang template. Gumawa ng isa o ipadraft sa AI.",
     draftWithAi: "✦ Idraft gamit ang AI",
+    drafting: "Ginagawa…",
+    generateDraft: "✦ Gumawa ng draft",
     describePlaceholder: "Ilarawan ang survey… hal. Isang onboarding survey para sa mga empleyado sa pabrika: ang kanilang tungkulin, ang mga sistemang ginagamit araw-araw, at ang pinakamalaking problema nila sa datos.",
   },
   builder: {

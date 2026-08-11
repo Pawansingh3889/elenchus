@@ -58,6 +58,8 @@ export const ro: Messages = {
     goingToRespond: "Te ducem la Răspunde…",
     empty: "Încă nu există șabloane. Creează unul sau redactează-l cu AI.",
     draftWithAi: "✦ Redactează cu AI",
+    drafting: "Se redactează…",
+    generateDraft: "✦ Generează schița",
     describePlaceholder:
       "Descrie sondajul… de ex. Un sondaj de integrare pentru personalul din fabrică: postul lor, sistemele folosite zilnic și cele mai mari probleme cu datele.",
   },

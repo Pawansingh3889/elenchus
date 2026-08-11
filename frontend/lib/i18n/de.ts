@@ -59,6 +59,8 @@ export const de: Messages = {
     goingToRespond: "Weiter zu Antworten…",
     empty: "Noch keine Vorlagen. Erstellen Sie eine oder entwerfen Sie sie mit KI.",
     draftWithAi: "✦ Mit KI entwerfen",
+    drafting: "Entwurf läuft…",
+    generateDraft: "✦ Entwurf erstellen",
     describePlaceholder: "Beschreiben Sie die Umfrage… z. B. Eine Einarbeitungsumfrage für Fabrikpersonal: ihre Rolle, die täglich genutzten Systeme und ihre größten Datenprobleme.",
   },
   builder: {

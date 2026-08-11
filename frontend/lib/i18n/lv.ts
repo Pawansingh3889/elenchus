@@ -58,6 +58,8 @@ export const lv: Messages = {
     goingToRespond: "Pārejam uz Atbildēt…",
     empty: "Vēl nav neviena veidne. Izveidojiet to vai uzrakstiet ar MI palīdzību.",
     draftWithAi: "✦ Uzrakstīt ar MI",
+    drafting: "Tiek veidots…",
+    generateDraft: "✦ Izveidot melnrakstu",
     describePlaceholder:
       "Aprakstiet aptauju… piem., Ievadaptauja rūpnīcas darbiniekiem: viņu amats, ikdienā lietotās sistēmas un lielākās problēmas ar datiem.",
   },

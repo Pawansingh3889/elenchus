@@ -58,6 +58,8 @@ export const pl: Messages = {
     goingToRespond: "Przechodzimy do Odpowiadaj…",
     empty: "Nie ma jeszcze szablonów. Utwórz jeden lub napisz go z pomocą AI.",
     draftWithAi: "✦ Napisz z AI",
+    drafting: "Tworzenie…",
+    generateDraft: "✦ Utwórz szkic",
     describePlaceholder:
       "Opisz ankietę… np. Ankieta wdrożeniowa dla pracowników zakładu: ich stanowisko, systemy używane na co dzień i największe problemy z danymi.",
   },
