@@ -22,7 +22,7 @@ from app.llm import ledger
 from app.llm.client import LLMError, NoToolCallError, ToolTurn
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
 from app.runs.models import RunMessage, SurveyRun
-from app.templates.enums import AnswerType
+from app.templates.enums import AnswerType, FollowUpPolicy
 from app.templates.schemas import QuestionInput, TemplateCreate
 from app.templates.service import TemplateService
 from tests.builders import update_of
@@ -848,7 +848,12 @@ async def test_a_follow_up_is_offered_both_shapes(session, respondent, published
     run = await ConductEngine(session, llm=llm).handle_message(run.id, "yes", respondent)
 
     probe = FakeLLM(_record("because the scanner drops out"), _move_on())
-    await ConductEngine(session, llm=probe).handle_message(run.id, "…", respondent)
+    # Their own words, so the record is grounded and the probe is resolved. Answering a
+    # probe with "…" and then moving on is no longer a path the engine offers: a question
+    # it asked has to be recorded or flagged, never left hanging.
+    await ConductEngine(session, llm=probe).handle_message(
+        run.id, "because the scanner drops out", respondent
+    )
 
     record_tool = next(t for t in probe.tools_seen[0] if t["name"] == "record_answer")
     shapes = record_tool["input_schema"]["properties"]["value"]["anyOf"]
@@ -1097,7 +1102,7 @@ async def test_rewind_refunds_the_next_questions_budgets_too(session, respondent
         QuestionInput(
             text="Which systems do you use?",
             answer_type=AnswerType.short_text,
-            allow_follow_ups=True,
+            follow_up_policy=FollowUpPolicy.when_unclear,
         ),
     )
     engine = ConductEngine(session, llm=FakeLLM())
@@ -1133,7 +1138,9 @@ async def test_rewind_keeps_the_budgets_of_questions_that_keep_their_transcript(
         session,
         author,
         QuestionInput(
-            text="What's your role?", answer_type=AnswerType.short_text, allow_follow_ups=True
+            text="What's your role?",
+            answer_type=AnswerType.short_text,
+            follow_up_policy=FollowUpPolicy.when_unclear,
         ),
         QuestionInput(text="Which site?", answer_type=AnswerType.short_text),
         QuestionInput(text="Rate your onboarding", answer_type=AnswerType.rating),
@@ -1169,7 +1176,7 @@ async def test_a_follow_up_on_a_write_in_select_records_prose_as_text(session, r
             answer_type=AnswerType.single_select,
             options=["Scanner", "Terminal"],
             allow_other=True,
-            allow_follow_ups=True,
+            follow_up_policy=FollowUpPolicy.when_unclear,
         ),
     )
     engine = ConductEngine(session, llm=FakeLLM())
@@ -1200,7 +1207,7 @@ async def test_a_follow_up_naming_an_actual_option_stays_structured_despite_allo
             answer_type=AnswerType.single_select,
             options=["Scanner", "Terminal"],
             allow_other=True,
-            allow_follow_ups=True,
+            follow_up_policy=FollowUpPolicy.when_unclear,
         ),
     )
     engine = ConductEngine(session, llm=FakeLLM())
@@ -1313,7 +1320,7 @@ async def _published_with_setting(session, author, setting: str | None):
                 QuestionInput(
                     text="What challenges do you face maintaining compliance?",
                     answer_type=AnswerType.short_text,
-                    allow_follow_ups=True,
+                    follow_up_policy=FollowUpPolicy.when_unclear,
                 )
             ],
         ),
@@ -1512,3 +1519,193 @@ async def test_no_deployment_setting_means_no_setting(session, author, responden
     await ConductEngine(session, llm=llm).handle_message(run.id, "paperwork", respondent)
 
     assert "THE SETTING" not in llm.briefings[0]
+
+
+# --- always_once: the engine owns whether a probe happens, not only how many -----------
+
+
+async def _published_always_once(session, author, required: bool = True):
+    """One question the author marked as always taking a follow-up, then a plain one."""
+    return await _publish(
+        session,
+        author,
+        QuestionInput(
+            text="Has the heat affected your work or your health?",
+            answer_type=AnswerType.long_text,
+            required=required,
+            follow_up_policy=FollowUpPolicy.always_once,
+        ),
+        QuestionInput(text="Which shift do you work?", answer_type=AnswerType.short_text),
+    )
+
+
+async def test_always_once_withholds_the_ways_past_the_question(session, respondent, author):
+    """The fault this exists for. `allow_follow_ups` granted permission, the prompt calls
+    the budget a ceiling, and a live survey with four probe-enabled questions asked eight
+    people ninety-odd turns and never followed up once. Permission is not intent, so on
+    `always_once` the engine stops offering the ways past."""
+    template = await _published_always_once(session, author)
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(template.id, respondent)
+
+    llm = FakeLLM(_follow_up("What happened, and when?", answer_so_far="yes, headaches"))
+    run = await ConductEngine(session, llm=llm).handle_message(run.id, "yes, headaches", respondent)
+
+    offered = llm.offered[0]
+    assert "record_answer" not in offered
+    assert "move_on" not in offered
+    assert "ask_follow_up" in offered
+    # Never cornered: declining is available on the forced turn like any other.
+    assert "flag_unanswerable" in offered
+    assert run.current_question_index == 0
+
+
+async def test_the_forced_probe_banks_the_answer_rather_than_losing_it(session, respondent, author):
+    """Withholding `record_answer` must not cost the answer they already gave.
+    `ask_follow_up` carries `answer_so_far` for exactly this, so the scripted answer and
+    the probe are one call and no turn is spent."""
+    template = await _published_always_once(session, author)
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(template.id, respondent)
+
+    llm = FakeLLM(_follow_up("What happened, and when?", answer_so_far="yes, headaches"))
+    run = await ConductEngine(session, llm=llm).handle_message(run.id, "yes, headaches", respondent)
+
+    scripted = [a for a in run.answers if a.kind is AnswerKind.scripted]
+    assert [a.value for a in scripted] == [{"text": "yes, headaches"}]
+
+
+async def test_the_obligation_lapses_after_one_probe(session, respondent, author):
+    """One follow-up, not one per turn. The budget is spent when the probe is issued, so
+    the rest of it goes back to the model's judgement and the run always terminates."""
+    template = await _published_always_once(session, author)
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(template.id, respondent)
+    first = FakeLLM(_follow_up("What happened?", answer_so_far="yes, headaches"))
+    run = await ConductEngine(session, llm=first).handle_message(
+        run.id, "yes, headaches", respondent
+    )
+
+    second = FakeLLM(_record("most afternoons in July"), _move_on())
+    run = await ConductEngine(session, llm=second).handle_message(
+        run.id, "most afternoons in July", respondent
+    )
+
+    assert "record_answer" in second.offered[0]
+    assert "move_on" in second.offered[-1]
+    assert [a.kind for a in run.answers] == [AnswerKind.scripted, AnswerKind.follow_up]
+    assert run.current_question_index == 1
+
+
+async def test_a_declined_forced_probe_still_moves_the_survey_on(session, respondent, author):
+    """The escape hatch, proven rather than assumed. A respondent who will not elaborate
+    must not be held on the question by an author's setting."""
+    template = await _published_always_once(session, author)
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(template.id, respondent)
+    run = await ConductEngine(
+        session, llm=FakeLLM(_follow_up("What happened?", answer_so_far="yes, headaches"))
+    ).handle_message(run.id, "yes, headaches", respondent)
+
+    declining = FakeLLM(
+        ToolTurn(
+            text="",
+            tool_name="flag_unanswerable",
+            tool_input={"question_id": "x", "reason": "would rather not say"},
+        )
+    )
+    run = await ConductEngine(session, llm=declining).handle_message(
+        run.id, "rather not", respondent
+    )
+
+    assert run.current_question_index == 1
+
+
+async def test_an_optional_question_is_never_forced(session, respondent, author):
+    """`conduct_v7.md` already holds that pressing someone who has just deflected is how
+    invented answers get recorded. An optional question is a courtesy by definition, so
+    the author's intent stops at the respondent who said they cannot help."""
+    template = await _published_always_once(session, author, required=False)
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(template.id, respondent)
+
+    llm = FakeLLM(_record("no, it has been fine"), _move_on())
+    run = await ConductEngine(session, llm=llm).handle_message(
+        run.id, "no, it has been fine", respondent
+    )
+
+    assert "record_answer" in llm.offered[0]
+    assert run.current_question_index == 1
+
+
+async def test_the_briefing_says_why_record_answer_is_missing(session, respondent, author):
+    """Enforced by the tool list and said out loud as well: a model that finds
+    `record_answer` gone and is told nothing spends its retry guessing why."""
+    template = await _published_always_once(session, author)
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(template.id, respondent)
+
+    llm = FakeLLM(_follow_up("What happened?", answer_so_far="yes, headaches"))
+    await ConductEngine(session, llm=llm).handle_message(run.id, "yes, headaches", respondent)
+
+    assert "ALWAYS TAKES ONE FOLLOW-UP" in llm.briefings[0]
+
+
+async def test_a_probe_that_was_answered_cannot_be_walked_away_from(session, respondent, author):
+    """A live run asked "what happens after a stoppage is logged?", forced because the
+    author marked it always_once, got a paragraph about nobody ever coming back to ask,
+    and moved on without recording a word of it. The force guarantees the question is
+    asked; nothing guaranteed the answer was kept."""
+    template = await _published_always_once(session, author)
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(template.id, respondent)
+    run = await ConductEngine(
+        session, llm=FakeLLM(_follow_up("What happened?", answer_so_far="yes, headaches"))
+    ).handle_message(run.id, "yes, headaches", respondent)
+
+    answering = FakeLLM(_record("most afternoons, near the ovens"), _move_on())
+    run = await ConductEngine(session, llm=answering).handle_message(
+        run.id, "most afternoons, near the ovens", respondent
+    )
+
+    # Withheld while the probe was outstanding, offered again once it was recorded.
+    assert "move_on" not in answering.offered[0]
+    assert "record_answer" in answering.offered[0]
+    assert "flag_unanswerable" in answering.offered[0]
+    assert "move_on" in answering.offered[-1]
+    follow_ups = [a for a in run.answers if a.kind is AnswerKind.follow_up]
+    assert [a.value for a in follow_ups] == [{"text": "most afternoons, near the ovens"}]
+
+
+async def test_declining_a_probe_resolves_it_too(session, respondent, author):
+    """The other way out, and it must stay open: a respondent who will not elaborate is
+    not a reason to hold the survey. "Asked and declined" is a finding; silence is
+    indistinguishable from never having asked."""
+    template = await _published_always_once(session, author)
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(template.id, respondent)
+    run = await ConductEngine(
+        session, llm=FakeLLM(_follow_up("What happened?", answer_so_far="yes, headaches"))
+    ).handle_message(run.id, "yes, headaches", respondent)
+
+    declining = FakeLLM(
+        ToolTurn(
+            text="",
+            tool_name="flag_unanswerable",
+            tool_input={"question_id": "x", "reason": "would rather not go into it"},
+        )
+    )
+    run = await ConductEngine(session, llm=declining).handle_message(
+        run.id, "rather not", respondent
+    )
+
+    declined = [a for a in run.answers if a.kind is AnswerKind.follow_up]
+    assert declined and "unanswerable" in declined[0].value
+    assert run.current_question_index == 1
+
+
+async def test_an_unprobed_question_can_still_be_moved_on_from(session, respondent, author):
+    """The rule is about a probe left hanging, not about probing. A question nobody
+    probed must still cost exactly one exchange."""
+    template = await _published_always_once(session, author, required=False)
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(template.id, respondent)
+
+    llm = FakeLLM(_record("no, it has been fine"), _move_on())
+    run = await ConductEngine(session, llm=llm).handle_message(
+        run.id, "no, it has been fine", respondent
+    )
+
+    assert "move_on" in llm.offered[-1]
+    assert run.current_question_index == 1

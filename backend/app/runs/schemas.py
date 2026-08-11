@@ -143,10 +143,28 @@ class QuestionReport(BaseModel):
     # Ratings and numbers only. None when nobody answered, rather than 0, which would
     # read as everyone scoring zero.
     average: float | None = None
+    # The spread, for the same two types. An average alone is the whole of what a number
+    # question reported, and "22.5 minutes" hides whether that is everyone saying twenty
+    # or half saying five and half saying forty. A rating has its counts to show shape; a
+    # number has nothing else at all.
+    low: float | None = None
+    high: float | None = None
     # Free text and write-ins, verbatim and in full. Counted on the page, shown on click:
     # nothing here is grouped or characterised, because that is a judgement about what
     # someone meant and this page is the numbers.
     verbatim: list[str] = Field(default_factory=list)
+    # What the probes drew out, and how many runs were probed. Their own fields rather
+    # than folded into the two above, for the reason `answered` and `declined` are apart:
+    # a follow-up answers a question the model wrote, not the author's, so it can never
+    # join a tally the author's option list defines. On a rating question a probe answers
+    # in prose by design, and adding it to `counts` or `average` would corrupt the one
+    # number the page exists to show.
+    #
+    # `probed` counts runs, not probes, so it reads against `answered` on the same scale.
+    # One run can be probed up to MAX_FOLLOW_UPS times on one question, so the list below
+    # is usually longer than this number.
+    follow_ups: list[str] = Field(default_factory=list)
+    probed: int = 0
 
 
 class SurveyReport(BaseModel):

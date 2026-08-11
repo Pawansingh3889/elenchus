@@ -8,6 +8,11 @@ export type AnswerType =
   | "number"
   | "date";
 
+/** Whether the interviewer probes this question, and how hard. `when_unclear` is what
+ *  the old `allow_follow_ups` boolean bought; `always_once` is the one it could not say,
+ *  and the engine enforces it by withholding the ways past the question. */
+export type FollowUpPolicy = "never" | "when_unclear" | "always_once";
+
 export type TemplateStatus = "draft" | "published" | "closed" | "archived";
 /** Who a survey is for: the whole respondent pool, or one creator department. */
 export type SurveyAudience = "respondents" | "hr" | "operations" | "finance" | "technical";
@@ -38,7 +43,7 @@ export interface QuestionInput {
   options: string[];
   allow_other: boolean;
   required: boolean;
-  allow_follow_ups: boolean;
+  follow_up_policy: FollowUpPolicy;
   show_when: ShowWhen | null;
 }
 
@@ -243,8 +248,46 @@ export interface QuestionReport {
   counts: OptionCount[];
   /** Ratings and numbers only. Null when nobody answered, not 0. */
   average: number | null;
+  /** The spread, for the same two types. An average alone hides whether everyone said
+   *  twenty or half said five and half said forty. */
+  low: number | null;
+  high: number | null;
   /** Free text and write-ins, verbatim and in full. Counted on the page, shown on click. */
   verbatim: string[];
+  /** What the probes drew out. Never in `counts` or `average`: a follow-up answers a
+   *  question the model wrote, so it belongs to no option list and no scale. */
+  follow_ups: string[];
+  /** Runs probed on this question, not probes asked, so it reads against `answered`. */
+  probed: number;
+}
+
+/** One thing the survey found. `statement` carries no figures by design: the model
+ *  names the pattern, and the counts beside it are attached from the report, so a
+ *  number on this page can never be one the model wrote. */
+export interface SurveyFinding {
+  statement: string;
+  question_position: number | null;
+  question_text: string | null;
+  answered: number | null;
+  counts: OptionCount[];
+  average: number | null;
+}
+
+export interface SurveyQuote {
+  question: string;
+  respondent: string;
+  quote: string;
+}
+
+/** The recap of a whole survey. `runs_included` is what it was written from, shown on
+ *  the page because a recap is only true of the responses it read. */
+export interface SurveySummary {
+  headline: string;
+  findings: SurveyFinding[];
+  notable_quotes: SurveyQuote[];
+  version: number;
+  runs_included: number;
+  generated_at: string;
 }
 
 export interface SurveyReport {

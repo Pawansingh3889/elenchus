@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 
 import { Transcript } from "@/components/Transcript";
 import { useT } from "@/lib/i18n/useT";
-import { api } from "@/lib/api";
 import {
   useCurrentUser,
   useSummariseRun,
@@ -164,41 +163,11 @@ export default function ResultsPage() {
     return <div className="empty">{msg.home.goingToRespond}</div>;
   }
 
-  async function download(format: "csv" | "json") {
-    const res = await api.exportRuns(id, format);
-    const blob = await res.blob();
-    // The backend names the file after the survey; fall back if the header is absent.
-    const disposition = res.headers.get("Content-Disposition") ?? "";
-    const name = /filename="([^"]+)"/.exec(disposition)?.[1] ?? `responses.${format}`;
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = name;
-    anchor.click();
-    URL.revokeObjectURL(url);
-  }
-
   return (
     <div className="page">
       <div className="page-head">
         <h1>{msg.results.title}</h1>
         <div className="page-head-actions">
-          <button
-            className="btn btn-secondary"
-            onClick={() => download("csv")}
-            disabled={!runs || runs.length === 0}
-            title={msg.results.exportCsvHint}
-          >
-            Export CSV
-          </button>
-          <button
-            className="btn btn-secondary"
-            onClick={() => download("json")}
-            disabled={!runs || runs.length === 0}
-            title={msg.results.exportJsonHint}
-          >
-            Export JSON
-          </button>
           <Link href={`/templates/${id}`} className="btn btn-secondary">
             Back to builder
           </Link>

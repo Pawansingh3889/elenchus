@@ -166,6 +166,19 @@ export function useTemplateRun(templateId: string, runId: string | null) {
   });
 }
 
+/** The whole-survey recap. A mutation for the same reason the per-run one is: it costs
+ *  model calls, so it happens when the author asks and never on render. Cached under its
+ *  own key rather than folded into the report, which must still load when no recap
+ *  exists and when generating one fails. */
+export function useSummariseSurvey(templateId: string) {
+  const qc = useQueryClient();
+  const userId = useUserStore((s) => s.currentUserId);
+  return useMutation({
+    mutationFn: (refresh: boolean = false) => api.summariseSurvey(templateId, refresh),
+    onSuccess: (summary) => qc.setQueryData(["survey-recap", templateId, userId], summary),
+  });
+}
+
 /** Summarising is a model call the author asks for, so it is a mutation, not a query
  *  that fires on render. The result is written back into the cached run detail. */
 export function useSummariseRun(templateId: string, runId: string | null) {

@@ -37,6 +37,7 @@ from app.runs.enums import AnswerKind, RunStatus
 from app.runs.models import Answer, SurveyRun, add_llm_spend
 from app.runs.repository import ResultsRepository
 from app.runs.service import flatten_answer
+from app.templates.enums import RATING_MAX
 from app.templates.repository import TemplateRepository
 from app.users.models import User
 
@@ -357,6 +358,20 @@ def _without_invented_quotes(raw: dict[str, Any], run: SurveyRun) -> dict[str, A
 
 
 def _answer_text(answer: Answer) -> str:
+    """Flattened as the export flattens it, except that a rating carries its scale.
+
+    A rating reaches this function as a bare "5", because the scale is a property of the
+    question and the answer row stores only the value. Given no denominator the model
+    supplied one: a live run rated 5 was summarised as "Rates workstation heat at 5 out of
+    10", which reads as middling and was in fact the worst answer the question offered. It
+    is not a hallucination the checker can catch either, since 5 really is the value; only
+    the scale was invented, and nothing in front of the model said otherwise.
+
+    Not folded into flatten_answer, which also feeds the CSV and the report: a spreadsheet
+    column of "5 out of 5" cannot be averaged, and the report prints the scale itself.
+    """
+    if "rating" in answer.value:
+        return f"{answer.value['rating']} out of {RATING_MAX}"
     return flatten_answer(answer.value)
 
 

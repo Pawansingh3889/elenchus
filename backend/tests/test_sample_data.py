@@ -169,12 +169,18 @@ async def test_the_in_progress_run_can_be_resumed(session, seeded_users):
     assert run.current_question_index == in_progress["current_question_index"]
 
 
-async def test_export_produces_rows_over_the_sample_data(session, seeded_users):
+async def test_the_sample_data_reads_back_as_answers(session, seeded_users):
+    """The fixtures are meant to give a new author something to look at, so the check is
+    that they arrive through the author-facing path, not merely that the rows loaded.
+
+    Asked of the report since the export was removed. Same question of the same data: the
+    report is now the only place the sample answers are read back in aggregate."""
     await load_sample_data(session)
     onboarding = next(s for s in SAMPLE_SURVEYS if s["key"] == "new-hire-onboarding")
     author = await session.get(User, seeded_users[onboarding["created_by"]])
 
-    title, rows = await ResultsService(session).export(UUID(onboarding["template_id"]), author)
+    report = await ResultsService(session).report(UUID(onboarding["template_id"]), author)
 
-    assert title == onboarding["title"]
-    assert rows, "expected at least one answer row from the sample runs"
+    assert report.title == onboarding["title"]
+    assert report.runs_total, "expected the sample runs to be counted"
+    assert any(q.answered for q in report.questions), "expected at least one answered question"

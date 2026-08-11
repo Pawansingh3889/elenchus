@@ -25,7 +25,7 @@
             "required": true,
             "allow_other": true,
             "answer_type": "multi_select",
-            "allow_follow_ups": true
+            "follow_up_policy": "when_unclear"
           },
           {
             "id": "9e2a1c3b-2b7b-4d5a-83b3-9d456fd9587d",
@@ -40,7 +40,7 @@
             "required": true,
             "allow_other": true,
             "answer_type": "single_select",
-            "allow_follow_ups": false
+            "follow_up_policy": "never"
           },
           {
             "id": "17dc5808-147e-4bca-94bd-3c37c4aa8e0c",
@@ -50,7 +50,7 @@
             "required": true,
             "allow_other": false,
             "answer_type": "number",
-            "allow_follow_ups": false
+            "follow_up_policy": "never"
           },
           {
             "id": "ae878942-8de7-48b4-b939-3773b10beaba",
@@ -60,7 +60,7 @@
             "required": true,
             "allow_other": false,
             "answer_type": "yes_no",
-            "allow_follow_ups": true
+            "follow_up_policy": "when_unclear"
           },
           {
             "id": "66991507-8f46-4bac-a2e9-f911295beb3a",
@@ -70,7 +70,7 @@
             "required": false,
             "allow_other": false,
             "answer_type": "long_text",
-            "allow_follow_ups": true
+            "follow_up_policy": "when_unclear"
           }
         ],
         "description": "Understanding team lead's practices for managing batch codes and temperature"
@@ -103,7 +103,7 @@
             "required": true,
             "allow_other": true,
             "answer_type": "single_select",
-            "allow_follow_ups": true
+            "follow_up_policy": "when_unclear"
           },
           {
             "id": "eacaac9b-1cd5-461e-828b-73a88157e6ac",
@@ -118,7 +118,7 @@
             "required": true,
             "allow_other": true,
             "answer_type": "single_select",
-            "allow_follow_ups": false
+            "follow_up_policy": "never"
           },
           {
             "id": "7433f199-b544-40fe-93be-53e3299981ba",
@@ -133,7 +133,7 @@
             "required": true,
             "allow_other": true,
             "answer_type": "multi_select",
-            "allow_follow_ups": true
+            "follow_up_policy": "when_unclear"
           },
           {
             "id": "99c36694-134a-4e0b-90f3-8c6f62d73a05",
@@ -143,7 +143,7 @@
             "required": true,
             "allow_other": false,
             "answer_type": "rating",
-            "allow_follow_ups": false
+            "follow_up_policy": "never"
           },
           {
             "id": "57972934-a599-462c-ac0b-7fabc9e98ab8",
@@ -153,7 +153,7 @@
             "required": true,
             "allow_other": false,
             "answer_type": "yes_no",
-            "allow_follow_ups": true
+            "follow_up_policy": "when_unclear"
           },
           {
             "id": "1930e170-69e7-454d-9da0-7bd55f99292c",
@@ -163,7 +163,7 @@
             "required": false,
             "allow_other": false,
             "answer_type": "long_text",
-            "allow_follow_ups": true
+            "follow_up_policy": "when_unclear"
           }
         ],
         "description": "Understanding Compliance on the Factory Floor"
@@ -191,7 +191,7 @@
             "required": true,
             "allow_other": false,
             "answer_type": "rating",
-            "allow_follow_ups": false
+            "follow_up_policy": "never"
           },
           {
             "id": "f8042d0b-c741-4a72-8e5a-c56aaf7f305a",
@@ -201,7 +201,7 @@
             "required": true,
             "allow_other": false,
             "answer_type": "short_text",
-            "allow_follow_ups": true
+            "follow_up_policy": "when_unclear"
           },
           {
             "id": "e98fece5-6e5f-4ab4-855c-68b1a72dcde2",
@@ -211,7 +211,7 @@
             "required": true,
             "allow_other": false,
             "answer_type": "rating",
-            "allow_follow_ups": false
+            "follow_up_policy": "never"
           },
           {
             "id": "d9d0b7e9-30cb-425c-8d50-4c35aacad7ca",
@@ -221,7 +221,7 @@
             "required": true,
             "allow_other": false,
             "answer_type": "long_text",
-            "allow_follow_ups": true
+            "follow_up_policy": "when_unclear"
           },
           {
             "id": "b01cc85b-e5c1-42d0-ac1f-6e03441eec67",
@@ -231,7 +231,7 @@
             "required": true,
             "allow_other": false,
             "answer_type": "rating",
-            "allow_follow_ups": false
+            "follow_up_policy": "never"
           },
           {
             "id": "43451f9e-c9ef-46d8-a898-f4f668fabc42",
@@ -241,7 +241,7 @@
             "required": false,
             "allow_other": false,
             "answer_type": "short_text",
-            "allow_follow_ups": true
+            "follow_up_policy": "when_unclear"
           }
         ],
         "description": "Your feedback will help us improve our onboarding process"
@@ -273,7 +273,7 @@
             "required": true,
             "allow_other": false,
             "answer_type": "single_select",
-            "allow_follow_ups": true
+            "follow_up_policy": "when_unclear"
           },
           {
             "id": "e6aef630-db8e-4439-8346-fe5e9bcfb427",
@@ -283,7 +283,7 @@
             "required": true,
             "allow_other": false,
             "answer_type": "rating",
-            "allow_follow_ups": true
+            "follow_up_policy": "when_unclear"
           },
           {
             "id": "9a68e246-49ff-471d-9831-65e849a28f8e",
@@ -293,7 +293,7 @@
             "required": false,
             "allow_other": true,
             "answer_type": "long_text",
-            "allow_follow_ups": true
+            "follow_up_policy": "when_unclear"
           },
           {
             "id": "4fea9ef2-3ad0-4a05-941d-fec98a5cdfba",
@@ -303,7 +303,7 @@
             "required": true,
             "allow_other": false,
             "answer_type": "number",
-            "allow_follow_ups": false
+            "follow_up_policy": "never"
           },
           {
             "id": "30cc6b1b-ea58-4b89-b8bd-f88581aafcf1",
@@ -313,7 +313,7 @@
             "required": true,
             "allow_other": true,
             "answer_type": "long_text",
-            "allow_follow_ups": true
+            "follow_up_policy": "when_unclear"
           },
           {
             "id": "2a51206a-dc5e-44f9-9adb-4b91cee3e933",
@@ -328,7 +328,7 @@
             "required": true,
             "allow_other": false,
             "answer_type": "single_select",
-            "allow_follow_ups": true
+            "follow_up_policy": "when_unclear"
           }
         ],
         "description": "Help us understand your team's dynamics and challenges. "

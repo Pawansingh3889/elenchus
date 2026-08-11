@@ -25,7 +25,7 @@ def _snap(**kw: object) -> dict[str, object]:
         "options": [],
         "allow_other": False,
         "required": True,
-        "allow_follow_ups": False,
+        "follow_up_policy": "never",
         **kw,
     }
 
@@ -40,7 +40,7 @@ def test_a_question_missing_required_is_refused_not_guessed() -> None:
 
 
 @pytest.mark.parametrize(
-    "field", ["id", "text", "answer_type", "options", "allow_other", "allow_follow_ups"]
+    "field", ["id", "text", "answer_type", "options", "allow_other", "follow_up_policy"]
 )
 def test_every_other_missing_field_is_refused_too(field: str) -> None:
     """Not a special case for one key — the whole shape is the contract."""
@@ -63,6 +63,44 @@ def test_show_when_is_optional_because_older_versions_predate_it() -> None:
     without = _snap()
     assert "show_when" not in without
     assert questions_of({"questions": [without]})[0]["show_when"] is None
+
+
+def test_a_version_published_under_the_old_boolean_still_reads() -> None:
+    """`follow_up_policy` replaced `allow_follow_ups`, and a published version is
+    immutable, so both shapes exist in the table forever. The boolean bought exactly what
+    `when_unclear` buys, so that is what it resolves to: reading it as `always_once` would
+    change how a survey already in flight is conducted, which publishing is meant to make
+    impossible."""
+    old = _snap()
+    del old["follow_up_policy"]
+
+    permitted = questions_of({"questions": [{**old, "allow_follow_ups": True}]})[0]
+    refused = questions_of({"questions": [{**old, "allow_follow_ups": False}]})[0]
+
+    assert permitted["follow_up_policy"] == "when_unclear"
+    assert refused["follow_up_policy"] == "never"
+
+
+def test_a_new_version_is_read_as_written_not_derived() -> None:
+    """The policy wins where both are present, and `always_once` survives the round trip
+    it exists for."""
+    assert (
+        questions_of({"questions": [_snap(follow_up_policy="always_once")]})[0]["follow_up_policy"]
+        == "always_once"
+    )
+    both = _snap(follow_up_policy="always_once", allow_follow_ups=False)
+    assert questions_of({"questions": [both]})[0]["follow_up_policy"] == "always_once"
+
+
+def test_a_definition_carrying_neither_is_refused() -> None:
+    """Not a default. Every version ever published carries one of the two, so a document
+    with neither was written by code that never existed, and guessing on its behalf is
+    what this whole module exists to stop."""
+    neither = _snap()
+    del neither["follow_up_policy"]
+    with pytest.raises(ValidationError) as exc:
+        questions_of({"questions": [neither]})
+    assert "follow_up_policy" in str(exc.value)
 
 
 def test_a_definition_with_no_questions_key_fails_loudly() -> None:

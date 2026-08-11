@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { use } from "react";
 
-import { useReport } from "@/lib/queries";
+import { useReport, useSummariseSurvey } from "@/lib/queries";
 import { useT } from "@/lib/i18n/useT";
 import { useUserStore } from "@/lib/store";
-import type { QuestionReport } from "@/lib/types";
+import type { QuestionReport, SurveySummary } from "@/lib/types";
 
 /** The tally, as bars in the author's option order.
  *
@@ -35,11 +35,65 @@ function Bars({ question }: { question: QuestionReport }) {
   );
 }
 
+
+/** The whole-survey recap.
+ *
+ *  Every figure here is read out of the report, never out of the model: a finding is
+ *  prose with no digits in it (the API refuses one that has any) and the tally beside it
+ *  is the question's own. So the words can be arguable and the numbers cannot be wrong.
+ */
+function Recap({ recap }: { recap: SurveySummary }) {
+  const msg = useT();
+  return (
+    <div className="card recap">
+      <div className="card-label">{msg.report.recapFrom(recap.runs_included, recap.version)}</div>
+      <h2 className="recap-headline">{recap.headline}</h2>
+
+      <ul className="recap-findings">
+        {recap.findings.map((f, i) => (
+          <li key={i}>
+            <span className="recap-statement">{f.statement}</span>
+            {f.question_text ? (
+              <span className="muted recap-source">
+                {" "}
+                {msg.report.fromQuestion((f.question_position ?? 0) + 1, f.question_text)}
+              </span>
+            ) : null}
+            {f.counts.length > 0 ? (
+              <span className="recap-counts">
+                {f.counts
+                  .filter((c) => c.count > 0)
+                  .map((c) => `${c.label} ${c.count}`)
+                  .join(" · ")}
+                {f.average !== null ? ` · ${msg.report.average(f.average.toFixed(1))}` : ""}
+              </span>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+
+      {recap.notable_quotes.length > 0 ? (
+        <div className="recap-quotes">
+          {recap.notable_quotes.map((q, i) => (
+            <blockquote key={i}>
+              {q.quote}
+              <cite>
+                {q.respondent} · {q.question}
+              </cite>
+            </blockquote>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function ReportPage({ params }: { params: Promise<{ id: string }> }) {
   const msg = useT();
   const { id } = use(params);
   const currentUserId = useUserStore((s) => s.currentUserId);
   const { data: report, isLoading, error } = useReport(id);
+  const recap = useSummariseSurvey(id);
 
   if (!currentUserId) return <div className="empty">{msg.builder.pickUser}</div>;
   if (isLoading) return <div className="muted">{msg.common.loading}</div>;
@@ -60,26 +114,50 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
           <Link href={`/templates/${id}`} className="btn btn-secondary">
             {msg.report.edit}
           </Link>
+          {report.runs_completed > 0 ? (
+            <button
+              className="btn btn-ai"
+              onClick={() => recap.mutate(Boolean(recap.data))}
+              disabled={recap.isPending}
+            >
+              {recap.isPending
+                ? msg.report.recapWorking
+                : recap.data
+                  ? msg.report.recapAgain
+                  : msg.report.recapAsk}
+            </button>
+          ) : null}
         </div>
       </div>
 
-      <div className="stat-row">
-        <div className="stat">
-          <div className="stat-value">
-            {report.reach > 0
-              ? `${report.people_completed}/${report.reach}`
-              : report.people_completed}
+      {/* Two rates, each labelled with what it is over. They were one tile reading
+          "8/8 responded" beside another reading "8 responses", which is the same number
+          twice, and the completion rate was on the dashboard where there was no room to
+          say what it was a share of. Here there is room, so it says it. */}
+      <div className="report-rates">
+        <div className="rate">
+          <div className="rate-value">
+            {report.reach > 0 ? `${Math.round((report.people_completed / report.reach) * 100)}%` : "-"}
           </div>
-          <div className="stat-label">{msg.report.responded}</div>
+          <div className="rate-label">{msg.report.rateAnswered}</div>
+          <div className="rate-of">
+            {msg.report.ofPeopleAsked(report.people_completed, report.reach)}
+          </div>
         </div>
-        <div className="stat">
-          <div className="stat-value">{report.runs_total}</div>
-          <div className="stat-label">{msg.report.responses}</div>
+        <div className="rate">
+          <div className="rate-value">
+            {report.runs_total > 0
+              ? `${Math.round((report.runs_completed / report.runs_total) * 100)}%`
+              : "-"}
+          </div>
+          <div className="rate-label">{msg.report.rateFinished}</div>
+          <div className="rate-of">
+            {msg.report.ofThoseWhoStarted(report.runs_completed, report.runs_total)}
+          </div>
         </div>
-        <div className="stat">
-          <div className="stat-value">v{report.version}</div>
-          <div className="stat-label">{msg.report.version}</div>
-        </div>
+        {/* Metadata, not a statistic. It was a tile of the same size as the numbers,
+            which said a version number was one of the survey's findings. */}
+        <div className="rate-meta">{msg.report.versionLabel(report.version)}</div>
       </div>
 
       {/* Said on the page rather than left in the code: those runs answered different
@@ -100,6 +178,17 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
 
       {report.runs_total === 0 ? <div className="muted">{msg.report.nobodyYet}</div> : null}
 
+      {/* Author-triggered, never on render: it costs model calls and can fail, and the
+          numbers below must load either way. */}
+      {recap.data ? (
+        <div className="recap-block">
+          <Recap recap={recap.data} />
+        </div>
+      ) : null}
+      {recap.error ? (
+        <div className="error-text">{(recap.error as Error).message}</div>
+      ) : null}
+
       <div className="questions">
         {report.questions.map((q, i) => (
           <div className="card" key={q.id}>
@@ -109,6 +198,10 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
               {msg.report.answeredBy(q.answered)}
               {q.declined > 0 ? ` · ${msg.report.declinedBy(q.declined)}` : ""}
               {q.average !== null ? ` · ${msg.report.average(q.average.toFixed(1))}` : ""}
+              {q.low !== null && q.high !== null && q.low !== q.high
+                ? ` · ${msg.report.spread(q.low, q.high)}`
+                : ""}
+              {q.probed > 0 ? ` · ${msg.report.probedBy(q.probed)}` : ""}
             </p>
 
             {q.counts.length > 0 ? <Bars question={q} /> : null}
@@ -127,7 +220,21 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
               </details>
             ) : null}
 
-            {q.counts.length === 0 && q.verbatim.length === 0 ? (
+            {/* Its own list, below the answers rather than mixed into them. A follow-up
+                answers a question the model wrote, so presenting it as an answer to this
+                one would credit the author's question with words it never asked for. */}
+            {q.follow_ups.length > 0 ? (
+              <details className="verbatim">
+                <summary className="muted">{msg.report.whatProbesFound(q.follow_ups.length)}</summary>
+                <ul>
+                  {q.follow_ups.map((v, j) => (
+                    <li key={j}>{v}</li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
+
+            {q.answered === 0 && q.declined === 0 ? (
               <p className="muted">{msg.report.noAnswers}</p>
             ) : null}
           </div>

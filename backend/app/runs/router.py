@@ -1,18 +1,16 @@
 """Results routes: an author reading responses to their survey."""
 
-import json
-import re
-from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import require_author
 from app.db.session import get_session
 from app.runs.schemas import DashboardRow, RunDetail, RunSummary, SurveyReport
-from app.runs.service import ResultsService, to_csv
+from app.runs.service import ResultsService
 from app.runs.summary import RunSummaryContent, RunSummaryService
+from app.runs.survey_summary import SurveySummaryRead, SurveySummaryService
 from app.users.models import User
 
 router = APIRouter(prefix="/api/v1/templates", tags=["results"])
@@ -56,38 +54,22 @@ async def survey_report(
     return await ResultsService(session).report(template_id, author)
 
 
-@router.get("/{template_id}/runs/export")
-async def export_runs(
+@router.post("/{template_id}/summary", response_model=SurveySummaryRead)
+async def summarise_survey(
     template_id: UUID,
-    format: Literal["csv", "json"] = Query("csv"),
+    refresh: bool = Query(False, description="Regenerate even if a current recap is stored."),
     author: User = Depends(require_author),
     session: AsyncSession = Depends(get_session),
-) -> Response:
-    """Download the responses: CSV (opens directly in Excel) or JSON.
+) -> SurveySummaryRead:
+    """What the whole survey found, across every completed response.
 
-    The two are deliberately different shapes rather than the same rows twice. CSV is
-    flat because a spreadsheet cell cannot hold a follow-up, so it stays one row per
-    recorded answer. JSON nests, so it carries the whole survey per run: every question
-    including the ones nobody answered, each follow-up under the question it was asked
-    about, and every value in its stored shape as well as flattened.
+    Author-triggered for the reason the per-run summary is: a model call costs seconds
+    and can fail, and neither belongs in the path of a page an author opens to read
+    numbers. The stored recap is reused only while the version and the completed-run
+    count are what they were when it was written, because a recap of eight responses
+    served after twenty have arrived is not stale, it is wrong.
     """
-    service = ResultsService(session)
-    if format == "json":
-        document = await service.export_structured(template_id, author)
-        title = document["template"]["title"]
-        stem = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-") or "survey"
-        return Response(
-            json.dumps(document, indent=2, ensure_ascii=False),
-            media_type="application/json",
-            headers={"Content-Disposition": f'attachment; filename="{stem}-responses.json"'},
-        )
-    title, rows = await service.export(template_id, author)
-    stem = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-") or "survey"
-    return Response(
-        to_csv(rows),
-        media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="{stem}-responses.csv"'},
-    )
+    return await SurveySummaryService(session).summarise(template_id, author, refresh)
 
 
 @router.get("/{template_id}/runs/{run_id}", response_model=RunDetail)

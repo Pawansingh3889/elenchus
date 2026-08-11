@@ -4,8 +4,6 @@ Deliberately separate from the conduct engine: conducting is respondent-owned an
 refuses anyone else, while results are author-facing and cross-respondent.
 """
 
-import csv
-import io
 import json
 import logging
 from typing import Any
@@ -37,17 +35,6 @@ from app.users.models import User
 from app.users.repository import UserRepository
 
 logger = logging.getLogger("app.runs.results")
-
-EXPORT_COLUMNS = [
-    "run_id",
-    "respondent",
-    "run_status",
-    "version",
-    "question",
-    "kind",
-    "answer",
-    "answered_at",
-]
 
 
 class ResultsService:
@@ -143,106 +130,6 @@ class ResultsService:
             summary=run.summary,
         )
 
-    async def export(self, template_id: UUID, author: User) -> tuple[str, list[dict[str, Any]]]:
-        """Every answer across every run, flattened to one row each, for download."""
-        template = await self._owned_or_404(template_id, author)
-        rows: list[dict[str, Any]] = []
-        for run, version, user in await self.repo.list_for_template(template_id):
-            for answer in run.answers:
-                rows.append(
-                    {
-                        "run_id": str(run.id),
-                        "respondent": user.display_name,
-                        "run_status": run.status.value,
-                        "version": version.version,
-                        "question": answer.question_text,
-                        "kind": answer.kind.value,
-                        "answer": flatten_answer(answer.value),
-                        "answered_at": answer.answered_at.isoformat(),
-                    }
-                )
-        return template.title, rows
-
-    async def export_structured(self, template_id: UUID, author: User) -> dict[str, Any]:
-        """The whole survey per run: every question, its answer, and its follow-ups.
-
-        The flat export exists for spreadsheets and cannot say more than one row per
-        answer, which loses three things an analyst needs. A question nobody answered has
-        no row at all, so a skipped question and an unasked one look identical to a
-        question that was never in the survey. A follow-up sits beside its parent as a
-        peer, with the model's invented wording in the question column and nothing
-        joining them. And every value arrives pre-flattened to a string, so a rating and
-        the text "4" are indistinguishable once exported.
-
-        Here the question list comes from the frozen version rather than from the answers,
-        so unanswered questions are present and explicitly unanswered; follow-ups nest
-        under the question they were asked about; and each value appears twice, once in
-        the shape it was stored in and once flattened, so a reader can take either
-        without re-deriving the other and getting it subtly different.
-        """
-        template = await self._owned_or_404(template_id, author)
-        runs: list[dict[str, Any]] = []
-        for run, version, user in await self.repo.list_for_template(template_id):
-            by_question: dict[str, list[Any]] = {}
-            for answer in run.answers:
-                by_question.setdefault(str(answer.question_id), []).append(answer)
-
-            questions: list[dict[str, Any]] = []
-            for question in questions_of(version.definition):
-                found = by_question.get(question["id"], [])
-                scripted = next((a for a in found if a.kind is AnswerKind.scripted), None)
-                questions.append(
-                    {
-                        "position": question["position"],
-                        "id": question["id"],
-                        "text": question["text"],
-                        "answer_type": question["answer_type"],
-                        "options": question["options"],
-                        "required": question["required"],
-                        # False covers both "hidden by a condition" and "never reached",
-                        # which the flat export could not distinguish from absent.
-                        "answered": scripted is not None,
-                        "answer": scripted.value if scripted else None,
-                        "answer_display": flatten_answer(scripted.value) if scripted else None,
-                        "answered_at": scripted.answered_at.isoformat() if scripted else None,
-                        # The model wrote these questions, so their text lives on the
-                        # answer rather than in the frozen definition.
-                        "follow_ups": [
-                            {
-                                "question": a.question_text,
-                                "answer": a.value,
-                                "answer_display": flatten_answer(a.value),
-                                "answered_at": a.answered_at.isoformat(),
-                            }
-                            for a in found
-                            if a.kind is AnswerKind.follow_up
-                        ],
-                    }
-                )
-
-            runs.append(
-                {
-                    "run_id": str(run.id),
-                    "respondent": user.display_name,
-                    "status": run.status.value,
-                    "language": run.language,
-                    "version": version.version,
-                    "started_at": run.started_at.isoformat(),
-                    "completed_at": run.completed_at.isoformat() if run.completed_at else None,
-                    "llm_spend": {
-                        "calls": run.llm_calls,
-                        "prompt_tokens": run.llm_prompt_tokens,
-                        "completion_tokens": run.llm_completion_tokens,
-                        # Kept beside the cost rather than folded into it: a total that
-                        # hid the unmeasured calls would read as complete when it is not.
-                        "unmetered_calls": run.llm_unmetered_calls,
-                        "cost_usd": str(run.llm_cost_usd),
-                    },
-                    "questions": questions,
-                }
-            )
-        return {"template": {"id": str(template.id), "title": template.title}, "runs": runs}
-
     async def report(self, template_id: UUID, author: User) -> SurveyReport:
         """What the survey found, question by question, across every run that answered it.
 
@@ -265,6 +152,12 @@ class ResultsService:
         # Scripted answers only. A follow-up answers a question the model wrote, not the
         # author's, so counting them here would tally answers to questions nobody chose.
         answers: dict[str, list[dict[str, Any]]] = {q["id"]: [] for q in questions}
+        # The probes, kept beside the tallies rather than dropped. They were discarded
+        # here until now, which left the elaboration an author most wants to read visible
+        # only in the export and one run at a time: a survey that asked "have you reported
+        # this?" could show four yeses and nothing about what happened next.
+        probes: dict[str, list[dict[str, Any]]] = {q["id"]: [] for q in questions}
+        probed_runs: dict[str, set[UUID]] = {q["id"]: set() for q in questions}
         runs_total = runs_completed = on_earlier = 0
         # People as well as runs, from rows already loaded. A run count answers "how much
         # material is there"; a person count answers "how many of the people this was for
@@ -282,11 +175,14 @@ class ResultsService:
                 on_earlier += 1
                 continue
             for answer in run.answers:
-                if answer.kind is not AnswerKind.scripted:
-                    continue
                 key = str(answer.question_id)
-                if key in answers:
+                if key not in answers:
+                    continue
+                if answer.kind is AnswerKind.scripted:
                     answers[key].append(answer.value)
+                else:
+                    probes[key].append(answer.value)
+                    probed_runs[key].add(run.id)
 
         return SurveyReport(
             template_id=template.id,
@@ -298,7 +194,10 @@ class ResultsService:
             people_started=len(people_started),
             people_completed=len(people_completed),
             runs_on_earlier_versions=on_earlier,
-            questions=[_report_question(q, answers[q["id"]]) for q in questions],
+            questions=[
+                _report_question(q, answers[q["id"]], probes[q["id"]], len(probed_runs[q["id"]]))
+                for q in questions
+            ],
         )
 
     async def _owned_or_404(self, template_id: UUID, author: User) -> SurveyTemplate:
@@ -321,12 +220,21 @@ class ResultsService:
         return template
 
 
-def _report_question(question: dict[str, Any], values: list[dict[str, Any]]) -> QuestionReport:
+def _report_question(
+    question: dict[str, Any],
+    values: list[dict[str, Any]],
+    probe_values: list[dict[str, Any]],
+    probed: int,
+) -> QuestionReport:
     """One question's tally, from the raw stored values.
 
     Shape by shape rather than through ``flatten_answer``, which exists to make one
     printable cell and would have "yes" and a write-in reading "yes" land in the same
     bucket. Counting is where that distinction matters most.
+
+    ``probe_values`` are the follow-up answers, and they are printed rather than counted.
+    Their shape is whatever the model's own question called for, so they belong to no
+    option list and no scale, and every number below is computed without them.
     """
     answered = [v for v in values if "unanswerable" not in v]
     declined = len(values) - len(answered)
@@ -334,6 +242,8 @@ def _report_question(question: dict[str, Any], values: list[dict[str, Any]]) -> 
     counts: list[OptionCount] = []
     verbatim: list[str] = []
     average: float | None = None
+    low: float | None = None
+    high: float | None = None
 
     if answer_type in ("single_select", "multi_select"):
         # The author's order, so a scale reads as a scale rather than sorted by
@@ -366,6 +276,7 @@ def _report_question(question: dict[str, Any], values: list[dict[str, Any]]) -> 
         numbers = [v[answer_type] for v in answered if isinstance(v.get(answer_type), int | float)]
         if numbers:
             average = sum(numbers) / len(numbers)
+            low, high = min(numbers), max(numbers)
         if answer_type == "rating":
             # The whole 1-5 scale, so an unused end of it is visible rather than absent.
             counts = [
@@ -385,7 +296,14 @@ def _report_question(question: dict[str, Any], values: list[dict[str, Any]]) -> 
         declined=declined,
         counts=counts,
         average=average,
+        low=low,
+        high=high,
         verbatim=verbatim,
+        # A declined probe is not words the respondent said, so it is left out on the
+        # same rule the tallies use. `probed` still counts the run: the question was
+        # asked, and "asked and declined" is a finding.
+        follow_ups=[flatten_answer(v) for v in probe_values if "unanswerable" not in v],
+        probed=probed,
     )
 
 
@@ -433,15 +351,6 @@ def flatten_answer(value: dict[str, Any]) -> str:
     if "unanswerable" in value:
         return f"(declined) {value['unanswerable']}"
     return json.dumps(value)  # future shapes export verbatim rather than crash a download
-
-
-def to_csv(rows: list[dict[str, Any]]) -> str:
-    """RFC-4180 CSV with a UTF-8 BOM so Excel opens it with the right encoding."""
-    buffer = io.StringIO()
-    writer = csv.DictWriter(buffer, fieldnames=EXPORT_COLUMNS)
-    writer.writeheader()
-    writer.writerows(rows)
-    return "\ufeff" + buffer.getvalue()
 
 
 def _summary(run: SurveyRun, version: SurveyTemplateVersion, user: User) -> RunSummary:

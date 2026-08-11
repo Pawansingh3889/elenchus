@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
 from app.runs.models import Answer, RunMessage, SurveyRun
 from app.sample_data import SAMPLE_RUNS, SAMPLE_SURVEYS, SURVEY_BY_KEY, RunFixture, SurveyFixture
-from app.templates.enums import AnswerType, TemplateStatus
+from app.templates.enums import AnswerType, FollowUpPolicy, TemplateStatus
 from app.templates.models import SurveyQuestion, SurveyTemplate, SurveyTemplateVersion
 from app.users.models import User
 
@@ -76,7 +76,7 @@ def _insert_survey(session: AsyncSession, survey: SurveyFixture, users: dict[str
                 options=question["options"],
                 allow_other=question["allow_other"],
                 required=question["required"],
-                allow_follow_ups=question["allow_follow_ups"],
+                follow_up_policy=FollowUpPolicy(question["follow_up_policy"]),
             )
         )
     session.add(template)

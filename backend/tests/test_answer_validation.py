@@ -25,7 +25,7 @@ def q(answer_type: str, *, options: list[str] | None = None, allow_other: bool =
         "options": options or [],
         "allow_other": allow_other,
         "required": True,
-        "allow_follow_ups": False,
+        "follow_up_policy": "never",
     }
 
 
@@ -121,6 +121,50 @@ def test_single_select_refuses_a_near_miss_when_other_is_not_allowed():
 def test_single_select_keeps_a_write_in_when_other_is_allowed():
     question = q("single_select", options=["Days", "Nights"], allow_other=True)
     assert validate_answer(question, "Split shift") == {"other": "Split shift"}
+
+
+def test_a_write_in_loses_the_marker_the_prompt_forbids():
+    """From a live run: the model was told not to write "Other: ..." and did it anyway on
+    a multi_select, in the same conversation where it obeyed on the single_select. The
+    marker then reached the author's report as part of the answer."""
+    single = q("single_select", options=["Days", "Nights"], allow_other=True)
+    assert validate_answer(single, "Other: Split shift") == {"other": "Split shift"}
+    assert validate_answer(single, "other:Split shift") == {"other": "Split shift"}
+    multi = q("multi_select", options=["Fans", "Air conditioning"], allow_other=True)
+    assert validate_answer(multi, ["Fans", "Other: a portable spot cooler"]) == {
+        "options": ["Fans"],
+        "other": ["a portable spot cooler"],
+    }
+
+
+def test_the_marker_does_not_eat_an_answer_that_merely_starts_with_other():
+    """The strip is the colon form only. A dash form would take the front off
+    "Other-worldly", and a respondent's own words are not ours to trim."""
+    question = q("single_select", options=["Days"], allow_other=True)
+    assert validate_answer(question, "Other-worldly hours") == {"other": "Other-worldly hours"}
+    assert validate_answer(question, "other duties as assigned") == {
+        "other": "other duties as assigned"
+    }
+
+
+def test_a_marked_option_is_the_option_not_a_write_in():
+    """ "Other: Days" is the option Days wearing a marker. Filed as a write-in it would
+    split one tally across two rows that never add up."""
+    single = q("single_select", options=["Days", "Nights"], allow_other=True)
+    assert validate_answer(single, "Other: Days") == {"option": "Days"}
+    # And with no write-ins allowed it is still the option, not a refusal.
+    assert validate_answer(q("single_select", options=["Days"]), "Other: days") == {
+        "option": "Days"
+    }
+    multi = q("multi_select", options=["Fans"], allow_other=True)
+    assert validate_answer(multi, ["Other: fans"]) == {"options": ["Fans"]}
+
+
+def test_a_bare_marker_is_not_an_answer():
+    """ "Other:" with nothing behind it is a marker, not a write-in. Stored, it would be
+    an answer with no content, which is what the empty-write-in rule already refuses."""
+    rejects(q("single_select", options=["Days"], allow_other=True), "Other:")
+    rejects(q("multi_select", options=["Fans"], allow_other=True), ["Other:  "])
 
 
 def test_multi_select_takes_a_subset_of_the_options():

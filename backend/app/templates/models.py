@@ -15,7 +15,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
-from app.templates.enums import AnswerType, SurveyAudience, TemplateStatus
+from app.templates.enums import AnswerType, FollowUpPolicy, SurveyAudience, TemplateStatus
 
 
 class SurveyTemplate(Base):
@@ -54,6 +54,12 @@ class SurveyTemplate(Base):
     # and no gate can settle it. The author knows, so the author says.
     setting: Mapped[str | None] = mapped_column(Text, default=None)
 
+    # The author-triggered summary of what the whole survey found. Carries the version
+    # and completed-run count it was generated from, because unlike a run, a survey's
+    # responses keep arriving: serving this after those moved would be serving wrong
+    # numbers in prose nobody can check.
+    summary: Mapped[dict[str, Any] | None] = mapped_column(JSONB, default=None)
+
     questions: Mapped[list["SurveyQuestion"]] = relationship(
         back_populates="template",
         cascade="all, delete-orphan",
@@ -72,7 +78,9 @@ class SurveyQuestion(Base):
     options: Mapped[list[str]] = mapped_column(JSONB, default=list)
     allow_other: Mapped[bool] = mapped_column(Boolean, default=False)
     required: Mapped[bool] = mapped_column(Boolean, default=True)
-    allow_follow_ups: Mapped[bool] = mapped_column(Boolean, default=False)
+    follow_up_policy: Mapped[FollowUpPolicy] = mapped_column(
+        SAEnum(FollowUpPolicy, name="follow_up_policy"), default=FollowUpPolicy.never
+    )
     # {"question": <0-based position of an earlier question>, "op": "is"|"is_not",
     # "value": "..."} or NULL for always-visible. Keyed by position, not id: a draft
     # edit replaces every question row, so ids do not survive a save.

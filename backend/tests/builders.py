@@ -29,7 +29,7 @@ def update_of(template: SurveyTemplate, **changes: Any) -> TemplateUpdate:
                 options=list(q.options),
                 allow_other=q.allow_other,
                 required=q.required,
-                allow_follow_ups=q.allow_follow_ups,
+                follow_up_policy=q.follow_up_policy,
                 show_when=q.show_when,
             )
             for q in sorted(template.questions, key=lambda q: q.position)

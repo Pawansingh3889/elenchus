@@ -11,8 +11,10 @@ import {
   useDashboard,
   useGenerateTemplate,
 } from "@/lib/queries";
+import { groupForDashboard, type Attention } from "@/lib/dashboardAttention";
 import { useT } from "@/lib/i18n/useT";
 import { useDraftNoteStore, useUserStore } from "@/lib/store";
+import type { DashboardRow } from "@/lib/types";
 
 export default function Home() {
   const { common, home } = useT();
@@ -61,34 +63,85 @@ export default function Home() {
     router.push(`/templates/${template.id}`);
   }
 
-  // Totals across every survey this author owns, from the rows already fetched. The
-  // per-survey numbers were always here; what was missing was the one line that says
-  // how the whole thing is going, which is the question this page is opened to answer.
-  // Completed and in progress rather than one "responses" number. A count of everyone
-  // who opened a survey overstates what an author actually has: two of the six here
-  // walked away mid-conversation, and their part-finished answers are not results.
-  // `started` stays because the completion rate is a share of it, not of the surveys.
-  const totals = rows
+  // Three numbers, and each answers a different question. The old row had six, two of
+  // which ("Surveys" and "Published") were the same number on every screen anyone has
+  // looked at, and two of which were percentages sitting side by side with no way to
+  // tell which was over what.
+  const groups = rows ? groupForDashboard(rows) : null;
+  const totals = groups
     ? {
-        surveys: rows.length,
-        published: rows.filter((r) => r.status === "published").length,
-        started: rows.reduce((n, r) => n + r.started, 0),
-        completed: rows.reduce((n, r) => n + r.completed, 0),
-        inProgress: rows.reduce((n, r) => n + r.in_progress, 0),
-        // Summed across surveys, so a person asked twice counts twice. That is right:
-        // this is a rate over invitations, not over people.
-        reach: rows.reduce((n, r) => n + r.reach, 0),
-        peopleCompleted: rows.reduce((n, r) => n + r.people_completed, 0),
+        needsYou: groups.needsYou.length,
+        running: groups.running.length,
+        // Completed runs, not people: summing people across surveys would count someone
+        // asked twice as two people, and there is no distinct count to be had from rows
+        // that are already aggregated per survey.
+        responses: (rows ?? []).reduce((n, r) => n + r.completed, 0),
       }
     : null;
-  // Null rather than 0 when nobody has started, the same honesty the row applies:
-  // 0% reads as everyone abandoning, which is a different thing from nobody arriving.
-  const completion =
-    totals && totals.started > 0 ? Math.round((totals.completed / totals.started) * 100) : null;
-  const responseRate =
-    totals && totals.reach > 0
-      ? Math.round((totals.peopleCompleted / totals.reach) * 100)
-      : null;
+
+  // The whole audience as one bar: answered, part-way, not yet. One shape instead of two
+  // percentages, which is what made the old pair unreadable — the reader had to work out
+  // what each was over, and the two denominators were different. Here there is one
+  // denominator and the segments are three stages of the same journey through it.
+  //
+  // Running surveys only. A closed survey's audience cannot answer any more, so folding
+  // it in would permanently drag the bar down with people nobody is waiting on.
+  const audience = groups
+    ? groups.running.concat(groups.needsYou.map((n) => n.row)).reduce(
+        (acc, r) => ({
+          surveys: acc.surveys + (r.status === "published" ? 1 : 0),
+          reach: acc.reach + (r.status === "published" ? r.reach : 0),
+          started: acc.started + (r.status === "published" ? r.people_started : 0),
+          answered: acc.answered + (r.status === "published" ? r.people_completed : 0),
+        }),
+        { surveys: 0, reach: 0, started: 0, answered: 0 },
+      )
+    : null;
+  // max() rather than reach alone: an author testing their own respondent-aimed survey
+  // answers it without being in its audience, so answered can exceed reach and a bar
+  // divided by reach would overflow its own track. Widening the denominator to fit keeps
+  // the segments summing to the whole, which is the one property a part-to-whole bar has.
+  const asked = audience ? Math.max(audience.reach, audience.started, 1) : 1;
+  const partWay = audience ? Math.max(0, audience.started - audience.answered) : 0;
+  const notYet = audience ? Math.max(0, asked - audience.started) : 0;
+  const share = (n: number) => Math.round((n / asked) * 100);
+
+  // The line under each row. Reach is the denominator throughout, so there is one
+  // percentage on this page and it is always "of the people it was for". Completion,
+  // which is a share of whoever turned up, lives on the report where there is room to
+  // say so.
+  const reachLine = (r: DashboardRow) =>
+    r.reach > 0 ? home.ofPeople(r.people_completed, r.reach) : home.noResponses;
+
+  const why = (row: DashboardRow, attention: Attention) => {
+    if (attention === "resultsReady") return home.whyResultsReady;
+    if (attention === "nobodyYet") return home.whyNobodyYet;
+    if (attention === "stalled") return home.whyStalled(row.in_progress);
+    return home.whyNotPublished;
+  };
+
+  const draftCard = (
+        <div className="card generate-card">
+          <div className="card-label">{home.draftWithAi}</div>
+          <textarea
+            placeholder={home.describePlaceholder}
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+          />
+          <div className="generate-actions">
+            <button
+              className="btn btn-ai"
+              onClick={onGenerate}
+              disabled={generate.isPending || !prompt.trim()}
+            >
+              {generate.isPending ? "Drafting…" : "✦ Generate draft"}
+            </button>
+          </div>
+          {generate.error ? (
+            <div className="error-text">{(generate.error as Error).message}</div>
+          ) : null}
+        </div>
+  );
 
   return (
     <div className="page">
@@ -103,78 +156,105 @@ export default function Home() {
         <div className="error-text">{(create.error as Error).message}</div>
       ) : null}
 
-      {totals ? (
-        <div className="stat-row">
-          <div className="stat">
-            <div className="stat-value">{totals.surveys}</div>
-            <div className="stat-label">{home.statSurveys}</div>
+      {totals && audience && audience.surveys > 0 ? (
+        <div className="hero-band">
+          <div className="hero-head">{home.bandTitle(audience.surveys)}</div>
+
+          {/* Three stages of one journey through one audience, so a single hue getting
+              darker as it gets further along rather than three unrelated colours. The
+              gaps between segments are the surface showing through, which keeps two
+              adjacent shades from reading as one block. */}
+          <div
+            className="audience-bar"
+            role="img"
+            aria-label={home.bandAria(
+              share(audience.answered),
+              share(partWay),
+              share(notYet),
+            )}
+          >
+            <span className="seg seg-answered" style={{ inlineSize: `${share(audience.answered)}%` }} />
+            <span className="seg seg-partway" style={{ inlineSize: `${share(partWay)}%` }} />
+            <span className="seg seg-notyet" style={{ inlineSize: `${share(notYet)}%` }} />
           </div>
-          <div className="stat">
-            <div className="stat-value">{totals.published}</div>
-            <div className="stat-label">{home.statPublished}</div>
+
+          <div className="hero-legend">
+            <span className="legend-item">
+              <span className="swatch swatch-answered" />
+              <b>{share(audience.answered)}%</b> {home.segAnswered}
+              <span className="legend-count">{audience.answered}</span>
+            </span>
+            <span className="legend-item">
+              <span className="swatch swatch-partway" />
+              <b>{share(partWay)}%</b> {home.segPartWay}
+              <span className="legend-count">{partWay}</span>
+            </span>
+            <span className="legend-item">
+              <span className="swatch swatch-notyet" />
+              <b>{share(notYet)}%</b> {home.segNotYet}
+              <span className="legend-count">{notYet}</span>
+            </span>
           </div>
-          <div className="stat">
-            <div className="stat-value">{totals.completed}</div>
-            <div className="stat-label">{home.statCompleted}</div>
-          </div>
-          <div className="stat">
-            <div className="stat-value">{totals.inProgress}</div>
-            <div className="stat-label">{home.statInProgress}</div>
-          </div>
-          <div className="stat">
-            {/* A plain hyphen, not a zero: nobody has started, so there is no rate yet. */}
-            <div className="stat-value">{completion === null ? "-" : `${completion}%`}</div>
-            <div className="stat-label">{home.statCompletion}</div>
-          </div>
-          <div className="stat">
-            <div className="stat-value">{responseRate === null ? "-" : `${responseRate}%`}</div>
-            <div className="stat-label">{home.statResponseRate}</div>
-          </div>
+
+          {/* Said on the page rather than left as a puzzle: reach is summed per survey,
+              so a person in two audiences is two of this number. Only shown when it can
+              actually be happening. */}
+          {audience.surveys > 1 ? (
+            <div className="hero-note">{home.countedPerSurvey}</div>
+          ) : null}
+
         </div>
       ) : null}
-
-      <div className="card generate-card">
-        <div className="card-label">{home.draftWithAi}</div>
-        <textarea
-          placeholder={home.describePlaceholder}
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-        />
-        <div className="generate-actions">
-          <button
-            className="btn btn-ai"
-            onClick={onGenerate}
-            disabled={generate.isPending || !prompt.trim()}
-          >
-            {generate.isPending ? "Drafting…" : "✦ Generate draft"}
-          </button>
-        </div>
-        {generate.error ? (
-          <div className="error-text">{(generate.error as Error).message}</div>
-        ) : null}
-      </div>
-
-      <h2 className="section-head">{home.yourSurveys}</h2>
 
       {isLoading ? <div className="muted">{common.loading}</div> : null}
       {error ? <div className="error-text">{(error as Error).message}</div> : null}
 
-      <div className="template-list">
-        {rows?.map((r) => (
-          <div key={r.id} className="template-row">
-            <Link href={`/templates/${r.id}`} className="template-row-main">
-              <div className="template-title">{r.title}</div>
-              <div className="template-meta">
-                {r.started === 0 ? (
-                  home.noResponses
-                ) : (
-                  <>
-                    {/* People first: "how many of the people this was for have answered"
-                        is the question an author opens the page with. */}
-                    {home.ofPeople(r.people_completed, r.reach)}
-                    {r.response_rate !== null
-                      ? ` · ${Math.round(r.response_rate * 100)}%`
-                      : ""}
+      {groups && groups.needsYou.length > 0 ? (
+        <>
+          <h2 className="section-head">
+            {home.groupNeedsYou}
+            <span className="section-count">{groups.needsYou.length}</span>
+          </h2>
+          <div className="template-list">
+            {groups.needsYou.map(({ row: r, why: attention }) => (
+              <div key={r.id} className="template-row template-row-alert">
+                <Link href={`/templates/${r.id}`} className="template-row-main">
+                  <div className="template-title">{r.title}</div>
+                  <div className="template-meta template-why">{why(r, attention)}</div>
+                </Link>
+                <div className="template-row-actions">
+                  {attention === "resultsReady" ? (
+                    <Link href={`/templates/${r.id}/report`} className="btn btn-primary">
+                      {home.readResults}
+                    </Link>
+                  ) : (
+                    <Link href={`/templates/${r.id}`} className="btn btn-secondary">
+                      {home.openBuilder}
+                    </Link>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      {groups && groups.running.length > 0 ? (
+        <>
+          <h2 className="section-head">
+            {home.groupRunning}
+            <span className="section-count">{groups.running.length}</span>
+            {groups.needsYou.length === 0 ? (
+              <span className="section-note">{home.allRunning}</span>
+            ) : null}
+          </h2>
+          <div className="template-list">
+            {groups.running.map((r) => (
+              <div key={r.id} className="template-row">
+                <Link href={`/templates/${r.id}`} className="template-row-main">
+                  <div className="template-title">{r.title}</div>
+                  <div className="template-meta">
+                    {reachLine(r)}
                     {r.in_progress > 0 ? ` · ${r.in_progress} ${home.inProgress}` : ""}
                     {/* Only when the two disagree, which is only on rows written before
                         one answer per person was enforced. It shrinks to nothing on its
@@ -182,37 +262,78 @@ export default function Home() {
                     {r.started > r.people_started
                       ? ` · ${home.runsFromPeople(r.started, r.people_started)}`
                       : ""}
-                  </>
-                )}
-              </div>
-            </Link>
-            <div className="template-row-actions">
-              <span className={`pill pill-${r.status}`}>{r.status}</span>
-              {/* Only where there is something to report on: a draft has no published
-                  version to count against, and the page would only say so. */}
-              {r.started > 0 ? (
-                <Link href={`/templates/${r.id}/report`} className="btn btn-secondary">
-                  {home.report}
+                  </div>
                 </Link>
-              ) : null}
-              {/* Only a published survey can be closed, which is the same rule the
-                  service enforces. Offering it on a draft would be offering a 409. */}
-              {r.status === "published" ? (
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => close.mutate(r.id)}
-                  disabled={close.isPending}
-                >
-                  {close.isPending && close.variables === r.id
-                    ? home.closing
-                    : home.closeSurvey}
-                </button>
-              ) : null}
-            </div>
+                {/* One ratio against a limit, so a meter rather than a number: the bar
+                    is comparable down the column at a glance and the figure beside it
+                    is the finding. */}
+                <div className="reach-meter" title={reachLine(r)}>
+                  <span className="reach-track">
+                    <span
+                      className="reach-fill"
+                      style={{
+                        inlineSize: `${Math.min(100, Math.round((r.response_rate ?? 0) * 100))}%`,
+                      }}
+                    />
+                  </span>
+                  <span className="reach-figure">
+                    {r.response_rate === null ? "-" : `${Math.round(r.response_rate * 100)}%`}
+                  </span>
+                </div>
+                <div className="template-row-actions">
+                  {r.completed > 0 ? (
+                    <Link href={`/templates/${r.id}/report`} className="btn btn-secondary">
+                      {home.report}
+                    </Link>
+                  ) : null}
+                  <button
+                    className="btn btn-quiet"
+                    onClick={() => close.mutate(r.id)}
+                    disabled={close.isPending}
+                  >
+                    {close.isPending && close.variables === r.id ? home.closing : home.closeSurvey}
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-        {rows && rows.length === 0 ? <div className="muted">{home.empty}</div> : null}
-      </div>
+        </>
+      ) : null}
+
+      {groups && groups.closed.length > 0 ? (
+        <>
+          <h2 className="section-head">
+            {home.groupClosed}
+            <span className="section-count">{groups.closed.length}</span>
+          </h2>
+          <div className="template-list">
+            {groups.closed.map((r) => (
+              <div key={r.id} className="template-row template-row-quiet">
+                <Link href={`/templates/${r.id}`} className="template-row-main">
+                  <div className="template-title">{r.title}</div>
+                  <div className="template-meta">{reachLine(r)}</div>
+                </Link>
+                <div className="template-row-actions">
+                  {r.completed > 0 ? (
+                    <Link href={`/templates/${r.id}/report`} className="btn btn-secondary">
+                      {home.report}
+                    </Link>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      {rows && rows.length === 0 ? <div className="muted">{home.empty}</div> : null}
+
+      {/* Last, under the work, because this page is opened to find out what needs doing
+          and a creation panel above the list pushed that below it. It needs no special
+          case for a new author: with no surveys the groups above render nothing, so this
+          is already the first thing on the page. */}
+      {draftCard}
+
     </div>
   );
 }

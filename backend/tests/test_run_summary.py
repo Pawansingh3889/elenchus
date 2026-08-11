@@ -74,6 +74,23 @@ async def test_summarises_a_completed_run_and_stores_it(session, author, respond
     assert run.summary["generated_at"]
 
 
+async def test_a_rating_reaches_the_model_with_its_scale(session, author, respondent, published):
+    """A live summary read a 5 on the 1-5 scale back as "5 out of 10", turning the worst
+    answer the question offered into a middling one. The value was real and only the
+    denominator was invented, so the checker had nothing to catch: the scale has to be in
+    front of the model in the first place."""
+    run = await _completed(session, respondent, published)
+    llm = FakeLLM(_summary(), _faithful())
+
+    await RunSummaryService(session, llm=llm).summarise(published.id, run.id, author)
+
+    written = llm.messages_seen[0][-1]["content"]
+    assert "A: 4 out of 5" in written
+    # The checker is fed the same extract, or it would fault a draft for saying exactly
+    # what the writer was shown.
+    assert "A: 4 out of 5" in llm.messages_seen[1][-1]["content"]
+
+
 async def test_a_stored_summary_is_not_regenerated(session, author, respondent, published):
     """Generation costs model calls, so the column is the cache: one pass, then none."""
     run = await _completed(session, respondent, published)

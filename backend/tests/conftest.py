@@ -23,7 +23,7 @@ from app.config import get_settings
 from app.db.base import Base
 from app.runs import models as _runs  # noqa: F401  (register tables on metadata)
 from app.templates import models as _templates  # noqa: F401
-from app.templates.enums import AnswerType
+from app.templates.enums import AnswerType, FollowUpPolicy
 from app.templates.schemas import QuestionInput, TemplateCreate
 from app.templates.service import TemplateService
 from app.users.models import User, UserRole
@@ -187,7 +187,7 @@ async def published_yes_no(session, author):
                 QuestionInput(
                     text="Have you encountered any issues with our AI product?",
                     answer_type=AnswerType.yes_no,
-                    allow_follow_ups=True,
+                    follow_up_policy=FollowUpPolicy.when_unclear,
                 ),
                 QuestionInput(text="Rate the support you received", answer_type=AnswerType.rating),
             ],
@@ -209,7 +209,7 @@ async def published(session, author):
                 QuestionInput(
                     text="What's your role?",
                     answer_type=AnswerType.short_text,
-                    allow_follow_ups=True,
+                    follow_up_policy=FollowUpPolicy.when_unclear,
                 ),
                 QuestionInput(text="Rate your onboarding", answer_type=AnswerType.rating),
             ],
