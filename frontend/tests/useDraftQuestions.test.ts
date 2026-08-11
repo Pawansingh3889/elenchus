@@ -10,7 +10,7 @@ const question = (text: string, over: Partial<QuestionInput> = {}): QuestionInpu
   options: ["Line lead", "Quality manager"],
   allow_other: false,
   required: true,
-  allow_follow_ups: false,
+  follow_up_policy: "never",
   show_when: null,
   ...over,
 });
