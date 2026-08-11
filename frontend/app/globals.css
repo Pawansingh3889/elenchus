@@ -1934,9 +1934,11 @@ select.field {
    moving it here would otherwise cost. One line that grows as you type. */
 .draft-bar {
   display: flex;
-  /* The button sits at the bottom edge of the box rather than the top: with three lines
-     of room above it, aligning to the top leaves it floating beside empty space. */
-  align-items: flex-end;
+  /* Under the box, not beside it. Beside a three-line input the button takes width the
+     description wants and leaves a column of empty space under itself; under it, the
+     input runs the full width and the action reads as the next step rather than a
+     fitting. */
+  flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-2);
   background: var(--ai-fill);
@@ -1959,14 +1961,7 @@ select.field {
 }
 .draft-bar .btn {
   flex: 0 0 auto;
-}
-@media (max-width: 34rem) {
-  /* The button under the input rather than beside it: side by side, neither has room
-     to say what it is. */
-  .draft-bar {
-    flex-direction: column;
-    align-items: stretch;
-  }
+  align-self: flex-end;
 }
 
 /* ------------------------------------------------------------------ survey nav */
