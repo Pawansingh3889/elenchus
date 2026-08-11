@@ -95,6 +95,10 @@ export const pl: Messages = {
     conditionHasNoAnswer: "jego warunek nie ma odpowiedzi",
     selectHasNoOptions: "nie ma opcji",
     publishBlocker: (n: number, problem: string) => `Pytanie ${n}: ${problem}`,
+    publishTitle: (t: string) => `Opublikować „${t}”?`,
+    publishShape: (q: number, p: number) => p > 0 ? `${q} pytań, w tym ${p} zawsze dopytuje.` : `${q} pytań.`,
+    publishFreezes: "Publikacja zamraża te pytania jako wersję 1. Późniejsze zmiany tworzą nową wersję, a ta pozostaje bez zmian.",
+    publishAgain: "Publikacja tworzy nową wersję. Kto jest w trakcie, zostaje przy wersji, którą zaczął.",
   },
   respond: {
     title: "Otwarte ankiety",

@@ -95,6 +95,10 @@ export const ro: Messages = {
     conditionHasNoAnswer: "condiția sa nu are răspuns",
     selectHasNoOptions: "nu are opțiuni",
     publishBlocker: (n: number, problem: string) => `Întrebarea ${n}: ${problem}`,
+    publishTitle: (t: string) => `Publici „${t}”?`,
+    publishShape: (q: number, p: number) => p > 0 ? `${q} întrebări, dintre care ${p} pun mereu o întrebare suplimentară.` : `${q} întrebări.`,
+    publishFreezes: "Publicarea îngheață aceste întrebări ca versiunea 1. Modificările ulterioare creează o versiune nouă, iar aceasta rămâne neschimbată.",
+    publishAgain: "Publicarea creează o versiune nouă. Cine este la jumătate păstrează versiunea cu care a început.",
   },
   respond: {
     title: "Sondaje deschise",

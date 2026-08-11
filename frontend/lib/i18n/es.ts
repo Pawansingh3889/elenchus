@@ -95,6 +95,10 @@ export const es: Messages = {
     conditionHasNoAnswer: "su condición no tiene respuesta",
     selectHasNoOptions: "no tiene opciones",
     publishBlocker: (n: number, problem: string) => `Pregunta ${n}: ${problem}`,
+    publishTitle: (t: string) => `¿Publicar «${t}»?`,
+    publishShape: (q: number, p: number) => p > 0 ? `${q} preguntas, ${p} de ellas siempre repreguntan.` : `${q} preguntas.`,
+    publishFreezes: "Publicar congela estas preguntas como la versión 1. Las ediciones posteriores crean una versión nueva y esta queda igual.",
+    publishAgain: "Publicar crea una versión nueva. Quien esté a medias conserva la versión con la que empezó.",
   },
   respond: {
     title: "Encuestas abiertas",

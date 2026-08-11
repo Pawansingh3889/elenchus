@@ -90,6 +90,10 @@ export const de: Messages = {
     conditionHasNoAnswer: "ihre Bedingung hat keine Antwort",
     selectHasNoOptions: "sie hat keine Optionen",
     publishBlocker: (n: number, problem: string) => `Frage ${n}: ${problem}`,
+    publishTitle: (t: string) => `„${t}“ veröffentlichen?`,
+    publishShape: (q: number, p: number) => p > 0 ? `${q} Fragen, bei ${p} davon wird immer nachgefragt.` : `${q} Fragen.`,
+    publishFreezes: "Das Veröffentlichen friert diese Fragen als Version 1 ein. Spätere Änderungen ergeben eine neue Version; diese bleibt unverändert.",
+    publishAgain: "Das Veröffentlichen legt eine neue Version an. Wer mitten in der Umfrage ist, behält die Version, mit der er begonnen hat.",
   },
   respond: {
     title: "Offene Umfragen",

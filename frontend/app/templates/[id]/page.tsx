@@ -6,7 +6,9 @@ import { use, useEffect, useState } from "react";
 
 import { LivePreview } from "@/components/LivePreview";
 import { QuestionEditor } from "@/components/QuestionEditor";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { publishBlockers } from "@/lib/publishBlockers";
+import { publishQuip } from "@/lib/publishQuip";
 import { useDraftQuestions } from "@/lib/useDraftQuestions";
 import {
   useCurrentUser,
@@ -18,13 +20,16 @@ import {
 } from "@/lib/queries";
 import { ApiError } from "@/lib/api";
 import { useT } from "@/lib/i18n/useT";
-import { useDraftNoteStore, useUserStore } from "@/lib/store";
+import { useDraftNoteStore, useLocaleStore, useUserStore } from "@/lib/store";
 import type { SurveyAudience } from "@/lib/types";
 
 export default function BuilderPage({ params }: { params: Promise<{ id: string }> }) {
   const msg = useT();
   const { id } = use(params);
   const currentUserId = useUserStore((s) => s.currentUserId);
+  // Read here rather than through useT: the quip is chosen by locale, not
+  // translated for it, so what it needs is which locale, not the strings.
+  const locale = useLocaleStore((s) => s.locale);
   const currentUser = useCurrentUser();
   const { data: template, isLoading, error } = useTemplate(id);
   const update = useUpdateTemplate(id);
@@ -41,6 +46,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
   const [audience, setAudience] = useState<SurveyAudience>("respondents");
   const [setting, setSetting] = useState("");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [confirmingPublish, setConfirmingPublish] = useState(false);
   const [instruction, setInstruction] = useState("");
   // Seed the Refine panel with the note from the generate that opened this draft…
   const [notes, setNotes] = useState<string[]>(() => {
@@ -111,6 +117,10 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
   };
   const save = () => update.mutate(body);
   const onPublish = async () => {
+    // Closed before the request, not after it: publishing can fail, and the error is
+    // rendered on the page below. Leaving the dialog up would put it behind a modal the
+    // author has to dismiss before they can read why it did not work.
+    setConfirmingPublish(false);
     try {
       await update.mutateAsync(body);
       await publish.mutateAsync();
@@ -153,8 +163,28 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
     }
   };
 
+  const probing = questions.filter((q) => q.follow_up_policy === "always_once").length;
+  const republishing = template?.status !== "draft";
+  const quip = publishQuip(questions, republishing, locale);
+
   return (
     <div className="builder">
+      {confirmingPublish ? (
+        <ConfirmDialog
+          title={msg.builder.publishTitle(title.trim() || msg.builder.titlePlaceholder)}
+          confirmLabel={msg.common.publish}
+          cancelLabel={msg.common.cancel}
+          pending={publish.isPending || update.isPending}
+          onConfirm={onPublish}
+          onCancel={() => setConfirmingPublish(false)}
+        >
+          <p>{msg.builder.publishShape(questions.length, probing)}</p>
+          <p>{republishing ? msg.builder.publishAgain : msg.builder.publishFreezes}</p>
+          {/* English only, and absent rather than translated: everything load-bearing
+              above is said in every locale, and this line is not. */}
+          {quip ? <p className="modal-aside">{quip}</p> : null}
+        </ConfirmDialog>
+      ) : null}
       <div className="builder-main">
         <div className="builder-head">
           <input
@@ -176,7 +206,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
             </button>
             <button
               className="btn btn-primary"
-              onClick={onPublish}
+              onClick={() => setConfirmingPublish(true)}
               disabled={publish.isPending || questions.length === 0 || blockers.length > 0}
               title={blockers.length > 0 ? blockers.join("\n") : undefined}
             >

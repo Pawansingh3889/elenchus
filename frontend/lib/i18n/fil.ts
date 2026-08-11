@@ -89,6 +89,10 @@ export const fil: Messages = {
     conditionHasNoAnswer: "walang sagot ang kondisyon nito",
     selectHasNoOptions: "wala itong opsyon",
     publishBlocker: (n: number, problem: string) => `Tanong ${n}: ${problem}`,
+    publishTitle: (t: string) => `I-publish ang “${t}”?`,
+    publishShape: (q: number, p: number) => p > 0 ? `${q} tanong, ${p} rito ay laging may follow-up.` : `${q} tanong.`,
+    publishFreezes: "Sa pag-publish, magiging bersyon 1 ang mga tanong na ito. Ang mga susunod na pagbabago ay bagong bersyon; hindi na magbabago ito.",
+    publishAgain: "Ang pag-publish ay gumagawa ng bagong bersyon. Ang nasa kalagitnaan ay mananatili sa bersyong sinimulan nila.",
   },
   respond: {
     title: "Mga bukas na survey",

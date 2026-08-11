@@ -103,6 +103,10 @@ export const en = {
     conditionHasNoAnswer: "its condition has no answer",
     selectHasNoOptions: "it has no options",
     publishBlocker: (n: number, problem: string) => `Question ${n}: ${problem}`,
+    publishTitle: (t: string) => `Publish “${t}”?`,
+    publishShape: (q: number, p: number) => p > 0 ? `${q} questions, ${p} of them always ask a follow-up.` : `${q} questions.`,
+    publishFreezes: "Publishing freezes these questions as version 1. Later edits become a new version, and this one stays exactly as it is.",
+    publishAgain: "Publishing creates a new version. Anyone part-way through keeps the version they started on, and their answers stay with it.",
   },
   respond: {
     title: "Open surveys",

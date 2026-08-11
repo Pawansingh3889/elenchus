@@ -95,6 +95,10 @@ export const lv: Messages = {
     conditionHasNoAnswer: "tā nosacījumam nav atbildes",
     selectHasNoOptions: "tam nav variantu",
     publishBlocker: (n: number, problem: string) => `${n}. jautājums: ${problem}`,
+    publishTitle: (t: string) => `Publicēt “${t}”?`,
+    publishShape: (q: number, p: number) => p > 0 ? `${q} jautājumi, no tiem ${p} vienmēr uzdod precizējošu jautājumu.` : `${q} jautājumi.`,
+    publishFreezes: "Publicējot šie jautājumi tiek fiksēti kā 1. versija. Vēlākas izmaiņas veido jaunu versiju, un šī paliek nemainīga.",
+    publishAgain: "Publicējot tiek izveidota jauna versija. Tie, kas ir pusceļā, paliek pie versijas, ar kuru sāka.",
   },
   respond: {
     title: "Atvērtās aptaujas",

@@ -95,6 +95,10 @@ export const lt: Messages = {
     conditionHasNoAnswer: "jo sąlyga neturi atsakymo",
     selectHasNoOptions: "jis neturi variantų",
     publishBlocker: (n: number, problem: string) => `${n} klausimas: ${problem}`,
+    publishTitle: (t: string) => `Paskelbti „${t}“?`,
+    publishShape: (q: number, p: number) => p > 0 ? `${q} klausimai, iš jų ${p} visada patikslina.` : `${q} klausimai.`,
+    publishFreezes: "Paskelbus šie klausimai užfiksuojami kaip 1 versija. Vėlesni pakeitimai sukuria naują versiją, o ši lieka tokia pati.",
+    publishAgain: "Paskelbus sukuriama nauja versija. Nebaigusieji lieka prie tos versijos, kurią pradėjo.",
   },
   respond: {
     title: "Atviros apklausos",
