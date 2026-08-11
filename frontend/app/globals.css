@@ -347,9 +347,6 @@ select {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: var(--space-3);
-  /* Capped rather than stretched. Three tiles spread across a wide screen read as a
-     mostly-empty band; held to a readable width they read as a summary. */
-  max-inline-size: 42rem;
 }
 .stat {
   background: var(--raised);
@@ -1795,4 +1792,116 @@ select.field {
   .reach-meter {
     inline-size: auto;
   }
+}
+
+/* --------------------------------------------------------- dashboard hero band */
+/* The summary is a band rather than a row of tiles because it is one thing: an audience,
+   and how far through it the author is. Three tiles floating in a wide empty strip said
+   the same and looked like an afterthought. */
+.hero-band {
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.hero-head {
+  font-size: var(--text-sm);
+  color: var(--secondary);
+}
+
+/* One audience, three stages through it. A single hue getting darker the further along
+   the stage, because these are ordered rather than unrelated: categorical colours here
+   would say the three groups are different kinds of thing rather than the same people
+   at different points. */
+.audience-bar {
+  display: flex;
+  gap: 2px;
+  block-size: 14px;
+  border-radius: 7px;
+  overflow: hidden;
+  background: var(--canvas);
+}
+.seg {
+  display: block;
+  block-size: 100%;
+  min-inline-size: 0;
+}
+.seg-answered {
+  background: var(--accent-strong);
+}
+.seg-partway {
+  background: var(--accent);
+}
+.seg-notyet {
+  background: var(--muted-light);
+}
+
+.hero-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--secondary);
+}
+.legend-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.legend-item b {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.legend-count {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.swatch {
+  inline-size: 9px;
+  block-size: 9px;
+  border-radius: 2px;
+  align-self: center;
+}
+.swatch-answered {
+  background: var(--accent-strong);
+}
+.swatch-partway {
+  background: var(--accent);
+}
+.swatch-notyet {
+  background: var(--muted-light);
+}
+.hero-note {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+.hero-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  padding-block-start: var(--space-3);
+  border-block-start: 1px solid var(--border-faint);
+  font-size: var(--text-sm);
+  color: var(--secondary);
+}
+.hero-count b {
+  color: var(--ink);
+  font-size: var(--text-lg);
+  font-variant-numeric: tabular-nums;
+  margin-inline-end: 4px;
+}
+.hero-count-alert b {
+  color: var(--warn-text);
+}
+/* The group's size, on the group's own heading. It used to sit in a row of counts above,
+   which repeated the two headings directly below it. */
+.section-count {
+  margin-inline-start: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }

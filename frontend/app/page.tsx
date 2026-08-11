@@ -79,6 +79,33 @@ export default function Home() {
       }
     : null;
 
+  // The whole audience as one bar: answered, part-way, not yet. One shape instead of two
+  // percentages, which is what made the old pair unreadable — the reader had to work out
+  // what each was over, and the two denominators were different. Here there is one
+  // denominator and the segments are three stages of the same journey through it.
+  //
+  // Running surveys only. A closed survey's audience cannot answer any more, so folding
+  // it in would permanently drag the bar down with people nobody is waiting on.
+  const audience = groups
+    ? groups.running.concat(groups.needsYou.map((n) => n.row)).reduce(
+        (acc, r) => ({
+          surveys: acc.surveys + (r.status === "published" ? 1 : 0),
+          reach: acc.reach + (r.status === "published" ? r.reach : 0),
+          started: acc.started + (r.status === "published" ? r.people_started : 0),
+          answered: acc.answered + (r.status === "published" ? r.people_completed : 0),
+        }),
+        { surveys: 0, reach: 0, started: 0, answered: 0 },
+      )
+    : null;
+  // max() rather than reach alone: an author testing their own respondent-aimed survey
+  // answers it without being in its audience, so answered can exceed reach and a bar
+  // divided by reach would overflow its own track. Widening the denominator to fit keeps
+  // the segments summing to the whole, which is the one property a part-to-whole bar has.
+  const asked = audience ? Math.max(audience.reach, audience.started, 1) : 1;
+  const partWay = audience ? Math.max(0, audience.started - audience.answered) : 0;
+  const notYet = audience ? Math.max(0, asked - audience.started) : 0;
+  const share = (n: number) => Math.round((n / asked) * 100);
+
   // The line under each row. Reach is the denominator throughout, so there is one
   // percentage on this page and it is always "of the people it was for". Completion,
   // which is a share of whoever turned up, lives on the report where there is room to
@@ -129,22 +156,53 @@ export default function Home() {
         <div className="error-text">{(create.error as Error).message}</div>
       ) : null}
 
-      {totals ? (
-        <div className="stat-row">
-          {/* Accented only when there is something to do, so the number is a signal
-              rather than a permanent decoration. */}
-          <div className={totals.needsYou > 0 ? "stat stat-alert" : "stat"}>
-            <div className="stat-value">{totals.needsYou}</div>
-            <div className="stat-label">{home.statNeedsYou}</div>
+      {totals && audience && audience.surveys > 0 ? (
+        <div className="hero-band">
+          <div className="hero-head">{home.bandTitle(audience.surveys)}</div>
+
+          {/* Three stages of one journey through one audience, so a single hue getting
+              darker as it gets further along rather than three unrelated colours. The
+              gaps between segments are the surface showing through, which keeps two
+              adjacent shades from reading as one block. */}
+          <div
+            className="audience-bar"
+            role="img"
+            aria-label={home.bandAria(
+              share(audience.answered),
+              share(partWay),
+              share(notYet),
+            )}
+          >
+            <span className="seg seg-answered" style={{ inlineSize: `${share(audience.answered)}%` }} />
+            <span className="seg seg-partway" style={{ inlineSize: `${share(partWay)}%` }} />
+            <span className="seg seg-notyet" style={{ inlineSize: `${share(notYet)}%` }} />
           </div>
-          <div className="stat">
-            <div className="stat-value">{totals.running}</div>
-            <div className="stat-label">{home.statRunning}</div>
+
+          <div className="hero-legend">
+            <span className="legend-item">
+              <span className="swatch swatch-answered" />
+              <b>{share(audience.answered)}%</b> {home.segAnswered}
+              <span className="legend-count">{audience.answered}</span>
+            </span>
+            <span className="legend-item">
+              <span className="swatch swatch-partway" />
+              <b>{share(partWay)}%</b> {home.segPartWay}
+              <span className="legend-count">{partWay}</span>
+            </span>
+            <span className="legend-item">
+              <span className="swatch swatch-notyet" />
+              <b>{share(notYet)}%</b> {home.segNotYet}
+              <span className="legend-count">{notYet}</span>
+            </span>
           </div>
-          <div className="stat">
-            <div className="stat-value">{totals.responses}</div>
-            <div className="stat-label">{home.statResponses}</div>
-          </div>
+
+          {/* Said on the page rather than left as a puzzle: reach is summed per survey,
+              so a person in two audiences is two of this number. Only shown when it can
+              actually be happening. */}
+          {audience.surveys > 1 ? (
+            <div className="hero-note">{home.countedPerSurvey}</div>
+          ) : null}
+
         </div>
       ) : null}
 
@@ -153,7 +211,10 @@ export default function Home() {
 
       {groups && groups.needsYou.length > 0 ? (
         <>
-          <h2 className="section-head">{home.groupNeedsYou}</h2>
+          <h2 className="section-head">
+            {home.groupNeedsYou}
+            <span className="section-count">{groups.needsYou.length}</span>
+          </h2>
           <div className="template-list">
             {groups.needsYou.map(({ row: r, why: attention }) => (
               <div key={r.id} className="template-row template-row-alert">
@@ -182,6 +243,7 @@ export default function Home() {
         <>
           <h2 className="section-head">
             {home.groupRunning}
+            <span className="section-count">{groups.running.length}</span>
             {groups.needsYou.length === 0 ? (
               <span className="section-note">{home.allRunning}</span>
             ) : null}
@@ -240,7 +302,10 @@ export default function Home() {
 
       {groups && groups.closed.length > 0 ? (
         <>
-          <h2 className="section-head">{home.groupClosed}</h2>
+          <h2 className="section-head">
+            {home.groupClosed}
+            <span className="section-count">{groups.closed.length}</span>
+          </h2>
           <div className="template-list">
             {groups.closed.map((r) => (
               <div key={r.id} className="template-row template-row-quiet">
