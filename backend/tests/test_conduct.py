@@ -848,7 +848,12 @@ async def test_a_follow_up_is_offered_both_shapes(session, respondent, published
     run = await ConductEngine(session, llm=llm).handle_message(run.id, "yes", respondent)
 
     probe = FakeLLM(_record("because the scanner drops out"), _move_on())
-    await ConductEngine(session, llm=probe).handle_message(run.id, "…", respondent)
+    # Their own words, so the record is grounded and the probe is resolved. Answering a
+    # probe with "…" and then moving on is no longer a path the engine offers: a question
+    # it asked has to be recorded or flagged, never left hanging.
+    await ConductEngine(session, llm=probe).handle_message(
+        run.id, "because the scanner drops out", respondent
+    )
 
     record_tool = next(t for t in probe.tools_seen[0] if t["name"] == "record_answer")
     shapes = record_tool["input_schema"]["properties"]["value"]["anyOf"]
@@ -1638,3 +1643,69 @@ async def test_the_briefing_says_why_record_answer_is_missing(session, responden
     await ConductEngine(session, llm=llm).handle_message(run.id, "yes, headaches", respondent)
 
     assert "ALWAYS TAKES ONE FOLLOW-UP" in llm.briefings[0]
+
+
+async def test_a_probe_that_was_answered_cannot_be_walked_away_from(session, respondent, author):
+    """A live run asked "what happens after a stoppage is logged?", forced because the
+    author marked it always_once, got a paragraph about nobody ever coming back to ask,
+    and moved on without recording a word of it. The force guarantees the question is
+    asked; nothing guaranteed the answer was kept."""
+    template = await _published_always_once(session, author)
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(template.id, respondent)
+    run = await ConductEngine(
+        session, llm=FakeLLM(_follow_up("What happened?", answer_so_far="yes, headaches"))
+    ).handle_message(run.id, "yes, headaches", respondent)
+
+    answering = FakeLLM(_record("most afternoons, near the ovens"), _move_on())
+    run = await ConductEngine(session, llm=answering).handle_message(
+        run.id, "most afternoons, near the ovens", respondent
+    )
+
+    # Withheld while the probe was outstanding, offered again once it was recorded.
+    assert "move_on" not in answering.offered[0]
+    assert "record_answer" in answering.offered[0]
+    assert "flag_unanswerable" in answering.offered[0]
+    assert "move_on" in answering.offered[-1]
+    follow_ups = [a for a in run.answers if a.kind is AnswerKind.follow_up]
+    assert [a.value for a in follow_ups] == [{"text": "most afternoons, near the ovens"}]
+
+
+async def test_declining_a_probe_resolves_it_too(session, respondent, author):
+    """The other way out, and it must stay open: a respondent who will not elaborate is
+    not a reason to hold the survey. "Asked and declined" is a finding; silence is
+    indistinguishable from never having asked."""
+    template = await _published_always_once(session, author)
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(template.id, respondent)
+    run = await ConductEngine(
+        session, llm=FakeLLM(_follow_up("What happened?", answer_so_far="yes, headaches"))
+    ).handle_message(run.id, "yes, headaches", respondent)
+
+    declining = FakeLLM(
+        ToolTurn(
+            text="",
+            tool_name="flag_unanswerable",
+            tool_input={"question_id": "x", "reason": "would rather not go into it"},
+        )
+    )
+    run = await ConductEngine(session, llm=declining).handle_message(
+        run.id, "rather not", respondent
+    )
+
+    declined = [a for a in run.answers if a.kind is AnswerKind.follow_up]
+    assert declined and "unanswerable" in declined[0].value
+    assert run.current_question_index == 1
+
+
+async def test_an_unprobed_question_can_still_be_moved_on_from(session, respondent, author):
+    """The rule is about a probe left hanging, not about probing. A question nobody
+    probed must still cost exactly one exchange."""
+    template = await _published_always_once(session, author, required=False)
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(template.id, respondent)
+
+    llm = FakeLLM(_record("no, it has been fine"), _move_on())
+    run = await ConductEngine(session, llm=llm).handle_message(
+        run.id, "no, it has been fine", respondent
+    )
+
+    assert "move_on" in llm.offered[-1]
+    assert run.current_question_index == 1

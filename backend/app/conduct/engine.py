@@ -561,10 +561,18 @@ class ConductEngine:
         return asking if skipped else (turn.text or asking)
 
     async def _state(self, run: SurveyRun, question: dict[str, Any]) -> dict[str, Any]:
-        scripted = await self.repo.count_answers(run.id, UUID(question["id"]), AnswerKind.scripted)
+        question_id = UUID(question["id"])
+        scripted = await self.repo.count_answers(run.id, question_id, AnswerKind.scripted)
+        answered_probes = await self.repo.count_answers(run.id, question_id, AnswerKind.follow_up)
+        asked_probes = run.probes_asked.get(question["id"], 0)
         return {
             "scripted_recorded": scripted > 0,
-            "follow_ups_used": run.probes_asked.get(question["id"], 0),
+            "follow_ups_used": asked_probes,
+            # A probe was asked and nothing has been recorded for it yet. The respondent
+            # has answered it by the time this is read, because the engine only gets a
+            # turn when a message arrives, so this is "their reply is in hand and the
+            # model has not yet said what it was".
+            "probe_outstanding": asked_probes > answered_probes,
             # Replies share the probes JSONB under a prefixed key — same lifecycle,
             # no schema change, and question ids (UUIDs) can never collide with it.
             "replies_used": run.probes_asked.get(f"{REPLY_PREFIX}{question['id']}", 0),
@@ -736,6 +744,12 @@ def _tools_for(question: dict[str, Any], state: dict[str, Any]) -> list[dict[str
     # `flag_unanswerable` is offered below whatever happens, so a respondent who declines
     # is never cornered, and `reply` stays capped, so a model cannot chat its way out.
     forced = _must_probe(question, state)
+    # A probe was asked, their reply is in hand, and nothing has been taken from it yet.
+    # Qualified by `recorded_this_turn` rather than by the follow-up count alone, because
+    # a probe asked *before* any scripted answer is resolved by a scripted record, not a
+    # follow-up one: without this the model records the answer the probe asked for and
+    # then finds itself unable to move on from a question it has fully answered.
+    hanging = bool(state.get("probe_outstanding")) and not state.get("recorded_this_turn")
     if not forced and not state.get("recorded_this_turn"):
         if state.get("scripted_recorded"):
             # This record can only be a follow-up: the scripted answer is already in.
@@ -818,7 +832,14 @@ def _tools_for(question: dict[str, Any], state: dict[str, Any]) -> list[dict[str
                 },
             }
         )
-    if state["scripted_recorded"] and not forced:
+    # Not while a probe is outstanding. Asking a question and then walking away from the
+    # answer is the one thing the engine must not let happen: a live run forced a probe
+    # on "what happens after a stoppage is logged?", got a paragraph about nobody ever
+    # coming back to ask, and moved on without recording a word of it. The force
+    # guarantees the question is asked; this guarantees the answer is kept. Recording it
+    # or flagging it declined both resolve the probe, and "asked and declined" is a
+    # finding, where silence is indistinguishable from never asking.
+    if state["scripted_recorded"] and not forced and not hanging:
         tools.append(
             {
                 "name": MOVE_ON,
@@ -1006,6 +1027,13 @@ def _briefing(
         lines.append("- Follow-ups: not permitted for this question")
     else:
         lines.append(f"- Follow-ups asked so far: {state['follow_ups_used']} of {MAX_FOLLOW_UPS}")
+    if state.get("probe_outstanding") and not state.get("recorded_this_turn"):
+        lines.append(
+            "- YOU ASKED A FOLLOW-UP AND HAVE NOT RECORDED WHAT CAME BACK. Record their "
+            "answer to it, or flag it unanswerable if they declined or answered something "
+            "else. You cannot move on until one of those: a question you asked and then "
+            "ignored leaves the author nothing where they were promised an answer."
+        )
     if _must_probe(question, state):
         # Engine state, which the briefing above tells the model not to argue with, so no
         # new prompt version: the rules in conduct_v7.md are unchanged and this is a fact
