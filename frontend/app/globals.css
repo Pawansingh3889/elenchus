@@ -1905,3 +1905,41 @@ select.field {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
+
+/* -------------------------------------------------------------- report rates */
+/* Two rates, each labelled with what it is a share of. They replaced a tile reading
+   "8/8 responded" beside one reading "8 responses", which was the same number twice,
+   and the second rate had been on the dashboard where there was no room to say what it
+   was over. The percentage leads because it is the comparable thing; the counts under
+   it are the working. */
+.report-rates {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3) var(--space-5);
+  padding: var(--space-4);
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.rate-value {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.rate-label {
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+.rate-of {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+/* Metadata rather than a statistic: it was a tile the same size as the numbers, which
+   said a version number was one of the survey's findings. */
+.rate-meta {
+  margin-inline-start: auto;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}

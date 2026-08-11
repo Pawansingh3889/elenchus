@@ -114,26 +114,50 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
           <Link href={`/templates/${id}`} className="btn btn-secondary">
             {msg.report.edit}
           </Link>
+          {report.runs_completed > 0 ? (
+            <button
+              className="btn btn-ai"
+              onClick={() => recap.mutate(Boolean(recap.data))}
+              disabled={recap.isPending}
+            >
+              {recap.isPending
+                ? msg.report.recapWorking
+                : recap.data
+                  ? msg.report.recapAgain
+                  : msg.report.recapAsk}
+            </button>
+          ) : null}
         </div>
       </div>
 
-      <div className="stat-row">
-        <div className="stat">
-          <div className="stat-value">
-            {report.reach > 0
-              ? `${report.people_completed}/${report.reach}`
-              : report.people_completed}
+      {/* Two rates, each labelled with what it is over. They were one tile reading
+          "8/8 responded" beside another reading "8 responses", which is the same number
+          twice, and the completion rate was on the dashboard where there was no room to
+          say what it was a share of. Here there is room, so it says it. */}
+      <div className="report-rates">
+        <div className="rate">
+          <div className="rate-value">
+            {report.reach > 0 ? `${Math.round((report.people_completed / report.reach) * 100)}%` : "-"}
           </div>
-          <div className="stat-label">{msg.report.responded}</div>
+          <div className="rate-label">{msg.report.rateAnswered}</div>
+          <div className="rate-of">
+            {msg.report.ofPeopleAsked(report.people_completed, report.reach)}
+          </div>
         </div>
-        <div className="stat">
-          <div className="stat-value">{report.runs_total}</div>
-          <div className="stat-label">{msg.report.responses}</div>
+        <div className="rate">
+          <div className="rate-value">
+            {report.runs_total > 0
+              ? `${Math.round((report.runs_completed / report.runs_total) * 100)}%`
+              : "-"}
+          </div>
+          <div className="rate-label">{msg.report.rateFinished}</div>
+          <div className="rate-of">
+            {msg.report.ofThoseWhoStarted(report.runs_completed, report.runs_total)}
+          </div>
         </div>
-        <div className="stat">
-          <div className="stat-value">v{report.version}</div>
-          <div className="stat-label">{msg.report.version}</div>
-        </div>
+        {/* Metadata, not a statistic. It was a tile of the same size as the numbers,
+            which said a version number was one of the survey's findings. */}
+        <div className="rate-meta">{msg.report.versionLabel(report.version)}</div>
       </div>
 
       {/* Said on the page rather than left in the code: those runs answered different
@@ -156,26 +180,13 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
 
       {/* Author-triggered, never on render: it costs model calls and can fail, and the
           numbers below must load either way. */}
-      {report.runs_completed > 0 ? (
+      {recap.data ? (
         <div className="recap-block">
-          {recap.data ? <Recap recap={recap.data} /> : null}
-          <div className="recap-actions">
-            <button
-              className="btn btn-secondary"
-              onClick={() => recap.mutate(Boolean(recap.data))}
-              disabled={recap.isPending}
-            >
-              {recap.isPending
-                ? msg.report.recapWorking
-                : recap.data
-                  ? msg.report.recapAgain
-                  : msg.report.recapAsk}
-            </button>
-            {recap.error ? (
-              <span className="error-text">{(recap.error as Error).message}</span>
-            ) : null}
-          </div>
+          <Recap recap={recap.data} />
         </div>
+      ) : null}
+      {recap.error ? (
+        <div className="error-text">{(recap.error as Error).message}</div>
       ) : null}
 
       <div className="questions">
@@ -187,6 +198,9 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
               {msg.report.answeredBy(q.answered)}
               {q.declined > 0 ? ` · ${msg.report.declinedBy(q.declined)}` : ""}
               {q.average !== null ? ` · ${msg.report.average(q.average.toFixed(1))}` : ""}
+              {q.low !== null && q.high !== null && q.low !== q.high
+                ? ` · ${msg.report.spread(q.low, q.high)}`
+                : ""}
               {q.probed > 0 ? ` · ${msg.report.probedBy(q.probed)}` : ""}
             </p>
 
@@ -220,7 +234,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
               </details>
             ) : null}
 
-            {q.counts.length === 0 && q.verbatim.length === 0 && q.follow_ups.length === 0 ? (
+            {q.answered === 0 && q.declined === 0 ? (
               <p className="muted">{msg.report.noAnswers}</p>
             ) : null}
           </div>

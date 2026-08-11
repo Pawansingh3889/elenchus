@@ -143,6 +143,12 @@ class QuestionReport(BaseModel):
     # Ratings and numbers only. None when nobody answered, rather than 0, which would
     # read as everyone scoring zero.
     average: float | None = None
+    # The spread, for the same two types. An average alone is the whole of what a number
+    # question reported, and "22.5 minutes" hides whether that is everyone saying twenty
+    # or half saying five and half saying forty. A rating has its counts to show shape; a
+    # number has nothing else at all.
+    low: float | None = None
+    high: float | None = None
     # Free text and write-ins, verbatim and in full. Counted on the page, shown on click:
     # nothing here is grouped or characterised, because that is a judgement about what
     # someone meant and this page is the numbers.

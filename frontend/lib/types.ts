@@ -248,6 +248,10 @@ export interface QuestionReport {
   counts: OptionCount[];
   /** Ratings and numbers only. Null when nobody answered, not 0. */
   average: number | null;
+  /** The spread, for the same two types. An average alone hides whether everyone said
+   *  twenty or half said five and half said forty. */
+  low: number | null;
+  high: number | null;
   /** Free text and write-ins, verbatim and in full. Counted on the page, shown on click. */
   verbatim: string[];
   /** What the probes drew out. Never in `counts` or `average`: a follow-up answers a

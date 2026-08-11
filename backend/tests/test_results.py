@@ -407,3 +407,35 @@ async def test_the_report_is_scoped_to_the_owning_author(session, author, other_
     template = await _reportable(session, author)
     with pytest.raises(NotFoundError):
         await ResultsService(session).report(template.id, other_author)
+
+
+async def test_a_number_question_reports_its_spread_not_just_an_average(
+    session, author, respondent, other_respondent
+):
+    """An average was the whole of what a number question reported, and it hides the
+    difference between everyone saying twenty and half saying five while half say forty.
+    A rating has its counts to show shape; a number had nothing else at all."""
+    svc = TemplateService(session)
+    template = await svc.create_draft(
+        TemplateCreate(
+            title="Downtime",
+            questions=[
+                QuestionInput(
+                    text="How many minutes does the line wait?", answer_type=AnswerType.number
+                )
+            ],
+        ),
+        author,
+    )
+    await svc.publish(template.id, author)
+    for who, value in ((respondent, 10), (other_respondent, 45)):
+        run = await ConductEngine(session, llm=FakeLLM()).start_run(template.id, who)
+        await ConductEngine(session, llm=FakeLLM(record(value), move_on())).handle_message(
+            run.id, str(value), who
+        )
+
+    question = (await ResultsService(session).report(template.id, author)).questions[0]
+
+    assert question.answered == 2
+    assert question.average == 27.5
+    assert (question.low, question.high) == (10, 45)

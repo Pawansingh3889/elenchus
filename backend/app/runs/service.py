@@ -242,6 +242,8 @@ def _report_question(
     counts: list[OptionCount] = []
     verbatim: list[str] = []
     average: float | None = None
+    low: float | None = None
+    high: float | None = None
 
     if answer_type in ("single_select", "multi_select"):
         # The author's order, so a scale reads as a scale rather than sorted by
@@ -274,6 +276,7 @@ def _report_question(
         numbers = [v[answer_type] for v in answered if isinstance(v.get(answer_type), int | float)]
         if numbers:
             average = sum(numbers) / len(numbers)
+            low, high = min(numbers), max(numbers)
         if answer_type == "rating":
             # The whole 1-5 scale, so an unused end of it is visible rather than absent.
             counts = [
@@ -293,6 +296,8 @@ def _report_question(
         declined=declined,
         counts=counts,
         average=average,
+        low=low,
+        high=high,
         verbatim=verbatim,
         # A declined probe is not words the respondent said, so it is left out on the
         # same rule the tallies use. `probed` still counts the run: the question was
