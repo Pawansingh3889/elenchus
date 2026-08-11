@@ -73,3 +73,12 @@ class FollowUpPolicy(str, enum.Enum):
     never = "never"
     when_unclear = "when_unclear"
     always_once = "always_once"
+
+
+# The scale a rating is on. Here rather than in the validator that enforces it, because
+# reading an answer needs it as much as writing one does: a stored 5 means nothing without
+# it, and anything that has to say so out loud must say the same number the gate enforces.
+# Both app.conduct and app.runs already depend on app.templates, so this is the one place
+# both can read it from without either domain reaching into the other.
+RATING_MIN = 1
+RATING_MAX = 5
