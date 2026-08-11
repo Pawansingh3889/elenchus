@@ -347,6 +347,9 @@ select {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: var(--space-3);
+  /* Capped rather than stretched. Three tiles spread across a wide screen read as a
+     mostly-empty band; held to a readable width they read as a summary. */
+  max-inline-size: 42rem;
 }
 .stat {
   background: var(--raised);
@@ -1720,5 +1723,76 @@ select.field {
   from {
     opacity: 0;
     transform: translateY(4px);
+  }
+}
+
+/* ------------------------------------------------------------------- dashboard */
+/* A survey that needs the author is marked on the row itself rather than only by which
+   group it sits in, so it still reads as urgent when the page is scrolled past the
+   heading. An inline-start rule rather than a fill: the row stays the same colour as
+   every other, and the marker cannot be mistaken for a status the survey has. */
+.template-row-alert {
+  border-inline-start: 3px solid var(--highlight);
+}
+.template-why {
+  color: var(--warn-text);
+}
+/* Closed work is finished, not urgent, so it recedes rather than competing. */
+.template-row-quiet {
+  opacity: 0.72;
+}
+.template-row-quiet:hover,
+.template-row-quiet:focus-within {
+  opacity: 1;
+}
+/* The number that is a signal, not decoration: accented only while there is something
+   to do, so a quiet dashboard has nothing shouting on it. */
+.stat-alert .stat-value {
+  color: var(--warn-text);
+}
+.section-note {
+  margin-inline-start: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--muted);
+}
+
+/* One ratio against a limit, so a meter. Comparable down the column at a glance, with
+   the figure beside it because the bar is for scanning and the number is the finding. */
+.reach-meter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  inline-size: 9rem;
+  flex: 0 0 auto;
+}
+.reach-track {
+  flex: 1;
+  block-size: 6px;
+  border-radius: 3px;
+  background: var(--muted-light);
+  overflow: hidden;
+}
+.reach-fill {
+  display: block;
+  block-size: 100%;
+  border-radius: 3px;
+  background: var(--accent-strong);
+}
+.reach-figure {
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--secondary);
+  inline-size: 2.6rem;
+  text-align: end;
+}
+@media (max-width: 40rem) {
+  /* The bar is the first thing to go on a narrow screen: the figure beside it says the
+     same thing in less room, and the row's own line already says "3 of 8 answered". */
+  .reach-track {
+    display: none;
+  }
+  .reach-meter {
+    inline-size: auto;
   }
 }
