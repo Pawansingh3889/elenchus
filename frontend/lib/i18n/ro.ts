@@ -27,7 +27,6 @@ export const ro: Messages = {
   },
   home: {
     started: "începute",
-    completedLabel: "finalizate",
     inProgress: "în curs",
     report: "Raport",
     closeSurvey: "Închide sondajul",
@@ -42,9 +41,6 @@ export const ro: Messages = {
     segPartWay: "la jumătate",
     segNotYet: "neîncepute",
     countedPerSurvey: "Numărat pe chestionar: cine este întrebat de două ori contează de două ori.",
-    statNeedsYou: "Necesită atenție",
-    statRunning: "În desfășurare",
-    statResponses: "Răspunsuri",
     groupNeedsYou: "Necesită atenția ta",
     groupRunning: "În desfășurare",
     groupClosed: "Închise",
@@ -58,7 +54,6 @@ export const ro: Messages = {
     pickUser: "Alege un utilizator din bara de sus pentru a începe să creezi.",
     goingToRespond: "Te ducem la Răspunde…",
     empty: "Încă nu există șabloane. Creează unul sau redactează-l cu AI.",
-    draftWithAi: "✦ Redactează cu AI",
     drafting: "Se redactează…",
     generateDraft: "✦ Generează schița",
     describePlaceholder:
@@ -145,7 +140,6 @@ export const ro: Messages = {
   },
   report: {
     writeIn: "(scris)",
-    everyAnswer: "Toate răspunsurile",
     edit: "Editează chestionarul",
     responses: "Răspunsuri",
     completed: "Finalizate",

@@ -27,7 +27,6 @@ export const fil: Messages = {
   },
   home: {
     started: "nasimulan",
-    completedLabel: "natapos",
     inProgress: "kasalukuyang isinasagot",
     report: "Ulat",
     closeSurvey: "Isara ang survey",
@@ -42,9 +41,6 @@ export const fil: Messages = {
     segPartWay: "nasa kalagitnaan",
     segNotYet: "hindi pa nagsisimula",
     countedPerSurvey: "Binibilang bawat survey: ang tinanong nang dalawang beses ay bilang dalawa.",
-    statNeedsYou: "Kailangan mo",
-    statRunning: "Tumatakbo",
-    statResponses: "Mga sagot",
     groupNeedsYou: "Kailangan ka nito",
     groupRunning: "Tumatakbo",
     groupClosed: "Sarado",
@@ -58,7 +54,6 @@ export const fil: Messages = {
     pickUser: "Pumili ng user sa itaas para magsimulang gumawa.",
     goingToRespond: "Dinadala ka sa Sumagot…",
     empty: "Wala pang template. Gumawa ng isa o ipadraft sa AI.",
-    draftWithAi: "✦ Idraft gamit ang AI",
     drafting: "Ginagawa…",
     generateDraft: "✦ Gumawa ng draft",
     describePlaceholder: "Ilarawan ang survey… hal. Isang onboarding survey para sa mga empleyado sa pabrika: ang kanilang tungkulin, ang mga sistemang ginagamit araw-araw, at ang pinakamalaking problema nila sa datos.",
@@ -139,7 +134,6 @@ export const fil: Messages = {
   },
   report: {
     writeIn: "(sariling sagot)",
-    everyAnswer: "Lahat ng sagot",
     edit: "I-edit ang survey",
     responses: "Mga sagot",
     completed: "Natapos",

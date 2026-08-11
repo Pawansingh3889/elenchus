@@ -35,7 +35,6 @@ export const en = {
   },
   home: {
     started: "started",
-    completedLabel: "completed",
     inProgress: "in progress",
     report: "Report",
     closeSurvey: "Close survey",
@@ -50,9 +49,6 @@ export const en = {
     segPartWay: "part-way",
     segNotYet: "not started",
     countedPerSurvey: "Counted per survey, so someone asked twice counts twice.",
-    statNeedsYou: "Need you",
-    statRunning: "Running",
-    statResponses: "Responses",
     groupNeedsYou: "Needs you",
     groupRunning: "Running",
     groupClosed: "Closed",
@@ -66,7 +62,6 @@ export const en = {
     pickUser: "Pick a user in the top bar to start authoring.",
     goingToRespond: "Taking you to Respond…",
     empty: "No templates yet. Create one or draft with AI.",
-    draftWithAi: "✦ Draft with AI",
     drafting: "Drafting…",
     generateDraft: "✦ Generate draft",
     describePlaceholder:
@@ -153,7 +148,6 @@ export const en = {
   },
   report: {
     writeIn: "(write-in)",
-    everyAnswer: "Every answer",
     edit: "Edit survey",
     responses: "Responses",
     completed: "Completed",

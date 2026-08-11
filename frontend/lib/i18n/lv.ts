@@ -27,7 +27,6 @@ export const lv: Messages = {
   },
   home: {
     started: "sākts",
-    completedLabel: "pabeigts",
     inProgress: "notiek",
     report: "Pārskats",
     closeSurvey: "Slēgt aptauju",
@@ -42,9 +41,6 @@ export const lv: Messages = {
     segPartWay: "iesāka",
     segNotYet: "nav sākuši",
     countedPerSurvey: "Skaitīts pa aptaujām: kas jautāts divreiz, skaitās divreiz.",
-    statNeedsYou: "Nepieciešama uzmanība",
-    statRunning: "Norit",
-    statResponses: "Atbildes",
     groupNeedsYou: "Nepieciešama tava uzmanība",
     groupRunning: "Norit",
     groupClosed: "Slēgtas",
@@ -58,7 +54,6 @@ export const lv: Messages = {
     pickUser: "Izvēlieties lietotāju augšējā joslā, lai sāktu veidot.",
     goingToRespond: "Pārejam uz Atbildēt…",
     empty: "Vēl nav neviena veidne. Izveidojiet to vai uzrakstiet ar MI palīdzību.",
-    draftWithAi: "✦ Uzrakstīt ar MI",
     drafting: "Tiek veidots…",
     generateDraft: "✦ Izveidot melnrakstu",
     describePlaceholder:
@@ -145,7 +140,6 @@ export const lv: Messages = {
   },
   report: {
     writeIn: "(pašu vārdiem)",
-    everyAnswer: "Visas atbildes",
     edit: "Rediģēt aptauju",
     responses: "Atbildes",
     completed: "Pabeigtas",

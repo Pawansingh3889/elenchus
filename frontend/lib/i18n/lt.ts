@@ -27,7 +27,6 @@ export const lt: Messages = {
   },
   home: {
     started: "pradėta",
-    completedLabel: "užbaigta",
     inProgress: "vykdoma",
     report: "Ataskaita",
     closeSurvey: "Uždaryti apklausą",
@@ -42,9 +41,6 @@ export const lt: Messages = {
     segPartWay: "pradėjo",
     segNotYet: "nepradėjo",
     countedPerSurvey: "Skaičiuojama pagal apklausą: paklaustas du kartus skaičiuojamas du kartus.",
-    statNeedsYou: "Reikia dėmesio",
-    statRunning: "Vykdomos",
-    statResponses: "Atsakymai",
     groupNeedsYou: "Reikia tavo dėmesio",
     groupRunning: "Vykdomos",
     groupClosed: "Uždarytos",
@@ -58,7 +54,6 @@ export const lt: Messages = {
     pickUser: "Pasirinkite naudotoją viršutinėje juostoje, kad pradėtumėte kurti.",
     goingToRespond: "Nukreipiame į Atsakyti…",
     empty: "Šablonų dar nėra. Sukurkite jį arba parenkite su DI.",
-    draftWithAi: "✦ Parengti su DI",
     drafting: "Rengiama…",
     generateDraft: "✦ Sukurti juodraštį",
     describePlaceholder:
@@ -145,7 +140,6 @@ export const lt: Messages = {
   },
   report: {
     writeIn: "(įrašyta)",
-    everyAnswer: "Visi atsakymai",
     edit: "Redaguoti apklausą",
     responses: "Atsakymai",
     completed: "Užbaigta",

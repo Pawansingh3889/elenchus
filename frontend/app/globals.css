@@ -340,33 +340,6 @@ select {
   font-size: var(--text-sm);
 }
 
-/* Totals across every survey, above the list. Grid rather than flex so the tiles keep
-   equal widths as the numbers grow, and auto-fit so four tiles become two on a phone
-   instead of shrinking until the labels wrap mid-word. */
-.stat-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: var(--space-3);
-}
-.stat {
-  background: var(--raised);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: var(--space-3) var(--space-4);
-}
-.stat-value {
-  font-size: var(--text-xl);
-  font-weight: 800;
-  line-height: 1.2;
-}
-.stat-label {
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--muted);
-  font-weight: 700;
-  margin-block-start: var(--space-1);
-}
 .section-head {
   font-size: var(--text-md);
   font-weight: 700;
@@ -475,7 +448,6 @@ textarea {
      rather than wrap inside it. */
   overflow-wrap: break-word;
 }
-
 
 .template-list {
   display: flex;
@@ -1471,8 +1443,7 @@ select.field {
   }
 
   /* Wide content scrolls inside itself rather than pushing the page sideways. */
-  .answer-list,
-  .result-list {
+  .answer-list {
     overflow-x: auto;
   }
 }
@@ -1633,12 +1604,6 @@ select.field {
   font-style: normal;
   color: var(--secondary);
 }
-.recap-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-}
 
 /* --------------------------------------------------------------- confirm dialog */
 /* Asks before something that cannot be undone. Publishing freezes a version, and the
@@ -1724,11 +1689,6 @@ select.field {
 .template-row-quiet:hover,
 .template-row-quiet:focus-within {
   opacity: 1;
-}
-/* The number that is a signal, not decoration: accented only while there is something
-   to do, so a quiet dashboard has nothing shouting on it. */
-.stat-alert .stat-value {
-  color: var(--warn-text);
 }
 .section-note {
   margin-inline-start: var(--space-2);
@@ -1860,24 +1820,6 @@ select.field {
 .hero-note {
   font-size: var(--text-xs);
   color: var(--muted);
-}
-.hero-counts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-4);
-  padding-block-start: var(--space-3);
-  border-block-start: 1px solid var(--border-faint);
-  font-size: var(--text-sm);
-  color: var(--secondary);
-}
-.hero-count b {
-  color: var(--ink);
-  font-size: var(--text-lg);
-  font-variant-numeric: tabular-nums;
-  margin-inline-end: 4px;
-}
-.hero-count-alert b {
-  color: var(--warn-text);
 }
 /* The group's size, on the group's own heading. It used to sit in a row of counts above,
    which repeated the two headings directly below it. */

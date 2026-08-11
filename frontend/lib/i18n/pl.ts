@@ -27,7 +27,6 @@ export const pl: Messages = {
   },
   home: {
     started: "rozpoczęte",
-    completedLabel: "ukończone",
     inProgress: "w trakcie",
     report: "Raport",
     closeSurvey: "Zamknij ankietę",
@@ -42,9 +41,6 @@ export const pl: Messages = {
     segPartWay: "w trakcie",
     segNotYet: "nie zaczęło",
     countedPerSurvey: "Liczone na ankietę: kto pytany dwa razy, liczy się dwa razy.",
-    statNeedsYou: "Wymagają uwagi",
-    statRunning: "W toku",
-    statResponses: "Odpowiedzi",
     groupNeedsYou: "Wymagają uwagi",
     groupRunning: "W toku",
     groupClosed: "Zamknięte",
@@ -58,7 +54,6 @@ export const pl: Messages = {
     pickUser: "Wybierz użytkownika na górnym pasku, aby zacząć tworzyć.",
     goingToRespond: "Przechodzimy do Odpowiadaj…",
     empty: "Nie ma jeszcze szablonów. Utwórz jeden lub napisz go z pomocą AI.",
-    draftWithAi: "✦ Napisz z AI",
     drafting: "Tworzenie…",
     generateDraft: "✦ Utwórz szkic",
     describePlaceholder:
@@ -145,7 +140,6 @@ export const pl: Messages = {
   },
   report: {
     writeIn: "(własna)",
-    everyAnswer: "Wszystkie odpowiedzi",
     edit: "Edytuj ankietę",
     responses: "Odpowiedzi",
     completed: "Ukończone",
