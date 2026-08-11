@@ -7,7 +7,8 @@ surveys through a conversational, LLM-driven runner that keeps the model on rail
 Full brief in [`trial-brief/`](trial-brief/README.md); what the app does
 in [`docs/OVERVIEW.md`](docs/OVERVIEW.md); build conventions in [`CLAUDE.md`](CLAUDE.md);
 what every check is asking in [`docs/CHECKS.md`](docs/CHECKS.md); project history
-in [`CHANGELOG.md`](CHANGELOG.md).
+in [`CHANGELOG.md`](CHANGELOG.md); every defect and what fixed it
+in [`docs/DEFECTS.md`](docs/DEFECTS.md).
 
 ## Stack
 
