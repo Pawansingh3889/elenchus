@@ -28,15 +28,15 @@ holes in one afternoon and is the cheapest thing on this list.
 
 | # | Defect | How found | Fix | Commit |
 |---|--------|-----------|-----|--------|
-| 24 | A checker miscount cost the author the whole recap: it refused "most" against a tally of 7 yes and 1 no, and an all-or-nothing verdict threw away five sound findings with it | live run | Verdict names which findings it will not stand behind; those are dropped like unsupported quotes, headline stays all-or-nothing | `19a6fb5` |
-| 23 | A recap refused on its merits was reported as `503 llm_unavailable`, telling the author to retry something that would fail identically and discarding the checker's reasons | live run | `ConflictError` carrying the checker's own words | `19a6fb5` |
-| 22 | A forced follow-up could be asked, answered, and thrown away: the force lapsed when the probe was issued, so `move_on` returned on the turn the answer arrived. 3 of 16 forced probes lost their answer | live run | `move_on` withheld while a probe is outstanding; recording or flagging resolves it | `5de7ced` |
-| 21 | Every recap finding about the first question lost its counts, because `question_position or -1` treats position 0 as absent | its own test | `is None` rather than `or` | `5505ddb` |
-| 20 | The engine never asked a follow-up: 8 runs, 4 probe-enabled questions, ~90 model turns, 80 answers, none of them a probe. `allow_follow_ups` could grant permission but not express intent | live run | `follow_up_policy` with `always_once`, enforced by withholding `record_answer` | `7b77d2a` |
-| 19 | The question-by-question report discarded every follow-up answer, so the elaboration an author most wants was visible only in the export and one run at a time | reading the code after 20 | `follow_ups` and `probed` on `QuestionReport`, kept out of the tallies | `6bb9a3d` |
-| 18 | A summary read a rating of 5 on a 1-to-5 scale as "5 out of 10": the value was real and only the scale invented, so no checker could catch it | live run | The scale goes to the model in the extract; the bound lives beside `AnswerType` | `de8a942` |
-| 17 | A write-in was stored with the marker the prompt forbids, reaching the report as `Other: there's a portable spot cooler`; obeyed on the single-select and ignored on the multi-select in the same conversation | live run | `validate_answer` strips the marker, and re-matches the option list so `Other: Days` is the option Days | `de8a942` |
-| 16 | Deleting a question reported that a visibility condition had been cleared, because the count compared the list before and after and the deleted question was in the before | reading the builder | Count against the questions that survive the delete | `e96e47b` |
+| 24 | A checker miscount cost the author the whole recap: it refused "most" against a tally of 7 yes and 1 no, and an all-or-nothing verdict threw away five sound findings with it | live run | Verdict names which findings it will not stand behind; those are dropped like unsupported quotes, headline stays all-or-nothing | [#34](https://github.com/Pawansingh3889/elenchus/pull/34) `19a6fb5` |
+| 23 | A recap refused on its merits was reported as `503 llm_unavailable`, telling the author to retry something that would fail identically and discarding the checker's reasons | live run | `ConflictError` carrying the checker's own words | [#34](https://github.com/Pawansingh3889/elenchus/pull/34) `19a6fb5` |
+| 22 | A forced follow-up could be asked, answered, and thrown away: the force lapsed when the probe was issued, so `move_on` returned on the turn the answer arrived. 3 of 16 forced probes lost their answer | live run | `move_on` withheld while a probe is outstanding; recording or flagging resolves it | [#34](https://github.com/Pawansingh3889/elenchus/pull/34) `5de7ced` |
+| 21 | Every recap finding about the first question lost its counts, because `question_position or -1` treats position 0 as absent | its own test | `is None` rather than `or` | [#34](https://github.com/Pawansingh3889/elenchus/pull/34) `5505ddb` |
+| 20 | The engine never asked a follow-up: 8 runs, 4 probe-enabled questions, ~90 model turns, 80 answers, none of them a probe. `allow_follow_ups` could grant permission but not express intent | live run | `follow_up_policy` with `always_once`, enforced by withholding `record_answer` | [#34](https://github.com/Pawansingh3889/elenchus/pull/34) `7b77d2a` |
+| 19 | The question-by-question report discarded every follow-up answer, so the elaboration an author most wants was visible only in the export and one run at a time | reading the code after 20 | `follow_ups` and `probed` on `QuestionReport`, kept out of the tallies | [#34](https://github.com/Pawansingh3889/elenchus/pull/34) `6bb9a3d` |
+| 18 | A summary read a rating of 5 on a 1-to-5 scale as "5 out of 10": the value was real and only the scale invented, so no checker could catch it | live run | The scale goes to the model in the extract; the bound lives beside `AnswerType` | [#34](https://github.com/Pawansingh3889/elenchus/pull/34) `de8a942` |
+| 17 | A write-in was stored with the marker the prompt forbids, reaching the report as `Other: there's a portable spot cooler`; obeyed on the single-select and ignored on the multi-select in the same conversation | live run | `validate_answer` strips the marker, and re-matches the option list so `Other: Days` is the option Days | [#34](https://github.com/Pawansingh3889/elenchus/pull/34) `de8a942` |
+| 16 | Deleting a question reported that a visibility condition had been cleared, because the count compared the list before and after and the deleted question was in the before | reading the builder | Count against the questions that survive the delete | [#34](https://github.com/Pawansingh3889/elenchus/pull/34) `e96e47b` |
 | 15 | On a multi-select, Confirm sent the ticked options and Send sent the typed text, so a respondent who ticked two and typed a third lost whichever half they did not press | live run | Confirm sends both as one message and says so when there is something to lose | `3b6da65` |
 | 14 | Nothing stopped one person answering a survey repeatedly: one respondent had four runs on one survey, reported as four responses and four people agreeing | dashboard read wrong | `start_run` returns the unfinished run and 409s a finished one, keyed on the survey not the version | `f6f3b2b` |
 | 13 | The dashboard counted people who walked away as responses: "6 responses" over four completed runs | dashboard read wrong | Completed and in-progress split apart | `aaccc84` |
@@ -53,9 +53,13 @@ holes in one afternoon and is the cheapest thing on this list.
 | 2 | Ten values the answer gate should have refused were accepted, tracing to four holes | probe-then-verify | Four holes closed at the validator | `5d2ece6` |
 | 1 | Five of thirteen draft payloads with a known-wrong verdict were accepted: blank and colliding options reached published surveys | probe-then-verify | Refused at the schema gate | `7ccdb52` |
 
-Rows 16 to 24 point at commits that are still on unmerged branches. This repo
-squash-merges, so those hashes will be replaced when the branches land and the ones here
-will resolve to nothing. Fix them then, or search the subject line, which does not change.
+Rows 16 to 24 landed together in [#34](https://github.com/Pawansingh3889/elenchus/pull/34),
+squash-merged as `88822eb`. Their hashes are therefore not in `main`'s history and will
+not resolve in a fresh clone: `git show de8a942` fails. They resolve on the pull request,
+which keeps all eighteen commits and is now the only place their reasoning survives,
+because a squash keeps one message and discards the rest. That is the cost of squashing a
+branch whose commit messages were the documentation, and it is worth knowing before doing
+it again.
 
 ## Patterns worth noticing
 
