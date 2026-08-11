@@ -10,6 +10,7 @@ export const es: Messages = {
     publishing: "Publicando…",
     delete: "Eliminar",
     confirmDelete: "Confirmar eliminación",
+    backToDashboard: "← Panel",
     cancel: "Cancelar",
     dismiss: "descartar",
     notFound: "No encontrado",
@@ -65,6 +66,8 @@ export const es: Messages = {
   },
   builder: {
     pickUser: "Elige un usuario en la barra superior.",
+    tabBuild: "Editar",
+    tabsLabel: "Páginas de la encuesta",
     titlePlaceholder: "Título de la encuesta",
     descriptionPlaceholder: "Descripción (opcional)",
     questionPlaceholder: "Texto de la pregunta",

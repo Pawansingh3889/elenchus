@@ -10,6 +10,7 @@ export const lv: Messages = {
     publishing: "Notiek publicēšana…",
     delete: "Dzēst",
     confirmDelete: "Apstiprināt dzēšanu",
+    backToDashboard: "← Panelis",
     cancel: "Atcelt",
     dismiss: "aizvērt",
     notFound: "Nav atrasts",
@@ -65,6 +66,8 @@ export const lv: Messages = {
   },
   builder: {
     pickUser: "Izvēlieties lietotāju augšējā joslā.",
+    tabBuild: "Rediģēt",
+    tabsLabel: "Aptaujas lapas",
     titlePlaceholder: "Aptaujas nosaukums",
     descriptionPlaceholder: "Apraksts (nav obligāts)",
     questionPlaceholder: "Jautājuma teksts",

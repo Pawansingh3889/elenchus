@@ -12,6 +12,7 @@ export const de: Messages = {
     delete: "Löschen",
     deleting: "Wird gelöscht…",
     confirmDelete: "Löschen bestätigen",
+    backToDashboard: "← Übersicht",
     cancel: "Abbrechen",
     dismiss: "ausblenden",
     notFound: "Nicht gefunden",
@@ -65,6 +66,8 @@ export const de: Messages = {
   },
   builder: {
     pickUser: "Wählen Sie oben einen Benutzer.",
+    tabBuild: "Bearbeiten",
+    tabsLabel: "Umfrageseiten",
     titlePlaceholder: "Titel der Umfrage",
     descriptionPlaceholder: "Beschreibung (optional)",
     questionPlaceholder: "Fragetext",

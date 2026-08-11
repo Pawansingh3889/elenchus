@@ -1,14 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { SurveyNav } from "@/components/SurveyNav";
 import { Transcript } from "@/components/Transcript";
 import { useT } from "@/lib/i18n/useT";
 import {
   useCurrentUser,
   useSummariseRun,
+  useTemplate,
   useTemplateRun,
   useTemplateRuns,
 } from "@/lib/queries";
@@ -147,6 +148,9 @@ export default function ResultsPage() {
   const currentUserId = useUserStore((s) => s.currentUserId);
   const currentUser = useCurrentUser();
   const { data: runs, isLoading, error } = useTemplateRuns(id);
+  // For the heading only: this page showed the word "Responses" and never which
+  // survey's responses they were.
+  const { data: template } = useTemplate(id);
   const [selected, setSelected] = useState<string | null>(null);
   const detail = useTemplateRun(id, selected);
   const router = useRouter();
@@ -165,13 +169,11 @@ export default function ResultsPage() {
 
   return (
     <div className="page">
+      <SurveyNav templateId={id} current="responses" />
       <div className="page-head">
-        <h1>{msg.results.title}</h1>
-        <div className="page-head-actions">
-          <Link href={`/templates/${id}`} className="btn btn-secondary">
-            Back to builder
-          </Link>
-        </div>
+        {/* The survey's own title, not the word "Responses". This page never said which
+            survey you were reading, which is half of not knowing where you are. */}
+        <h1>{template?.title ?? msg.results.title}</h1>
       </div>
 
       {isLoading ? <div className="muted">{msg.common.loading}</div> : null}

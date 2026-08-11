@@ -11,6 +11,7 @@ export const fil: Messages = {
     delete: "Tanggalin",
     deleting: "Tinatanggal…",
     confirmDelete: "Kumpirmahin ang pagtanggal",
+    backToDashboard: "← Dashboard",
     cancel: "Kanselahin",
     dismiss: "itago",
     notFound: "Hindi natagpuan",
@@ -64,6 +65,8 @@ export const fil: Messages = {
   },
   builder: {
     pickUser: "Pumili ng user sa itaas.",
+    tabBuild: "I-edit",
+    tabsLabel: "Mga pahina ng survey",
     titlePlaceholder: "Pamagat ng survey",
     descriptionPlaceholder: "Paglalarawan (opsyonal)",
     questionPlaceholder: "Teksto ng tanong",

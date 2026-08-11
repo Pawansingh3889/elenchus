@@ -10,6 +10,7 @@ export const pl: Messages = {
     publishing: "Publikowanie…",
     delete: "Usuń",
     confirmDelete: "Potwierdź usunięcie",
+    backToDashboard: "← Pulpit",
     cancel: "Anuluj",
     dismiss: "zamknij",
     notFound: "Nie znaleziono",
@@ -65,6 +66,8 @@ export const pl: Messages = {
   },
   builder: {
     pickUser: "Wybierz użytkownika na górnym pasku.",
+    tabBuild: "Edytuj",
+    tabsLabel: "Strony ankiety",
     titlePlaceholder: "Tytuł ankiety",
     descriptionPlaceholder: "Opis (opcjonalnie)",
     questionPlaceholder: "Treść pytania",

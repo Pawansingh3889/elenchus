@@ -10,6 +10,7 @@ export const lt: Messages = {
     publishing: "Skelbiama…",
     delete: "Ištrinti",
     confirmDelete: "Patvirtinti ištrynimą",
+    backToDashboard: "← Skydelis",
     cancel: "Atšaukti",
     dismiss: "užverti",
     notFound: "Nerasta",
@@ -65,6 +66,8 @@ export const lt: Messages = {
   },
   builder: {
     pickUser: "Pasirinkite naudotoją viršutinėje juostoje.",
+    tabBuild: "Redaguoti",
+    tabsLabel: "Apklausos puslapiai",
     titlePlaceholder: "Apklausos pavadinimas",
     descriptionPlaceholder: "Aprašymas (nebūtina)",
     questionPlaceholder: "Klausimo tekstas",

@@ -18,6 +18,7 @@ export const en = {
     publishing: "Publishing…",
     delete: "Delete",
     confirmDelete: "Confirm delete",
+    backToDashboard: "← Dashboard",
     cancel: "Cancel",
     dismiss: "dismiss",
     notFound: "Not found",
@@ -73,6 +74,8 @@ export const en = {
   },
   builder: {
     pickUser: "Pick a user in the top bar.",
+    tabBuild: "Build",
+    tabsLabel: "Survey pages",
     titlePlaceholder: "Survey title",
     descriptionPlaceholder: "Description (optional)",
     questionPlaceholder: "Question text",

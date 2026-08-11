@@ -1934,7 +1934,9 @@ select.field {
    moving it here would otherwise cost. One line that grows as you type. */
 .draft-bar {
   display: flex;
-  align-items: flex-start;
+  /* The button sits at the bottom edge of the box rather than the top: with three lines
+     of room above it, aligning to the top leaves it floating beside empty space. */
+  align-items: flex-end;
   gap: var(--space-2);
   padding: var(--space-2);
   background: var(--ai-fill);
@@ -1943,7 +1945,10 @@ select.field {
 }
 .draft-bar .draft-input {
   flex: 1;
-  min-block-size: 0;
+  /* Three lines at rest: a one-line box invites a phrase, and the model drafts a better
+     survey from a description. Beats the inline height the autogrow sets, so it starts
+     at three and still grows past them. */
+  min-block-size: 4.6rem;
   background: var(--raised);
   border: 1px solid var(--border);
   border-radius: 7px;
@@ -1962,4 +1967,50 @@ select.field {
     flex-direction: column;
     align-items: stretch;
   }
+}
+
+/* ------------------------------------------------------------------ survey nav */
+/* Where you are in a survey, and the way back out. Present on all three of its pages,
+   in the same place, so moving between them is a click rather than a hunt for whichever
+   button that particular page happened to grow. */
+.survey-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-block-end: var(--space-3);
+}
+.survey-back {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  text-decoration: none;
+  align-self: flex-start;
+}
+.survey-back:hover {
+  color: var(--ink);
+}
+.survey-tabs {
+  display: flex;
+  gap: var(--space-1);
+  border-block-end: 1px solid var(--border);
+}
+.survey-tab {
+  padding: 8px var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--secondary);
+  text-decoration: none;
+  border-block-end: 2px solid transparent;
+  margin-block-end: -1px;
+  min-block-size: var(--tap);
+  display: flex;
+  align-items: center;
+}
+.survey-tab:hover {
+  color: var(--ink);
+}
+/* Underlined and inked, so the current page is marked by two things rather than colour
+   alone. aria-current carries the same fact to a screen reader. */
+.survey-tab-on {
+  color: var(--ink);
+  font-weight: 600;
+  border-block-end-color: var(--accent-strong);
 }

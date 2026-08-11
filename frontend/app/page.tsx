@@ -12,7 +12,7 @@ import {
   useGenerateTemplate,
 } from "@/lib/queries";
 import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
-import { groupForDashboard, type Attention } from "@/lib/dashboardAttention";
+import { groupForDashboard, landingFor, type Attention } from "@/lib/dashboardAttention";
 import { useT } from "@/lib/i18n/useT";
 import { useDraftNoteStore, useUserStore } from "@/lib/store";
 import type { DashboardRow } from "@/lib/types";
@@ -224,7 +224,7 @@ export default function Home() {
           <div className="template-list">
             {groups.needsYou.map(({ row: r, why: attention }) => (
               <div key={r.id} className="template-row template-row-alert">
-                <Link href={`/templates/${r.id}`} className="template-row-main">
+                <Link href={landingFor(r)} className="template-row-main">
                   <div className="template-title">{r.title}</div>
                   <div className="template-meta template-why">{why(r, attention)}</div>
                 </Link>
@@ -257,7 +257,7 @@ export default function Home() {
           <div className="template-list">
             {groups.running.map((r) => (
               <div key={r.id} className="template-row">
-                <Link href={`/templates/${r.id}`} className="template-row-main">
+                <Link href={landingFor(r)} className="template-row-main">
                   <div className="template-title">{r.title}</div>
                   <div className="template-meta">
                     {reachLine(r)}
@@ -315,7 +315,7 @@ export default function Home() {
           <div className="template-list">
             {groups.closed.map((r) => (
               <div key={r.id} className="template-row template-row-quiet">
-                <Link href={`/templates/${r.id}`} className="template-row-main">
+                <Link href={landingFor(r)} className="template-row-main">
                   <div className="template-title">{r.title}</div>
                   <div className="template-meta">{reachLine(r)}</div>
                 </Link>
