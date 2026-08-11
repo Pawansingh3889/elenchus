@@ -27,7 +27,6 @@ export const es: Messages = {
   },
   home: {
     started: "iniciadas",
-    completedLabel: "completadas",
     inProgress: "en curso",
     report: "Informe",
     closeSurvey: "Cerrar encuesta",
@@ -42,9 +41,6 @@ export const es: Messages = {
     segPartWay: "a medias",
     segNotYet: "sin empezar",
     countedPerSurvey: "Contado por encuesta: a quien se le pregunta dos veces cuenta dos veces.",
-    statNeedsYou: "Requieren atención",
-    statRunning: "En marcha",
-    statResponses: "Respuestas",
     groupNeedsYou: "Requieren tu atención",
     groupRunning: "En marcha",
     groupClosed: "Cerradas",
@@ -58,7 +54,6 @@ export const es: Messages = {
     pickUser: "Elige un usuario en la barra superior para empezar a crear.",
     goingToRespond: "Llevándote a Responder…",
     empty: "Aún no hay plantillas. Crea una o redáctala con IA.",
-    draftWithAi: "✦ Redactar con IA",
     drafting: "Redactando…",
     generateDraft: "✦ Generar borrador",
     describePlaceholder:
@@ -145,7 +140,6 @@ export const es: Messages = {
   },
   report: {
     writeIn: "(escrito)",
-    everyAnswer: "Todas las respuestas",
     edit: "Editar encuesta",
     responses: "Respuestas",
     completed: "Completadas",

@@ -28,7 +28,6 @@ export const de: Messages = {
   },
   home: {
     started: "gestartet",
-    completedLabel: "abgeschlossen",
     inProgress: "in Bearbeitung",
     report: "Bericht",
     closeSurvey: "Umfrage schließen",
@@ -43,9 +42,6 @@ export const de: Messages = {
     segPartWay: "angefangen",
     segNotYet: "nicht begonnen",
     countedPerSurvey: "Pro Umfrage gezählt: wer zweimal gefragt wurde, zählt zweimal.",
-    statNeedsYou: "Zu erledigen",
-    statRunning: "Laufend",
-    statResponses: "Antworten",
     groupNeedsYou: "Braucht dich",
     groupRunning: "Laufend",
     groupClosed: "Geschlossen",
@@ -59,7 +55,6 @@ export const de: Messages = {
     pickUser: "Wählen Sie oben einen Benutzer, um mit dem Erstellen zu beginnen.",
     goingToRespond: "Weiter zu Antworten…",
     empty: "Noch keine Vorlagen. Erstellen Sie eine oder entwerfen Sie sie mit KI.",
-    draftWithAi: "✦ Mit KI entwerfen",
     drafting: "Entwurf läuft…",
     generateDraft: "✦ Entwurf erstellen",
     describePlaceholder: "Beschreiben Sie die Umfrage… z. B. Eine Einarbeitungsumfrage für Fabrikpersonal: ihre Rolle, die täglich genutzten Systeme und ihre größten Datenprobleme.",
@@ -141,7 +136,6 @@ export const de: Messages = {
   },
   report: {
     writeIn: "(frei)",
-    everyAnswer: "Alle Antworten",
     edit: "Umfrage bearbeiten",
     responses: "Antworten",
     completed: "Abgeschlossen",
