@@ -165,10 +165,6 @@ export const en = {
     transcript: "Transcript",
     summary: "Summary",
     followUp: "follow-up",
-    exportCsv: "CSV",
-    exportJson: "JSON",
-    exportCsvHint: "Every answer as a spreadsheet row, opens directly in Excel",
-    exportJsonHint: "Every answer as structured JSON",
     probeHint:
       "Follow-ups the engine allowed on this question. A probe is counted when it is asked, so this can exceed the number of follow-up answers below.",
   },

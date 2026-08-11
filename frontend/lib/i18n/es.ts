@@ -157,10 +157,6 @@ export const es: Messages = {
     transcript: "Transcripción",
     summary: "Resumen",
     followUp: "repregunta",
-    exportCsv: "CSV",
-    exportJson: "JSON",
-    exportCsvHint: "Cada respuesta como fila de hoja de cálculo, se abre directamente en Excel",
-    exportJsonHint: "Cada respuesta como JSON estructurado",
     probeHint:
       "Repreguntas que el motor permitió en esta pregunta. Una repregunta se cuenta al formularse, así que este número puede superar el de respuestas de abajo.",
   },

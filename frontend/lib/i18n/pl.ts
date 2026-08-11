@@ -157,10 +157,6 @@ export const pl: Messages = {
     transcript: "Zapis rozmowy",
     summary: "Podsumowanie",
     followUp: "pytanie pogłębiające",
-    exportCsv: "CSV",
-    exportJson: "JSON",
-    exportCsvHint: "Każda odpowiedź jako wiersz arkusza, otwiera się bezpośrednio w Excelu",
-    exportJsonHint: "Każda odpowiedź jako uporządkowany JSON",
     probeHint:
       "Pytania pogłębiające, na które silnik pozwolił przy tym pytaniu. Liczy się je w chwili zadania, więc ta liczba może przekraczać liczbę odpowiedzi poniżej.",
   },

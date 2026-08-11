@@ -118,53 +118,6 @@ async def test_missing_template_is_not_found(session, author, published):
         await ResultsService(session).list_runs(uuid4(), author)
 
 
-async def test_export_flattens_every_answer_to_a_row(session, author, respondent, published):
-    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
-    await _answer_first(session, run, respondent)
-
-    title, rows = await ResultsService(session).export(published.id, author)
-
-    assert title == "Onboarding check-in"
-    assert len(rows) == 1
-    row = rows[0]
-    assert row["respondent"] == "Test Respondent"
-    assert row["question"] == "What's your role?"
-    assert row["answer"] == "Line lead"
-    assert (row["kind"], row["version"], row["run_status"]) == ("scripted", 1, "in_progress")
-
-
-async def test_export_is_scoped_to_the_owning_author(
-    session, author, other_author, respondent, published
-):
-    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
-    await _answer_first(session, run, respondent)
-
-    with pytest.raises(NotFoundError):
-        await ResultsService(session).export(published.id, other_author)
-
-
-def test_csv_export_is_excel_ready():
-    """Header row, one line per answer, and a UTF-8 BOM so Excel decodes it right."""
-    from app.runs.service import EXPORT_COLUMNS, to_csv
-
-    rows = [
-        {
-            "run_id": "r1",
-            "respondent": "Rosa",
-            "run_status": "completed",
-            "version": 1,
-            "question": 'She said "hi", twice',
-            "kind": "scripted",
-            "answer": "Days; Nights",
-            "answered_at": "2026-07-24T12:00:00+00:00",
-        }
-    ]
-    out = to_csv(rows)
-    assert out.startswith("\ufeff")
-    assert out.splitlines()[0] == "\ufeff" + ",".join(EXPORT_COLUMNS)
-    assert '"She said ""hi"", twice"' in out  # embedded quotes survive per RFC 4180
-
-
 def test_every_answer_shape_flattens_to_a_readable_cell():
     from app.runs.service import flatten_answer
 
@@ -221,73 +174,6 @@ async def test_a_run_that_was_never_probed_reports_nothing(session, author, resp
     detail = await ResultsService(session).get_run(published.id, run.id, author)
 
     assert detail.follow_ups_asked == {}
-
-
-# --- structured JSON export ---------------------------------------------------
-
-
-async def test_structured_export_includes_questions_nobody_answered(
-    session, author, respondent, published
-):
-    """The flat export has a row per recorded answer, so a question that was skipped,
-    hidden by a condition or simply never reached is absent, and absent is
-    indistinguishable from "not in the survey". Analysis needs the difference."""
-    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
-    await _answer_first(session, run, respondent)
-
-    document = await ResultsService(session).export_structured(published.id, author)
-
-    questions = document["runs"][0]["questions"]
-    assert [q["text"] for q in questions] == ["What's your role?", "Rate your onboarding"]
-    assert questions[0]["answered"] is True
-    assert questions[1]["answered"] is False
-    assert questions[1]["answer"] is None
-
-
-async def test_structured_export_keeps_the_stored_shape_and_a_readable_form(
-    session, author, respondent, published
-):
-    """Both, because deriving one from the other is where the results page and the CSV
-    already drifted apart: a rating reads "4 out of 5" on screen and "4" in the export."""
-    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
-    await _answer_first(session, run, respondent)
-
-    document = await ResultsService(session).export_structured(published.id, author)
-
-    answered = document["runs"][0]["questions"][0]
-    assert answered["answer"] == {"text": "Line lead"}
-    assert answered["answer_display"] == "Line lead"
-
-
-async def test_structured_export_nests_follow_ups_under_their_question(
-    session, author, respondent, published
-):
-    """A follow-up is a question the model wrote about a scripted one. Flat, it sits as a
-    peer with invented wording in the question column and nothing joining the two."""
-    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
-    llm = FakeLLM(record("Line lead"), follow_up("What does that involve?"))
-    run = await ConductEngine(session, llm=llm).handle_message(run.id, "line lead", respondent)
-    llm = FakeLLM(record("I run the packing line"), move_on())
-    await ConductEngine(session, llm=llm).handle_message(
-        run.id, "I run the packing line", respondent
-    )
-
-    document = await ResultsService(session).export_structured(published.id, author)
-
-    first = document["runs"][0]["questions"][0]
-    assert first["answer"] == {"text": "Line lead"}
-    assert len(first["follow_ups"]) == 1
-    assert first["follow_ups"][0]["question"] == "What does that involve?"
-    assert first["follow_ups"][0]["answer"] == {"text": "I run the packing line"}
-
-
-async def test_structured_export_is_scoped_to_the_owning_author(
-    session, author, other_author, respondent, published
-):
-    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
-    await _answer_first(session, run, respondent)
-    with pytest.raises(NotFoundError):
-        await ResultsService(session).export_structured(published.id, other_author)
 
 
 async def _reportable(session, author):

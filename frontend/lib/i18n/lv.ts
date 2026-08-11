@@ -157,10 +157,6 @@ export const lv: Messages = {
     transcript: "Sarunas pieraksts",
     summary: "Kopsavilkums",
     followUp: "precizējošs jautājums",
-    exportCsv: "CSV",
-    exportJson: "JSON",
-    exportCsvHint: "Katra atbilde kā izklājlapas rinda, atveras tieši programmā Excel",
-    exportJsonHint: "Katra atbilde kā strukturēts JSON",
     probeHint:
       "Precizējošie jautājumi, ko dzinējs atļāva šim jautājumam. Tos skaita uzdošanas brīdī, tāpēc šis skaitlis var pārsniegt zemāk redzamo atbilžu skaitu.",
   },

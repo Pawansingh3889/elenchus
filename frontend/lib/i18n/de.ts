@@ -153,10 +153,6 @@ export const de: Messages = {
     transcript: "Verlauf",
     summary: "Zusammenfassung",
     followUp: "Nachfrage",
-    exportCsv: "CSV",
-    exportJson: "JSON",
-    exportCsvHint: "Jede Antwort als Tabellenzeile, öffnet direkt in Excel",
-    exportJsonHint: "Jede Antwort als strukturiertes JSON",
     probeHint: "Nachfragen, die die Engine bei dieser Frage erlaubt hat. Eine Nachfrage zählt, sobald sie gestellt wird, daher kann diese Zahl höher sein als die Zahl der Antworten unten.",
   },
 };

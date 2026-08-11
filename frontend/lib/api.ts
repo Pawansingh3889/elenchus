@@ -123,16 +123,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-/** For file downloads: same auth header, but the raw Response instead of parsed JSON. */
-async function rawRequest(path: string): Promise<Response> {
-  const userId = useUserStore.getState().currentUserId;
-  const headers: Record<string, string> = {};
-  if (userId) headers["X-User-Id"] = userId;
-  const res = await fetch(`${BASE}/api/v1${path}`, { headers });
-  if (!res.ok) throw new ApiError(res.statusText, res.status);
-  return res;
-}
-
 export const api = {
   listUsers: () => request<User[]>("/users"),
   dashboard: () => request<DashboardRow[]>("/dashboard"),
@@ -167,8 +157,6 @@ export const api = {
   // No body: which answer comes back is the engine's to decide, not the client's.
   rewindRun: (id: string) => request<Run>(`/runs/${id}/rewind`, { method: "POST" }),
   listTemplateRuns: (templateId: string) => request<RunSummary[]>(`/templates/${templateId}/runs`),
-  exportRuns: (templateId: string, format: "csv" | "json") =>
-    rawRequest(`/templates/${templateId}/runs/export?format=${format}`),
   getTemplateRun: (templateId: string, runId: string) =>
     request<RunDetail>(`/templates/${templateId}/runs/${runId}`),
   summariseSurvey: (templateId: string, refresh = false) =>

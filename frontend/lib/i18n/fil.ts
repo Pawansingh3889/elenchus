@@ -151,10 +151,6 @@ export const fil: Messages = {
     transcript: "Transcript",
     summary: "Buod",
     followUp: "follow-up",
-    exportCsv: "CSV",
-    exportJson: "JSON",
-    exportCsvHint: "Bawat sagot bilang isang row sa spreadsheet, direktang bubukas sa Excel",
-    exportJsonHint: "Bawat sagot bilang structured JSON",
     probeHint: "Mga follow-up na pinayagan ng engine sa tanong na ito. Binibilang ang follow-up kapag itinanong, kaya maaaring mas marami ito kaysa sa mga sagot sa ibaba.",
   },
 };

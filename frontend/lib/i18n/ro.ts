@@ -157,10 +157,6 @@ export const ro: Messages = {
     transcript: "Transcriere",
     summary: "Rezumat",
     followUp: "întrebare suplimentară",
-    exportCsv: "CSV",
-    exportJson: "JSON",
-    exportCsvHint: "Fiecare răspuns ca rând de foaie de calcul, se deschide direct în Excel",
-    exportJsonHint: "Fiecare răspuns ca JSON structurat",
     probeHint:
       "Întrebările suplimentare permise de motor la această întrebare. O întrebare suplimentară se numără când este pusă, deci numărul poate depăși răspunsurile de mai jos.",
   },

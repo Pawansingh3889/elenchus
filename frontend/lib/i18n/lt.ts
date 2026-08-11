@@ -157,10 +157,6 @@ export const lt: Messages = {
     transcript: "Pokalbio įrašas",
     summary: "Santrauka",
     followUp: "tikslinamasis klausimas",
-    exportCsv: "CSV",
-    exportJson: "JSON",
-    exportCsvHint: "Kiekvienas atsakymas kaip skaičiuoklės eilutė, atsidaro tiesiai „Excel“",
-    exportJsonHint: "Kiekvienas atsakymas kaip struktūrizuotas JSON",
     probeHint:
       "Tikslinamieji klausimai, kuriuos variklis leido prie šio klausimo. Jie skaičiuojami užduodant, todėl šis skaičius gali viršyti žemiau esančių atsakymų skaičių.",
   },
