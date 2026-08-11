@@ -238,6 +238,22 @@ export default function Home() {
                       {home.openBuilder}
                     </Link>
                   )}
+                  {/* Closing is the only way to retire a published survey: it cannot be
+                      deleted, because its frozen versions are what real answers point at.
+                      Grouping the rows by attention gave each one a single action and
+                      took this off exactly the rows that need it most, since a survey
+                      nobody is finishing is the likeliest one an author wants to stop. */}
+                  {r.status === "published" ? (
+                    <button
+                      className="btn btn-quiet"
+                      onClick={() => close.mutate(r.id)}
+                      disabled={close.isPending}
+                    >
+                      {close.isPending && close.variables === r.id
+                        ? home.closing
+                        : home.closeSurvey}
+                    </button>
+                  ) : null}
                 </div>
               </div>
             ))}
