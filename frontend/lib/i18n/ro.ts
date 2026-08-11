@@ -10,6 +10,7 @@ export const ro: Messages = {
     publishing: "Se publică…",
     delete: "Șterge",
     confirmDelete: "Confirmă ștergerea",
+    backToDashboard: "← Panou",
     cancel: "Anulează",
     dismiss: "închide",
     notFound: "Nu a fost găsit",
@@ -58,11 +59,15 @@ export const ro: Messages = {
     goingToRespond: "Te ducem la Răspunde…",
     empty: "Încă nu există șabloane. Creează unul sau redactează-l cu AI.",
     draftWithAi: "✦ Redactează cu AI",
+    drafting: "Se redactează…",
+    generateDraft: "✦ Generează schița",
     describePlaceholder:
       "Descrie sondajul… de ex. Un sondaj de integrare pentru personalul din fabrică: postul lor, sistemele folosite zilnic și cele mai mari probleme cu datele.",
   },
   builder: {
     pickUser: "Alege un utilizator din bara de sus.",
+    tabBuild: "Editează",
+    tabsLabel: "Paginile chestionarului",
     titlePlaceholder: "Titlul sondajului",
     descriptionPlaceholder: "Descriere (opțional)",
     questionPlaceholder: "Textul întrebării",

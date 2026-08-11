@@ -10,6 +10,7 @@ export const lv: Messages = {
     publishing: "Notiek publicēšana…",
     delete: "Dzēst",
     confirmDelete: "Apstiprināt dzēšanu",
+    backToDashboard: "← Panelis",
     cancel: "Atcelt",
     dismiss: "aizvērt",
     notFound: "Nav atrasts",
@@ -58,11 +59,15 @@ export const lv: Messages = {
     goingToRespond: "Pārejam uz Atbildēt…",
     empty: "Vēl nav neviena veidne. Izveidojiet to vai uzrakstiet ar MI palīdzību.",
     draftWithAi: "✦ Uzrakstīt ar MI",
+    drafting: "Tiek veidots…",
+    generateDraft: "✦ Izveidot melnrakstu",
     describePlaceholder:
       "Aprakstiet aptauju… piem., Ievadaptauja rūpnīcas darbiniekiem: viņu amats, ikdienā lietotās sistēmas un lielākās problēmas ar datiem.",
   },
   builder: {
     pickUser: "Izvēlieties lietotāju augšējā joslā.",
+    tabBuild: "Rediģēt",
+    tabsLabel: "Aptaujas lapas",
     titlePlaceholder: "Aptaujas nosaukums",
     descriptionPlaceholder: "Apraksts (nav obligāts)",
     questionPlaceholder: "Jautājuma teksts",

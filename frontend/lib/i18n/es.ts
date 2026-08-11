@@ -10,6 +10,7 @@ export const es: Messages = {
     publishing: "Publicando…",
     delete: "Eliminar",
     confirmDelete: "Confirmar eliminación",
+    backToDashboard: "← Panel",
     cancel: "Cancelar",
     dismiss: "descartar",
     notFound: "No encontrado",
@@ -58,11 +59,15 @@ export const es: Messages = {
     goingToRespond: "Llevándote a Responder…",
     empty: "Aún no hay plantillas. Crea una o redáctala con IA.",
     draftWithAi: "✦ Redactar con IA",
+    drafting: "Redactando…",
+    generateDraft: "✦ Generar borrador",
     describePlaceholder:
       "Describe la encuesta… p. ej. Una encuesta de incorporación para personal de fábrica: su puesto, los sistemas que usan a diario y sus mayores frustraciones con los datos.",
   },
   builder: {
     pickUser: "Elige un usuario en la barra superior.",
+    tabBuild: "Editar",
+    tabsLabel: "Páginas de la encuesta",
     titlePlaceholder: "Título de la encuesta",
     descriptionPlaceholder: "Descripción (opcional)",
     questionPlaceholder: "Texto de la pregunta",

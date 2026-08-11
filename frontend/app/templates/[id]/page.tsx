@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 
 import { LivePreview } from "@/components/LivePreview";
 import { QuestionEditor } from "@/components/QuestionEditor";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { SurveyNav } from "@/components/SurveyNav";
 import { publishBlockers } from "@/lib/publishBlockers";
 import { publishQuip } from "@/lib/publishQuip";
 import { useDraftQuestions } from "@/lib/useDraftQuestions";
@@ -124,6 +124,11 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
     try {
       await update.mutateAsync(body);
       await publish.mutateAsync();
+      // Onward, not back to the questions they just froze. Publishing is the end of
+      // building and the start of waiting for answers, and the report is where those
+      // arrive: it reads "nobody has answered yet" until they do, which is the true
+      // state and more use than the editor they published from.
+      router.push(`/templates/${id}/report`);
     } catch {
       // Rendered from update.error / publish.error below.
     }
@@ -186,6 +191,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
         </ConfirmDialog>
       ) : null}
       <div className="builder-main">
+        <SurveyNav templateId={id} current="build" />
         <div className="builder-head">
           <input
             className="builder-title"
@@ -195,12 +201,6 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
           />
           <div className="builder-actions">
             <span className={`pill pill-${template.status}`}>{template.status}</span>
-            <Link href={`/templates/${template.id}/report`} className="btn btn-secondary">
-              {msg.builder.report}
-            </Link>
-            <Link href={`/templates/${template.id}/results`} className="btn btn-secondary">
-              {msg.builder.responses}
-            </Link>
             <button className="btn btn-secondary" onClick={save} disabled={update.isPending}>
               {update.isPending ? msg.common.saving : msg.common.save}
             </button>

@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { use } from "react";
 
+import { SurveyNav } from "@/components/SurveyNav";
 import { useReport, useSummariseSurvey } from "@/lib/queries";
 import { useT } from "@/lib/i18n/useT";
 import { useUserStore } from "@/lib/store";
@@ -105,15 +105,10 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
 
   return (
     <div className="page">
+      <SurveyNav templateId={id} current="report" />
       <div className="page-head">
         <h1>{report.title}</h1>
         <div className="page-head-actions">
-          <Link href={`/templates/${id}/results`} className="btn btn-secondary">
-            {msg.report.everyAnswer}
-          </Link>
-          <Link href={`/templates/${id}`} className="btn btn-secondary">
-            {msg.report.edit}
-          </Link>
           {report.runs_completed > 0 ? (
             <button
               className="btn btn-ai"

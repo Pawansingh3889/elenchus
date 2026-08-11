@@ -476,23 +476,6 @@ textarea {
   overflow-wrap: break-word;
 }
 
-.generate-card textarea {
-  width: 100%;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  padding: 10px;
-  min-height: 72px;
-}
-.generate-card textarea:focus {
-  background: var(--raised);
-  border-color: var(--accent);
-}
-.generate-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 10px;
-}
 
 .template-list {
   display: flex;
@@ -1942,4 +1925,87 @@ select.field {
   margin-inline-start: auto;
   font-size: var(--text-sm);
   color: var(--muted);
+}
+
+/* ------------------------------------------------------------------ draft bar */
+/* First on the page, and a bar rather than a card. Describing a survey and having it
+   drafted is the most distinctive thing here, so it leads; but a panel with a tall
+   textarea leading would push the summary and the work below the fold, which is what
+   moving it here would otherwise cost. One line that grows as you type. */
+.draft-bar {
+  display: flex;
+  /* Under the box, not beside it. Beside a three-line input the button takes width the
+     description wants and leaves a column of empty space under itself; under it, the
+     input runs the full width and the action reads as the next step rather than a
+     fitting. */
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: var(--ai-fill);
+  border: 1px solid var(--ai-border);
+  border-radius: var(--radius);
+}
+.draft-bar .draft-input {
+  flex: 1;
+  /* Three lines at rest: a one-line box invites a phrase, and the model drafts a better
+     survey from a description. Beats the inline height the autogrow sets, so it starts
+     at three and still grows past them. */
+  min-block-size: 4.6rem;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 8px 10px;
+}
+.draft-bar .draft-input:focus {
+  border-color: var(--accent);
+}
+.draft-bar .btn {
+  flex: 0 0 auto;
+  align-self: flex-end;
+}
+
+/* ------------------------------------------------------------------ survey nav */
+/* Where you are in a survey, and the way back out. Present on all three of its pages,
+   in the same place, so moving between them is a click rather than a hunt for whichever
+   button that particular page happened to grow. */
+.survey-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-block-end: var(--space-3);
+}
+.survey-back {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  text-decoration: none;
+  align-self: flex-start;
+}
+.survey-back:hover {
+  color: var(--ink);
+}
+.survey-tabs {
+  display: flex;
+  gap: var(--space-1);
+  border-block-end: 1px solid var(--border);
+}
+.survey-tab {
+  padding: 8px var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--secondary);
+  text-decoration: none;
+  border-block-end: 2px solid transparent;
+  margin-block-end: -1px;
+  min-block-size: var(--tap);
+  display: flex;
+  align-items: center;
+}
+.survey-tab:hover {
+  color: var(--ink);
+}
+/* Underlined and inked, so the current page is marked by two things rather than colour
+   alone. aria-current carries the same fact to a screen reader. */
+.survey-tab-on {
+  color: var(--ink);
+  font-weight: 600;
+  border-block-end-color: var(--accent-strong);
 }

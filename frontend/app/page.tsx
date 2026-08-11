@@ -11,7 +11,8 @@ import {
   useDashboard,
   useGenerateTemplate,
 } from "@/lib/queries";
-import { groupForDashboard, type Attention } from "@/lib/dashboardAttention";
+import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
+import { groupForDashboard, landingFor, type Attention } from "@/lib/dashboardAttention";
 import { useT } from "@/lib/i18n/useT";
 import { useDraftNoteStore, useUserStore } from "@/lib/store";
 import type { DashboardRow } from "@/lib/types";
@@ -120,27 +121,22 @@ export default function Home() {
     return home.whyNotPublished;
   };
 
-  const draftCard = (
-        <div className="card generate-card">
-          <div className="card-label">{home.draftWithAi}</div>
-          <textarea
-            placeholder={home.describePlaceholder}
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-          />
-          <div className="generate-actions">
-            <button
-              className="btn btn-ai"
-              onClick={onGenerate}
-              disabled={generate.isPending || !prompt.trim()}
-            >
-              {generate.isPending ? "Drafting…" : "✦ Generate draft"}
-            </button>
-          </div>
-          {generate.error ? (
-            <div className="error-text">{(generate.error as Error).message}</div>
-          ) : null}
-        </div>
+  const draftBar = (
+    <div className="draft-bar">
+      <AutoGrowTextarea
+        className="draft-input"
+        placeholder={home.describePlaceholder}
+        value={prompt}
+        onChange={setPrompt}
+      />
+      <button
+        className="btn btn-ai"
+        onClick={onGenerate}
+        disabled={generate.isPending || !prompt.trim()}
+      >
+        {generate.isPending ? home.drafting : home.generateDraft}
+      </button>
+    </div>
   );
 
   return (
@@ -151,6 +147,16 @@ export default function Home() {
           {create.isPending ? "Creating…" : "New template"}
         </button>
       </div>
+
+      {/* First on the page. Describing a survey and having it drafted is the most
+          distinctive thing this product does, and putting it under the work made it the
+          least visible. A bar rather than a card: one line that grows as you type, so
+          the summary below it stays above the fold. */}
+      {draftBar}
+
+      {generate.error ? (
+        <div className="error-text">{(generate.error as Error).message}</div>
+      ) : null}
 
       {create.error ? (
         <div className="error-text">{(create.error as Error).message}</div>
@@ -218,7 +224,7 @@ export default function Home() {
           <div className="template-list">
             {groups.needsYou.map(({ row: r, why: attention }) => (
               <div key={r.id} className="template-row template-row-alert">
-                <Link href={`/templates/${r.id}`} className="template-row-main">
+                <Link href={landingFor(r)} className="template-row-main">
                   <div className="template-title">{r.title}</div>
                   <div className="template-meta template-why">{why(r, attention)}</div>
                 </Link>
@@ -251,7 +257,7 @@ export default function Home() {
           <div className="template-list">
             {groups.running.map((r) => (
               <div key={r.id} className="template-row">
-                <Link href={`/templates/${r.id}`} className="template-row-main">
+                <Link href={landingFor(r)} className="template-row-main">
                   <div className="template-title">{r.title}</div>
                   <div className="template-meta">
                     {reachLine(r)}
@@ -309,7 +315,7 @@ export default function Home() {
           <div className="template-list">
             {groups.closed.map((r) => (
               <div key={r.id} className="template-row template-row-quiet">
-                <Link href={`/templates/${r.id}`} className="template-row-main">
+                <Link href={landingFor(r)} className="template-row-main">
                   <div className="template-title">{r.title}</div>
                   <div className="template-meta">{reachLine(r)}</div>
                 </Link>
@@ -328,11 +334,6 @@ export default function Home() {
 
       {rows && rows.length === 0 ? <div className="muted">{home.empty}</div> : null}
 
-      {/* Last, under the work, because this page is opened to find out what needs doing
-          and a creation panel above the list pushed that below it. It needs no special
-          case for a new author: with no surveys the groups above render nothing, so this
-          is already the first thing on the page. */}
-      {draftCard}
 
     </div>
   );

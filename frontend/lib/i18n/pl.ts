@@ -10,6 +10,7 @@ export const pl: Messages = {
     publishing: "Publikowanie…",
     delete: "Usuń",
     confirmDelete: "Potwierdź usunięcie",
+    backToDashboard: "← Pulpit",
     cancel: "Anuluj",
     dismiss: "zamknij",
     notFound: "Nie znaleziono",
@@ -58,11 +59,15 @@ export const pl: Messages = {
     goingToRespond: "Przechodzimy do Odpowiadaj…",
     empty: "Nie ma jeszcze szablonów. Utwórz jeden lub napisz go z pomocą AI.",
     draftWithAi: "✦ Napisz z AI",
+    drafting: "Tworzenie…",
+    generateDraft: "✦ Utwórz szkic",
     describePlaceholder:
       "Opisz ankietę… np. Ankieta wdrożeniowa dla pracowników zakładu: ich stanowisko, systemy używane na co dzień i największe problemy z danymi.",
   },
   builder: {
     pickUser: "Wybierz użytkownika na górnym pasku.",
+    tabBuild: "Edytuj",
+    tabsLabel: "Strony ankiety",
     titlePlaceholder: "Tytuł ankiety",
     descriptionPlaceholder: "Opis (opcjonalnie)",
     questionPlaceholder: "Treść pytania",
