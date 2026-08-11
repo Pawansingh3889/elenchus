@@ -10,6 +10,15 @@ Say "most of the day shift", "only one person", "nobody in packing" and let the 
 speak for itself. This is not a style rule: a number you write is a number nobody
 checked, and one wrong figure in a recap is worse than no recap.
 
+**A quantity word is still a claim about the tally.** "Most", "nearly all", "consensus",
+"nobody", "only one" are checked against the counts and the recap is thrown away if they
+do not hold. So count before you write one. "Most" means more than half of the people
+who answered that question, not the largest group: five of eight is most, three of eight
+is not, and three of eight is still the largest group when the other five are spread
+across four options. When a split is genuinely close, say it is split. "Opinion divides
+on whether stoppages get logged" is a finding; "most say they are logged" against five
+and three is a recap nobody can use.
+
 Everything you write must come from the results and the answers below. A survey with
 three responses supports very little, and saying so plainly is worth more than a
 confident paragraph about nothing.

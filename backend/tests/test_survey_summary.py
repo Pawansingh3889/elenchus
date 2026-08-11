@@ -10,7 +10,7 @@ import pytest
 
 from app.conduct.engine import ConductEngine
 from app.errors import ConflictError, NotFoundError
-from app.llm.client import LLMError, ToolTurn
+from app.llm.client import ToolTurn
 from app.runs.survey_summary import SurveySummaryService
 from app.templates.enums import AnswerType
 from app.templates.schemas import QuestionInput, TemplateCreate
@@ -40,14 +40,30 @@ def _recap(**overrides) -> ToolTurn:
 
 
 def _faithful() -> ToolTurn:
-    return ToolTurn(text="", tool_name="report_verdict", tool_input={"faithful": True})
-
-
-def _unfaithful(*problems: str) -> ToolTurn:
     return ToolTurn(
         text="",
         tool_name="report_verdict",
-        tool_input={"faithful": False, "problems": list(problems)},
+        tool_input={"headline_supported": True, "unsupported_findings": []},
+    )
+
+
+def _headline_refused(*problems: str) -> ToolTurn:
+    return ToolTurn(
+        text="",
+        tool_name="report_verdict",
+        tool_input={"headline_supported": False, "problems": list(problems)},
+    )
+
+
+def _finding_refused(*indices: int) -> ToolTurn:
+    return ToolTurn(
+        text="",
+        tool_name="report_verdict",
+        tool_input={
+            "headline_supported": True,
+            "unsupported_findings": list(indices),
+            "problems": ["finding says most, but the tally does not show most"],
+        },
     )
 
 
@@ -227,14 +243,19 @@ async def test_a_recap_the_checker_refuses_twice_is_not_stored(session, author, 
     template = await _surveyed(session, author, respondent)
     llm = FakeLLM(
         _recap(),
-        _unfaithful("says most respondents named it, but only one answered"),
+        _headline_refused("says most respondents named it, but only one answered"),
         _recap(),
-        _unfaithful("still says most"),
+        _headline_refused("still says most"),
     )
 
-    with pytest.raises(LLMError):
+    with pytest.raises(ConflictError) as exc:
         await SurveySummaryService(session, llm=llm).summarise(template.id, author)
 
+    # A conflict, not an LLM failure. Every model call succeeded and the recap was
+    # refused on its merits, so telling the author the assistant is briefly unavailable
+    # would send them to retry something that fails identically, and would swallow the
+    # only useful part: why it was refused.
+    assert "still says most" in str(exc.value)  # the checker's own words reach the author
     await session.refresh(template)
     assert template.summary is None
 
@@ -248,3 +269,34 @@ async def test_another_author_cannot_recap_someone_elses_survey(
 
     with pytest.raises(NotFoundError):
         await SurveySummaryService(session, llm=FakeLLM()).summarise(template.id, other_author)
+
+
+async def test_a_finding_the_checker_will_not_stand_behind_is_dropped(session, author, respondent):
+    """One wrong finding costs one finding, not the recap.
+
+    The all-or-nothing verdict the run summary uses is right for a run summary, whose
+    claims stand together. A recap is independent findings, and refusing the lot means a
+    *mistaken* checker costs the author everything: a live run threw a recap away because
+    "the tally for Q9 shows 7 said yes and 1 said no, which does not support a majority
+    belief", and seven of eight is a majority. A gate whose false positives cost the whole
+    feature is a gate that gets switched off.
+    """
+    template = await _surveyed(session, author, respondent)
+    llm = FakeLLM(_recap(), _finding_refused(1), _recap(), _finding_refused(1))
+
+    recap = await SurveySummaryService(session, llm=llm).summarise(template.id, author)
+
+    assert [f.statement for f in recap.findings] == ["Most respondents named the same machine"]
+    assert recap.headline  # the rest of it stands
+
+
+async def test_an_out_of_range_index_from_the_checker_drops_nothing(session, author, respondent):
+    """The checker is a model and can name a finding that is not there. Ignored rather
+    than trusted: an index nobody can act on must not silently take a real finding with
+    it by landing on the wrong one."""
+    template = await _surveyed(session, author, respondent)
+    llm = FakeLLM(_recap(), _finding_refused(9), _recap(), _finding_refused(9))
+
+    recap = await SurveySummaryService(session, llm=llm).summarise(template.id, author)
+
+    assert len(recap.findings) == 2

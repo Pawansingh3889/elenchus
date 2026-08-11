@@ -15,14 +15,23 @@ given, and fail anything the numbers do not bear out.
 
 Report through `report_verdict`:
 
-- `faithful`: true only if the headline and every finding are supported by the tallies
-  and the answers. Supported means the pattern is actually there in the numbers, or is
-  a plain restatement of what respondents said. Not extrapolated to people who did not
-  answer, not inferred from declines, not a minority described as a majority.
-- `problems`: when `faithful` is false, name each unsupported claim and why, one clause
-  each: "says most respondents X, but the tally for Q4 shows Y". These go back to the
-  writer as instructions for a redraft, so name the claim and the number that refutes
-  it, not the feeling. Leave the list empty when `faithful` is true.
+- `headline_supported`: false only if the headline itself is not borne out. This one is
+  all or nothing, because it is the line an author reads if they read nothing else, and
+  a recap with a wrong headline has nothing worth keeping under it. Do not set it false
+  because a finding below is wrong; that is what the next field is for.
+- `unsupported_findings`: the indexes of the findings you will not stand behind, counting
+  from 0 in the order given. Those are removed and the rest of the recap is kept, so name
+  a finding here rather than condemning the whole recap for it. Leave it empty when every
+  finding holds.
+- `problems`: one clause per fault, naming the claim and the number that refutes it:
+  "finding 2 says most, but the tally for Q4 shows three of eight". These go back to the
+  writer for one redraft, so name the claim, not the feeling.
+
+Be careful with the arithmetic, and count before you object. Most means more than half of
+the people who answered that question: seven of eight is most, five of eight is most,
+three of eight is not. The largest group is not automatically most. A recap thrown away
+over a claim that was true costs the author everything and teaches them to ignore this
+check, so where you are unsure whether a quantity word holds, leave it.
 
 Rules:
 

@@ -49,7 +49,6 @@ from app.runs.enums import AnswerKind, RunStatus
 from app.runs.repository import ResultsRepository
 from app.runs.schemas import SurveyReport
 from app.runs.service import ResultsService, flatten_answer
-from app.runs.summary import SummaryVerdict
 from app.templates.models import SurveyTemplate
 from app.templates.repository import TemplateRepository
 from app.users.models import User
@@ -153,10 +152,44 @@ _TOOL: dict[str, Any] = {
     "input_schema": SurveySummaryContent.model_json_schema(),
 }
 
+
+class SurveyVerdict(BaseModel):
+    """The checker's verdict, shaped so a wrong finding costs one finding.
+
+    The run summary's verdict is all-or-nothing, and that is right there: a run summary
+    is short and its claims stand together. A recap is six independent findings, and an
+    all-or-nothing verdict means one bad one throws away five good ones.
+
+    It also means a *mistaken* checker throws away everything, which is not theoretical.
+    A live run refused a recap because "the tally for Q9 shows 7 said yes and 1 said no,
+    which does not support a majority belief", and seven of eight is a majority. A gate
+    whose false positives cost the whole feature is a gate that gets turned off; one
+    whose false positives cost one line is a gate that survives contact.
+
+    So the checker names which findings it will not stand behind, and those are dropped
+    the way an unsupported quote is dropped. The headline is separate and is all or
+    nothing: it is the one line an author reads if they read nothing else, and a recap
+    whose headline is wrong has nothing worth keeping underneath it.
+    """
+
+    headline_supported: bool = True
+    unsupported_findings: list[int] = Field(default_factory=list)
+    problems: list[str] = Field(default_factory=list, max_length=8)
+
+    @field_validator("problems")
+    @classmethod
+    def _problems_are_readable(cls, values: list[str]) -> list[str]:
+        return [v.strip().lstrip("-•* ").strip() for v in values if v.strip()]
+
+    @property
+    def clean(self) -> bool:
+        return self.headline_supported and not self.unsupported_findings
+
+
 _VERIFY_TOOL: dict[str, Any] = {
     "name": "report_verdict",
-    "description": "Report whether the candidate recap is supported by the results.",
-    "input_schema": SummaryVerdict.model_json_schema(),
+    "description": "Report which parts of the candidate recap the results do not support.",
+    "input_schema": SurveyVerdict.model_json_schema(),
 }
 
 
@@ -211,7 +244,7 @@ class SurveySummaryService:
         with ledger.measuring(None) as spend:
             content = await self._generate(report, quotable, reviewer_notes=None)
             verdict = await self._verify(report, quotable, content)
-            if not verdict.faithful:
+            if not verdict.clean:
                 notes = "; ".join(verdict.problems)
                 logger.warning(
                     "survey recap sent back to the writer: template=%s problems=%r",
@@ -230,17 +263,46 @@ class SurveySummaryService:
             spend.calls,
             spend.prompt_tokens + spend.completion_tokens,
         )
-        if not verdict.faithful:
+        if not verdict.headline_supported:
             # Nothing stored, for the reason the run summary stores nothing: an
             # unsupported recap sitting above the real numbers is worse than no recap.
+            #
+            # ConflictError, not LLMError. The run summary raises LLMError here and it is
+            # wrong there too, but it is wrong *loudly* here: every model call succeeded,
+            # and the recap was refused on its merits by the checker. LLMError renders as
+            # 503 "the assistant is briefly unavailable, try again in a moment", which
+            # tells the author to retry something that will fail the same way and hides
+            # the one thing worth reading, which is why it was refused. A live run
+            # produced exactly that: two rounds of "says most stoppages are logged, but
+            # Q7 shows 5 yes and 3 no", reported to the client as an outage.
             logger.error(
                 "survey recap failed verification twice: template=%s problems=%r",
                 template_id,
                 verdict.problems,
             )
-            raise LLMError(
-                "The recap could not be verified against the results: "
+            raise ConflictError(
+                "The recap did not hold up against the numbers, so it was not saved: "
                 + "; ".join(verdict.problems)
+            )
+
+        dropped = sorted(
+            {i for i in verdict.unsupported_findings if 0 <= i < len(content.findings)}
+        )
+        if dropped:
+            # Dropped, not refused, on the rule the quote gate already uses: the rest is
+            # usually sound, `findings` has no floor, so losing one costs the author a
+            # line while keeping an unsupported one costs them a decision. An index that
+            # names no finding is ignored rather than trusted, so a checker counting badly
+            # cannot take a real finding with it by landing on the wrong one.
+            logger.warning(
+                "dropped unsupported findings: template=%s indices=%r problems=%r",
+                template_id,
+                dropped,
+                verdict.problems,
+            )
+            keep = set(dropped)
+            content = content.model_copy(
+                update={"findings": [f for i, f in enumerate(content.findings) if i not in keep]}
             )
 
         document = {
@@ -353,7 +415,7 @@ class SurveySummaryService:
         report: SurveyReport,
         quotable: list[dict[str, str]],
         content: SurveySummaryContent,
-    ) -> SummaryVerdict:
+    ) -> SurveyVerdict:
         """Fresh context, like the run checker: the results and the candidate, and
         nothing of how the draft was made."""
         turn = await self.verifier.tool_turn(
@@ -371,10 +433,11 @@ class SurveySummaryService:
             max_tokens=1024,
         )
         raw = dict(turn.tool_input)
-        if "problems" in raw:
-            raw["problems"] = decode_stringified(raw["problems"], list)
+        for key in ("problems", "unsupported_findings"):
+            if key in raw:
+                raw[key] = decode_stringified(raw[key], list)
         try:
-            return SummaryVerdict.model_validate(raw)
+            return SurveyVerdict.model_validate(raw)
         except PydanticValidationError as exc:
             logger.error("recap checker returned an invalid verdict: raw=%r error=%s", raw, exc)
             raise LLMError(f"The recap checker returned an invalid verdict: {exc}") from exc
