@@ -69,7 +69,7 @@ Alembic migrations from the first table; no `create_all` in application code.
   `backend/scripts/`, not by review alone. `tests/test_gates.py` plants a violation
   for each guard and asserts it is rejected, because a gate nobody has watched reject
   anything is decoration. Guards fail when they cannot run, rather than passing having
-  checked nothing. `make gate` is exactly what CI runs. Adopted from the copernus
+  checked nothing. `make gate` is exactly what CI runs. Adopted from a sibling
   project on 6 Aug 2026.
 - **One provider protocol, no vendored SDK.** Every LLM tier is reached over the OpenAI
   Chat Completions API through a single `httpx` client, so adding a provider is config

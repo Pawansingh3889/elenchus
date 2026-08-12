@@ -15,7 +15,7 @@ practice:
    mode that hides: rename a directory and a naive checker reports success
    having examined nothing. ``scripts/_guard.py`` exists for it.
 
-Adopted from the copernus project, whose Makefile puts it best: a gate that has
+Adopted from a sibling project, whose Makefile puts it best: a gate that has
 never been observed to reject anything is decoration.
 """
 

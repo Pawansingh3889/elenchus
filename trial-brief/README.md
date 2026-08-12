@@ -1,4 +1,4 @@
-# ViewOps — Survey Service Trial Brief
+# Survey Service Trial Brief
 
 > **Note added after the trial, not part of the original brief.** `DESIGN.md` and
 > `reference/survey_builder_demo.html` set out the client's colour palette, typeface and

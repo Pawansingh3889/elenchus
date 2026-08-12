@@ -9,7 +9,7 @@ or renamed. The run goes green having checked nothing, and nobody finds out
 until the thing it was guarding against is already merged. ``require_paths()``
 exists to make the correct behaviour the easy one.
 
-Adopted from the copernus project, along with the principle that a gate nobody
+Adopted from a sibling project, along with the principle that a gate nobody
 has watched reject anything is decoration. See tests/test_gates.py, which plants
 a violation for each guard and asserts it is caught.
 """
