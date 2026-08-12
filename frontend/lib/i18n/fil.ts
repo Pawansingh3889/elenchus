@@ -179,4 +179,19 @@ export const fil: Messages = {
     followUp: "follow-up",
     probeHint: "Mga follow-up na pinayagan ng engine sa tanong na ito. Binibilang ang follow-up kapag itinanong, kaya maaaring mas marami ito kaysa sa mga sagot sa ibaba.",
   },
+  answers: {
+    yes: "Oo",
+    no: "Hindi",
+    ratingOf: (n: number) => `${n} sa 5`,
+    plusWriteIns: (written: string) => ` (+ ${written})`,
+    declinedBecause: (reason: string) => `Hindi sumagot: ${reason}`,
+    unreadable: "Naka-imbak ang sagot na ito sa anyong hindi mabasa ng pahinang ito.",
+  },
+  errors: {
+    refusedTitle: "Hindi na-save, at ito ang dahilan",
+    outageTitle: "Hindi available ang assistant",
+    outageBody: "Walang na-save. Kadalasan ay kusang naaayos ito.",
+    genericTitle: "Hindi iyon gumana",
+    retry: "Subukan muli",
+  },
 };

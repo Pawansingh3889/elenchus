@@ -181,4 +181,19 @@ export const de: Messages = {
     followUp: "Nachfrage",
     probeHint: "Nachfragen, die die Engine bei dieser Frage erlaubt hat. Eine Nachfrage zählt, sobald sie gestellt wird, daher kann diese Zahl höher sein als die Zahl der Antworten unten.",
   },
+  answers: {
+    yes: "Ja",
+    no: "Nein",
+    ratingOf: (n: number) => `${n} von 5`,
+    plusWriteIns: (written: string) => ` (+ ${written})`,
+    declinedBecause: (reason: string) => `Keine Angabe: ${reason}`,
+    unreadable: "Diese Antwort wurde in einem Format gespeichert, das diese Seite nicht lesen kann.",
+  },
+  errors: {
+    refusedTitle: "Nicht gespeichert, und zwar deshalb",
+    outageTitle: "Der Assistent ist nicht erreichbar",
+    outageBody: "Es wurde nichts gespeichert. Das erledigt sich meist von selbst.",
+    genericTitle: "Das hat nicht funktioniert",
+    retry: "Erneut versuchen",
+  },
 };

@@ -186,4 +186,19 @@ export const lt: Messages = {
     probeHint:
       "Tikslinamieji klausimai, kuriuos variklis leido prie šio klausimo. Jie skaičiuojami užduodant, todėl šis skaičius gali viršyti žemiau esančių atsakymų skaičių.",
   },
+  answers: {
+    yes: "Taip",
+    no: "Ne",
+    ratingOf: (n: number) => `${n} iš 5`,
+    plusWriteIns: (written: string) => ` (+ ${written})`,
+    declinedBecause: (reason: string) => `Atsisakė atsakyti: ${reason}`,
+    unreadable: "Šis atsakymas išsaugotas formatu, kurio šis puslapis negali perskaityti.",
+  },
+  errors: {
+    refusedTitle: "Neišsaugota, ir štai kodėl",
+    outageTitle: "Asistentas nepasiekiamas",
+    outageBody: "Niekas nebuvo išsaugota. Paprastai tai praeina savaime.",
+    genericTitle: "Nepavyko",
+    retry: "Bandyti dar kartą",
+  },
 };

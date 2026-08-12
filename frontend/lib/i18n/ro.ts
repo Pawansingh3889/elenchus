@@ -186,4 +186,19 @@ export const ro: Messages = {
     probeHint:
       "Întrebările suplimentare permise de motor la această întrebare. O întrebare suplimentară se numără când este pusă, deci numărul poate depăși răspunsurile de mai jos.",
   },
+  answers: {
+    yes: "Da",
+    no: "Nu",
+    ratingOf: (n: number) => `${n} din 5`,
+    plusWriteIns: (written: string) => ` (+ ${written})`,
+    declinedBecause: (reason: string) => `A refuzat să răspundă: ${reason}`,
+    unreadable: "Acest răspuns a fost salvat într-un format pe care pagina nu îl poate citi.",
+  },
+  errors: {
+    refusedTitle: "Nu s-a salvat, și iată de ce",
+    outageTitle: "Asistentul nu este disponibil",
+    outageBody: "Nu s-a salvat nimic. De obicei se rezolvă de la sine.",
+    genericTitle: "Nu a funcționat",
+    retry: "Încearcă din nou",
+  },
 };
