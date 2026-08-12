@@ -177,6 +177,11 @@ export const pl: Messages = {
     recapFrom: (n: number, v: number) => `Podsumowanie ${n} odpowiedzi do v${v}`,
     fromQuestion: (n: number, q: string) => `(P${n}: ${q})`,
     earlierVersions: (n: number) => `${n} odpowiedzi dotyczy wcześniejszej wersji i nie są tu liczone: to były inne pytania.`,
+    recapNever: "Nie ma jeszcze podsumowania. Model czyta wszystkie odpowiedzi i opisuje, co wykazała ankieta; liczby pochodzą z wyników.",
+    recapStale: "Nieaktualne",
+    recapWrittenBy: (prompt: string, model: string) => `Napisane przez ${prompt} na ${model}`,
+    recapHiddenWhileSliced: "Podsumowanie opisuje wszystkie odpowiedzi, więc jest ukryte przy aktywnym filtrze.",
+    recapOutdatedBody: "Podsumowanie już powstało, ale od tego czasu napłynęły kolejne odpowiedzi, więc opisane liczby się zmieniły. Napisz je ponownie, aby objąć wszystkie.",
   },
   results: {
     title: "Odpowiedzi",

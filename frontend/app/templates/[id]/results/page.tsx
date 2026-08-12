@@ -6,6 +6,7 @@ import { Suspense, useEffect } from "react";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { QuestionCard } from "@/components/results/QuestionCard";
+import { RecapPanel } from "@/components/results/RecapPanel";
 import { RunPanel } from "@/components/results/RunPanel";
 import { Stat } from "@/components/Stat";
 import { SurveyNav } from "@/components/SurveyNav";
@@ -124,6 +125,10 @@ function ResultsContent() {
           ) : null}
 
           {report.runs_total === 0 ? <EmptyState title={msg.report.nobodyYet} /> : null}
+
+          {/* Headline first, per the shape the docs specified: what the survey found,
+              before the question detail it was found in. */}
+          <RecapPanel templateId={id} runsCompleted={report.runs_completed} />
 
           {openRun ? (
             <RunPanel templateId={id} runId={openRun} onClose={() => setRun(null)} />

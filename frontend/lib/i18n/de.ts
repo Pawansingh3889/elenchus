@@ -173,6 +173,11 @@ export const de: Messages = {
     recapFrom: (n: number, v: number) => `Zusammenfassung von ${n} Antwort${n === 1 ? "" : "en"} zu v${v}`,
     fromQuestion: (n: number, q: string) => `(F${n}: ${q})`,
     earlierVersions: (n: number) => `${n} Antwort${n === 1 ? "" : "en"} bezogen sich auf eine frühere Version und werden hier nicht gezählt: das waren andere Fragen.`,
+    recapNever: "Noch keine Zusammenfassung. Das Modell liest alle Antworten und schreibt auf, was die Umfrage ergeben hat; die Zahlen stammen aus den Ergebnissen.",
+    recapStale: "Veraltet",
+    recapWrittenBy: (prompt: string, model: string) => `Geschrieben von ${prompt} auf ${model}`,
+    recapHiddenWhileSliced: "Die Zusammenfassung beschreibt alle Antworten und ist daher ausgeblendet, solange ein Filter aktiv ist.",
+    recapOutdatedBody: "Es gab schon eine Zusammenfassung, aber seitdem sind weitere Antworten eingegangen, sodass sich die beschriebenen Zahlen verschoben haben. Neu schreiben, um alle zu erfassen.",
   },
   results: {
     title: "Antworten",
