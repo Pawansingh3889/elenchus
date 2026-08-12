@@ -3,6 +3,7 @@ import type {
   AnswersMatrix,
   DashboardRow,
   GeneratedTemplate,
+  Person,
   Run,
   ResumableRun,
   RunDetail,
@@ -154,6 +155,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ instruction }),
     }),
+  listPeople: () => request<Person[]>("/people"),
   listPublished: () => request<TemplateSummary[]>("/templates/published"),
   startRun: (templateId: string) =>
     request<Run>("/runs", { method: "POST", body: JSON.stringify({ template_id: templateId }) }),

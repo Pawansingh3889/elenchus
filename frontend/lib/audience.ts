@@ -1,5 +1,5 @@
 import type { Messages } from "./i18n/en";
-import type { SurveyAudience } from "./types";
+import type { CreatorDepartment, SurveyAudience } from "./types";
 
 /**
  * What to call an audience, in one place.
@@ -34,5 +34,27 @@ export function audienceLabel(
       return aud.qa;
     case "person":
       return personName || aud.person;
+  }
+}
+
+/**
+ * What to call a department. Same exhaustive-switch trick as above, for the same reason.
+ *
+ * Departments and groups are deliberately separate vocabularies answering separate
+ * questions, so they get separate functions rather than one that takes a union of both
+ * and cannot say which it was handed.
+ */
+export function departmentLabel(dept: Messages["department"], value: CreatorDepartment): string {
+  switch (value) {
+    case "hr":
+      return dept.hr;
+    case "finance":
+      return dept.finance;
+    case "technical":
+      return dept.technical;
+    case "management":
+      return dept.management;
+    case "it":
+      return dept.it;
   }
 }

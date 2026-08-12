@@ -11,6 +11,12 @@ export function useUsers() {
 }
 
 /** The acting user's record (id + role), for role-gating nav and pages. */
+/** Everyone, with where they sit. Author-only on the server; the page is gated too
+ *  so a respondent gets a line rather than a 403 banner. */
+export function usePeople() {
+  return useQuery({ queryKey: ["people"], queryFn: api.listPeople });
+}
+
 export function useCurrentUser() {
   const { data: users } = useUsers();
   const userId = useUserStore((s) => s.currentUserId);

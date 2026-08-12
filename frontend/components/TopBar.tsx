@@ -35,9 +35,14 @@ export function TopBar() {
         </Link>
         <nav className="topbar-nav">
           <Link href="/">{topbar.home}</Link>
-          {/* Roles don't cross: authors build, respondents answer. */}
+          {/* Roles don't cross: authors build, respondents answer. People is author-only
+              for the same reason and on the server too: it answers "who are the two
+              people that survey reached", which is an authoring question. */}
           {isAuthor ? (
-            <Link href="/dashboard">{topbar.dashboard}</Link>
+            <>
+              <Link href="/dashboard">{topbar.dashboard}</Link>
+              <Link href="/people">{topbar.people}</Link>
+            </>
           ) : (
             <Link href="/respond">{topbar.respond}</Link>
           )}

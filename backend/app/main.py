@@ -20,6 +20,7 @@ from app.errors import register_error_handlers
 from app.runs.router import dashboard_router
 from app.runs.router import router as results_router
 from app.templates.router import router as templates_router
+from app.users.router import directory_router as people_router
 from app.users.router import router as users_router
 
 
@@ -75,6 +76,10 @@ register_error_handlers(app)
 # true here.
 if get_settings().app_env != "prod":
     app.include_router(users_router)
+# Not behind that branch: the people directory is a page authors use, not scaffolding
+# for the auth shim, and a deployment that dropped it would leave every reach number
+# on the dashboard unexplainable.
+app.include_router(people_router)
 app.include_router(templates_router)
 app.include_router(results_router)
 app.include_router(dashboard_router)

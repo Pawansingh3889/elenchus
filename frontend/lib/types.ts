@@ -14,7 +14,6 @@ export type AnswerType =
 export type FollowUpPolicy = "never" | "when_unclear" | "always_once";
 
 export type TemplateStatus = "draft" | "published" | "closed" | "archived";
-/** Who a survey is for: the whole respondent pool, or one creator department. */
 /** Who a survey is for: everyone on the floor, one plant group, or one named person.
  *  `person` carries its target in `audience_user_id`; the two only mean anything
  *  together, and the API refuses either half on its own. */
@@ -27,6 +26,26 @@ export type SurveyAudience =
   | "qa"
   | "person";
 export type UserRole = "author" | "respondent";
+/** Which office team an author belongs to. Also grants admin, for `it`. */
+export type CreatorDepartment = "hr" | "finance" | "technical" | "management" | "it";
+/** What somebody does on the plant floor. Overlapping, so a person has a list. */
+export type RespondentGroup =
+  | "operatives"
+  | "line_leaders"
+  | "supervisors"
+  | "managers"
+  | "qa";
+
+/** One person as the directory shows them. Deliberately no email: a name, a
+ *  department and a set of groups answer "who is in this audience", and an address
+ *  is contactable data the page has no use for. */
+export interface Person {
+  id: string;
+  display_name: string;
+  role: UserRole;
+  department: CreatorDepartment | null;
+  groups: RespondentGroup[];
+}
 
 export interface User {
   id: string;
