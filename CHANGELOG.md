@@ -214,7 +214,7 @@ of them was caused by the work above:
 
 ## 2026-08-06. Architecture rules made executable, and the gates proven
 
-Adopted from the copernus project, whose Makefile states the principle: a gate that
+Adopted from a sibling project, whose Makefile states the principle: a gate that
 has never been observed to reject anything is decoration.
 
 The layering in CLAUDE.md was true only by review. It is now enforced:
