@@ -9,3 +9,6 @@ allowBuilds:
   sharp: true
   unrs-resolver: true
   esbuild: true
+  # Tailwind's Rust core. Same failure shape as esbuild: the install succeeds and the
+  # first build fails on a missing native binary, well away from the cause.
+  "@tailwindcss/oxide": true
