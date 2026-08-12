@@ -45,6 +45,12 @@ logger = logging.getLogger("app.conduct")
 MAX_FOLLOW_UPS = 3
 MAX_REPLIES = 2  # conversational replies per question (record nothing, advance nothing)
 MAX_MODEL_TURNS = 3  # per respondent message
+# The prompt this engine conducts under. A named constant rather than the literal it used
+# to be at the call site, for two reasons: `check_prompts_versioned.py` recognises it by
+# name alongside `runs/summary.py`'s, and every assistant message is stamped with it, so
+# the version that produced a turn has to be one value rather than a string repeated
+# wherever it happens to be needed.
+PROMPT_VERSION = "conduct_v7"
 TRANSCRIPT_WINDOW = 12  # messages replayed per turn; the briefing restates the question
 _REJECTED = "run=%s question=%s tool=%s raw_input=%r raw_text=%r error=%s"
 # Said when the model supplies no closing line of its own. Resolved per run rather than
@@ -241,10 +247,22 @@ class ConductEngine:
         # run in the same transaction as the answer it produced. A turn that fails partway
         # still committed nothing, and the ledger file keeps the calls it did make: the
         # rollup is the app's summary, the file is the record.
-        with ledger.measuring(run.id) as spend:
+        with ledger.measuring(run.id) as spend, ledger.using_prompt(PROMPT_VERSION):
             utterance = await self._turn_loop(run, questions)
         add_llm_spend(run, spend)
-        run.messages.append(RunMessage(role=MessageRole.assistant, content=utterance))
+        # Stamped from the spend rather than from settings, so it says which tier actually
+        # answered rather than which one was meant to. On a turn that failed over, those
+        # are different, and the one worth recording is the one whose words are about to
+        # be stored as this message.
+        run.messages.append(
+            RunMessage(
+                role=MessageRole.assistant,
+                content=utterance,
+                prompt_version=PROMPT_VERSION,
+                model=spend.last_model,
+                tier=spend.last_tier,
+            )
+        )
         await self.session.commit()
         return await self.load(run_id, respondent)
 
@@ -392,7 +410,7 @@ class ConductEngine:
         try:
             turn = await self.llm.tool_turn(
                 system="\n\n".join(
-                    (load_prompt("conduct_v7"), language_note(run.language), briefing)
+                    (load_prompt(PROMPT_VERSION), language_note(run.language), briefing)
                 ),
                 messages=messages,
                 tools=tools,

@@ -54,10 +54,19 @@ class Spend:
     completion_tokens: int = 0
     cost_usd: float = 0.0
     unmetered_calls: int = 0
+    # Which tier and model actually answered, last one wins. The chain tries tiers in
+    # order and a turn may be retried, so "who served this" is only known once the block
+    # is done: it is the last call that came back with a usable body, and that is the one
+    # whose words the respondent read. None while nothing has answered yet, and still None
+    # after a block where every tier failed, which is the honest record of a turn nobody
+    # served rather than a guess at tier 1.
+    last_tier: int | None = None
+    last_model: str | None = None
 
 
 _SPEND: ContextVar[Spend | None] = ContextVar("llm_spend", default=None)
 _RUN_ID: ContextVar[str | None] = ContextVar("llm_run_id", default=None)
+_PROMPT: ContextVar[str | None] = ContextVar("llm_prompt", default=None)
 
 
 @contextmanager
@@ -80,6 +89,26 @@ def measuring(run_id: UUID | None = None) -> Iterator[Spend]:
     finally:
         _SPEND.reset(spend_token)
         _RUN_ID.reset(run_token)
+
+
+@contextmanager
+def using_prompt(name: str) -> Iterator[None]:
+    """Name the prompt every model call made inside this block is running under.
+
+    A context variable for the same reason ``measuring`` is one: ``LLMProtocol`` is the
+    seam a provider is swapped at, and threading a prompt name through it would put
+    authoring bookkeeping into a transport contract that has no use for it.
+
+    Without this the ledger records which *model* served a call and never which prompt
+    asked it, so a version bump leaves the whole history unattributable: every row before
+    and after reads identically, and "which version regressed this" cannot be answered
+    from the file that exists to answer it.
+    """
+    token = _PROMPT.set(name)
+    try:
+        yield
+    finally:
+        _PROMPT.reset(token)
 
 
 @dataclass(frozen=True)
@@ -207,6 +236,10 @@ def record(
             "ts": datetime.now(UTC).isoformat(),
             "run_id": _RUN_ID.get(),
             "op": op,
+            # Which prompt version asked. ``op`` says what kind of call it was
+            # ("tool_turn"), never which authored text drove it, and those are different
+            # questions the moment a prompt is versioned up.
+            "prompt": _PROMPT.get(),
             "tier": tier,
             "model": model,
             # The parameter count is configuration because no provider reports it, and it
@@ -227,6 +260,13 @@ def record(
     if spend is None:
         return
     spend.calls += 1
+    # A call with no error came back with a usable body, which is a sharper test than a
+    # 2xx: the transport succeeded on some of the rows that carry an error too. Attempts
+    # that failed leave the previous answer standing rather than overwriting it with the
+    # tier that could not serve, because what is wanted here is who *did*.
+    if error is None:
+        spend.last_tier = tier
+        spend.last_model = model
     # Known figures accumulate; unknown ones are counted, never invented. `or 0` here
     # would fold "the provider reported nothing" into "it cost nothing", and the run's
     # rollup would understate itself with no marker that anything went unmeasured:

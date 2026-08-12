@@ -311,6 +311,10 @@ class SurveySummaryService:
             "runs_included": report.runs_completed,
             "prompt_version": PROMPT_VERSION,
             "verify_prompt_version": VERIFY_PROMPT_VERSION,
+            # The tier that wrote it, for the same reason the run summary records one: a
+            # recap that reads worse than it used to may be a prompt change or a model
+            # change, and without this only one of the two can be ruled out.
+            "model": spend.last_model,
             "generated_at": datetime.now(UTC).isoformat(),
         }
         template.summary = document
@@ -389,12 +393,13 @@ class SurveySummaryService:
                         "Return a corrected recap.",
                     }
                 )
-            turn = await self.llm.tool_turn(
-                system=load_prompt(PROMPT_VERSION),
-                messages=messages,
-                tools=[_TOOL],
-                max_tokens=2048,
-            )
+            with ledger.using_prompt(PROMPT_VERSION):
+                turn = await self.llm.tool_turn(
+                    system=load_prompt(PROMPT_VERSION),
+                    messages=messages,
+                    tools=[_TOOL],
+                    max_tokens=2048,
+                )
             raw = _decode_stringified_fields(turn.tool_input)
             raw = _without_invented_quotes(raw, quotable)
             raw = _without_unknown_questions(raw, report)
@@ -418,20 +423,21 @@ class SurveySummaryService:
     ) -> SurveyVerdict:
         """Fresh context, like the run checker: the results and the candidate, and
         nothing of how the draft was made."""
-        turn = await self.verifier.tool_turn(
-            system=load_prompt(VERIFY_PROMPT_VERSION),
-            messages=[
-                {
-                    "role": "user",
-                    "content": (
-                        f"{_brief(report, quotable)}\n\nCandidate recap:\n"
-                        f"{json.dumps(content.model_dump(), ensure_ascii=False, indent=2)}"
-                    ),
-                }
-            ],
-            tools=[_VERIFY_TOOL],
-            max_tokens=1024,
-        )
+        with ledger.using_prompt(VERIFY_PROMPT_VERSION):
+            turn = await self.verifier.tool_turn(
+                system=load_prompt(VERIFY_PROMPT_VERSION),
+                messages=[
+                    {
+                        "role": "user",
+                        "content": (
+                            f"{_brief(report, quotable)}\n\nCandidate recap:\n"
+                            f"{json.dumps(content.model_dump(), ensure_ascii=False, indent=2)}"
+                        ),
+                    }
+                ],
+                tools=[_VERIFY_TOOL],
+                max_tokens=1024,
+            )
         raw = dict(turn.tool_input)
         for key in ("problems", "unsupported_findings"):
             if key in raw:

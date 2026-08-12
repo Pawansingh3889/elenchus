@@ -19,7 +19,7 @@ from app.runs.repository import ResultsRepository
 from app.runs.schemas import (
     AnswerRead,
     DashboardRow,
-    MessageRead,
+    MessageDetailRead,
     OptionCount,
     QuestionReport,
     RunDetail,
@@ -124,7 +124,7 @@ class ResultsService:
             version=version.version,
             started_at=run.started_at,
             completed_at=run.completed_at,
-            messages=[MessageRead.model_validate(m) for m in run.messages],
+            messages=[MessageDetailRead.model_validate(m) for m in run.messages],
             answers=[AnswerRead.model_validate(a) for a in run.answers],
             follow_ups_asked=follow_ups_asked(run),
             summary=run.summary,

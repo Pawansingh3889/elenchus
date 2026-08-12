@@ -214,6 +214,24 @@ def test_a_prompt_named_inline_at_the_call_site_is_rejected(fake_repo: Path) -> 
     assert "does not exist" in result.stderr
 
 
+@pytest.mark.parametrize("name", ["GENERATE_PROMPT_VERSION", "REFINE_PROMPT_VERSION"])
+def test_the_generation_constants_are_checked_like_every_other(fake_repo: Path, name: str) -> None:
+    """Hoisting a literal into a constant must not be how a call site leaves the guard.
+
+    `load_prompt("generate_template_v4")` was checked because it was a literal. Naming it
+    `GENERATE_PROMPT_VERSION` moved it out of the literal rule, and the guard recognises
+    constants only by name, so a rename that did not also update PROMPT_CONSTANTS would
+    have quietly stopped checking the drafting prompts altogether: green gate, and a
+    generate that 500s the first time an author asks for one.
+    """
+    (fake_repo / "app" / "generation.py").write_text(
+        f'{name} = "generate_template_v99"\n', encoding="utf-8"
+    )
+    result = run_guard("check_prompts_versioned.py", fake_repo)
+    assert result.returncode == 1
+    assert "does not exist" in result.stderr
+
+
 def test_a_prompt_loaded_through_a_variable_is_left_to_the_constant_rule(
     fake_repo: Path,
 ) -> None:

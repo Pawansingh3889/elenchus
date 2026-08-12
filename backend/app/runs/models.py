@@ -11,7 +11,17 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text, func, text
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    SmallInteger,
+    String,
+    Text,
+    func,
+    text,
+)
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -134,5 +144,23 @@ class RunMessage(Base):
         DateTime(timezone=True), server_default=func.now(), default=lambda: datetime.now(UTC)
     )
     answer_id: Mapped[UUID | None] = mapped_column(ForeignKey("answers.id"), default=None)
+    # Who produced this message, and under which authored text. Set on an assistant turn a
+    # model produced. Null on the respondent's own words, and null on the engine's opening
+    # line, which is composed from the version definition and never went near a model:
+    # both are honest, because neither had a prompt version or a tier.
+    #
+    # Nullable, and never backfilled. Every row written before this column existed was
+    # genuinely produced by something nobody recorded, and stamping today's prompt version
+    # onto them would be the same conflation ``ledger.cost_usd`` returns None to avoid:
+    # a guess that reads exactly like a measurement. Unknown provenance has to stay
+    # distinguishable from known provenance, or the column answers nothing.
+    #
+    # Denormalised from the ledger rather than joined to it. The ledger is a file, keyed
+    # by run and not by message, so attributing one turn means parsing JSONL and matching
+    # on time; these three columns answer "which version and which model wrote this" from
+    # the row itself, which is the question asked while reading a transcript.
+    prompt_version: Mapped[str | None] = mapped_column(String(64), default=None)
+    model: Mapped[str | None] = mapped_column(String(128), default=None)
+    tier: Mapped[int | None] = mapped_column(SmallInteger, default=None)
 
     run: Mapped["SurveyRun"] = relationship(back_populates="messages")

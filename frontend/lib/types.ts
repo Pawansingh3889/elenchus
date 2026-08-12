@@ -123,6 +123,19 @@ export interface RunMessage {
   created_at: string;
 }
 
+/** A transcript message as the *author* receives it, carrying who produced it.
+ *
+ *  Separate from RunMessage because the respondent's own chat payload does not include
+ *  these: which provider conducted their interview is not theirs to be told. All three
+ *  are optional because the columns are: their own messages and the engine's opening
+ *  line were written by nobody's model, and anything recorded before the columns existed
+ *  has no provenance to report rather than a default one. */
+export interface RunMessageDetail extends RunMessage {
+  prompt_version?: string | null;
+  model?: string | null;
+  tier?: number | null;
+}
+
 export interface RunAnswer {
   question_id: string;
   kind: AnswerKind;
@@ -190,7 +203,7 @@ export interface RunDetail {
   version: number;
   started_at: string;
   completed_at: string | null;
-  messages: RunMessage[];
+  messages: RunMessageDetail[];
   answers: RunAnswer[];
   /** Follow-ups the engine issued, keyed by question id. A probe is charged when it is
    *  asked, and one that draws out the scripted answer leaves no follow-up answer — so

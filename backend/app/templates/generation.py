@@ -14,6 +14,7 @@ from pydantic import Field
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.llm import ledger
 from app.llm.client import LLMError, LLMProtocol
 from app.llm.decoding import decode_stringified
 from app.llm.factory import get_llm
@@ -27,6 +28,13 @@ from app.users.models import User
 logger = logging.getLogger("app.templates.generation")
 
 MAX_GENERATED_QUESTIONS = 20
+
+# The two prompts this module drafts under. Named constants rather than the literals they
+# used to be at the call sites, so the ledger can record which one asked for a draft: `op`
+# says "tool_turn" for both, and a generate and a refine are not the same call to anyone
+# reading the file later. `check_prompts_versioned.py` knows both names.
+GENERATE_PROMPT_VERSION = "generate_template_v4"
+REFINE_PROMPT_VERSION = "refine_template_v5"
 
 # What the model may draft. Free text is excluded, always: a drafted survey is conducted
 # by an interviewer that has to judge whether a reply answered the question, and an open
@@ -73,12 +81,13 @@ class GenerationService:
     async def generate_draft(self, prompt: str, author: User) -> tuple[SurveyTemplate, str]:
         """Draft a new survey from a description. Returns the saved draft and the model's
         short note on what it built."""
-        system = load_prompt("generate_template_v4")
-        template_in, note = await self._draft(
-            system,
-            [{"role": "user", "content": f"{prompt}\n\n{_policy()}"}],
-            previous_error=None,
-        )
+        system = load_prompt(GENERATE_PROMPT_VERSION)
+        with ledger.using_prompt(GENERATE_PROMPT_VERSION):
+            template_in, note = await self._draft(
+                system,
+                [{"role": "user", "content": f"{prompt}\n\n{_policy()}"}],
+                previous_error=None,
+            )
         template = await self.templates.create_draft(_without_catch_alls(template_in), author)
         return template, note
 
@@ -89,19 +98,20 @@ class GenerationService:
         the model's note on what changed. The whole survey is re-drafted and re-validated,
         so a follow-up can never leave the draft in an invalid shape."""
         current = await self.templates.get_draft(template_id, author)
-        system = load_prompt("refine_template_v5")
+        system = load_prompt(REFINE_PROMPT_VERSION)
         message = (
             f"{_describe(current)}\n{_policy()}\n\nRequested change: {instruction}\n\n"
             "Return the complete revised survey."
         )
-        template_in, note = await self._draft(
-            system,
-            [{"role": "user", "content": message}],
-            previous_error=None,
-            # The author's own text questions, which a refine returns and must not be
-            # rejected for returning.
-            kept=frozenset(q.text for q in current.questions if q.answer_type in FREE_TEXT),
-        )
+        with ledger.using_prompt(REFINE_PROMPT_VERSION):
+            template_in, note = await self._draft(
+                system,
+                [{"role": "user", "content": message}],
+                previous_error=None,
+                # The author's own text questions, which a refine returns and must not be
+                # rejected for returning.
+                kept=frozenset(q.text for q in current.questions if q.answer_type in FREE_TEXT),
+            )
         updated = await self.templates.update_draft(
             template_id, _to_update(_without_catch_alls(template_in)), author
         )

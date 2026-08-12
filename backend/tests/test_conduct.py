@@ -12,6 +12,7 @@ import pytest
 from app.conduct.engine import (
     MAX_FOLLOW_UPS,
     MAX_REPLIES,
+    PROMPT_VERSION,
     TRANSCRIPT_WINDOW,
     ConductEngine,
     _transcript,
@@ -1709,3 +1710,60 @@ async def test_an_unprobed_question_can_still_be_moved_on_from(session, responde
 
     assert "move_on" in llm.offered[-1]
     assert run.current_question_index == 1
+
+
+# ------------------------------------------------------------------ provenance
+
+
+async def test_an_assistant_turn_records_the_prompt_version_that_produced_it(
+    session, respondent, published
+):
+    """Which authored text wrote this line. Without it a prompt bump leaves every stored
+    run unattributable: the transcript reads the same before and after, and the version
+    that regressed a conversation cannot be identified from the conversation."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    llm = FakeLLM(_record("Line lead"), _move_on("Thanks."))
+    run = await ConductEngine(session, llm=llm).handle_message(run.id, "line lead", respondent)
+
+    assert run.messages[-1].prompt_version == PROMPT_VERSION
+
+
+async def test_the_respondents_own_words_carry_no_provenance(session, respondent, published):
+    """Null rather than the engine's prompt version. They wrote it; no model did, and a
+    stamp here would claim otherwise."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    llm = FakeLLM(_record("Line lead"), _move_on("Thanks."))
+    run = await ConductEngine(session, llm=llm).handle_message(run.id, "line lead", respondent)
+
+    said = [m for m in run.messages if m.role is MessageRole.user]
+    assert said and all(m.prompt_version is None and m.model is None for m in said)
+
+
+async def test_the_opening_line_carries_no_provenance(session, respondent, published):
+    """The engine composes it from the version definition without asking a model, so it
+    has no prompt version and no tier. Recorded as unknown because it is."""
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+
+    opening = run.messages[0]
+    assert opening.role is MessageRole.assistant
+    assert (opening.prompt_version, opening.model, opening.tier) == (None, None, None)
+
+
+async def test_an_assistant_turn_records_the_tier_that_actually_answered(
+    session, respondent, published
+):
+    """Read back from the measured spend rather than from settings, so it names the tier
+    that answered instead of the one that was configured. The two part company on any
+    turn that failed over, and the message about to be stored holds the words of the one
+    that answered."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    llm = FakeLLM(_record("Line lead"), _move_on("Thanks."), serves_as=(2, "llama-70b"))
+    run = await ConductEngine(session, llm=llm).handle_message(run.id, "line lead", respondent)
+
+    assert (run.messages[-1].model, run.messages[-1].tier) == ("llama-70b", 2)

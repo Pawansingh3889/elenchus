@@ -940,6 +940,16 @@ select.field {
   border-radius: 12px;
   padding: 8px 12px;
 }
+/* Which prompt version and model wrote the line above, in the author's results view
+   only. --muted rather than --muted-light because this is a sentence someone reads when
+   a transcript looks wrong, not decoration: the palette's contrast rule covers the first
+   and deliberately exempts the second. */
+.bubble-provenance {
+  color: var(--muted);
+  display: block;
+  font-size: var(--text-xs);
+  margin-block-start: 4px;
+}
 @keyframes rise {
   from {
     opacity: 0;
