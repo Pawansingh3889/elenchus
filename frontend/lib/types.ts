@@ -301,6 +301,54 @@ export interface SurveySummary {
   version: number;
   runs_included: number;
   generated_at: string;
+  /** Which prompt and which tier wrote it. Optional because a recap stored before these
+   *  were recorded has none, and that is a fact about the document rather than a gap. */
+  prompt_version?: string | null;
+  verify_prompt_version?: string | null;
+  model?: string | null;
+}
+
+/** Why there is no recap to show, when there is none.
+ *
+ *  Two absences rather than one null, because the page says different things about
+ *  them: `never_generated` offers a first recap, `outdated` says the responses have
+ *  moved past the one that exists. */
+export type RecapAbsence = "never_generated" | "outdated";
+
+export interface SurveyRecapStatus {
+  recap: SurveySummary | null;
+  absence: RecapAbsence | null;
+}
+
+export interface MatrixQuestion {
+  id: string;
+  position: number;
+  text: string;
+  answer_type: AnswerType;
+  options: string[];
+}
+
+export interface MatrixRun {
+  run_id: string;
+  respondent_label: string;
+  status: RunStatus;
+  started_at: string;
+  completed_at: string | null;
+  answers: RunAnswer[];
+}
+
+/** Every answer on the current version, by respondent, with nothing tallied.
+ *
+ *  This is what makes a slice possible: the report can say what a question found but
+ *  not whether the people who said one thing also said another, and reconstructing
+ *  that from the per-run endpoint took one request per response. */
+export interface AnswersMatrix {
+  template_id: string;
+  title: string;
+  version: number;
+  questions: MatrixQuestion[];
+  runs: MatrixRun[];
+  runs_on_earlier_versions: number;
 }
 
 export interface SurveyReport {
