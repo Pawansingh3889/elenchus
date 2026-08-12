@@ -58,7 +58,7 @@ export const es: Messages = {
     describePlaceholder:
       "Describe la encuesta… p. ej. Una encuesta de incorporación para personal de fábrica: su puesto, los sistemas que usan a diario y sus mayores frustraciones con los datos.",
     newSurvey: "Nueva encuesta",
-    creating: "Creando…",
+    newSurveyHint: "Descríbela en una frase y las preguntas se redactan por ti.",
     surveysNeedingYou: "te necesitan",
     surveysRunning: "en curso",
     responsesIn: "respuestas recibidas",

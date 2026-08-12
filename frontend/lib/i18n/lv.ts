@@ -58,7 +58,7 @@ export const lv: Messages = {
     describePlaceholder:
       "Aprakstiet aptauju… piem., Ievadaptauja rūpnīcas darbiniekiem: viņu amats, ikdienā lietotās sistēmas un lielākās problēmas ar datiem.",
     newSurvey: "Jauna aptauja",
-    creating: "Izveido…",
+    newSurveyHint: "Apraksti to vienā teikumā, un jautājumi tiks sagatavoti.",
     surveysNeedingYou: "vajag jūs",
     surveysRunning: "norit",
     responsesIn: "saņemtas atbildes",

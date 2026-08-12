@@ -16,7 +16,6 @@ import { groupForDashboard, landingFor, type Attention } from "@/lib/dashboardAt
 import { useT } from "@/lib/i18n/useT";
 import {
   useCloseTemplate,
-  useCreateTemplate,
   useCurrentUser,
   useDashboard,
   useGenerateTemplate,
@@ -32,7 +31,6 @@ export default function Home() {
   // showed a question count, which says what the survey is, not how it is doing.
   const { data: rows, isLoading, error } = useDashboard();
   const close = useCloseTemplate();
-  const create = useCreateTemplate();
   const generate = useGenerateTemplate();
   const router = useRouter();
   const [prompt, setPrompt] = useState("");
@@ -53,17 +51,6 @@ export default function Home() {
   }
   if (isRespondent) {
     return <p className="p-6 text-muted">{home.goingToRespond}</p>;
-  }
-
-  async function onCreate() {
-    // Aimed nowhere in particular until its author says so, which is what the
-    // respondent pool means.
-    const t = await create.mutateAsync({
-      title: "Untitled survey",
-      audience: "respondents",
-      questions: [],
-    });
-    router.push(`/templates/${t.id}`);
   }
 
   async function onGenerate() {
@@ -145,7 +132,14 @@ export default function Home() {
           product does, and putting it under the work made it the least visible. A bar
           rather than a card: one line that grows as you type, so the summary below it
           stays above the fold. */}
-      <div className="flex flex-col gap-2 rounded-lg border border-ai-border bg-ai-fill p-2">
+      <div className="flex flex-col gap-2 rounded-lg border border-ai-border bg-ai-fill p-3">
+        {/* Named, because an unlabelled box at the top of a page is a box you have to
+            click to find out about. The heading it replaces said where you were; this
+            says what the box makes. */}
+        <div>
+          <h1 className="text-md font-semibold text-ink">{home.newSurvey}</h1>
+          <p className="text-sm text-muted">{home.newSurveyHint}</p>
+        </div>
         {/* Three lines at rest: a one-line box invites a phrase, and the model drafts a
             better survey from a description. The button sits under the box rather than
             beside it, because beside a three-line input it takes width the description
@@ -156,14 +150,7 @@ export default function Home() {
           value={prompt}
           onChange={setPrompt}
         />
-        {/* Both ways of starting a survey sit together: describe it and have it drafted,
-            or open an empty builder. The blank one is the quieter of the two because it
-            is the longer road, but it stays reachable rather than being removed with the
-            page heading it happened to share a row with. */}
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <Button variant="quiet" size="sm" onClick={onCreate} disabled={create.isPending}>
-            {create.isPending ? home.creating : home.newSurvey}
-          </Button>
+        <div className="flex justify-end">
           <Button
             variant="ai"
             onClick={onGenerate}
@@ -175,7 +162,6 @@ export default function Home() {
       </div>
 
       {generate.error ? <ErrorBanner error={generate.error} /> : null}
-      {create.error ? <ErrorBanner error={create.error} /> : null}
       {error ? <ErrorBanner error={error} /> : null}
 
       {isLoading ? (

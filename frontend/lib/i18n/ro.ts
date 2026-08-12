@@ -58,7 +58,7 @@ export const ro: Messages = {
     describePlaceholder:
       "Descrie sondajul… de ex. Un sondaj de integrare pentru personalul din fabrică: postul lor, sistemele folosite zilnic și cele mai mari probleme cu datele.",
     newSurvey: "Sondaj nou",
-    creating: "Se creează…",
+    newSurveyHint: "Descrie-l într-o frază și întrebările sunt redactate pentru tine.",
     surveysNeedingYou: "au nevoie de tine",
     surveysRunning: "în desfășurare",
     responsesIn: "răspunsuri primite",

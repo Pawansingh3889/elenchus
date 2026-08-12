@@ -57,7 +57,7 @@ export const fil: Messages = {
     generateDraft: "✦ Gumawa ng draft",
     describePlaceholder: "Ilarawan ang survey… hal. Isang onboarding survey para sa mga empleyado sa pabrika: ang kanilang tungkulin, ang mga sistemang ginagamit araw-araw, at ang pinakamalaking problema nila sa datos.",
     newSurvey: "Bagong survey",
-    creating: "Ginagawa…",
+    newSurveyHint: "Ilarawan ito sa isang pangungusap at gagawin ang mga tanong.",
     surveysNeedingYou: "kailangan ka",
     surveysRunning: "tumatakbo",
     responsesIn: "natanggap na sagot",

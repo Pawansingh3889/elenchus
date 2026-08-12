@@ -64,7 +64,7 @@ export const en = {
     drafting: "Drafting…",
     generateDraft: "✦ Generate draft",
     newSurvey: "New survey",
-    creating: "Creating…",
+    newSurveyHint: "Describe it in a sentence and the questions get drafted for you.",
     surveysNeedingYou: "need you",
     surveysRunning: "running",
     responsesIn: "responses in",

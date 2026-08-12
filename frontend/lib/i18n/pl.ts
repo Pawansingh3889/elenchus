@@ -58,7 +58,7 @@ export const pl: Messages = {
     describePlaceholder:
       "Opisz ankietę… np. Ankieta wdrożeniowa dla pracowników zakładu: ich stanowisko, systemy używane na co dzień i największe problemy z danymi.",
     newSurvey: "Nowa ankieta",
-    creating: "Tworzenie…",
+    newSurveyHint: "Opisz ją jednym zdaniem, a pytania zostaną przygotowane.",
     surveysNeedingYou: "wymaga uwagi",
     surveysRunning: "w toku",
     responsesIn: "otrzymanych odpowiedzi",

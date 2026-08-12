@@ -58,7 +58,7 @@ export const lt: Messages = {
     describePlaceholder:
       "Aprašykite apklausą… pvz., Įvadinė apklausa gamyklos darbuotojams: jų pareigos, kasdien naudojamos sistemos ir didžiausios duomenų problemos.",
     newSurvey: "Nauja apklausa",
-    creating: "Kuriama…",
+    newSurveyHint: "Aprašyk ją vienu sakiniu, ir klausimai bus parengti.",
     surveysNeedingYou: "reikia jūsų",
     surveysRunning: "vykdomos",
     responsesIn: "gauta atsakymų",
