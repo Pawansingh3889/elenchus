@@ -230,7 +230,10 @@ async def test_malformed_tool_output_is_rejected(session, respondent, published)
     llm = FakeLLM(garbage)
     with pytest.raises(LLMError):
         await ConductEngine(session, llm=llm).handle_message(run.id, "hello", respondent)
-    assert llm.calls == 2
+    # Rejected, retried, then offered the chance to ask a follow-up instead of failing.
+    # A model that returns the same unusable call all three times has run out of things
+    # to try, and the turn fails rather than pretending otherwise.
+    assert llm.calls == 3
 
 
 async def test_unknown_tool_name_is_rejected(session, respondent, published):
@@ -241,7 +244,7 @@ async def test_unknown_tool_name_is_rejected(session, respondent, published):
     llm = FakeLLM(invented)
     with pytest.raises(LLMError):
         await ConductEngine(session, llm=llm).handle_message(run.id, "hello", respondent)
-    assert llm.calls == 2
+    assert llm.calls == 3  # rejected, retried, offered a follow-up, still unusable
 
 
 async def test_declining_a_question_advances_it(session, respondent, published):
@@ -489,7 +492,7 @@ async def test_cross_question_tool_call_is_rejected(session, respondent, publish
     llm = FakeLLM(cross)
     with pytest.raises(LLMError):
         await ConductEngine(session, llm=llm).handle_message(run.id, "and I'd say 4", respondent)
-    assert llm.calls == 2  # rejected, retried, failed loudly
+    assert llm.calls == 3  # rejected, retried, offered a follow-up, still unusable
     assert not run.answers
 
     placeholder = ToolTurn(
@@ -1948,3 +1951,49 @@ async def test_erasing_a_run_removes_it_from_the_authors_results(
 
     remaining = await ResultsService(session).list_runs(published.id, author)
     assert [s.id for s in remaining] == [kept.id]
+
+
+async def test_a_twice_refused_answer_asks_rather_than_failing(session, respondent, published):
+    """The failure this replaces cost a respondent their answer.
+
+    A live run refused the model's reading of "if it's a bit over we re-ice it and carry
+    on, if it's properly warm i call the supervisor" twice, and the engine raised, which
+    the HTTP boundary renders as 503 "the assistant is briefly unavailable, try again in
+    a moment". Every provider call had returned 200; the gate had refused the model's
+    content. Retrying re-runs the same turn against the same message, so the advice was
+    wrong as well as the diagnosis, and the reply was lost.
+
+    An answer the engine cannot accept is what a probe is for.
+    """
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    ungrounded = _record("Nowhere I can see")  # supported by nothing they said
+    llm = FakeLLM(ungrounded, ungrounded, _follow_up("Which of those is closest?", None))
+
+    run = await ConductEngine(session, llm=llm).handle_message(
+        run.id, "training new starters, thats where wed feel it", respondent
+    )
+
+    # A question, not an error, and the survey is still on the same question.
+    assert run.messages[-1].content == "Which of those is closest?"
+    assert run.current_question_index == 0
+    assert not run.answers
+    assert llm.calls == 3
+    # The third call is offered the probe alone: recording is what just failed twice.
+    assert list(llm.offered[2]) == ["ask_follow_up"]
+
+
+async def test_the_fallback_probe_is_bounded_by_the_budget(session, respondent, published):
+    """The probe budget is what stops this looping. With none left the turn fails, because
+    at that point there is nothing further to try and hiding it would be worse."""
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    for _ in range(MAX_FOLLOW_UPS):
+        run = await ConductEngine(
+            session, llm=FakeLLM(_follow_up("Say more?", None))
+        ).handle_message(run.id, "hm", respondent)
+
+    ungrounded = _record("Nowhere I can see")
+    llm = FakeLLM(ungrounded, ungrounded)
+    with pytest.raises(LLMError):
+        await ConductEngine(session, llm=llm).handle_message(run.id, "training", respondent)
+
+    assert llm.calls == 2  # no fallback offered: there was no probe left to offer
