@@ -21,11 +21,11 @@ export function DialogOverlay({
 }: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
   return (
     <DialogPrimitive.Overlay
-      className={cn(
-        "fixed inset-0 z-50 bg-slab/45 backdrop-blur-[1px] " +
-          "data-[state=open]:animate-in data-[state=closed]:animate-out",
-        className,
-      )}
+      // No enter/leave animation: animate-in and animate-out belong to
+      // tailwindcss-animate, which is not installed, so naming them here would style
+      // nothing. The overlay appears at once, which is what globals.css does for
+      // prefers-reduced-motion readers in any case.
+      className={cn("fixed inset-0 z-50 bg-slab/45 backdrop-blur-[1px]", className)}
       {...props}
     />
   );
