@@ -177,6 +177,11 @@ export const es: Messages = {
     recapFrom: (n: number, v: number) => `Resumen de ${n} respuesta${n === 1 ? "" : "s"} a v${v}`,
     fromQuestion: (n: number, q: string) => `(P${n}: ${q})`,
     earlierVersions: (n: number) => `${n} respuesta${n === 1 ? "" : "s"} corresponden a una versión anterior y no se cuentan aquí: eran otras preguntas.`,
+    recapNever: "Aún no hay resumen. El modelo lee todas las respuestas y escribe lo que encontró la encuesta, con las cifras tomadas de los resultados.",
+    recapStale: "Desactualizado",
+    recapWrittenBy: (prompt: string, model: string) => `Escrito por ${prompt} en ${model}`,
+    recapHiddenWhileSliced: "El resumen describe todas las respuestas, así que se oculta mientras hay un filtro activo.",
+    recapOutdatedBody: "Ya se escribió un resumen, pero desde entonces han llegado más respuestas, así que las cifras que describía han cambiado. Vuelve a escribirlo para incluirlas todas.",
   },
   results: {
     title: "Respuestas",

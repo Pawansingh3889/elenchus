@@ -177,6 +177,11 @@ export const lv: Messages = {
     recapFrom: (n: number, v: number) => `${n} atbilžu kopsavilkums (v${v})`,
     fromQuestion: (n: number, q: string) => `(${n}. jaut.: ${q})`,
     earlierVersions: (n: number) => `${n} atbildes attiecas uz agrāku versiju un šeit netiek skaitītas: tie bija citi jautājumi.`,
+    recapNever: "Kopsavilkuma vēl nav. Modelis izlasa visas atbildes un apraksta, ko aptauja parādīja; skaitļi nāk no rezultātiem.",
+    recapStale: "Novecojis",
+    recapWrittenBy: (prompt: string, model: string) => `Rakstīja ${prompt} uz ${model}`,
+    recapHiddenWhileSliced: "Kopsavilkums apraksta visas atbildes, tāpēc filtra laikā tas ir paslēpts.",
+    recapOutdatedBody: "Kopsavilkums jau tika uzrakstīts, taču kopš tā laika ir pienākušas jaunas atbildes, tāpēc aprakstītie skaitļi ir mainījušies. Uzraksti to no jauna, lai aptvertu visas.",
   },
   results: {
     title: "Atbildes",

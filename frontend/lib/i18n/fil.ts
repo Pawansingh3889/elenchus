@@ -171,6 +171,11 @@ export const fil: Messages = {
     recapFrom: (n: number, v: number) => `Buod ng ${n} sagot sa v${v}`,
     fromQuestion: (n: number, q: string) => `(T${n}: ${q})`,
     earlierVersions: (n: number) => `${n} sagot ang para sa naunang bersyon at hindi kasama dito: magkaibang tanong iyon.`,
+    recapNever: "Wala pang buod. Binabasa ng modelo ang lahat ng sagot at isinusulat ang nakita ng survey, na may mga bilang na galing sa resulta.",
+    recapStale: "Luma na",
+    recapWrittenBy: (prompt: string, model: string) => `Isinulat ng ${prompt} sa ${model}`,
+    recapHiddenWhileSliced: "Inilalarawan ng buod ang lahat ng sagot, kaya nakatago ito habang may aktibong salain.",
+    recapOutdatedBody: "May naisulat nang buod, pero may mga bagong sagot na dumating, kaya nagbago na ang mga bilang na inilarawan nito. Isulat muli para masakop lahat.",
   },
   results: {
     title: "Mga sagot",

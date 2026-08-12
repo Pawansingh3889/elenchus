@@ -177,6 +177,11 @@ export const lt: Messages = {
     recapFrom: (n: number, v: number) => `${n} atsakymų santrauka (v${v})`,
     fromQuestion: (n: number, q: string) => `(${n} kl.: ${q})`,
     earlierVersions: (n: number) => `${n} atsakymai skirti ankstesnei versijai ir čia neskaičiuojami: tai buvo kiti klausimai.`,
+    recapNever: "Santraukos dar nėra. Modelis perskaito visus atsakymus ir aprašo, ką parodė apklausa; skaičiai imami iš rezultatų.",
+    recapStale: "Pasenusi",
+    recapWrittenBy: (prompt: string, model: string) => `Parašė ${prompt} su ${model}`,
+    recapHiddenWhileSliced: "Santrauka aprašo visus atsakymus, todėl taikant filtrą ji paslėpta.",
+    recapOutdatedBody: "Santrauka jau buvo parašyta, bet nuo tada gauta daugiau atsakymų, todėl joje aprašyti skaičiai pasikeitė. Parašyk iš naujo, kad apimtų visus.",
   },
   results: {
     title: "Atsakymai",

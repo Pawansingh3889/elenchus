@@ -185,6 +185,11 @@ export const en = {
     recapFrom: (n: number, v: number) => `Recap of ${n} response${n === 1 ? "" : "s"} to v${v}`,
     fromQuestion: (n: number, q: string) => `(Q${n}: ${q})`,
     earlierVersions: (n: number) => `${n} response${n === 1 ? "" : "s"} answered an earlier version of this survey and are not counted here: those were different questions.`,
+    recapNever: "No recap yet. The model reads every response and writes what the survey found, with the numbers attached from the results.",
+    recapStale: "Out of date",
+    recapWrittenBy: (prompt: string, model: string) => `Written by ${prompt} on ${model}`,
+    recapHiddenWhileSliced: "The recap describes every response, so it is hidden while a slice is showing.",
+    recapOutdatedBody: "A recap was written earlier, but more responses have arrived since, so the numbers it described have moved. Write it again to cover them all.",
   },
   results: {
     title: "Responses",
