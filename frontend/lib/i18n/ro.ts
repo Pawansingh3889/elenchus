@@ -116,6 +116,7 @@ export const ro: Messages = {
     publishShape: (q: number, p: number) => p > 0 ? `${q} întrebări, dintre care ${p} pun mereu o întrebare suplimentară.` : `${q} întrebări.`,
     publishFreezes: "Publicarea îngheață aceste întrebări ca versiunea 1. Modificările ulterioare creează o versiune nouă, iar aceasta rămâne neschimbată.",
     publishAgain: "Publicarea creează o versiune nouă. Cine este la jumătate păstrează versiunea cu care a început.",
+    tabResults: "Rezultate",
   },
   respond: {
     title: "Sondaje deschise",
@@ -190,6 +191,19 @@ export const ro: Messages = {
     followUp: "întrebare suplimentară",
     probeHint:
       "Întrebările suplimentare permise de motor la această întrebare. O întrebare suplimentară se numără când este pusă, deci numărul poate depăși răspunsurile de mai jos.",
+    respondents: "Respondenți",
+    questionsHeading: "Întrebare cu întrebare",
+    openResponse: "Deschide",
+    closePanel: "Închide",
+    statusComplete: "finalizat",
+    statusInProgress: "în curs",
+    answeredOf: (n: number, total: number) => `${n} din ${total} răspunsuri`,
+    startedOn: (when: string) => `început ${when}`,
+    completedOn: (when: string) => `finalizat ${when}`,
+    stillGoing: "încă în curs",
+    probesAsked: (n: number) => `${n} întrebări suplimentare puse`,
+    probedChip: (n: number) => `${n} suplimentare`,
+    unansweredQuestion: "Întrebare fără răspuns",
   },
   answers: {
     yes: "Da",
