@@ -528,6 +528,19 @@ class ConductEngine:
             raise LLMError(f"Model produced an invalid action after one retry: {error}")
         logger.warning("asking a follow-up rather than failing the turn: run=%s", run.id)
         probe_only = [t for t in _tools_for(question, state) if t["name"] == FOLLOW_UP]
+        # On a closed question, put the list in front of them. The commonest reason a
+        # choice is refused is that the respondent described their answer instead of
+        # naming it: "i'm on the filleting line" against options including "Processing"
+        # is grounded in meaning and in nothing the string matcher can see, and no
+        # string matcher can be taught the difference. Asking which one they mean turns
+        # that from a lost answer into one more question, and the reply names an option,
+        # which the gate can check.
+        options = question.get("options") or []
+        naming = (
+            f" The question is closed, so name the choices in your question: {options}."
+            if options
+            else ""
+        )
         return await self._decide(
             run,
             questions,
@@ -542,7 +555,7 @@ class ConductEngine:
             # past the gate that refused it.
             f"{error} Ask the respondent plainly instead: call ask_follow_up with a short "
             "question that puts the current question to them again in their own terms, and "
-            "pass answer_so_far as null.",
+            f"pass answer_so_far as null.{naming}",
             probe_allowed=False,
         )
 
