@@ -1,0 +1,115 @@
+/* ---------------------------------------------------------------------------
+   Tailwind, wired to the palette that was already here.
+
+   Two constraints shaped this file, and both are enforced elsewhere:
+
+   - The palette stays in globals.css. `backend/scripts/check_contrast.py` reads
+     that file specifically and measures every text pair in both themes. Moving
+     the hex values here would take them out from under the guard, so nothing
+     below defines a colour; it only points at one.
+
+   - Preflight is deliberately not imported. The respondent pages render from
+     globals.css alone and must not move, and preflight rewrites element
+     defaults across the whole document. Its one rule that Tailwind's own
+     utilities depend on is restored in the base layer at the foot of this file.
+     globals.css already carries the rest of what preflight would do that this
+     app relies on: `* { box-sizing: border-box; margin: 0; padding: 0 }`.
+
+   Coexistence, precisely: everything Tailwind emits sits inside a cascade
+   layer, and an unlayered declaration beats every layered one regardless of
+   specificity. So a legacy rule in globals.css wins any collision with a
+   utility, and a page that uses no utility class is untouched by this file
+   existing.
+   --------------------------------------------------------------------------- */
+
+@layer theme, base, components, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* `inline`, not a plain @theme: the utilities compile to `var(--ink)` rather than
+   to the colour --ink held at build time. That is what makes the existing dark
+   theme work with no `dark:` variants at all. globals.css swaps the values under
+   prefers-color-scheme, and every Tailwind utility follows because it never held
+   a colour in the first place. */
+@theme inline {
+  /* The brand palette, by its own names. */
+  --color-ink: var(--ink);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-on-ink: var(--on-ink);
+  --color-muted: var(--muted);
+  --color-muted-light: var(--muted-light);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-focus: var(--focus);
+  --color-highlight: var(--highlight);
+  --color-highlight-soft: var(--highlight-soft);
+  --color-slab: var(--slab);
+  --color-on-slab: var(--on-slab);
+  --color-warn-fill: var(--warn-fill);
+  --color-warn-text: var(--warn-text);
+  --color-warn-border: var(--warn-border);
+  --color-err-fill: var(--err-fill);
+  --color-err-text: var(--err-text);
+  --color-err-border: var(--err-border);
+  --color-ai-fill: var(--ai-fill);
+  --color-ai-border: var(--ai-border);
+  --color-line: var(--border);
+  --color-line-faint: var(--border-faint);
+
+  /* The names shadcn's components ship with, pointed at the same palette, so a
+     vendored component looks like this app without being rewritten. */
+  --color-background: var(--canvas);
+  --color-foreground: var(--ink);
+  --color-card: var(--raised);
+  --color-card-foreground: var(--ink);
+  --color-popover: var(--raised);
+  --color-popover-foreground: var(--ink);
+  --color-primary: var(--slab);
+  --color-primary-foreground: var(--on-slab);
+  --color-secondary-foreground: var(--ink);
+  --color-muted-foreground: var(--muted);
+  --color-border: var(--border);
+  --color-input: var(--border);
+  --color-ring: var(--focus);
+  --color-destructive: var(--err-text);
+  --color-destructive-foreground: var(--err-fill);
+
+  /* Spacing, type, motion and radii, so a utility and a legacy rule agree on
+     what "small" means rather than each having their own idea. */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans: var(--font);
+
+  --text-xs: var(--text-xs);
+  --text-sm: var(--text-sm);
+  --text-base: var(--text-base);
+  --text-md: var(--text-md);
+  --text-lg: var(--text-lg);
+  --text-xl: var(--text-xl);
+
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+
+  --default-transition-duration: var(--dur-fast);
+  --default-transition-timing-function: var(--ease);
+}
+
+@layer base {
+  /* The one preflight rule Tailwind's own utilities assume: `border-2` sets a
+     width and expects a style to already be there, so without this every border
+     utility renders nothing. Layered, so anything in globals.css still wins. */
+  *,
+  ::before,
+  ::after {
+    border-width: 0;
+    border-style: solid;
+    border-color: var(--border);
+  }
+}

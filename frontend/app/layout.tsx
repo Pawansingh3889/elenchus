@@ -1,11 +1,16 @@
 import type { Metadata, Viewport } from "next";
 
 import { TopBar } from "@/components/TopBar";
+// Order matters: tailwind.css puts everything it emits in a cascade layer, and an
+// unlayered rule beats a layered one whatever the order of import. globals.css is
+// unlayered, so it wins every collision and the pages that predate Tailwind do not
+// move. See the header of tailwind.css.
+import "./tailwind.css";
 import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "Survey Service",
+  title: "Elenchus",
   description: "Author and conduct surveys",
 };
 
