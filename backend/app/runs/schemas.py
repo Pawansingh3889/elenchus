@@ -185,6 +185,64 @@ class QuestionReport(BaseModel):
     probed: int = 0
 
 
+class MatrixQuestion(BaseModel):
+    """One question as the matrix indexes it: enough to render a column and to slice on.
+
+    The author's option list comes with it, because a slice offers the options the
+    question offered, including any nobody picked. Slicing on what happens to appear in
+    the data would hide exactly the empty option that is a finding.
+    """
+
+    id: UUID
+    position: int
+    text: str
+    answer_type: AnswerType
+    options: list[str] = Field(default_factory=list)
+
+
+class MatrixRun(BaseModel):
+    """One response, with its answers unaggregated.
+
+    ``respondent_label`` is the survey's own pseudonym, numbered within this template so
+    a person cannot be followed between surveys. It is also the key the recap's quote
+    gate matches on, so its format is load-bearing and not display text to reformat.
+    """
+
+    run_id: UUID
+    respondent_label: str
+    status: RunStatus
+    started_at: datetime
+    completed_at: datetime | None
+    answers: list[AnswerRead] = Field(default_factory=list)
+
+
+class AnswersMatrix(BaseModel):
+    """Every answer on the current version, by respondent, with nothing tallied.
+
+    The report answers "what did people say" one question at a time, which cannot answer
+    "did the people who said X also say Y" — the question an author actually has, and one
+    that previously took a request per run to reconstruct. The join exists here instead,
+    once, and the client slices it.
+
+    Raw ``value`` dicts rather than printable strings: a slice keys on the stored shape,
+    and "yes" the option and "yes" the write-in must not collapse into one bucket, which
+    is the same distinction the tallies are careful about.
+
+    Runs of every status are included, carrying ``status``, because the report tallies
+    answers from unfinished runs on the current version too. A matrix over completed runs
+    only would produce sliced totals that disagreed with the unsliced ones beside them.
+    """
+
+    template_id: UUID
+    title: str
+    version: int
+    questions: list[MatrixQuestion]
+    runs: list[MatrixRun]
+    # Excluded and counted, exactly as the report treats them: their questions are not
+    # these questions, so their answers cannot join these columns.
+    runs_on_earlier_versions: int
+
+
 class SurveyReport(BaseModel):
     """What the survey found, question by question."""
 

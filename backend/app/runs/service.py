@@ -18,7 +18,10 @@ from app.runs.models import REPLY_PREFIX, SurveyRun
 from app.runs.repository import ResultsRepository
 from app.runs.schemas import (
     AnswerRead,
+    AnswersMatrix,
     DashboardRow,
+    MatrixQuestion,
+    MatrixRun,
     MessageDetailRead,
     OptionCount,
     QuestionReport,
@@ -203,6 +206,63 @@ class ResultsService:
                 _report_question(q, answers[q["id"]], probes[q["id"]], len(probed_runs[q["id"]]))
                 for q in questions
             ],
+        )
+
+    async def answers_matrix(self, template_id: UUID, author: User) -> AnswersMatrix:
+        """Every answer on the current version, by respondent, with nothing tallied.
+
+        The report says what each question found; this says who said it, which is what
+        an author needs to ask whether the people who picked one thing also picked
+        another. That join was reachable only one run at a time, so correlating a survey
+        of forty meant forty requests and doing the arithmetic by hand.
+
+        Scoped to the latest published version on the same rule as the report: a run
+        that answered different questions under different ids is excluded and counted,
+        not folded in.
+        """
+        template = await self._owned_or_404(template_id, author)
+        version = await self.templates.latest_version(template_id)
+        if version is None:
+            raise NotFoundError("This survey has no published version to report on.")
+
+        questions = questions_of(version.definition)
+        numbers = await self.repo.respondent_numbers(template_id)
+        runs: list[MatrixRun] = []
+        on_earlier = 0
+        for run, run_version, _ in await self.repo.list_for_template(template_id):
+            if run_version.id != version.id:
+                on_earlier += 1
+                continue
+            runs.append(
+                MatrixRun(
+                    run_id=run.id,
+                    respondent_label=respondent_label(numbers[run.respondent_id]),
+                    status=run.status,
+                    started_at=run.started_at,
+                    completed_at=run.completed_at,
+                    # Follow-ups included, carrying their kind. They can never join a
+                    # tally, but they are what the respondent actually elaborated, and
+                    # the client shows them beside the answer they came from.
+                    answers=[AnswerRead.model_validate(a) for a in run.answers],
+                )
+            )
+
+        return AnswersMatrix(
+            template_id=template.id,
+            title=template.title,
+            version=version.version,
+            questions=[
+                MatrixQuestion(
+                    id=UUID(q["id"]),
+                    position=q["position"],
+                    text=q["text"],
+                    answer_type=q["answer_type"],
+                    options=q.get("options") or [],
+                )
+                for q in questions
+            ],
+            runs=runs,
+            runs_on_earlier_versions=on_earlier,
         )
 
     async def _owned_or_404(self, template_id: UUID, author: User) -> SurveyTemplate:
