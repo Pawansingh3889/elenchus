@@ -12,9 +12,9 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.access import is_admin_by_config, may_answer, may_list
+from app.access import is_admin_by_config, may_answer, may_edit, may_list
 from app.config import get_settings
-from app.errors import ConflictError, NotFoundError
+from app.errors import ConflictError, ForbiddenError, NotFoundError
 from app.templates.enums import TemplateStatus
 from app.templates.estimate import estimated_minutes
 from app.templates.models import SurveyQuestion, SurveyTemplate, SurveyTemplateVersion
@@ -111,7 +111,7 @@ class TemplateService:
     async def update_draft(
         self, template_id: UUID, data: TemplateUpdate, author: User
     ) -> SurveyTemplate:
-        template = await self._get_or_404(template_id, author)
+        template = await self._get_for_edit_or_404(template_id, author)
         # Frozen once published. The audience is part of what was published, like the
         # questions: a survey that starts collecting Finance answers and is then pointed
         # at HR ends up with one set of results drawn from two different populations, and
@@ -132,10 +132,10 @@ class TemplateService:
         for i, q in enumerate(data.questions):
             template.questions.append(_to_question(q, i))
         await self.session.commit()
-        return await self._get_or_404(template_id, author)
+        return await self._get_for_edit_or_404(template_id, author)
 
     async def delete_draft(self, template_id: UUID, author: User) -> None:
-        template = await self._get_or_404(template_id, author)
+        template = await self._get_for_edit_or_404(template_id, author)
         await self.repo.delete(template)
         try:
             await self.session.commit()
@@ -144,7 +144,7 @@ class TemplateService:
             raise ConflictError("Cannot delete a template that has published versions.") from exc
 
     async def publish(self, template_id: UUID, author: User) -> SurveyTemplateVersion:
-        template = await self._get_or_404(template_id, author)
+        template = await self._get_for_edit_or_404(template_id, author)
         if not template.questions:
             raise ConflictError("Cannot publish a template with no questions.")
         version = SurveyTemplateVersion(
@@ -171,7 +171,7 @@ class TemplateService:
         stopping mid-question would lose answers a respondent has already given, and for a
         chat that is a worse bargain than a final count that settles a few minutes late.
         """
-        template = await self._get_or_404(template_id, author)
+        template = await self._get_for_edit_or_404(template_id, author)
         if template.status is not TemplateStatus.published:
             raise ConflictError(
                 f"Only a published survey can be closed; this one is {template.status.value}."
@@ -207,6 +207,31 @@ class TemplateService:
                 decision.reason,
             )
             raise NotFoundError("Template not found.")
+        return template
+
+    async def _get_for_edit_or_404(self, template_id: UUID, author: User) -> SurveyTemplate:
+        """The same fetch, asking whether this user may *change* the survey.
+
+        Separate from `_get_or_404` because the two questions came apart the moment a
+        department colleague could see somebody else's work. Every mutation used to reach
+        for the listing rule, so widening that rule for reading widened it for writing at
+        the same time, and a colleague could rename and publish a survey in another
+        author's name without either of them noticing.
+
+        Still a 404 rather than a 403 on refusal, but only after `_get_or_404` has already
+        agreed the survey is visible: a colleague who can see it and cannot change it
+        should be told it exists, so the refusal here is about the action, not the row.
+        """
+        template = await self._get_or_404(template_id, author)
+        decision = may_edit(author, template.created_by, is_admin_by_config(author))
+        if not decision:
+            logger.info(
+                "template edit refused: template=%s user=%s reason=%s",
+                template_id,
+                author.id,
+                decision.reason,
+            )
+            raise ForbiddenError(decision.reason)
         return template
 
 

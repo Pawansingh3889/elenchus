@@ -39,7 +39,8 @@ from pydantic import BaseModel, Field, field_validator
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.errors import ConflictError, NotFoundError
+from app.access import is_admin_by_config, may_edit
+from app.errors import ConflictError, ForbiddenError, NotFoundError
 from app.llm import ledger
 from app.llm.client import LLMError, LLMProtocol
 from app.llm.decoding import decode_stringified
@@ -265,12 +266,18 @@ class SurveySummaryService:
     async def summarise(
         self, template_id: UUID, author: User, refresh: bool = False
     ) -> SurveySummaryRead:
-        # report() does the ownership check and raises NotFoundError for someone else's
-        # survey, so the recap inherits exactly the boundary the numbers have.
+        # report() decides who may read the numbers, and that boundary now includes a
+        # department colleague. Summarising is not reading: it writes a recap onto the
+        # survey and spends money on a model call to do it, so it asks the narrower
+        # question as well. Inheriting the read boundary alone would have let a colleague
+        # attach a summary to somebody else's survey.
         report = await self.results.report(template_id, author)
         template = await self.templates.get(template_id)
         if template is None:  # pragma: no cover - report() would have raised first
             raise NotFoundError("Template not found.")
+        decision = may_edit(author, template.created_by, is_admin_by_config(author))
+        if not decision:
+            raise ForbiddenError(decision.reason)
 
         if report.runs_completed == 0:
             raise ConflictError("No completed responses to summarise yet.")

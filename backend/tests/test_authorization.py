@@ -7,7 +7,7 @@ provider supplies the caller.
 
 import pytest
 
-from app.auth.dependencies import get_current_user, require_author, require_respondent
+from app.auth.dependencies import get_current_user, require_author
 from app.conduct.engine import ConductEngine
 from app.errors import ForbiddenError, NotFoundError
 from app.runs.service import ResultsService
@@ -68,13 +68,6 @@ async def test_an_author_cannot_read_another_authors_responses(
         await results.list_runs(published.id, other_author)
     with pytest.raises(NotFoundError):
         await results.get_run(published.id, run.id, other_author)
-
-
-async def test_only_respondents_can_take_surveys(author, respondent):
-    """Taking a survey is respondent-only; an author is refused before a run is created."""
-    assert await require_respondent(user=respondent) is respondent
-    with pytest.raises(ForbiddenError):
-        await require_respondent(user=author)
 
 
 async def test_only_authors_can_build(author, respondent):

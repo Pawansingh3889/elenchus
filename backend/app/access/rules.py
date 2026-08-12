@@ -209,6 +209,25 @@ def in_audience(
     return may_answer(user, audience, NOBODY, admin=False, target=target)
 
 
+def may_edit(user: User, created_by: UUID, admin: bool) -> AccessDecision:
+    """Whether this user may change the survey itself: save, publish, close, summarise.
+
+    Owner or admin. Deliberately narrower than `may_list`, and this is the distinction
+    that was missing rather than an extra one: every mutation guarded itself by fetching
+    the survey through the listing rule, so widening that rule for department colleagues
+    silently handed them the write path too. A colleague could rename and publish a
+    survey in somebody else's name, which is a good deal more than being able to read it.
+
+    Not about the audience at all. Being asked a question, or being able to read what
+    came back, has never implied being able to change what is being asked.
+    """
+    if _owns(user, created_by):
+        return AccessDecision(True, "author of this survey")
+    if admin:
+        return AccessDecision(True, "admin")
+    return AccessDecision(False, "only the author and an admin can change this survey")
+
+
 def may_read_rows(
     user: User,
     created_by: UUID,

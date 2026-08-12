@@ -25,15 +25,47 @@ from app.llm.client import LLMError, NoToolCallError, ToolTurn
 from app.pii import PIIInMessageError
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
 from app.runs.models import RunMessage, SurveyRun
-from app.templates.enums import AnswerType, FollowUpPolicy
+from app.templates.enums import AnswerType, FollowUpPolicy, SurveyAudience
 from app.templates.schemas import QuestionInput, TemplateCreate
 from app.templates.service import TemplateService
+from app.users.models import RespondentGroup, UserGroupMembership
 from tests.builders import update_of
 from tests.fakes import FakeLLM
 from tests.fakes import follow_up as _follow_up
 from tests.fakes import move_on as _move_on
 from tests.fakes import record as _record
 from tests.fakes import reply as _reply
+
+
+async def test_an_author_account_in_the_group_may_answer(session, author, respondent):
+    """The bug this names, and the reason the role gate went.
+
+    A supervisor signs in with Teams and therefore holds an author account. The survey
+    aimed at supervisors counted them in its reach and the route refused them at the
+    door with "Only respondents can take surveys", so "1 of 2 answered" was a number
+    nobody could ever move. Membership decides now, and `role` is not consulted.
+    """
+    author.memberships = [UserGroupMembership(group=RespondentGroup.supervisors)]
+    svc = TemplateService(session)
+    template = await svc.create_draft(
+        TemplateCreate(
+            title="Handover check",
+            audience=SurveyAudience.supervisors,
+            questions=[
+                QuestionInput(text="How did handover go?", answer_type=AnswerType.short_text)
+            ],
+        ),
+        author,
+    )
+    await svc.publish(template.id, author)
+
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(template.id, author)
+    assert run.id is not None
+
+    # And the rule still bites: somebody in no group is refused, whatever their role.
+    respondent.memberships = []
+    with pytest.raises(ForbiddenError):
+        await ConductEngine(session, llm=FakeLLM()).start_run(template.id, respondent)
 
 
 async def test_start_opens_with_the_first_question(session, respondent, published):

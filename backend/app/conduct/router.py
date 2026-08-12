@@ -1,4 +1,15 @@
-"""Run routes. Thin: resolve the respondent, call one engine method, shape the response."""
+"""Run routes. Thin: resolve the answerer, call one engine method, shape the response.
+
+The caller is any known user, not a respondent-role account. These routes required the
+`respondent` role until the audiences became plant groups, and that check then quietly
+contradicted the rule beside it: a supervisor signs in with Teams and therefore holds an
+author account, so `may_answer` would admit them to a survey aimed at supervisors and the
+route would refuse them at the door. The dashboard counted them in the reach the whole
+time, which made "1 of 2 answered" a number nobody could ever move.
+
+Who may answer is `may_answer`, asked in the engine where the audience is known. There is
+no second, coarser copy of that question here.
+"""
 
 from uuid import UUID
 
@@ -6,7 +17,7 @@ from fastapi import APIRouter, Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import HTTP_201_CREATED, HTTP_204_NO_CONTENT
 
-from app.auth.dependencies import require_respondent
+from app.auth.dependencies import get_current_user
 from app.conduct.engine import ConductEngine
 from app.conduct.schemas import (
     CurrentQuestion,
@@ -55,7 +66,7 @@ async def _to_read(engine: ConductEngine, run: SurveyRun) -> RunRead:
 @router.post("", response_model=RunRead, status_code=HTTP_201_CREATED)
 async def start_run(
     data: StartRunRequest,
-    respondent: User = Depends(require_respondent),
+    answerer: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
     accept_language: str | None = Header(default=None),
 ) -> RunRead:
@@ -63,19 +74,17 @@ async def start_run(
     # The language is settled here, once, and stored on the run. Later turns read it
     # from the run rather than the header, so resuming somewhere else cannot switch
     # the interview's language halfway through.
-    run = await engine.start_run(
-        data.template_id, respondent, language=parse_locale(accept_language)
-    )
+    run = await engine.start_run(data.template_id, answerer, language=parse_locale(accept_language))
     return await _to_read(engine, run)
 
 
 # Declared before /{run_id} so the literal path is never parsed as a run id.
 @router.get("", response_model=list[ResumableRun])
 async def my_unfinished_runs(
-    respondent: User = Depends(require_respondent),
+    answerer: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> list[ResumableRun]:
-    """The respondent's own unfinished runs, so a survey left half-done can be resumed
+    """The answerer's own unfinished runs, so a survey left half-done can be resumed
     rather than restarted from scratch under a second run."""
     engine = ConductEngine(session)
     return [
@@ -87,18 +96,18 @@ async def my_unfinished_runs(
             total=total,
             started_at=run.started_at,
         )
-        for run, template_id, title, answered, total in await engine.resumable(respondent)
+        for run, template_id, title, answered, total in await engine.resumable(answerer)
     ]
 
 
 @router.get("/{run_id}", response_model=RunRead)
 async def get_run(
     run_id: UUID,
-    respondent: User = Depends(require_respondent),
+    answerer: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> RunRead:
     engine = ConductEngine(session)
-    run = await engine.load(run_id, respondent)
+    run = await engine.load(run_id, answerer)
     return await _to_read(engine, run)
 
 
@@ -106,39 +115,39 @@ async def get_run(
 async def post_message(
     run_id: UUID,
     data: RunMessageRequest,
-    respondent: User = Depends(require_respondent),
+    answerer: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> RunRead:
     engine = ConductEngine(session)
-    run = await engine.handle_message(run_id, data.content, respondent)
+    run = await engine.handle_message(run_id, data.content, answerer)
     return await _to_read(engine, run)
 
 
 @router.post("/{run_id}/rewind", response_model=RunRead)
 async def rewind_last_answer(
     run_id: UUID,
-    respondent: User = Depends(require_respondent),
+    answerer: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> RunRead:
-    """Take back the most recent answer so the respondent can give a better one.
+    """Take back the most recent answer so the answerer can give a better one.
 
     No body: which answer this is, is the engine's to decide, not the client's. Asking
     for one by id would be the same door the model is refused at in ``_rejection``.
     """
     engine = ConductEngine(session)
-    run = await engine.rewind_last_answer(run_id, respondent)
+    run = await engine.rewind_last_answer(run_id, answerer)
     return await _to_read(engine, run)
 
 
 @router.delete("/{run_id}", status_code=HTTP_204_NO_CONTENT)
 async def delete_run(
     run_id: UUID,
-    respondent: User = Depends(require_respondent),
+    answerer: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> None:
-    """Erase this run and everything in it, at the respondent's request.
+    """Erase this run and everything in it, at the answerer's request.
 
     204 and no body: there is nothing to return, and a representation of a run that no
     longer exists is the one thing this must not send back.
     """
-    await ConductEngine(session).delete_run(run_id, respondent)
+    await ConductEngine(session).delete_run(run_id, answerer)
