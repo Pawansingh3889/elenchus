@@ -24,7 +24,11 @@ from app.db.session import SessionFactory
 from app.sample_data.loader import load_sample_data
 from app.users.models import CreatorDepartment, RespondentGroup, User, UserGroupMembership, UserRole
 
-SEED_USERS: list[tuple[UUID, str, str, UserRole, CreatorDepartment | None]] = [
+# The last field is a stand-in Entra object id. Authors have one because creators sign
+# in with Microsoft; the floor has none and arrives by link instead. Nothing reads it
+# yet, and test_seed_identity holds it consistent with `role`, so the day sign-in does
+# read it the two already agree.
+SEED_USERS: list[tuple[UUID, str, str, UserRole, CreatorDepartment | None, str | None]] = [
     (
         UUID("00000000-0000-0000-0000-0000000000a1"),
         "ava@elenchus.dev",
@@ -34,6 +38,7 @@ SEED_USERS: list[tuple[UUID, str, str, UserRole, CreatorDepartment | None]] = [
         # the walkthroughs and demo script all run as Ava, so she is the one whose
         # department has to be the ordinary case.
         CreatorDepartment.management,
+        "entra-ava",
     ),
     (
         UUID("00000000-0000-0000-0000-0000000000a2"),
@@ -41,6 +46,7 @@ SEED_USERS: list[tuple[UUID, str, str, UserRole, CreatorDepartment | None]] = [
         "Arjun Author",
         UserRole.author,
         CreatorDepartment.hr,
+        "entra-arjun",
     ),
     (
         UUID("00000000-0000-0000-0000-0000000000a3"),
@@ -48,6 +54,7 @@ SEED_USERS: list[tuple[UUID, str, str, UserRole, CreatorDepartment | None]] = [
         "Fatima Author",
         UserRole.author,
         CreatorDepartment.finance,
+        "entra-fatima",
     ),
     (
         UUID("00000000-0000-0000-0000-0000000000a4"),
@@ -58,6 +65,7 @@ SEED_USERS: list[tuple[UUID, str, str, UserRole, CreatorDepartment | None]] = [
         # IT now grants admin, and a seeded administrator is a seeded way in: move this
         # account to IT yourself if that is what you want locally.
         CreatorDepartment.management,
+        "entra-adaeze",
     ),
     (
         UUID("00000000-0000-0000-0000-0000000000a5"),
@@ -65,12 +73,14 @@ SEED_USERS: list[tuple[UUID, str, str, UserRole, CreatorDepartment | None]] = [
         "Tomas Author",
         UserRole.author,
         CreatorDepartment.technical,
+        "entra-tomas",
     ),
     (
         UUID("00000000-0000-0000-0000-0000000000b1"),
         "rosa@elenchus.dev",
         "Rosa Respondent",
         UserRole.respondent,
+        None,
         None,
     ),
     (
@@ -79,12 +89,14 @@ SEED_USERS: list[tuple[UUID, str, str, UserRole, CreatorDepartment | None]] = [
         "Ravi Respondent",
         UserRole.respondent,
         None,
+        None,
     ),
     (
         UUID("00000000-0000-0000-0000-0000000000b3"),
         "remy@elenchus.dev",
         "Remy Respondent",
         UserRole.respondent,
+        None,
         None,
     ),
 ]
@@ -115,7 +127,7 @@ SEED_GROUPS: list[tuple[UUID, tuple[RespondentGroup, ...]]] = [
 
 async def seed() -> None:
     async with SessionFactory() as session:
-        for uid, email, name, role, department in SEED_USERS:
+        for uid, email, name, role, department, microsoft_id in SEED_USERS:
             if await session.get(User, uid) is None:
                 session.add(
                     User(
@@ -124,6 +136,7 @@ async def seed() -> None:
                         display_name=name,
                         role=role,
                         department=department,
+                        microsoft_id=microsoft_id,
                     )
                 )
         await session.commit()

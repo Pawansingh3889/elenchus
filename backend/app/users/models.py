@@ -63,6 +63,18 @@ class User(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     email: Mapped[str] = mapped_column(String(320), unique=True)
     display_name: Mapped[str] = mapped_column(String(200))
+    # The Entra object id, for the people who sign in with Microsoft. Its presence is what
+    # will decide `role` once real sign-in exists: whoever has one is a creator, and
+    # everyone else answers surveys and reaches the app by a link rather than a login.
+    #
+    # Nullable because most of a plant has no Microsoft account, and unique because two
+    # people sharing one would be two people sharing an identity.
+    #
+    # `role` below is still a stored column and still the thing the app reads. That is the
+    # development shim standing in for a login that does not exist yet, and the two are
+    # kept from drifting by a test asserting that every user with an id is an author and
+    # every author has one. When sign-in lands, role is derived here and the column goes.
+    microsoft_id: Mapped[str | None] = mapped_column(String(64), unique=True, default=None)
     role: Mapped[UserRole] = mapped_column(SAEnum(UserRole, name="user_role"))
     # Nullable because someone who only answers surveys has no office department: what
     # they do on the line is `memberships` instead. A *creator* without one is a

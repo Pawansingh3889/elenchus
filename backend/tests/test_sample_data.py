@@ -36,7 +36,7 @@ async def seeded_users(session) -> dict[str, UUID]:
     stand in for the seeded database.
     """
     groups = dict(SEED_GROUPS)
-    for uid, email, name, role, department in SEED_USERS:
+    for uid, email, name, role, department, microsoft_id in SEED_USERS:
         session.add(
             User(
                 id=uid,
@@ -44,6 +44,7 @@ async def seeded_users(session) -> dict[str, UUID]:
                 display_name=name,
                 role=role,
                 department=department,
+                microsoft_id=microsoft_id,
                 memberships=[UserGroupMembership(group=group) for group in groups.get(uid, ())],
             )
         )
@@ -126,7 +127,7 @@ async def test_replaying_a_recorded_run_reproduces_its_answers(session, seeded_u
     # not change what the engine records, which is the whole of what this asserts.
     others = [
         email.split("@", 1)[0]
-        for _, email, _, role, _ in SEED_USERS
+        for _, email, _, role, _, _ in SEED_USERS
         if role is UserRole.respondent and email.split("@", 1)[0] != run["respondent"]
     ]
     respondent = await session.get(User, seeded_users[others[0]])

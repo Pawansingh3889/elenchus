@@ -94,3 +94,29 @@ Alembic migrations from the first table; no `create_all` in application code.
   directory. The Tailwind layering rule, the class guard and the unified Results page are
   there: each only bites while editing frontend files, and this file is in context for
   every session including the ones that never open it.
+- **A survey is aimed at the floor, and membership decides who may answer.** Adopted
+  12 Aug 2026. `SurveyAudience` is everyone, one of five plant groups, or one named
+  person; the office-team values it replaced were remapped onto `managers`, which rewrote
+  what those surveys said they were for and was chosen knowingly. Membership lives in
+  `user_group_memberships` because the groups overlap, and it is read live rather than
+  frozen at publish so somebody who starts on Tuesday can answer a survey published on
+  Monday. **`role` is not consulted when deciding who may answer**, and reinstating that
+  check is the specific mistake to avoid: the senior groups are full of people who sign in
+  with Teams and therefore hold author accounts, so a role check refuses a supervisors
+  survey to every supervisor. `tests/test_access_rules.py` pins this.
+- **Departments group authors; IT grants admin.** The second half reverses the earlier
+  rule that administration came only from `ADMIN_EMAILS` so it could never be a database
+  edit. It was asked for directly. Be clear-eyed about the cost: `UPDATE users SET
+  department = 'it'` is now a grant of administration. The allowlist still works alongside
+  it, so an admin who does not work in IT is still expressible. Colleagues in a department
+  read each other's surveys and results and **cannot change them**: `may_edit` is owner or
+  admin, and it exists because every mutation used to fetch its template through the
+  listing rule, so widening that for reading widened it for writing in the same line.
+- **Identity: a Microsoft account makes you a creator.** Recorded 12 Aug 2026, not yet
+  wired. `users.microsoft_id` is the Entra object id, and its presence is what will decide
+  `role` once real sign-in exists; everyone else is a named account reached by a QR link.
+  Until then `role` is a stored column and the header shim stands in for a login, so
+  `test_the_seed_agrees_with_how_people_will_sign_in` holds the two consistent while the
+  data is small enough to fix. The admin screen for creating floor accounts and setting
+  their groups is the blocker before real staff arrive: somebody in no group can be asked
+  nothing at all, not even a survey aimed at everyone.

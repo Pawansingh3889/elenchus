@@ -65,3 +65,39 @@ def test_the_directory_does_not_carry_an_email():
     assert "email" not in PersonRead.model_fields
     person = PersonRead.of(_user(email="private@elenchus.dev"))
     assert "private@elenchus.dev" not in person.model_dump_json()
+
+
+# ------------------------------------------------------------------- identity
+
+
+def test_the_seed_agrees_with_how_people_will_sign_in():
+    """`role` is a stored column today and will be derived tomorrow.
+
+    The intended rule is that whoever holds a Microsoft account is a creator and everyone
+    else answers surveys and reaches the app by a link. Until real sign-in exists, `role`
+    is the development shim standing in for that, and nothing stops the two disagreeing:
+    an author with no Microsoft id would be somebody who may build surveys and cannot
+    sign in, and a respondent with one would silently become an author the day the rule
+    is switched on.
+
+    So the seed is held to the rule now, while the data is small enough to fix.
+    """
+    from app.seed import SEED_USERS
+    from app.users.models import UserRole
+
+    for _, email, _, role, _, microsoft_id in SEED_USERS:
+        has_id = microsoft_id is not None
+        assert has_id is (role is UserRole.author), (
+            f"{email} is {role.value} and {'has' if has_id else 'has no'} Microsoft id; "
+            "role will be derived from that id, so the two must already agree"
+        )
+
+
+def test_no_two_people_share_a_microsoft_id():
+    """It is an identity, and two accounts sharing one would be two people sharing it.
+    Enforced by a unique constraint in the database; asserted here so a seed that broke
+    it fails with a sentence rather than an IntegrityError at startup."""
+    from app.seed import SEED_USERS
+
+    ids = [m for *_, m in SEED_USERS if m is not None]
+    assert len(ids) == len(set(ids))
