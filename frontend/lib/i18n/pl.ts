@@ -117,6 +117,8 @@ export const pl: Messages = {
     publishFreezes: "Publikacja zamraża te pytania jako wersję 1. Późniejsze zmiany tworzą nową wersję, a ta pozostaje bez zmian.",
     publishAgain: "Publikacja tworzy nową wersję. Kto jest w trakcie, zostaje przy wersji, którą zaczął.",
     tabResults: "Wyniki",
+    typeChangeTitle: "Zmienić typ odpowiedzi?",
+    typeChangeConfirm: "Zmień",
   },
   respond: {
     title: "Otwarte ankiety",

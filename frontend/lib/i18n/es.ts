@@ -117,6 +117,8 @@ export const es: Messages = {
     publishFreezes: "Publicar congela estas preguntas como la versión 1. Las ediciones posteriores crean una versión nueva y esta queda igual.",
     publishAgain: "Publicar crea una versión nueva. Quien esté a medias conserva la versión con la que empezó.",
     tabResults: "Resultados",
+    typeChangeTitle: "¿Cambiar el tipo de respuesta?",
+    typeChangeConfirm: "Cambiarlo",
   },
   respond: {
     title: "Encuestas abiertas",

@@ -112,6 +112,8 @@ export const de: Messages = {
     publishFreezes: "Das Veröffentlichen friert diese Fragen als Version 1 ein. Spätere Änderungen ergeben eine neue Version; diese bleibt unverändert.",
     publishAgain: "Das Veröffentlichen legt eine neue Version an. Wer mitten in der Umfrage ist, behält die Version, mit der er begonnen hat.",
     tabResults: "Ergebnisse",
+    typeChangeTitle: "Antworttyp ändern?",
+    typeChangeConfirm: "Ändern",
   },
   respond: {
     title: "Offene Umfragen",

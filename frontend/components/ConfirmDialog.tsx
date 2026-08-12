@@ -18,11 +18,15 @@ interface Props {
 /**
  * A modal that asks before something that cannot be undone.
  *
- * Not `window.confirm`, which the question editor still uses for the options warning.
- * That one is a single sentence and can stay; this needs the survey's shape, a
- * consequence and two differently-weighted buttons, none of which a browser dialog can
- * render. A native dialog also prefixes the page origin ("localhost:3000 says"), which
- * reads as a browser warning rather than as the app asking.
+ * Not `window.confirm`. A native dialog prefixes the page origin ("localhost:3000
+ * says"), which reads as the browser warning about the page rather than as the app
+ * asking, and it blocks the whole tab. It also cannot render a consequence and two
+ * differently-weighted buttons, which is what these decisions need.
+ *
+ * Every author-facing confirmation goes through this now, including the question
+ * editor's answer-type warning, which was the last `window.confirm` on this side of the
+ * app. The two in the runner stay: they are the respondent's own withdrawal and rewind,
+ * on a page this work deliberately did not touch.
  *
  * The focus rules are the part worth getting right, because a modal that traps nothing
  * is a modal a keyboard user can tab straight out of and act behind:

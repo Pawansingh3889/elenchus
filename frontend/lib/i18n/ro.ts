@@ -117,6 +117,8 @@ export const ro: Messages = {
     publishFreezes: "Publicarea îngheață aceste întrebări ca versiunea 1. Modificările ulterioare creează o versiune nouă, iar aceasta rămâne neschimbată.",
     publishAgain: "Publicarea creează o versiune nouă. Cine este la jumătate păstrează versiunea cu care a început.",
     tabResults: "Rezultate",
+    typeChangeTitle: "Schimbi tipul răspunsului?",
+    typeChangeConfirm: "Schimbă",
   },
   respond: {
     title: "Sondaje deschise",

@@ -117,6 +117,8 @@ export const lv: Messages = {
     publishFreezes: "Publicējot šie jautājumi tiek fiksēti kā 1. versija. Vēlākas izmaiņas veido jaunu versiju, un šī paliek nemainīga.",
     publishAgain: "Publicējot tiek izveidota jauna versija. Tie, kas ir pusceļā, paliek pie versijas, ar kuru sāka.",
     tabResults: "Rezultāti",
+    typeChangeTitle: "Mainīt atbildes veidu?",
+    typeChangeConfirm: "Mainīt",
   },
   respond: {
     title: "Atvērtās aptaujas",
