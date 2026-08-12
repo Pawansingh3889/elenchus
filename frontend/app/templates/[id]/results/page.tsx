@@ -7,16 +7,19 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { QuestionCard } from "@/components/results/QuestionCard";
 import { RecapPanel } from "@/components/results/RecapPanel";
+import { RespondentTable } from "@/components/results/RespondentTable";
 import { RunPanel } from "@/components/results/RunPanel";
+import { SliceControl } from "@/components/results/SliceControl";
 import { Stat } from "@/components/Stat";
 import { SurveyNav } from "@/components/SurveyNav";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useT } from "@/lib/i18n/useT";
-import { useCurrentUser, useReport, useTemplateRuns } from "@/lib/queries";
+import { useAnswersMatrix, useCurrentUser, useReport } from "@/lib/queries";
+import { formatSlice, parseSlice, sliceRuns } from "@/lib/slicing";
 import { useUserStore } from "@/lib/store";
+import { tallyInputs, tallyQuestion } from "@/lib/tally";
 
 /**
  * One page for what the survey found and who said it.
@@ -42,22 +45,35 @@ function ResultsContent() {
   const currentUserId = useUserStore((s) => s.currentUserId);
   const currentUser = useCurrentUser();
   const { data: report, isLoading, error } = useReport(id);
-  const { data: runs } = useTemplateRuns(id);
+  const { data: matrix } = useAnswersMatrix(id);
   const openRun = search.get("run");
+  const slice = parseSlice(search.get("slice"), matrix);
 
   const isRespondent = currentUser?.role === "respondent";
   useEffect(() => {
     if (isRespondent) router.replace("/respond");
   }, [isRespondent, router]);
 
-  function setRun(runId: string | null) {
+  // replace, not push: opening responses one after another should not build a back
+  // stack the author has to unwind to leave the page.
+  function setParam(key: string, value: string | null) {
     const next = new URLSearchParams(search.toString());
-    if (runId) next.set("run", runId);
-    else next.delete("run");
-    // replace, not push: opening responses one after another should not build a back
-    // stack the author has to unwind to leave the page.
+    if (value) next.set(key, value);
+    else next.delete(key);
     router.replace(next.toString() ? `?${next}` : "?", { scroll: false });
   }
+
+  const shown = matrix ? sliceRuns(matrix.runs, slice) : [];
+  // Sliced and unsliced tallies come from the same code either way, so the page never
+  // shows a server number beside a client number and invites a comparison between two
+  // provenances. `lib/tally.ts` is checked against the server's own cases in vitest.
+  const inputs = matrix ? tallyInputs(matrix.questions, shown) : null;
+  const questions =
+    inputs && matrix
+      ? [...matrix.questions]
+          .sort((a, b) => a.position - b.position)
+          .map((q) => ({ report: tallyQuestion(inputs.get(q.id)!), runIds: inputs.get(q.id)!.runIds }))
+      : [];
 
   if (!currentUserId) return <p className="p-6 text-muted">{msg.results.pickAuthor}</p>;
   if (isRespondent) return <p className="p-6 text-muted">{msg.home.goingToRespond}</p>;
@@ -127,42 +143,50 @@ function ResultsContent() {
           {report.runs_total === 0 ? <EmptyState title={msg.report.nobodyYet} /> : null}
 
           {/* Headline first, per the shape the docs specified: what the survey found,
-              before the question detail it was found in. */}
-          <RecapPanel templateId={id} runsCompleted={report.runs_completed} />
+              before the question detail it was found in. Hidden under a slice, because
+              the recap describes every response and would be prose about one group of
+              people sitting above numbers about another. */}
+          <RecapPanel
+            templateId={id}
+            runsCompleted={report.runs_completed}
+            hidden={Boolean(slice)}
+          />
+
+          {matrix && matrix.runs.length > 0 ? (
+            <SliceControl
+              questions={matrix.questions}
+              slice={slice}
+              onChange={(next) => setParam("slice", next ? formatSlice(next) : null)}
+              showing={shown.length}
+              total={matrix.runs.length}
+            />
+          ) : null}
 
           {openRun ? (
-            <RunPanel templateId={id} runId={openRun} onClose={() => setRun(null)} />
+            <RunPanel templateId={id} runId={openRun} onClose={() => setParam("run", null)} />
           ) : null}
 
-          {runs && runs.length > 0 ? (
-            <section className="flex flex-col gap-2">
-              <h2 className="text-md font-semibold">{msg.results.respondents}</h2>
-              <div className="flex flex-wrap gap-2">
-                {runs.map((run) => (
-                  <Button
-                    key={run.id}
-                    variant={run.id === openRun ? "primary" : "secondary"}
-                    size="sm"
-                    onClick={() => setRun(run.id)}
-                  >
-                    {run.respondent_label}
-                    <span className="text-xs opacity-70">
-                      {msg.results.answeredOf(run.answered, run.total)}
-                    </span>
-                  </Button>
-                ))}
-              </div>
-            </section>
+          {slice && shown.length === 0 ? <EmptyState title={msg.results.sliceEmpty} /> : null}
+
+          {matrix && shown.length > 0 ? (
+            <RespondentTable
+              matrix={matrix}
+              runs={shown}
+              openRun={openRun}
+              onOpen={(runId) => setParam("run", runId)}
+            />
           ) : null}
 
-          {report.questions.length > 0 ? (
+          {questions.length > 0 && shown.length > 0 ? (
             <section className="flex flex-col gap-3">
               <h2 className="text-md font-semibold">{msg.results.questionsHeading}</h2>
-              {report.questions.map((question, i) => (
+              {questions.map(({ report: question, runIds }, i) => (
                 <QuestionCard key={question.id} question={question} position={i}>
                   {/* Counted on the page, read on click: forty open answers is a long
                       list to scroll past on the way to the next question, and grouping
-                      them would mean deciding what people meant, which this is not. */}
+                      them would mean deciding what people meant, which this is not.
+                      Each one links to the response it came from, which the report
+                      endpoint could not do because it drops the attribution. */}
                   {question.verbatim.length > 0 ? (
                     <details className="mt-3">
                       <summary className="cursor-pointer text-sm text-muted">
@@ -171,7 +195,17 @@ function ResultsContent() {
                       <ul className="mt-2 flex flex-col gap-1 ps-4">
                         {question.verbatim.map((v, j) => (
                           <li key={j} className="list-disc text-sm">
-                            {v}
+                            {runIds[j] ? (
+                              <button
+                                type="button"
+                                className="cursor-pointer text-start underline-offset-4 hover:underline"
+                                onClick={() => setParam("run", runIds[j])}
+                              >
+                                {v}
+                              </button>
+                            ) : (
+                              v
+                            )}
                           </li>
                         ))}
                       </ul>

@@ -217,6 +217,15 @@ export const en = {
     probesAsked: (n: number) => `${n} follow-up${n === 1 ? "" : "s"} asked`,
     probedChip: (n: number) => `${n} probed`,
     unansweredQuestion: "Unanswered question",
+    sliceAll: "Everyone",
+    sliceBy: "Show only",
+    sliceClear: "Clear",
+    sliceShowing: (n: number, total: number) => `${n} of ${total} responses`,
+    sliceEmpty: "Nobody gave that answer, so there is nothing to show.",
+    exportCsv: "Download CSV",
+    tableRespondent: "Respondent",
+    tableStatus: "Status",
+    tableFinished: "Finished",
   },
   // Reading a stored answer. These were English inside the results page while the rest
   // of the app was translated, so a Polish author read Polish answers in an English
