@@ -12,6 +12,7 @@ export const fil: Messages = {
     deleting: "Tinatanggal…",
     confirmDelete: "Kumpirmahin ang pagtanggal",
     backToDashboard: "← Dashboard",
+    backHome: "← Home",
     cancel: "Kanselahin",
     dismiss: "itago",
     notFound: "Hindi natagpuan",
@@ -19,6 +20,7 @@ export const fil: Messages = {
   topbar: {
     brandLead: "Serbisyong",
     brandTail: "Survey",
+    home: "Home",
     dashboard: "Dashboard",
     respond: "Sumagot",
     actingAs: "Kumikilos bilang",
@@ -61,6 +63,35 @@ export const fil: Messages = {
     surveysNeedingYou: "kailangan ka",
     surveysRunning: "tumatakbo",
     responsesIn: "natanggap na sagot",
+  },
+  landing: {
+    heroTitle: "Mga survey na nagtatanong na parang tao, hindi parang form",
+    heroBody:
+      "Ilarawan kung ano ang gusto mong malaman at ihahanda ang mga tanong para sa iyo. Kapag na-publish na, sumasagot ang mga tao sa pamamagitan ng usapan sa halip na pagpuno ng mga kahon. Bawat sagot ay sinusuri laban sa tanong bago ito i-save.",
+    videoTitle: "Tingnan kung paano ito gumagana",
+    videoLabel: "Maikling video ng survey service habang ginagamit",
+    videoPlaceholder: "Malapit nang mailabas ang video",
+    howTitle: "Paano ito gumagana",
+    stepNumber: (n: number) => `Hakbang ${n}`,
+    step1Title: "Ilarawan",
+    step1Body:
+      "Sumulat ng isang pangungusap tungkol sa gusto mong malaman. Mula rito ihahanda ang mga tanong, ang uri nila at ang mga pagpipilian, at mababago mo ang alinman sa editor.",
+    step2Title: "I-publish",
+    step2Body:
+      "Ang pag-publish ay nagpi-freeze sa survey bilang bersyon na hindi na mababago habang sumasagot ang mga tao. Patuloy namang nababago ang draft nang hiwalay.",
+    step3Title: "Sumasagot sila sa usapan",
+    step3Body:
+      "Dinadaanan ng mga sumasagot ang mga tanong sa isang usapan. Ang engine ang nagpapasya kung ano ang susunod at kung ano ang binibilang na sagot, kaya walang naiimbento at walang nalalaktawan.",
+    audienceLabel: "Para kanino ito?",
+    audienceRespondents: "Lahat ng sumasagot",
+    audienceHr: "HR",
+    audienceOperations: "Operations",
+    audienceFinance: "Pananalapi",
+    audienceTechnical: "Teknikal",
+    needsYou: (n: number) => `${n} survey ang naghihintay sa iyo →`,
+    respondBody: "May mga survey na naghihintay sa iyo.",
+    respondCta: "Sumagot ng survey",
+    signedOutHint: "Pumili ng user sa itaas para magsimula.",
   },
   builder: {
     pickUser: "Pumili ng user sa itaas.",

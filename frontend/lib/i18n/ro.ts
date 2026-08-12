@@ -11,6 +11,7 @@ export const ro: Messages = {
     delete: "Șterge",
     confirmDelete: "Confirmă ștergerea",
     backToDashboard: "← Panou",
+    backHome: "← Acasă",
     cancel: "Anulează",
     dismiss: "închide",
     notFound: "Nu a fost găsit",
@@ -19,6 +20,7 @@ export const ro: Messages = {
   topbar: {
     brandLead: "Serviciu de",
     brandTail: "Sondaje",
+    home: "Acasă",
     dashboard: "Panou",
     respond: "Răspunde",
     actingAs: "Acționezi ca",
@@ -62,6 +64,37 @@ export const ro: Messages = {
     surveysNeedingYou: "au nevoie de tine",
     surveysRunning: "în desfășurare",
     responsesIn: "răspunsuri primite",
+  },
+  landing: {
+    heroTitle: "Chestionare care întreabă ca un om, nu ca un formular",
+    heroBody:
+      "Descrieți ce vreți să aflați și întrebările sunt redactate pentru dumneavoastră. După publicare, oamenii răspund printr-o conversație, în loc să bifeze căsuțe. Fiecare răspuns este verificat față de întrebare înainte de a fi salvat.",
+    videoTitle: "Vedeți cum funcționează",
+    videoLabel: "Un scurt videoclip cu serviciul de chestionare în uz",
+    videoPlaceholder: "Videoclip în curând",
+    howTitle: "Cum funcționează",
+    stepNumber: (n: number) => `Pasul ${n}`,
+    step1Title: "Descrieți",
+    step1Body:
+      "Scrieți o frază despre ce vreți să aflați. Întrebările, tipurile și opțiunile lor sunt redactate din ea, iar pe fiecare o puteți schimba în editor.",
+    step2Title: "Publicați",
+    step2Body:
+      "Publicarea îngheață chestionarul ca o versiune care nu se poate schimba sub cei care răspund. Ciorna continuă să evolueze separat.",
+    step3Title: "Răspund prin conversație",
+    step3Body:
+      "Respondenții parcurg întrebările într-o conversație. Motorul decide ce urmează și ce contează drept răspuns, așa că nimic nu este inventat și nimic nu este sărit.",
+    audienceLabel: "Pentru cine este?",
+    audienceRespondents: "Toți respondenții",
+    audienceHr: "Resurse umane",
+    audienceOperations: "Operațiuni",
+    audienceFinance: "Financiar",
+    audienceTechnical: "Tehnic",
+    // "așteaptă" is the same in the third person singular and plural, so only the noun
+    // takes a plural here.
+    needsYou: (n: number) => `${n} chestionar${n === 1 ? "" : "e"} vă așteaptă →`,
+    respondBody: "Vă așteaptă chestionare.",
+    respondCta: "Răspundeți la un chestionar",
+    signedOutHint: "Alegeți un utilizator în bara de sus pentru a începe.",
   },
   builder: {
     pickUser: "Alege un utilizator din bara de sus.",

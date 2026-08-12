@@ -11,6 +11,7 @@ export const pl: Messages = {
     delete: "Usuń",
     confirmDelete: "Potwierdź usunięcie",
     backToDashboard: "← Pulpit",
+    backHome: "← Start",
     cancel: "Anuluj",
     dismiss: "zamknij",
     notFound: "Nie znaleziono",
@@ -19,6 +20,7 @@ export const pl: Messages = {
   topbar: {
     brandLead: "Serwis",
     brandTail: "Ankiet",
+    home: "Start",
     dashboard: "Panel",
     respond: "Odpowiadaj",
     actingAs: "Działasz jako",
@@ -62,6 +64,35 @@ export const pl: Messages = {
     surveysNeedingYou: "wymaga uwagi",
     surveysRunning: "w toku",
     responsesIn: "otrzymanych odpowiedzi",
+  },
+  landing: {
+    heroTitle: "Ankiety, które pytają jak człowiek, a nie jak formularz",
+    heroBody:
+      "Opisz, czego chcesz się dowiedzieć, a pytania zostaną przygotowane za Ciebie. Po opublikowaniu odbiorcy odpowiadają w rozmowie, zamiast wypełniać pola. Każda odpowiedź jest sprawdzana z pytaniem przed zapisaniem.",
+    videoTitle: "Zobacz, jak działa",
+    videoLabel: "Krótki film pokazujący usługę ankiet w działaniu",
+    videoPlaceholder: "Film wkrótce",
+    howTitle: "Jak to działa",
+    stepNumber: (n: number) => `Krok ${n}`,
+    step1Title: "Opisz",
+    step1Body:
+      "Napisz zdanie o tym, czego chcesz się dowiedzieć. Pytania, ich typy i opcje powstaną na tej podstawie, a każde z nich możesz zmienić w edytorze.",
+    step2Title: "Opublikuj",
+    step2Body:
+      "Publikacja zamraża ankietę jako wersję, która nie zmieni się pod osobami odpowiadającymi. Wersja robocza rozwija się dalej osobno.",
+    step3Title: "Odpowiadają w rozmowie",
+    step3Body:
+      "Odbiorcy przechodzą przez pytania w rozmowie. Silnik decyduje, co dalej i co liczy się jako odpowiedź, więc nic nie zostaje zmyślone ani pominięte.",
+    audienceLabel: "Dla kogo jest?",
+    audienceRespondents: "Wszyscy odpowiadający",
+    audienceHr: "Kadry",
+    audienceOperations: "Operacje",
+    audienceFinance: "Finanse",
+    audienceTechnical: "Techniczne",
+    needsYou: (n: number) => `Ankiety czekające na Ciebie: ${n} →`,
+    respondBody: "Czekają na Ciebie ankiety.",
+    respondCta: "Wypełnij ankietę",
+    signedOutHint: "Wybierz użytkownika na górnym pasku, aby zacząć.",
   },
   builder: {
     pickUser: "Wybierz użytkownika na górnym pasku.",

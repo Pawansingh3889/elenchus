@@ -26,13 +26,18 @@ export function TopBar() {
   return (
     <header className="topbar">
       <div className="topbar-left">
-        <Link href={isAuthor ? "/" : "/respond"} className="topbar-brand">
+        {/* One brand target for every role now that `/` explains the product rather than
+            being the author's workspace. A respondent clicking it used to land on the
+            dashboard's redirect; now it lands somewhere that reads as an answer to
+            "what is this", which is what a first-time arrival is asking. */}
+        <Link href="/" className="topbar-brand">
           {topbar.brandLead} <span>{topbar.brandTail}</span>
         </Link>
         <nav className="topbar-nav">
+          <Link href="/">{topbar.home}</Link>
           {/* Roles don't cross: authors build, respondents answer. */}
           {isAuthor ? (
-            <Link href="/">{topbar.dashboard}</Link>
+            <Link href="/dashboard">{topbar.dashboard}</Link>
           ) : (
             <Link href="/respond">{topbar.respond}</Link>
           )}

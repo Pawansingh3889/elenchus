@@ -38,8 +38,11 @@ export default function GlobalError({
         <Button variant="primary" onClick={reset}>
           {errors.retry}
         </Button>
+        {/* Home rather than the dashboard: this is the page a render crash lands on, and
+            it has to work for whoever hit it. `/` needs no user and makes no authenticated
+            request, where the dashboard needs both and can only fail a second time. */}
         <Button variant="secondary" asChild>
-          <Link href="/">{common.backToDashboard}</Link>
+          <Link href="/">{common.backHome}</Link>
         </Button>
       </div>
     </div>

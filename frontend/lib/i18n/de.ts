@@ -13,6 +13,7 @@ export const de: Messages = {
     deleting: "Wird gelöscht…",
     confirmDelete: "Löschen bestätigen",
     backToDashboard: "← Übersicht",
+    backHome: "← Start",
     cancel: "Abbrechen",
     dismiss: "ausblenden",
     notFound: "Nicht gefunden",
@@ -20,6 +21,7 @@ export const de: Messages = {
   topbar: {
     brandLead: "Umfrage",
     brandTail: "Dienst",
+    home: "Start",
     dashboard: "Übersicht",
     respond: "Antworten",
     actingAs: "Angemeldet als",
@@ -62,6 +64,36 @@ export const de: Messages = {
     surveysNeedingYou: "brauchen Sie",
     surveysRunning: "laufen",
     responsesIn: "Antworten eingegangen",
+  },
+  landing: {
+    heroTitle: "Umfragen, die fragen wie ein Mensch, nicht wie ein Formular",
+    heroBody:
+      "Beschreiben Sie, was Sie herausfinden möchten, und die Fragen werden für Sie entworfen. Nach dem Veröffentlichen antworten die Befragten im Gespräch, statt Kästchen auszufüllen. Jede Antwort wird vor dem Speichern gegen die Frage geprüft.",
+    videoTitle: "In Aktion sehen",
+    videoLabel: "Ein kurzes Video des Umfragedienstes im Einsatz",
+    videoPlaceholder: "Video folgt in Kürze",
+    howTitle: "So funktioniert es",
+    stepNumber: (n: number) => `Schritt ${n}`,
+    step1Title: "Beschreiben",
+    step1Body:
+      "Schreiben Sie einen Satz darüber, was Sie wissen möchten. Fragen, Antworttypen und Optionen werden daraus entworfen, und Sie können alles im Editor ändern.",
+    step2Title: "Veröffentlichen",
+    step2Body:
+      "Beim Veröffentlichen wird die Umfrage als Version eingefroren, die sich unter den Antwortenden nicht mehr ändern kann. Der Entwurf entwickelt sich getrennt weiter.",
+    step3Title: "Antworten im Gespräch",
+    step3Body:
+      "Die Befragten gehen die Fragen im Gespräch durch. Die Engine entscheidet, was als Nächstes kommt und was als Antwort zählt, damit nichts erfunden und nichts übersprungen wird.",
+    audienceLabel: "Für wen ist sie?",
+    audienceRespondents: "Alle Befragten",
+    audienceHr: "Personal",
+    audienceOperations: "Betrieb",
+    audienceFinance: "Finanzen",
+    audienceTechnical: "Technik",
+    needsYou: (n: number) =>
+      `${n} Umfrage${n === 1 ? "" : "n"} ${n === 1 ? "braucht" : "brauchen"} Sie →`,
+    respondBody: "Es warten Umfragen auf Sie.",
+    respondCta: "Umfrage beantworten",
+    signedOutHint: "Wählen Sie oben eine Person aus, um zu beginnen.",
   },
   builder: {
     pickUser: "Wählen Sie oben einen Benutzer.",

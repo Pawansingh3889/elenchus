@@ -19,7 +19,7 @@ from app.llm.client import LLMError, LLMProtocol
 from app.llm.decoding import decode_stringified
 from app.llm.factory import get_llm
 from app.llm.prompts import load_prompt
-from app.templates.enums import AnswerType, FollowUpPolicy
+from app.templates.enums import AnswerType, FollowUpPolicy, SurveyAudience
 from app.templates.models import SurveyTemplate
 from app.templates.schemas import TemplateCreate, TemplateUpdate
 from app.templates.service import TemplateService
@@ -78,9 +78,21 @@ class GenerationService:
         self.llm: LLMProtocol = llm or get_llm()
         self.templates = TemplateService(session)
 
-    async def generate_draft(self, prompt: str, author: User) -> tuple[SurveyTemplate, str]:
+    async def generate_draft(
+        self,
+        prompt: str,
+        author: User,
+        audience: SurveyAudience = SurveyAudience.respondents,
+    ) -> tuple[SurveyTemplate, str]:
         """Draft a new survey from a description. Returns the saved draft and the model's
-        short note on what it built."""
+        short note on what it built.
+
+        The audience is the author's, not the model's. `_DraftToolInput` extends
+        `TemplateCreate`, so `audience` sits in the tool schema and the model can fill it
+        in, yet no prompt file mentions the field or what the values mean. That leaves who
+        may answer a survey decided by a model that was told nothing about the question,
+        which is the same failure the `TemplateUpdate` docstring records. Overriding after
+        the draft returns keeps one answer to "who is this for", and it is the author's."""
         system = load_prompt(GENERATE_PROMPT_VERSION)
         with ledger.using_prompt(GENERATE_PROMPT_VERSION):
             template_in, note = await self._draft(
@@ -88,7 +100,8 @@ class GenerationService:
                 [{"role": "user", "content": f"{prompt}\n\n{_policy()}"}],
                 previous_error=None,
             )
-        template = await self.templates.create_draft(_without_catch_alls(template_in), author)
+        drafted = _without_catch_alls(template_in).model_copy(update={"audience": audience})
+        template = await self.templates.create_draft(drafted, author)
         return template, note
 
     async def refine_draft(

@@ -11,6 +11,7 @@ export const lt: Messages = {
     delete: "Ištrinti",
     confirmDelete: "Patvirtinti ištrynimą",
     backToDashboard: "← Skydelis",
+    backHome: "← Pradžia",
     cancel: "Atšaukti",
     dismiss: "užverti",
     notFound: "Nerasta",
@@ -19,6 +20,7 @@ export const lt: Messages = {
   topbar: {
     brandLead: "Apklausų",
     brandTail: "Tarnyba",
+    home: "Pradžia",
     dashboard: "Skydelis",
     respond: "Atsakyti",
     actingAs: "Veikiate kaip",
@@ -62,6 +64,35 @@ export const lt: Messages = {
     surveysNeedingYou: "reikia jūsų",
     surveysRunning: "vykdomos",
     responsesIn: "gauta atsakymų",
+  },
+  landing: {
+    heroTitle: "Apklausos, kurios klausia kaip žmogus, o ne kaip forma",
+    heroBody:
+      "Aprašykite, ką norite sužinoti, ir klausimai bus parengti už jus. Paskelbus žmonės atsako pokalbiu, o ne pildo laukelius. Kiekvienas atsakymas prieš išsaugant patikrinamas pagal klausimą.",
+    videoTitle: "Pažiūrėkite, kaip veikia",
+    videoLabel: "Trumpas vaizdo įrašas apie apklausų paslaugą veikiant",
+    videoPlaceholder: "Vaizdo įrašas netrukus",
+    howTitle: "Kaip tai veikia",
+    stepNumber: (n: number) => `${n} žingsnis`,
+    step1Title: "Aprašykite",
+    step1Body:
+      "Parašykite sakinį apie tai, ką norite sužinoti. Klausimai, jų tipai ir pasirinkimai bus parengti iš jo, o kiekvieną galėsite pakeisti redaktoriuje.",
+    step2Title: "Paskelbkite",
+    step2Body:
+      "Paskelbimas užšaldo apklausą kaip versiją, kuri nebegali keistis po atsakančiaisiais. Juodraštis toliau keičiasi atskirai.",
+    step3Title: "Jie atsako pokalbiu",
+    step3Body:
+      "Respondentai pereina klausimus pokalbio metu. Variklis nusprendžia, kas toliau ir kas laikoma atsakymu, todėl niekas neišgalvojama ir niekas nepraleidžiama.",
+    audienceLabel: "Kam ji skirta?",
+    audienceRespondents: "Visi respondentai",
+    audienceHr: "Personalas",
+    audienceOperations: "Gamyba",
+    audienceFinance: "Finansai",
+    audienceTechnical: "Technikos skyrius",
+    needsYou: (n: number) => `Apklausos, kurios laukia jūsų: ${n} →`,
+    respondBody: "Jūsų laukia apklausos.",
+    respondCta: "Atsakyti į apklausą",
+    signedOutHint: "Pasirinkite naudotoją viršutinėje juostoje, kad pradėtumėte.",
   },
   builder: {
     pickUser: "Pasirinkite naudotoją viršutinėje juostoje.",

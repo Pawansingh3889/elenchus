@@ -11,6 +11,7 @@ export const es: Messages = {
     delete: "Eliminar",
     confirmDelete: "Confirmar eliminación",
     backToDashboard: "← Panel",
+    backHome: "← Inicio",
     cancel: "Cancelar",
     dismiss: "descartar",
     notFound: "No encontrado",
@@ -19,6 +20,7 @@ export const es: Messages = {
   topbar: {
     brandLead: "Servicio de",
     brandTail: "Encuestas",
+    home: "Inicio",
     dashboard: "Panel",
     respond: "Responder",
     actingAs: "Actuando como",
@@ -62,6 +64,36 @@ export const es: Messages = {
     surveysNeedingYou: "te necesitan",
     surveysRunning: "en curso",
     responsesIn: "respuestas recibidas",
+  },
+  landing: {
+    heroTitle: "Encuestas que preguntan como una persona, no como un formulario",
+    heroBody:
+      "Describe qué quieres averiguar y las preguntas se redactan por ti. Al publicarla, las personas a las que va dirigida responden conversando en lugar de rellenar casillas. Cada respuesta se comprueba con la pregunta antes de guardarse.",
+    videoTitle: "Míralo en funcionamiento",
+    videoLabel: "Un vídeo breve del servicio de encuestas en uso",
+    videoPlaceholder: "Vídeo próximamente",
+    howTitle: "Cómo funciona",
+    stepNumber: (n: number) => `Paso ${n}`,
+    step1Title: "Descríbela",
+    step1Body:
+      "Escribe una frase sobre lo que quieres saber. Las preguntas, sus tipos y sus opciones se redactan a partir de ella, y puedes cambiar cualquiera en el editor.",
+    step2Title: "Publícala",
+    step2Body:
+      "Publicar congela la encuesta como una versión que no puede cambiar bajo quienes la responden. El borrador sigue evolucionando por separado.",
+    step3Title: "Responden conversando",
+    step3Body:
+      "Las personas recorren las preguntas en una conversación. El motor decide qué viene después y qué cuenta como respuesta, así no se inventa nada ni se omite nada.",
+    audienceLabel: "¿Para quién es?",
+    audienceRespondents: "Todas las personas",
+    audienceHr: "RR. HH.",
+    audienceOperations: "Operaciones",
+    audienceFinance: "Finanzas",
+    audienceTechnical: "Técnico",
+    needsYou: (n: number) =>
+      `${n} encuesta${n === 1 ? "" : "s"} te necesita${n === 1 ? "" : "n"} →`,
+    respondBody: "Tienes encuestas esperando.",
+    respondCta: "Responder una encuesta",
+    signedOutHint: "Elige un usuario en la barra superior para empezar.",
   },
   builder: {
     pickUser: "Elige un usuario en la barra superior.",

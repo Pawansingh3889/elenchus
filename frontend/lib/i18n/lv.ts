@@ -11,6 +11,7 @@ export const lv: Messages = {
     delete: "Dzēst",
     confirmDelete: "Apstiprināt dzēšanu",
     backToDashboard: "← Panelis",
+    backHome: "← Sākums",
     cancel: "Atcelt",
     dismiss: "aizvērt",
     notFound: "Nav atrasts",
@@ -19,6 +20,7 @@ export const lv: Messages = {
   topbar: {
     brandLead: "Aptauju",
     brandTail: "Serviss",
+    home: "Sākums",
     dashboard: "Panelis",
     respond: "Atbildēt",
     actingAs: "Darbojaties kā",
@@ -62,6 +64,35 @@ export const lv: Messages = {
     surveysNeedingYou: "vajag jūs",
     surveysRunning: "norit",
     responsesIn: "saņemtas atbildes",
+  },
+  landing: {
+    heroTitle: "Aptaujas, kas jautā kā cilvēks, nevis kā veidlapa",
+    heroBody:
+      "Aprakstiet, ko vēlaties uzzināt, un jautājumi tiks sagatavoti jūsu vietā. Pēc publicēšanas cilvēki atbild sarunā, nevis aizpilda lodziņus. Katra atbilde pirms saglabāšanas tiek pārbaudīta pret jautājumu.",
+    videoTitle: "Skatiet darbībā",
+    videoLabel: "Īss video par aptauju pakalpojumu darbībā",
+    videoPlaceholder: "Video drīzumā",
+    howTitle: "Kā tas darbojas",
+    stepNumber: (n: number) => `${n}. solis`,
+    step1Title: "Aprakstiet",
+    step1Body:
+      "Uzrakstiet teikumu par to, ko vēlaties uzzināt. Jautājumi, to veidi un varianti tiks sagatavoti no tā, un katru no tiem varat mainīt redaktorā.",
+    step2Title: "Publicējiet",
+    step2Body:
+      "Publicēšana iesaldē aptauju kā versiju, kas nevar mainīties zem atbildētājiem. Melnraksts turpina attīstīties atsevišķi.",
+    step3Title: "Viņi atbild sarunā",
+    step3Body:
+      "Respondenti iziet cauri jautājumiem sarunā. Dzinējs izlemj, kas seko un kas tiek uzskatīts par atbildi, tāpēc nekas netiek izdomāts un nekas netiek izlaists.",
+    audienceLabel: "Kam tā paredzēta?",
+    audienceRespondents: "Visi respondenti",
+    audienceHr: "Personāls",
+    audienceOperations: "Ražošana",
+    audienceFinance: "Finanses",
+    audienceTechnical: "Tehniskā daļa",
+    needsYou: (n: number) => `Aptaujas, kas gaida jūs: ${n} →`,
+    respondBody: "Jūs gaida aptaujas.",
+    respondCta: "Atbildēt uz aptauju",
+    signedOutHint: "Izvēlieties lietotāju augšējā joslā, lai sāktu.",
   },
   builder: {
     pickUser: "Izvēlieties lietotāju augšējā joslā.",

@@ -178,6 +178,11 @@ class TemplateUpdate(TemplateWrite):
 
 class GenerateRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=4000)
+    # Who the survey is for, chosen by the author as they describe it rather than left to
+    # the model. Defaulted like TemplateWrite, because a caller with no opinion yet
+    # honestly means the respondent pool. See GenerationService.generate_draft for why
+    # this overrides rather than merely seeds the drafted value.
+    audience: SurveyAudience = SurveyAudience.respondents
 
 
 class RefineRequest(BaseModel):

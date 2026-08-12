@@ -19,6 +19,7 @@ export const en = {
     delete: "Delete",
     confirmDelete: "Confirm delete",
     backToDashboard: "← Dashboard",
+    backHome: "← Home",
     cancel: "Cancel",
     dismiss: "dismiss",
     notFound: "Not found",
@@ -27,6 +28,7 @@ export const en = {
   topbar: {
     brandLead: "Survey",
     brandTail: "Service",
+    home: "Home",
     dashboard: "Dashboard",
     respond: "Respond",
     actingAs: "Acting as",
@@ -70,6 +72,35 @@ export const en = {
     responsesIn: "responses in",
     describePlaceholder:
       "Describe the survey… e.g. An onboarding survey for factory staff: their role, the systems they use daily, and their biggest data frustrations.",
+  },
+  landing: {
+    heroTitle: "Surveys that ask like a person, not a form",
+    heroBody:
+      "Describe what you want to find out and the questions get drafted for you. Publish it, and the people it is for answer by chatting rather than filling in boxes. Every answer is checked against the question before it is saved.",
+    videoTitle: "See it working",
+    videoLabel: "A short video of the survey service in use",
+    videoPlaceholder: "Video coming soon",
+    howTitle: "How it works",
+    stepNumber: (n: number) => `Step ${n}`,
+    step1Title: "Describe it",
+    step1Body:
+      "Write a sentence about what you want to know. The questions, their types and their options are drafted from it, and you can change any of them in the builder.",
+    step2Title: "Publish it",
+    step2Body:
+      "Publishing freezes the survey as a version that cannot change under the people answering it. The draft carries on evolving separately.",
+    step3Title: "They answer by chat",
+    step3Body:
+      "Respondents work through the questions in a conversation. The engine decides what comes next and what counts as an answer, so nothing is invented and nothing is skipped.",
+    audienceLabel: "Who is it for?",
+    audienceRespondents: "All respondents",
+    audienceHr: "HR",
+    audienceOperations: "Operations",
+    audienceFinance: "Finance",
+    audienceTechnical: "Technical",
+    needsYou: (n: number) => `${n} survey${n === 1 ? "" : "s"} need${n === 1 ? "s" : ""} you →`,
+    respondBody: "There are surveys waiting for you.",
+    respondCta: "Answer a survey",
+    signedOutHint: "Pick a user in the top bar to start.",
   },
   builder: {
     pickUser: "Pick a user in the top bar.",

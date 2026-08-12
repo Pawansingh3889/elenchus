@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "./api";
 import { useUserStore } from "./store";
-import type { RunDetail, SurveyRecapStatus, TemplateWrite } from "./types";
+import type { RunDetail, SurveyAudience, SurveyRecapStatus, TemplateWrite } from "./types";
 
 export function useUsers() {
   return useQuery({ queryKey: ["users"], queryFn: api.listUsers });
@@ -116,7 +116,11 @@ export function usePublishTemplate(id: string) {
 export function useGenerateTemplate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (prompt: string) => api.generateTemplate(prompt),
+    // An object rather than two positional arguments: the audience decides who may answer
+    // the survey, and a bare second string is the kind of thing that gets passed in the
+    // wrong order once and then silently aims a survey at the wrong people.
+    mutationFn: ({ prompt, audience }: { prompt: string; audience: SurveyAudience }) =>
+      api.generateTemplate(prompt, audience),
     onSuccess: () => invalidateTemplate(qc),
   });
 }
