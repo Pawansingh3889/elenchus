@@ -84,11 +84,16 @@ export const ro: Messages = {
     step3Body:
       "Respondenții parcurg întrebările într-o conversație. Motorul decide ce urmează și ce contează drept răspuns, așa că nimic nu este inventat și nimic nu este sărit.",
     audienceLabel: "Pentru cine este?",
-    audienceRespondents: "Toți respondenții",
-    audienceHr: "Resurse umane",
-    audienceOperations: "Operațiuni",
-    audienceFinance: "Financiar",
-    audienceTechnical: "Tehnic",
+    audienceEveryone: "Toată lumea",
+    audienceOperatives: "Operatori",
+    audienceLineLeaders: "Șefi de linie",
+    audienceSupervisors: "Supervizori",
+    audienceManagers: "Manageri",
+    audienceQa: "Control calitate",
+    audiencePerson: "O singură persoană",
+    personLabel: "Care persoană?",
+    personPlaceholder: "Alegeți pe cineva…",
+    attributable: "Adresat unei singure persoane, deci răspunsul îi poate fi atribuit.",
     // "așteaptă" is the same in the third person singular and plural, so only the noun
     // takes a plural here.
     needsYou: (n: number) => `${n} chestionar${n === 1 ? "" : "e"} vă așteaptă →`,

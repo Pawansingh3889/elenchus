@@ -15,7 +15,17 @@ export type FollowUpPolicy = "never" | "when_unclear" | "always_once";
 
 export type TemplateStatus = "draft" | "published" | "closed" | "archived";
 /** Who a survey is for: the whole respondent pool, or one creator department. */
-export type SurveyAudience = "respondents" | "hr" | "operations" | "finance" | "technical";
+/** Who a survey is for: everyone on the floor, one plant group, or one named person.
+ *  `person` carries its target in `audience_user_id`; the two only mean anything
+ *  together, and the API refuses either half on its own. */
+export type SurveyAudience =
+  | "everyone"
+  | "operatives"
+  | "line_leaders"
+  | "supervisors"
+  | "managers"
+  | "qa"
+  | "person";
 export type UserRole = "author" | "respondent";
 
 export interface User {
@@ -61,6 +71,8 @@ export interface Template {
   created_at: string;
   updated_at: string;
   audience: SurveyAudience;
+  /** The one person, when `audience` is `person`, and null otherwise. */
+  audience_user_id: string | null;
   setting: string | null;
   questions: Question[];
 }
@@ -97,9 +109,13 @@ export interface GeneratedTemplate {
 export interface TemplateWrite {
   title: string;
   description?: string | null;
-  /** Who the survey is for. Required on an update, where omitting it used to reset an
-   *  HR survey to the whole respondent pool on every save. */
+  /** Who the survey is for. Required on an update, where omitting it used to reset a
+   *  targeted survey to the whole floor on every save. */
   audience: SurveyAudience;
+  /** Rides with `audience` on every write. A save that carries `person` without this
+   *  is a 422, and one that carries this without `person` is too: the server refuses
+   *  either half alone rather than storing a survey aimed at nobody. */
+  audience_user_id?: string | null;
   /** What the interviewer needs to know about the workplace to read answers here.
    *  Never shown to the respondent. Optional: most surveys need none. */
   setting?: string | null;

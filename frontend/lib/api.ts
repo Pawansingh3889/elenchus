@@ -140,10 +140,14 @@ export const api = {
     request<TemplateVersion>(`/templates/${id}/publish`, { method: "POST" }),
   closeTemplate: (id: string) =>
     request<Template>(`/templates/${id}/close`, { method: "POST" }),
-  generateTemplate: (prompt: string, audience: SurveyAudience) =>
+  generateTemplate: (
+    prompt: string,
+    audience: SurveyAudience,
+    audienceUserId: string | null = null,
+  ) =>
     request<GeneratedTemplate>("/templates/generate", {
       method: "POST",
-      body: JSON.stringify({ prompt, audience }),
+      body: JSON.stringify({ prompt, audience, audience_user_id: audienceUserId }),
     }),
   refineTemplate: (id: string, instruction: string) =>
     request<GeneratedTemplate>(`/templates/${id}/refine`, {

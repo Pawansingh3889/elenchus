@@ -43,7 +43,10 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
   const [description, setDescription] = useState("");
   const draft = useDraftQuestions();
   const questions = draft.questions;
-  const [audience, setAudience] = useState<SurveyAudience>("respondents");
+  const [audience, setAudience] = useState<SurveyAudience>("everyone");
+  // Carried, not edited, exactly like `audience`. The builder renders no control for
+  // either; both exist here so a save cannot silently change who a survey is for.
+  const [audienceUserId, setAudienceUserId] = useState<string | null>(null);
   const [setting, setSetting] = useState("");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [confirmingPublish, setConfirmingPublish] = useState(false);
@@ -73,6 +76,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
     setTitle(template.title);
     setDescription(template.description ?? "");
     setAudience(template.audience);
+    setAudienceUserId(template.audience_user_id);
     setSetting(template.setting ?? "");
     draft.reset(
       template.questions.map((q) => ({
@@ -103,13 +107,18 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
 
   const blockers = publishBlockers(questions, msg.builder);
 
-  // audience and setting ride on every write although nothing here edits them: a save
-  // replaces the whole template, so leaving one out clears it. Read from the template,
-  // sent straight back.
+  // audience, the person it names, and setting ride on every write although nothing here
+  // edits them: a save replaces the whole template, so leaving one out clears it. Read
+  // from the template, sent straight back.
+  //
+  // The person is not optional once the audience is `person`: the server validates the
+  // pair, so a save that dropped it would be a 422 on a survey the author only opened to
+  // fix a typo.
   const body = {
     title,
     description: description || null,
     audience,
+    audience_user_id: audienceUserId,
     // Empty box means no setting, not an empty one: null is what "not described" is
     // stored as, and the engine reads a blank string the same way.
     setting: setting.trim() || null,
@@ -133,7 +142,9 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
       // Rendered from update.error / publish.error below.
     }
   };
-  const onDelete = () => remove.mutate(undefined, { onSuccess: () => router.push("/") });
+  // Back to the workspace, not the landing page. `/` explains the product now, which is
+  // not what somebody who has just deleted a draft is looking for.
+  const onDelete = () => remove.mutate(undefined, { onSuccess: () => router.push("/dashboard") });
   const onRefine = async () => {
     const text = instruction.trim();
     if (!text) return;
@@ -147,6 +158,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
       // cannot change it, so this only ever re-states what was already saved. Re-seeding
       // it with the rest keeps one source of truth for the whole form.
       setAudience(revised.audience);
+      setAudienceUserId(revised.audience_user_id);
       setSetting(revised.setting ?? "");
       draft.reset(
         revised.questions.map((q) => ({

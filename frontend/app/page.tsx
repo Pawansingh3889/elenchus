@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { groupForDashboard } from "@/lib/dashboardAttention";
 import { useT } from "@/lib/i18n/useT";
-import { useCurrentUser, useDashboard, useGenerateTemplate } from "@/lib/queries";
+import { useCurrentUser, useDashboard, useGenerateTemplate, useUsers } from "@/lib/queries";
 import { useDraftNoteStore, useUserStore } from "@/lib/store";
 import type { SurveyAudience } from "@/lib/types";
 
@@ -33,20 +33,35 @@ export default function Home() {
   // already had.
   const currentUserId = useUserStore((s) => s.currentUserId);
   const currentUser = useCurrentUser();
+  // Already fetched for the top bar's user picker, so this is the same cached query
+  // rather than a second request.
+  const { data: users } = useUsers();
   const { data: rows } = useDashboard();
   const generate = useGenerateTemplate();
   const router = useRouter();
   const [prompt, setPrompt] = useState("");
-  const [audience, setAudience] = useState<SurveyAudience>("respondents");
+  const [audience, setAudience] = useState<SurveyAudience>("everyone");
+  const [audienceUserId, setAudienceUserId] = useState<string>("");
   const setPendingNote = useDraftNoteStore((s) => s.setPendingNote);
 
   const isAuthor = currentUser?.role === "author";
   const isRespondent = currentUser?.role === "respondent";
   const needsYou = rows ? groupForDashboard(rows).needsYou.length : 0;
 
+  // A person must actually be chosen before the pair is valid. The server refuses
+  // `person` with nobody named, so catching it here is the difference between a disabled
+  // button and a 422 the author has to interpret.
+  const needsPerson = audience === "person" && !audienceUserId;
+
   async function onGenerate() {
-    if (!prompt.trim()) return;
-    const { template, note } = await generate.mutateAsync({ prompt: prompt.trim(), audience });
+    if (!prompt.trim() || needsPerson) return;
+    const { template, note } = await generate.mutateAsync({
+      prompt: prompt.trim(),
+      audience,
+      // Only ever sent with `person`. Sending a stale id alongside a group audience is
+      // the other half of the pairing the server rejects.
+      audienceUserId: audience === "person" ? audienceUserId : null,
+    });
     // Hand the note to the builder, then drop straight into it with the questions.
     if (note) setPendingNote(template.id, note);
     router.push(`/templates/${template.id}`);
@@ -56,11 +71,13 @@ export default function Home() {
   // union in lib/types.ts is what the API accepts, and a typo in one of these strings
   // would be a 422 the author reads as "generating is broken".
   const audiences: { value: SurveyAudience; label: string }[] = [
-    { value: "respondents", label: landing.audienceRespondents },
-    { value: "hr", label: landing.audienceHr },
-    { value: "operations", label: landing.audienceOperations },
-    { value: "finance", label: landing.audienceFinance },
-    { value: "technical", label: landing.audienceTechnical },
+    { value: "everyone", label: landing.audienceEveryone },
+    { value: "operatives", label: landing.audienceOperatives },
+    { value: "line_leaders", label: landing.audienceLineLeaders },
+    { value: "supervisors", label: landing.audienceSupervisors },
+    { value: "managers", label: landing.audienceManagers },
+    { value: "qa", label: landing.audienceQa },
+    { value: "person", label: landing.audiencePerson },
   ];
 
   const steps = [
@@ -97,37 +114,66 @@ export default function Home() {
             onChange={setPrompt}
           />
           {/* Who it is for, chosen with the description rather than after it. This is the
-              first control anywhere in the app that sets `audience`: the builder carries
-              the field on every save but has never rendered a way to change it, so until
-              now every survey was aimed at the whole respondent pool by default. */}
+              only control anywhere in the app that sets `audience`: the builder carries
+              the field on every save but has never rendered a way to change it. */}
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <label className="flex items-center gap-2 text-sm text-muted">
-              {landing.audienceLabel}
-              {/* No font-size or colour utility on the select: `input, textarea, select`
-                  in globals.css is unlayered, so its `font-size: inherit` and `color`
-                  beat any utility here. The size comes from the label's `text-sm` through
-                  that inherit, which is the mechanism, not a coincidence to rely on
-                  silently. */}
-              <select
-                className="rounded-md border border-line bg-raised px-2 py-1"
-                value={audience}
-                onChange={(e) => setAudience(e.target.value as SurveyAudience)}
-              >
-                {audiences.map((a) => (
-                  <option key={a.value} value={a.value}>
-                    {a.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="flex items-center gap-2 text-sm text-muted">
+                {landing.audienceLabel}
+                {/* No font-size or colour utility on the select: `input, textarea, select`
+                    in globals.css is unlayered, so its `font-size: inherit` and `color`
+                    beat any utility here. The size comes from the label's `text-sm`
+                    through that inherit, which is the mechanism, not a coincidence to
+                    rely on silently. */}
+                <select
+                  className="rounded-md border border-line bg-raised px-2 py-1"
+                  value={audience}
+                  onChange={(e) => setAudience(e.target.value as SurveyAudience)}
+                >
+                  {audiences.map((a) => (
+                    <option key={a.value} value={a.value}>
+                      {a.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {/* Only when there is a person to choose. A permanently visible name picker
+                  that does nothing for six of the seven audiences is a control that
+                  teaches the reader to ignore it. */}
+              {audience === "person" ? (
+                <label className="flex items-center gap-2 text-sm text-muted">
+                  {landing.personLabel}
+                  <select
+                    className="rounded-md border border-line bg-raised px-2 py-1"
+                    value={audienceUserId}
+                    onChange={(e) => setAudienceUserId(e.target.value)}
+                  >
+                    <option value="">{landing.personPlaceholder}</option>
+                    {(users ?? []).map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.display_name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+            </div>
             <Button
               variant="ai"
               onClick={onGenerate}
-              disabled={generate.isPending || !prompt.trim()}
+              disabled={generate.isPending || !prompt.trim() || needsPerson}
             >
               {generate.isPending ? home.drafting : home.generateDraft}
             </Button>
           </div>
+
+          {/* Said out loud rather than left to be inferred. A survey with an audience of
+              one is attributable however the results are labelled: the answers still
+              carry a pseudonym, and with one person in the audience the pseudonym hides
+              nothing. An author choosing this should know that before they send it. */}
+          {audience === "person" ? (
+            <p className="text-sm text-warn-text">{landing.attributable}</p>
+          ) : null}
           {generate.error ? <ErrorBanner error={generate.error} /> : null}
         </div>
       ) : null}

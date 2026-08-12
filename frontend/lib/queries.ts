@@ -119,8 +119,15 @@ export function useGenerateTemplate() {
     // An object rather than two positional arguments: the audience decides who may answer
     // the survey, and a bare second string is the kind of thing that gets passed in the
     // wrong order once and then silently aims a survey at the wrong people.
-    mutationFn: ({ prompt, audience }: { prompt: string; audience: SurveyAudience }) =>
-      api.generateTemplate(prompt, audience),
+    mutationFn: ({
+      prompt,
+      audience,
+      audienceUserId,
+    }: {
+      prompt: string;
+      audience: SurveyAudience;
+      audienceUserId?: string | null;
+    }) => api.generateTemplate(prompt, audience, audienceUserId ?? null),
     onSuccess: () => invalidateTemplate(qc),
   });
 }
