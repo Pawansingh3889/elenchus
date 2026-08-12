@@ -126,6 +126,11 @@ export const de: Messages = {
       "Ihre bisherigen Antworten sind gespeichert; machen Sie dort weiter, wo Sie aufgehört haben.",
     editPrevious: "Meine vorherige Antwort bearbeiten",
     editPreviousHint: "Die Frage kommt zurück, damit Sie sie erneut beantworten können.",
+    withdraw: "Meine Antworten zurückziehen",
+    withdrawHint:
+      "Alles, was Sie in dieser Umfrage gesagt haben, wird gelöscht. Das lässt sich nicht rückgängig machen.",
+    withdrawConfirm:
+      "Ihre Antworten zu dieser Umfrage zurückziehen? Alles, was Sie gesagt haben, und das gesamte Gespräch werden dauerhaft gelöscht. Das lässt sich nicht rückgängig machen.",
     editPreviousConfirm:
       "Vorherige Antwort zurücknehmen? Alles, was die Umfrage dazu gefragt hat, wird ebenfalls entfernt, und Sie beantworten diese Frage erneut.",
     done: "Danke. Ihre Antworten sind gespeichert.",

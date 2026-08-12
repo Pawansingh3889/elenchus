@@ -130,6 +130,11 @@ export const lt: Messages = {
     finishLaterHint: "Iki šiol pateikti atsakymai įrašyti; tęskite nuo tos vietos, kur baigėte.",
     editPrevious: "Taisyti ankstesnį atsakymą",
     editPreviousHint: "Klausimas sugrįš, kad galėtumėte atsakyti dar kartą.",
+    withdraw: "Atšaukti mano atsakymus",
+    withdrawHint:
+      "Viskas, ką pasakėte šioje apklausoje, bus ištrinta. To atšaukti nebegalėsite.",
+    withdrawConfirm:
+      "Atšaukti savo atsakymus į šią apklausą? Viskas, ką pasakėte, ir visas pokalbis bus visam laikui ištrinti. To atšaukti nebegalėsite.",
     editPreviousConfirm:
       "Atšaukti ankstesnį atsakymą? Bus pašalinta ir visa, ko apklausa apie jį klausė, o į tą klausimą atsakysite iš naujo.",
     done: "Ačiū. Jūsų atsakymai įrašyti.",

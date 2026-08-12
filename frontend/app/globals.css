@@ -1322,6 +1322,14 @@ select.field {
   color: inherit;
   font-size: var(--text-sm);
 }
+/* The one irreversible thing a respondent can do. Coloured rather than left inheriting,
+   so it does not read as another way to leave the page next to "Finish later", which is
+   the control it sits nearest. Its contrast against the page is checked by the palette
+   guard like every other pairing; --err-text on plain background is not the same
+   measurement as --err-text on --err-fill. */
+.link-btn-danger {
+  color: var(--err-text);
+}
 
 /* "Finish later" — leaving mid-run is safe because every turn is already persisted. */
 /* Flex rather than centred inline text, because the separator used to be a leading
@@ -1330,6 +1338,20 @@ select.field {
 .chat-amend,
 .chat-later {
   margin-top: 8px;
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  justify-content: center;
+  flex-wrap: wrap;
+  font-size: var(--text-sm);
+  color: var(--secondary);
+}
+/* Same row shape as "Finish later", set further down and behind a rule, because the two
+   are one keystroke apart and only one of them destroys anything. */
+.chat-withdraw {
+  margin-block-start: 24px;
+  padding-block-start: 16px;
+  border-block-start: 1px solid var(--border-faint);
   display: flex;
   gap: 6px;
   align-items: baseline;

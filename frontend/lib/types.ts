@@ -168,7 +168,7 @@ export interface Run {
 
 export interface RunSummary {
   id: string;
-  respondent_name: string;
+  respondent_label: string;
   status: RunStatus;
   version: number;
   answered: number;
@@ -198,7 +198,7 @@ export type StoredRunSummary = RunSummaryContent & {
 
 export interface RunDetail {
   id: string;
-  respondent_name: string;
+  respondent_label: string;
   status: RunStatus;
   version: number;
   started_at: string;

@@ -35,7 +35,7 @@ async def test_lists_who_answered_and_how_far_they_got(session, author, responde
     assert len(summaries) == 1
     summary = summaries[0]
     assert summary.id == run.id
-    assert summary.respondent_name == "Test Respondent"
+    assert summary.respondent_label == "Respondent 1"
     assert summary.status is RunStatus.in_progress
     assert (summary.answered, summary.total) == (1, 2)
     assert summary.version == 1
@@ -74,7 +74,7 @@ async def test_detail_returns_the_answers_and_the_transcript(
 
     detail = await ResultsService(session).get_run(published.id, run.id, author)
 
-    assert detail.respondent_name == "Test Respondent"
+    assert detail.respondent_label == "Respondent 1"
     assert [a.question_text for a in detail.answers] == ["What's your role?"]
     assert detail.answers[0].value == {"text": "Line lead"}
     assert [m.role.value for m in detail.messages] == ["assistant", "user", "assistant"]
@@ -439,3 +439,65 @@ async def test_a_number_question_reports_its_spread_not_just_an_average(
     assert question.answered == 2
     assert question.average == 27.5
     assert (question.low, question.high) == (10, 45)
+
+
+# ------------------------------------------------------------------ who said it
+
+
+async def test_the_author_sees_a_number_rather_than_a_name(
+    session, author, respondent, other_respondent, published
+):
+    """Agreed 10 Aug: no names on answers. The author still needs to tell one person's
+    answers from another's, which a number does; what it does not do is tell them which
+    colleague said the thing about their employer."""
+    first = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    await _answer_first(session, first, respondent)
+    second = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, other_respondent)
+    await _answer_first(session, second, other_respondent)
+
+    summaries = await ResultsService(session).list_runs(published.id, author)
+    labels = {s.id: s.respondent_label for s in summaries}
+
+    assert labels[first.id] == "Respondent 1"
+    assert labels[second.id] == "Respondent 2"
+    assert not any("Respondent " in s.respondent_label[len("Respondent ") :] for s in summaries)
+
+
+async def test_the_number_is_the_order_people_answered_in(
+    session, author, respondent, other_respondent, published
+):
+    """Ordered by first run rather than by name or id, so it reads as a sequence rather
+    than an arbitrary permutation, and so it does not change when a display name does."""
+    second_to_answer = await ConductEngine(session, llm=FakeLLM()).start_run(
+        published.id, other_respondent
+    )
+    await _answer_first(session, second_to_answer, other_respondent)
+    first_to_answer = await ConductEngine(session, llm=FakeLLM()).start_run(
+        published.id, respondent
+    )
+    await _answer_first(session, first_to_answer, respondent)
+
+    labels = {
+        s.id: s.respondent_label
+        for s in await ResultsService(session).list_runs(published.id, author)
+    }
+    assert labels[second_to_answer.id] == "Respondent 1"
+    assert labels[first_to_answer.id] == "Respondent 2"
+
+
+async def test_the_same_person_carries_one_label_across_list_and_detail(
+    session, author, respondent, other_respondent, published
+):
+    """The label is only worth having if it is stable. An author reading the list, opening
+    a response and going back must be looking at the same person throughout, or the
+    numbering is worse than no numbering: they would trust it and be wrong."""
+    first = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    await _answer_first(session, first, respondent)
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, other_respondent)
+    await _answer_first(session, run, other_respondent)
+
+    service = ResultsService(session)
+    from_list = next(s for s in await service.list_runs(published.id, author) if s.id == run.id)
+    from_detail = await service.get_run(published.id, run.id, author)
+
+    assert from_list.respondent_label == from_detail.respondent_label == "Respondent 2"

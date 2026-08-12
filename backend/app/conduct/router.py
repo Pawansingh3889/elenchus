@@ -4,7 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.status import HTTP_201_CREATED
+from starlette.status import HTTP_201_CREATED, HTTP_204_NO_CONTENT
 
 from app.auth.dependencies import require_respondent
 from app.conduct.engine import ConductEngine
@@ -128,3 +128,17 @@ async def rewind_last_answer(
     engine = ConductEngine(session)
     run = await engine.rewind_last_answer(run_id, respondent)
     return await _to_read(engine, run)
+
+
+@router.delete("/{run_id}", status_code=HTTP_204_NO_CONTENT)
+async def delete_run(
+    run_id: UUID,
+    respondent: User = Depends(require_respondent),
+    session: AsyncSession = Depends(get_session),
+) -> None:
+    """Erase this run and everything in it, at the respondent's request.
+
+    204 and no body: there is nothing to return, and a representation of a run that no
+    longer exists is the one thing this must not send back.
+    """
+    await ConductEngine(session).delete_run(run_id, respondent)

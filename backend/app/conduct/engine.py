@@ -279,6 +279,35 @@ class ConductEngine:
         await self.session.commit()
         return await self.load(run_id, respondent)
 
+    async def delete_run(self, run_id: UUID, respondent: User) -> None:
+        """Erase this respondent's own run: its answers, its transcript, all of it.
+
+        access-exempt: this is ownership of a run, not visibility of a survey. A
+        run belongs to exactly one respondent and is never shared, so the identity
+        check inside ``load`` is the whole rule and app/access has nothing to add.
+        Nothing about the survey's audience bears on whether someone may withdraw
+        what they themselves said.
+
+        Deliberately unlike ``rewind_last_answer``, which refuses a completed run because
+        the author may already have read it. That reasoning is right for a *correction*,
+        which changes what the author is looking at while they look at it. It is exactly
+        wrong here: a finished run is the only kind worth erasing, and "the author has
+        already seen it" is the reason someone asks, not a reason to refuse them.
+
+        The author's totals drop when this happens, and that is the point rather than a
+        side effect. A count that survived the withdrawal of the answers behind it would
+        be a number with nothing under it.
+
+        No lock, because there is nothing to serialise against: a turn in flight holds
+        the row and its transaction either commits before this deletes or fails when the
+        row is gone, and the respondent doing both at once is one person with one
+        session.
+        """
+        run = await self.load(run_id, respondent)
+        await self.repo.delete(run)
+        await self.session.commit()
+        logger.info("run erased at the respondent's request: run=%s", run_id)
+
     async def rewind_last_answer(self, run_id: UUID, respondent: User) -> SurveyRun:
         """Undo the most recent scripted answer so it can be given again.
 

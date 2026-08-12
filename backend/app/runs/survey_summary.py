@@ -48,7 +48,7 @@ from app.llm.prompts import load_prompt
 from app.runs.enums import AnswerKind, RunStatus
 from app.runs.repository import ResultsRepository
 from app.runs.schemas import SurveyReport
-from app.runs.service import ResultsService, flatten_answer
+from app.runs.service import ResultsService, flatten_answer, respondent_label
 from app.templates.models import SurveyTemplate
 from app.templates.repository import TemplateRepository
 from app.users.models import User
@@ -353,9 +353,17 @@ class SurveySummaryService:
         Scoped to completed runs on the version the report counted, so the words and the
         numbers describe the same set of people. A quote from someone whose answers are
         excluded from every tally would be evidence for a finding the counts contradict.
+
+        Whose words they are is carried as the survey's own pseudonym, not the person's
+        name. The attribution mechanism is unchanged and needs no name to work: it needs
+        one stable key per person, which is what the number gives it. What changes is that
+        the provider is no longer sent a roster of who works here alongside what each of
+        them said about their employer, and the recap the author reads attributes a
+        complaint to Respondent 3 rather than naming a colleague.
         """
+        numbers = await self.repo.respondent_numbers(template_id)
         out: list[dict[str, str]] = []
-        for run, version, user in await self.repo.list_for_template(template_id):
+        for run, version, _ in await self.repo.list_for_template(template_id):
             if version.id != version_id or run.status is not RunStatus.completed:
                 continue
             for answer in run.answers:
@@ -364,7 +372,7 @@ class SurveySummaryService:
                     continue
                 out.append(
                     {
-                        "respondent": user.display_name,
+                        "respondent": respondent_label(numbers[run.respondent_id]),
                         "question": answer.question_text,
                         "answer": text,
                         "kind": answer.kind.value,

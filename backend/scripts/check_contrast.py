@@ -37,6 +37,11 @@ PAIRS: tuple[tuple[str, str, float, str], ...] = (
     # slab: one token, two jobs, and they diverge the moment a second theme exists.
     ("on-slab", "slab", 4.5, "text on the top bar"),
     ("err-text", "err-fill", 4.5, "error text on its fill"),
+    # The same red carrying a plain link rather than sitting on its own fill: the
+    # withdraw control on the run page. A colour checked only against the tinted
+    # background it was designed for says nothing about it on the page itself, and this
+    # one is the label on the single irreversible action a respondent has.
+    ("err-text", "canvas", 4.5, "a danger link on the page background"),
     ("warn-text", "warn-fill", 4.5, "warning text on its fill"),
     ("focus", "raised", 3.0, "focus ring on a card"),
     ("focus", "canvas", 3.0, "focus ring on the page background"),

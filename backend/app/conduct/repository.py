@@ -29,6 +29,16 @@ class RunRepository:
     def add_message(self, message: RunMessage) -> None:
         self.session.add(message)
 
+    async def delete(self, run: SurveyRun) -> None:
+        """Erase a run, and with it every answer and message it holds.
+
+        Through the ORM rather than a bulk DELETE, so the cascades declared on the
+        relationships actually run: the database has ON DELETE CASCADE on both children
+        too, and either route works, but a bulk delete would leave the identity map
+        holding rows that no longer exist for the rest of the request.
+        """
+        await self.session.delete(run)
+
     async def try_lock(self, run_id: UUID) -> bool:
         """Take the run's row lock for this transaction, or report it already held.
 

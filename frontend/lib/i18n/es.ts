@@ -130,6 +130,11 @@ export const es: Messages = {
     finishLaterHint: "Tus respuestas están guardadas; puedes continuar donde lo dejaste.",
     editPrevious: "Editar mi respuesta anterior",
     editPreviousHint: "La pregunta vuelve para que puedas responderla de nuevo.",
+    withdraw: "Retirar mis respuestas",
+    withdrawHint:
+      "Se elimina todo lo que dijiste en esta encuesta. No se puede deshacer.",
+    withdrawConfirm:
+      "¿Retirar tus respuestas a esta encuesta? Todo lo que dijiste, y la conversación entera, se elimina de forma permanente. No se puede deshacer.",
     editPreviousConfirm:
       "¿Retirar tu respuesta anterior? También se eliminará todo lo que la encuesta te preguntó sobre ella, y volverás a responder esa pregunta.",
     done: "Gracias. Tus respuestas están guardadas.",

@@ -107,19 +107,24 @@ class ResultsService:
     async def list_runs(self, template_id: UUID, author: User) -> list[RunSummary]:
         await self._owned_or_404(template_id, author)
         rows = await self.repo.list_for_template(template_id)
-        return [_summary(run, version, user) for run, version, user in rows]
+        numbers = await self.repo.respondent_numbers(template_id)
+        return [_summary(run, version, numbers) for run, version, _ in rows]
 
     async def get_run(self, template_id: UUID, run_id: UUID, author: User) -> RunDetail:
         await self._owned_or_404(template_id, author)
         row = await self.repo.get_detail(run_id)
         if row is None:
             raise NotFoundError("Run not found.")
-        run, version, user = row
+        run, version, _ = row
         if version.template_id != template_id:
             raise NotFoundError("That run belongs to a different template.")
+        # Numbered across the whole survey rather than within this row, which is why the
+        # lookup is a second query rather than something the run carries: a respondent's
+        # number is their position among everyone who answered, and one run cannot know it.
+        numbers = await self.repo.respondent_numbers(template_id)
         return RunDetail(
             id=run.id,
-            respondent_name=user.display_name,
+            respondent_label=respondent_label(numbers[run.respondent_id]),
             status=run.status,
             version=version.version,
             started_at=run.started_at,
@@ -328,6 +333,22 @@ def follow_ups_asked(run: SurveyRun) -> dict[UUID, int]:
     return counts
 
 
+def respondent_label(number: int) -> str:
+    """How one respondent is named to the author, given their number in this survey.
+
+    One function because the label has two jobs and they must agree. It is what the
+    results list and the run detail show, and it is also the key the survey recap
+    attributes quotes with: the model is given "Respondent 3 on ...", returns a quote
+    against that name, and the verifier matches it back. Two spellings of the same
+    respondent would silently drop every quote as unattributable.
+
+    Left in English rather than translated for that second job. It is an identifier the
+    model copies exactly, the way option values are, and a key that changed with the
+    author's interface language would match nothing the moment they switched.
+    """
+    return f"Respondent {number}"
+
+
 def flatten_answer(value: dict[str, Any]) -> str:
     """One human-readable cell per stored answer value, whatever its shape."""
     if "text" in value:
@@ -353,12 +374,14 @@ def flatten_answer(value: dict[str, Any]) -> str:
     return json.dumps(value)  # future shapes export verbatim rather than crash a download
 
 
-def _summary(run: SurveyRun, version: SurveyTemplateVersion, user: User) -> RunSummary:
+def _summary(
+    run: SurveyRun, version: SurveyTemplateVersion, numbers: dict[UUID, int]
+) -> RunSummary:
     questions = questions_of(version.definition)
     answers = {str(a.question_id): a.value for a in run.answers if a.kind is AnswerKind.scripted}
     return RunSummary(
         id=run.id,
-        respondent_name=user.display_name,
+        respondent_label=respondent_label(numbers[run.respondent_id]),
         status=run.status,
         version=version.version,
         answered=len(answers),

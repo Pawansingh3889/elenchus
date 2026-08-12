@@ -18,7 +18,7 @@ from app.conduct.engine import (
     _transcript,
 )
 from app.conduct.repository import RunRepository
-from app.errors import ConflictError, ForbiddenError
+from app.errors import ConflictError, ForbiddenError, NotFoundError
 from app.i18n import translate
 from app.llm import ledger
 from app.llm.client import LLMError, NoToolCallError, ToolTurn
@@ -1842,3 +1842,109 @@ async def test_an_answer_about_a_batch_code_is_not_refused(session, respondent, 
 
     assert llm.calls == 2
     assert run.current_question_index == 1
+
+
+# ------------------------------------------------------------------ erasure
+
+
+async def test_a_respondent_can_erase_their_own_run(session, respondent, published):
+    """The other half of the 10 Aug agreement: no names on answers, and erasure on
+    request. Answers and transcript go with the run, which the cascades already handle."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+    llm = FakeLLM(_record("Line lead"), _move_on("Thanks."))
+    run = await ConductEngine(session, llm=llm).handle_message(run.id, "line lead", respondent)
+    assert run.answers
+
+    await ConductEngine(session, llm=FakeLLM()).delete_run(run.id, respondent)
+
+    with pytest.raises(NotFoundError):
+        await ConductEngine(session, llm=FakeLLM()).load(run.id, respondent)
+
+
+async def test_erasure_takes_the_answers_and_the_transcript_with_it(
+    engine, session, respondent, published
+):
+    """Checked against the tables rather than through the engine, because "the run is
+    gone" and "what the run held is gone" are different claims and only the second one is
+    the promise. Orphaned answers would still be the respondent's words, still readable,
+    and no longer attached to anything that could be deleted again."""
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.runs.models import Answer
+
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    llm = FakeLLM(_record("Line lead"), _move_on("Thanks."))
+    run = await ConductEngine(session, llm=llm).handle_message(run.id, "line lead", respondent)
+    await session.commit()
+
+    await ConductEngine(session, llm=FakeLLM()).delete_run(run.id, respondent)
+
+    async with AsyncSession(engine, expire_on_commit=False) as fresh:
+        answers = (await fresh.execute(select(Answer).where(Answer.run_id == run.id))).all()
+        messages = (
+            await fresh.execute(select(RunMessage).where(RunMessage.run_id == run.id))
+        ).all()
+    assert answers == []
+    assert messages == []
+
+
+async def test_a_completed_run_can_still_be_erased(session, respondent, published):
+    """Deliberately unlike rewind, which refuses a finished run because the author may
+    have read it. Here that is the reason someone asks, not a reason to refuse them: a
+    finished run is the only kind worth erasing."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+    answered = FakeLLM(_record("Line lead"), _move_on())
+    run = await ConductEngine(session, llm=answered).handle_message(run.id, "line lead", respondent)
+    run = await ConductEngine(session, llm=FakeLLM(_record(4))).handle_message(
+        run.id, "4", respondent
+    )
+    assert run.status is RunStatus.completed
+
+    await ConductEngine(session, llm=FakeLLM()).delete_run(run.id, respondent)
+
+    with pytest.raises(NotFoundError):
+        await ConductEngine(session, llm=FakeLLM()).load(run.id, respondent)
+
+
+async def test_one_respondent_cannot_erase_another_persons_run(
+    session, respondent, other_respondent, published
+):
+    """The same ownership gate reading and rewinding get. Erasure reachable by guessing a
+    run id would be a way to delete someone else's answers, which is worse than reading
+    them: it cannot be undone and leaves the author's totals quietly short."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    with pytest.raises(ForbiddenError):
+        await ConductEngine(session, llm=FakeLLM()).delete_run(run.id, other_respondent)
+
+    assert await ConductEngine(session, llm=FakeLLM()).load(run.id, respondent) is not None
+
+
+async def test_erasing_a_run_removes_it_from_the_authors_results(
+    session, author, respondent, other_respondent, published
+):
+    """The author's totals drop, which is the point rather than a side effect: a count
+    that survived the withdrawal of the answers behind it is a number with nothing
+    under it."""
+    from app.runs.service import ResultsService
+
+    kept = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    await ConductEngine(session, llm=FakeLLM(_record("Line lead"), _move_on())).handle_message(
+        kept.id, "line lead", respondent
+    )
+    withdrawn = await ConductEngine(session, llm=FakeLLM()).start_run(
+        published.id, other_respondent
+    )
+    await ConductEngine(session, llm=FakeLLM(_record("Packer"), _move_on())).handle_message(
+        withdrawn.id, "packer", other_respondent
+    )
+    assert len(await ResultsService(session).list_runs(published.id, author)) == 2
+
+    await ConductEngine(session, llm=FakeLLM()).delete_run(withdrawn.id, other_respondent)
+
+    remaining = await ResultsService(session).list_runs(published.id, author)
+    assert [s.id for s in remaining] == [kept.id]

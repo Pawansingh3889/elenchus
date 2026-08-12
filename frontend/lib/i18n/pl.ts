@@ -130,6 +130,11 @@ export const pl: Messages = {
     finishLaterHint: "Dotychczasowe odpowiedzi są zapisane; wrócisz do miejsca, w którym skończyłeś.",
     editPrevious: "Popraw moją poprzednią odpowiedź",
     editPreviousHint: "Pytanie wróci, żebyś mógł odpowiedzieć jeszcze raz.",
+    withdraw: "Wycofaj moje odpowiedzi",
+    withdrawHint:
+      "Wszystko, co powiedziałeś w tej ankiecie, zostanie usunięte. Tego nie da się cofnąć.",
+    withdrawConfirm:
+      "Wycofać swoje odpowiedzi w tej ankiecie? Wszystko, co powiedziałeś, i cała rozmowa zostaną trwale usunięte. Tego nie da się cofnąć.",
     editPreviousConfirm:
       "Wycofać poprzednią odpowiedź? Usunięte zostanie także wszystko, o co ankieta dopytywała w związku z nią, i odpowiesz na to pytanie ponownie.",
     done: "Dziękujemy. Twoje odpowiedzi są zapisane.",

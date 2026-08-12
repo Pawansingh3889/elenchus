@@ -52,7 +52,7 @@ class AnswerRead(BaseModel):
 
 class RunSummary(BaseModel):
     id: UUID
-    respondent_name: str
+    respondent_label: str
     status: RunStatus
     version: int
     answered: int
@@ -63,7 +63,7 @@ class RunSummary(BaseModel):
 
 class RunDetail(BaseModel):
     id: UUID
-    respondent_name: str
+    respondent_label: str
     status: RunStatus
     version: int
     started_at: datetime
