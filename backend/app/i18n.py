@@ -67,6 +67,76 @@ MESSAGES: dict[str, dict[str, str]] = {
         "ur": "بس اتنا ہی، شکریہ۔ آپ کے جوابات محفوظ ہو گئے۔",
         "ar": "هذا كل شيء، شكرًا لك. تم حفظ إجاباتك.",
     },
+    # One sentence for all three identifier kinds rather than one per kind. The kind is
+    # logged for the operator; the respondent needs to know what to remove, and naming
+    # the categories does that without the catalogue carrying three near-identical
+    # entries in fifteen locales, each a chance to get a translation subtly wrong.
+    "pii_in_message": {
+        "en": (
+            "Please leave personal details like email addresses, phone numbers or ID "
+            "numbers out of your answer, then send it again."
+        ),
+        "de": (
+            "Bitte lassen Sie persönliche Angaben wie E-Mail-Adressen, Telefonnummern "
+            "oder Ausweisnummern aus Ihrer Antwort weg und senden Sie sie erneut."
+        ),
+        "fil": (
+            "Pakiusap, huwag isama ang personal na detalye tulad ng email address, "
+            "numero ng telepono o ID number. Ipadala muli ang iyong sagot nang wala ang "
+            "mga ito."
+        ),
+        "pl": (
+            "Nie podawaj danych osobowych, takich jak adresy e-mail, numery telefonu "
+            "czy numery identyfikacyjne. Wyślij odpowiedź ponownie bez nich."
+        ),
+        "lv": (
+            "Lūdzu, neiekļaujiet personas datus, piemēram, e-pasta adreses, tālruņa "
+            "numurus vai identifikācijas numurus. Nosūtiet atbildi vēlreiz bez tiem."
+        ),
+        "lt": (
+            "Prašome nenurodyti asmens duomenų, tokių kaip el. pašto adresai, telefono "
+            "numeriai ar asmens kodai. Išsiųskite atsakymą dar kartą be jų."
+        ),
+        "ro": (
+            "Te rugăm să nu incluzi date personale precum adrese de e-mail, numere de "
+            "telefon sau numere de identificare. Trimite răspunsul din nou fără ele."
+        ),
+        "es": (
+            "No incluyas datos personales como direcciones de correo electrónico, "
+            "números de teléfono o números de identificación. Envía tu respuesta de "
+            "nuevo sin ellos."
+        ),
+        # Retired locales, kept for in-flight runs.
+        "fr": (
+            "Merci de ne pas inclure de données personnelles comme des adresses e-mail, "
+            "des numéros de téléphone ou des numéros d'identification. Renvoyez votre "
+            "réponse sans elles."
+        ),
+        "pt": (
+            "Não inclua dados pessoais como endereços de e-mail, números de telefone ou "
+            "números de identificação. Envie a sua resposta novamente sem eles."
+        ),
+        "hi": (
+            "कृपया अपने उत्तर में ईमेल पता, फ़ोन नंबर या पहचान संख्या जैसी निजी जानकारी शामिल न करें। "
+            "इनके बिना उत्तर दोबारा भेजें।"
+        ),
+        "bn": (
+            "অনুগ্রহ করে আপনার উত্তরে ইমেল ঠিকানা, ফোন নম্বর বা পরিচয় নম্বরের মতো ব্যক্তিগত তথ্য "
+            "দেবেন না। সেগুলি ছাড়া উত্তরটি আবার পাঠান।"
+        ),
+        "he": (
+            "אנא אל תכללו פרטים אישיים כמו כתובות אימייל, מספרי טלפון או מספרי זהות. "
+            "שלחו את התשובה שוב בלעדיהם."
+        ),
+        "ur": (
+            "براہِ کرم اپنے جواب میں ای میل پتہ، فون نمبر یا شناختی نمبر جیسی ذاتی معلومات "
+            "شامل نہ کریں۔ ان کے بغیر جواب دوبارہ بھیجیں۔"
+        ),
+        "ar": (
+            "يرجى عدم تضمين بيانات شخصية مثل عناوين البريد الإلكتروني أو أرقام الهاتف أو "
+            "أرقام الهوية. أعد إرسال إجابتك بدونها."
+        ),
+    },
     "database_unavailable": {
         "en": "The service cannot reach its database right now. Please try again in a moment.",
         "de": (

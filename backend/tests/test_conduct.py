@@ -19,8 +19,10 @@ from app.conduct.engine import (
 )
 from app.conduct.repository import RunRepository
 from app.errors import ConflictError, ForbiddenError
+from app.i18n import translate
 from app.llm import ledger
 from app.llm.client import LLMError, NoToolCallError, ToolTurn
+from app.pii import PIIInMessageError
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
 from app.runs.models import RunMessage, SurveyRun
 from app.templates.enums import AnswerType, FollowUpPolicy
@@ -1767,3 +1769,76 @@ async def test_an_assistant_turn_records_the_tier_that_actually_answered(
     run = await ConductEngine(session, llm=llm).handle_message(run.id, "line lead", respondent)
 
     assert (run.messages[-1].model, run.messages[-1].tier) == ("llama-70b", 2)
+
+
+# ------------------------------------------------------- contact details never get in
+
+
+async def test_a_message_carrying_an_email_address_is_refused(session, respondent, published):
+    """Refused before the append and before the model call, which is the whole ordering.
+
+    A check after the call would have handed the address to a hosted provider already, and
+    one after the append would have written it into a transcript the author reads. Nothing
+    is stored, nothing is sent, and the fake is left holding a turn nobody asked for.
+    """
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+    before = len(run.messages)
+
+    llm = FakeLLM(_record("Line lead"), _move_on())
+    with pytest.raises(PIIInMessageError):
+        await ConductEngine(session, llm=llm).handle_message(
+            run.id, "I'm the line lead, ravi@example.com", respondent
+        )
+
+    assert llm.calls == 0  # no model call, so the refusal costs the run nothing
+    reloaded = await ConductEngine(session, llm=FakeLLM()).load(run.id, respondent)
+    assert len(reloaded.messages) == before
+    assert not any("ravi@example.com" in m.content for m in reloaded.messages)
+
+
+async def test_the_refusal_is_written_in_the_runs_language(session, respondent, published):
+    """The handler renders an AppError's message verbatim, so a respondent-facing
+    sentence has to be translated where it is raised. The engine is the only place that
+    knows which language this run is being conducted in."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent, language="es")
+
+    with pytest.raises(PIIInMessageError) as raised:
+        await ConductEngine(session, llm=FakeLLM()).handle_message(
+            run.id, "escríbeme a ravi@example.com", respondent
+        )
+
+    assert raised.value.message == translate("pii_in_message", "es")
+    assert raised.value.message != translate("pii_in_message", "en")
+
+
+async def test_the_refusal_does_not_repeat_the_value_it_objected_to(session, respondent, published):
+    """A message quoting the number it refused has just written that number into a second
+    place: the API response, and from there whatever logs it."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    with pytest.raises(PIIInMessageError) as raised:
+        await ConductEngine(session, llm=FakeLLM()).handle_message(
+            run.id, "ring me on 07700 900123", respondent
+        )
+
+    assert "07700" not in raised.value.message
+    assert "900123" not in raised.value.message
+
+
+async def test_an_answer_about_a_batch_code_is_not_refused(session, respondent, published):
+    """The other direction, at the engine rather than in isolation. This survey asks a
+    fish plant about batch codes; a gate that refused one would refuse the answer the
+    survey exists to collect."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    llm = FakeLLM(_record("Line lead"), _move_on("Thanks."))
+    run = await ConductEngine(session, llm=llm).handle_message(
+        run.id, "line lead, batch 4021998745 was the warm one", respondent
+    )
+
+    assert llm.calls == 2
+    assert run.current_question_index == 1

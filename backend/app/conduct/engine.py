@@ -13,6 +13,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import pii
 from app.access import is_admin_by_config, may_answer
 from app.conduct.repository import RunRepository
 from app.conduct.validation import (
@@ -50,7 +51,7 @@ MAX_MODEL_TURNS = 3  # per respondent message
 # name alongside `runs/summary.py`'s, and every assistant message is stamped with it, so
 # the version that produced a turn has to be one value rather than a string repeated
 # wherever it happens to be needed.
-PROMPT_VERSION = "conduct_v7"
+PROMPT_VERSION = "conduct_v8"
 TRANSCRIPT_WINDOW = 12  # messages replayed per turn; the briefing restates the question
 _REJECTED = "run=%s question=%s tool=%s raw_input=%r raw_text=%r error=%s"
 # Said when the model supplies no closing line of its own. Resolved per run rather than
@@ -239,6 +240,18 @@ class ConductEngine:
         start_run.
         """
         run, questions = await self._locked_open_run(run_id, respondent)
+
+        # Before the message is stored and before it is sent anywhere. Both matter and
+        # the ordering is the whole point: a check that ran after the model call would
+        # have already handed the number to a hosted provider, and one that ran after the
+        # append would have written it into a transcript an author reads. Refusing costs
+        # the respondent a turn and costs the run nothing, since no call is made.
+        found = pii.problem(content)
+        if found is not None:
+            # The kind, never the value. A log line quoting the number it objected to has
+            # just become the second place that number is written down.
+            logger.info("refused a message carrying a %s: run=%s", found, run.id)
+            raise pii.PIIInMessageError(translate("pii_in_message", run.language))
 
         run.messages.append(RunMessage(role=MessageRole.user, content=content))
         await self.session.flush()
