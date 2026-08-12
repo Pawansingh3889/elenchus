@@ -116,6 +116,7 @@ export const lt: Messages = {
     publishShape: (q: number, p: number) => p > 0 ? `${q} klausimai, iš jų ${p} visada patikslina.` : `${q} klausimai.`,
     publishFreezes: "Paskelbus šie klausimai užfiksuojami kaip 1 versija. Vėlesni pakeitimai sukuria naują versiją, o ši lieka tokia pati.",
     publishAgain: "Paskelbus sukuriama nauja versija. Nebaigusieji lieka prie tos versijos, kurią pradėjo.",
+    tabResults: "Rezultatai",
   },
   respond: {
     title: "Atviros apklausos",
@@ -190,6 +191,19 @@ export const lt: Messages = {
     followUp: "tikslinamasis klausimas",
     probeHint:
       "Tikslinamieji klausimai, kuriuos variklis leido prie šio klausimo. Jie skaičiuojami užduodant, todėl šis skaičius gali viršyti žemiau esančių atsakymų skaičių.",
+    respondents: "Respondentai",
+    questionsHeading: "Klausimas po klausimo",
+    openResponse: "Atidaryti",
+    closePanel: "Uždaryti",
+    statusComplete: "baigta",
+    statusInProgress: "vykdoma",
+    answeredOf: (n: number, total: number) => `atsakyta į ${n} iš ${total}`,
+    startedOn: (when: string) => `pradėta ${when}`,
+    completedOn: (when: string) => `baigta ${when}`,
+    stillGoing: "dar vykdoma",
+    probesAsked: (n: number) => `užduota ${n} patikslinančių klausimų`,
+    probedChip: (n: number) => `${n} patikslinimai`,
+    unansweredQuestion: "Neatsakytas klausimas",
   },
   answers: {
     yes: "Taip",

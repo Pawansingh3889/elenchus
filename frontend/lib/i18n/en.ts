@@ -124,6 +124,7 @@ export const en = {
     publishShape: (q: number, p: number) => p > 0 ? `${q} questions, ${p} of them always ask a follow-up.` : `${q} questions.`,
     publishFreezes: "Publishing freezes these questions as version 1. Later edits become a new version, and this one stays exactly as it is.",
     publishAgain: "Publishing creates a new version. Anyone part-way through keeps the version they started on, and their answers stay with it.",
+    tabResults: "Results",
   },
   respond: {
     title: "Open surveys",
@@ -198,6 +199,19 @@ export const en = {
     followUp: "follow-up",
     probeHint:
       "Follow-ups the engine allowed on this question. A probe is counted when it is asked, so this can exceed the number of follow-up answers below.",
+    respondents: "Respondents",
+    questionsHeading: "Question by question",
+    openResponse: "Open",
+    closePanel: "Close",
+    statusComplete: "complete",
+    statusInProgress: "in progress",
+    answeredOf: (n: number, total: number) => `${n} of ${total} answered`,
+    startedOn: (when: string) => `started ${when}`,
+    completedOn: (when: string) => `completed ${when}`,
+    stillGoing: "still in progress",
+    probesAsked: (n: number) => `${n} follow-up${n === 1 ? "" : "s"} asked`,
+    probedChip: (n: number) => `${n} probed`,
+    unansweredQuestion: "Unanswered question",
   },
   // Reading a stored answer. These were English inside the results page while the rest
   // of the app was translated, so a Polish author read Polish answers in an English

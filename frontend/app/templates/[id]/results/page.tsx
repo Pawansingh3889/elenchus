@@ -1,295 +1,210 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect } from "react";
 
+import { EmptyState } from "@/components/EmptyState";
+import { ErrorBanner } from "@/components/ErrorBanner";
+import { QuestionCard } from "@/components/results/QuestionCard";
+import { RunPanel } from "@/components/results/RunPanel";
+import { Stat } from "@/components/Stat";
 import { SurveyNav } from "@/components/SurveyNav";
-import { Transcript } from "@/components/Transcript";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useT } from "@/lib/i18n/useT";
-import {
-  useCurrentUser,
-  useSummariseRun,
-  useTemplate,
-  useTemplateRun,
-  useTemplateRuns,
-} from "@/lib/queries";
+import { useCurrentUser, useReport, useTemplateRuns } from "@/lib/queries";
 import { useUserStore } from "@/lib/store";
-import type { RunAnswer, RunDetail } from "@/lib/types";
 
-interface AnswerGroup {
-  questionId: string;
-  scripted: RunAnswer | null;
-  followUps: RunAnswer[];
-}
-
-/** Follow-ups carry the question id of the question they probed, so they group under it. */
-function groupByQuestion(answers: RunAnswer[]): AnswerGroup[] {
-  const groups: AnswerGroup[] = [];
-  for (const answer of answers) {
-    let group = groups.find((g) => g.questionId === answer.question_id);
-    if (!group) {
-      group = { questionId: answer.question_id, scripted: null, followUps: [] };
-      groups.push(group);
-    }
-    if (answer.kind === "scripted") group.scripted = answer;
-    else group.followUps.push(answer);
-  }
-  return groups;
-}
-
-function totalProbes(run: RunDetail): number {
-  return Object.values(run.follow_ups_asked ?? {}).reduce((sum, n) => sum + n, 0);
-}
-
-function stamp(answer: RunAnswer, respondent: string, version: number): string {
-  const when = new Date(answer.answered_at).toLocaleString(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-  return `${respondent} · ${when} · v${version}`;
-}
-
-/** Answers are stored shaped per answer type, so read whichever key is present. */
-function readValue(value: Record<string, unknown>): string {
-  if ("text" in value) return String(value.text);
-  if ("rating" in value) return `${value.rating} out of 5`;
-  if ("number" in value) return String(value.number);
-  if ("date" in value) return String(value.date);
-  if ("yes_no" in value) return value.yes_no ? "Yes" : "No";
-  if ("option" in value) return String(value.option);
-  if ("options" in value) {
-    const chosen = (value.options as string[]).join(", ");
-    const other = value.other ? ` (+ ${(value.other as string[]).join(", ")})` : "";
-    return chosen + other;
-  }
-  if ("other" in value) return String(value.other);
-  if ("unanswerable" in value) return `Declined — ${value.unanswerable}`;
-  return JSON.stringify(value);
-}
-
-/** The AI summary panel. Only offered on a completed run: summarising a half-finished
- *  one would describe a response the respondent is still giving. */
-function SummaryCard({ templateId, run }: { templateId: string; run: RunDetail }) {
-  const msg = useT();
-  const summarise = useSummariseRun(templateId, run.id);
-  const summary = run.summary;
-  const done = run.status === "completed";
-
-  return (
-    <div className="card">
-      <div className="card-label">
-        {msg.results.summary}
-        <span className="chip chip-follow">AI</span>
-      </div>
-
-      {summary ? (
-        <div className="summary">
-          <p className="summary-headline">{summary.headline}</p>
-          {summary.key_facts.length > 0 ? (
-            <ul className="summary-facts">
-              {summary.key_facts.map((fact, i) => (
-                <li key={i}>{fact}</li>
-              ))}
-            </ul>
-          ) : null}
-          {summary.notable_quotes.length > 0 ? (
-            <div className="summary-quotes">
-              {summary.notable_quotes.map((q, i) => (
-                <blockquote key={i} className="summary-quote">
-                  “{q.quote}”<cite>{q.question}</cite>
-                </blockquote>
-              ))}
-            </div>
-          ) : null}
-          <div className="answer-stamp">
-            {summary.generated_at
-              ? `Generated ${new Date(summary.generated_at).toLocaleString()}`
-              : "Generated"}
-            {summary.prompt_version ? ` · ${summary.prompt_version}` : ""}
-          </div>
-        </div>
-      ) : (
-        <div className="muted">
-          {done
-            ? "No summary yet."
-            : "Available once the respondent finishes — a partial run would summarise an answer still being given."}
-        </div>
-      )}
-
-      {summarise.error ? (
-        <div className="error-text">{(summarise.error as Error).message}</div>
-      ) : null}
-
-      <div className="page-head-actions">
-        <button
-          className="btn btn-secondary"
-          onClick={() => summarise.mutate(Boolean(summary))}
-          disabled={!done || summarise.isPending}
-          title={
-            done
-              ? "Ask the model for the key facts and notable quotes in this response"
-              : "Only a completed run can be summarised"
-          }
-        >
-          {summarise.isPending
-            ? "Summarising…"
-            : summary
-              ? "Regenerate summary"
-              : "Generate summary"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-export default function ResultsPage() {
+/**
+ * One page for what the survey found and who said it.
+ *
+ * These were two pages. Report showed per-question tallies and Responses showed one
+ * respondent at a time, and nothing linked a number to a person: a verbatim on Report
+ * was an anonymous string, and Responses could not say how one answer sat against the
+ * rest. An author asking "did the people who said X also say Y", which is the question
+ * a survey is run to answer, had no page to ask it on.
+ *
+ * `docs/ACCESS_AND_RESULTS.md` had already specified this shape: headline and flags
+ * first, question detail below, sliceable by any closed answer.
+ *
+ * View state lives in the URL. `?run=` opens one response, so an author can send a
+ * colleague a link to it and a refresh keeps it; it was component state before, which
+ * made both impossible.
+ */
+function ResultsContent() {
   const msg = useT();
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const search = useSearchParams();
   const currentUserId = useUserStore((s) => s.currentUserId);
   const currentUser = useCurrentUser();
-  const { data: runs, isLoading, error } = useTemplateRuns(id);
-  // For the heading only: this page showed the word "Responses" and never which
-  // survey's responses they were.
-  const { data: template } = useTemplate(id);
-  const [selected, setSelected] = useState<string | null>(null);
-  const detail = useTemplateRun(id, selected);
-  const router = useRouter();
+  const { data: report, isLoading, error } = useReport(id);
+  const { data: runs } = useTemplateRuns(id);
+  const openRun = search.get("run");
 
   const isRespondent = currentUser?.role === "respondent";
   useEffect(() => {
     if (isRespondent) router.replace("/respond");
   }, [isRespondent, router]);
 
-  if (!currentUserId) {
-    return <div className="empty">{msg.results.pickAuthor}</div>;
+  function setRun(runId: string | null) {
+    const next = new URLSearchParams(search.toString());
+    if (runId) next.set("run", runId);
+    else next.delete("run");
+    // replace, not push: opening responses one after another should not build a back
+    // stack the author has to unwind to leave the page.
+    router.replace(next.toString() ? `?${next}` : "?", { scroll: false });
   }
-  if (isRespondent) {
-    return <div className="empty">{msg.home.goingToRespond}</div>;
-  }
+
+  if (!currentUserId) return <p className="p-6 text-muted">{msg.results.pickAuthor}</p>;
+  if (isRespondent) return <p className="p-6 text-muted">{msg.home.goingToRespond}</p>;
 
   return (
-    <div className="page">
-      <SurveyNav templateId={id} current="responses" />
-      <div className="page-head">
-        {/* The survey's own title, not the word "Responses". This page never said which
-            survey you were reading, which is half of not knowing where you are. */}
-        <h1>{template?.title ?? msg.results.title}</h1>
-      </div>
+    // The stable hook e2e/shot.mjs waits on for this page.
+    <div className="results-page mx-auto flex max-w-5xl flex-col gap-4 p-4">
+      <SurveyNav templateId={id} current="results" />
 
-      {isLoading ? <div className="muted">{msg.common.loading}</div> : null}
-      {error ? <div className="error-text">{(error as Error).message}</div> : null}
-      {runs && runs.length === 0 ? (
-        <div className="muted">{msg.results.empty}</div>
-      ) : null}
-
-      {runs && runs.length > 0 ? (
-        <div className="results">
-          <div className="results-list">
-            {runs.map((run) => (
-              <button
-                key={run.id}
-                className={run.id === selected ? "result-row result-row-on" : "result-row"}
-                onClick={() => setSelected(run.id)}
-              >
-                <div className="result-name">{run.respondent_label}</div>
-                <div className="result-meta">
-                  {run.answered} of {run.total} · v{run.version}
-                </div>
-                <span className={`pill pill-${run.status === "completed" ? "published" : "draft"}`}>
-                  {run.status === "completed" ? "complete" : "in progress"}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          <div className="results-detail">
-            {!selected ? (
-              <div className="muted">{msg.results.pickOne}</div>
-            ) : detail.isLoading ? (
-              <div className="muted">{msg.common.loading}</div>
-            ) : detail.error ? (
-              <div className="error-text">{(detail.error as Error).message}</div>
-            ) : detail.data ? (
-              <>
-                <SummaryCard templateId={id} run={detail.data} />
-
-                <div className="card">
-                  <div className="card-label">{msg.results.answers}</div>
-                  <div className="detail-head">
-                    <strong>{detail.data.respondent_label}</strong>
-                    <span>version {detail.data.version}</span>
-                    <span>
-                      started {new Date(detail.data.started_at).toLocaleString()}
-                      {detail.data.completed_at
-                        ? `, completed ${new Date(detail.data.completed_at).toLocaleString()}`
-                        : ", still in progress"}
-                    </span>
-                    {/* Run-level total as well as the per-question chips: a question that
-                        was probed but never answered has no row to hang a chip on. */}
-                    {totalProbes(detail.data) > 0 ? (
-                      <span>
-                        {totalProbes(detail.data)} {msg.results.followUp}
-                        {totalProbes(detail.data) === 1 ? "" : "s"} asked
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="answer-list">
-                    {groupByQuestion(detail.data.answers).map((group) => (
-                      <div key={group.questionId} className="answer">
-                        <div className="answer-q">
-                          {group.scripted?.question_text ?? "Unanswered question"}
-                          {detail.data.follow_ups_asked?.[group.questionId] ? (
-                            <span
-                              className="chip chip-follow"
-                              title={msg.results.probeHint}
-                            >
-                              {detail.data.follow_ups_asked[group.questionId]} probed
-                            </span>
-                          ) : null}
-                        </div>
-                        {group.scripted ? (
-                          <>
-                            <div className="answer-v">{readValue(group.scripted.value)}</div>
-                            <div className="answer-stamp">
-                              {stamp(
-                                group.scripted,
-                                detail.data.respondent_label,
-                                detail.data.version,
-                              )}
-                            </div>
-                          </>
-                        ) : (
-                          <div className="muted">{msg.results.notAnswered}</div>
-                        )}
-                        {group.followUps.map((followUp, i) => (
-                          <div key={`${group.questionId}-${i}`} className="answer-follow">
-                            <div className="answer-q">
-                              {followUp.question_text}
-                              <span className="chip chip-follow">{msg.results.followUp}</span>
-                            </div>
-                            <div className="answer-v">{readValue(followUp.value)}</div>
-                            <div className="answer-stamp">
-                              {stamp(followUp, detail.data.respondent_label, detail.data.version)}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                    {detail.data.answers.length === 0 ? (
-                      <div className="muted">{msg.results.nothingAnswered}</div>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="card">
-                  <div className="card-label">{msg.results.transcript}</div>
-                  <Transcript messages={detail.data.messages} flat />
-                </div>
-              </>
-            ) : null}
-          </div>
+      {isLoading ? (
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-48 w-full" />
         </div>
       ) : null}
+      {error ? <ErrorBanner error={error} /> : null}
+
+      {report ? (
+        <>
+          <header className="flex flex-wrap items-center justify-between gap-3">
+            <h1 className="text-xl font-semibold">{report.title}</h1>
+            <Badge>{msg.report.versionLabel(report.version)}</Badge>
+          </header>
+
+          {/* Two rates, each labelled with what it is over. They were one tile reading
+              "8/8 responded" beside another reading "8 responses", which is the same
+              number twice, and the completion rate lived on the dashboard where there
+              was no room to say what it was a share of. Here there is room. */}
+          <Card className="flex flex-wrap gap-8 p-4">
+            <Stat
+              value={
+                report.reach > 0
+                  ? `${Math.round((report.people_completed / report.reach) * 100)}%`
+                  : "-"
+              }
+              label={msg.report.rateAnswered}
+              of={msg.report.ofPeopleAsked(report.people_completed, report.reach)}
+            />
+            <Stat
+              value={
+                report.runs_total > 0
+                  ? `${Math.round((report.runs_completed / report.runs_total) * 100)}%`
+                  : "-"
+              }
+              label={msg.report.rateFinished}
+              of={msg.report.ofThoseWhoStarted(report.runs_completed, report.runs_total)}
+            />
+          </Card>
+
+          {/* Said on the page rather than left in the code: those runs answered
+              different questions under different ids, so counting them here would
+              change what every number means. */}
+          {report.runs_on_earlier_versions > 0 ? (
+            <p className="rounded-lg border border-warn-border bg-warn-fill p-3 text-sm text-warn-text">
+              {msg.report.earlierVersions(report.runs_on_earlier_versions)}
+            </p>
+          ) : null}
+
+          {/* Only when the two disagree, which is only on answers given before one
+              answer per person was enforced. */}
+          {report.runs_total > report.people_started ? (
+            <p className="rounded-lg border border-warn-border bg-warn-fill p-3 text-sm text-warn-text">
+              {msg.report.moreRunsThanPeople(report.runs_total, report.people_started)}
+            </p>
+          ) : null}
+
+          {report.runs_total === 0 ? <EmptyState title={msg.report.nobodyYet} /> : null}
+
+          {openRun ? (
+            <RunPanel templateId={id} runId={openRun} onClose={() => setRun(null)} />
+          ) : null}
+
+          {runs && runs.length > 0 ? (
+            <section className="flex flex-col gap-2">
+              <h2 className="text-md font-semibold">{msg.results.respondents}</h2>
+              <div className="flex flex-wrap gap-2">
+                {runs.map((run) => (
+                  <Button
+                    key={run.id}
+                    variant={run.id === openRun ? "primary" : "secondary"}
+                    size="sm"
+                    onClick={() => setRun(run.id)}
+                  >
+                    {run.respondent_label}
+                    <span className="text-xs opacity-70">
+                      {msg.results.answeredOf(run.answered, run.total)}
+                    </span>
+                  </Button>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          {report.questions.length > 0 ? (
+            <section className="flex flex-col gap-3">
+              <h2 className="text-md font-semibold">{msg.results.questionsHeading}</h2>
+              {report.questions.map((question, i) => (
+                <QuestionCard key={question.id} question={question} position={i}>
+                  {/* Counted on the page, read on click: forty open answers is a long
+                      list to scroll past on the way to the next question, and grouping
+                      them would mean deciding what people meant, which this is not. */}
+                  {question.verbatim.length > 0 ? (
+                    <details className="mt-3">
+                      <summary className="cursor-pointer text-sm text-muted">
+                        {msg.report.inTheirWords(question.verbatim.length)}
+                      </summary>
+                      <ul className="mt-2 flex flex-col gap-1 ps-4">
+                        {question.verbatim.map((v, j) => (
+                          <li key={j} className="list-disc text-sm">
+                            {v}
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  ) : null}
+
+                  {/* Its own list, below the answers rather than mixed into them: a
+                      follow-up answers a question the model wrote. */}
+                  {question.follow_ups.length > 0 ? (
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-sm text-muted">
+                        {msg.report.whatProbesFound(question.follow_ups.length)}
+                      </summary>
+                      <ul className="mt-2 flex flex-col gap-1 ps-4">
+                        {question.follow_ups.map((v, j) => (
+                          <li key={j} className="list-disc text-sm">
+                            {v}
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  ) : null}
+                </QuestionCard>
+              ))}
+            </section>
+          ) : null}
+        </>
+      ) : null}
     </div>
+  );
+}
+
+export default function ResultsPage() {
+  // useSearchParams needs a Suspense boundary above it, and the fallback is what shows
+  // while the page's own JS arrives.
+  return (
+    <Suspense fallback={<div className="p-4"><Skeleton className="h-64 w-full" /></div>}>
+      <ResultsContent />
+    </Suspense>
   );
 }

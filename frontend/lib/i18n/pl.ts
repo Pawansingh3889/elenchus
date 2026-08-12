@@ -116,6 +116,7 @@ export const pl: Messages = {
     publishShape: (q: number, p: number) => p > 0 ? `${q} pytań, w tym ${p} zawsze dopytuje.` : `${q} pytań.`,
     publishFreezes: "Publikacja zamraża te pytania jako wersję 1. Późniejsze zmiany tworzą nową wersję, a ta pozostaje bez zmian.",
     publishAgain: "Publikacja tworzy nową wersję. Kto jest w trakcie, zostaje przy wersji, którą zaczął.",
+    tabResults: "Wyniki",
   },
   respond: {
     title: "Otwarte ankiety",
@@ -190,6 +191,19 @@ export const pl: Messages = {
     followUp: "pytanie pogłębiające",
     probeHint:
       "Pytania pogłębiające, na które silnik pozwolił przy tym pytaniu. Liczy się je w chwili zadania, więc ta liczba może przekraczać liczbę odpowiedzi poniżej.",
+    respondents: "Respondenci",
+    questionsHeading: "Pytanie po pytaniu",
+    openResponse: "Otwórz",
+    closePanel: "Zamknij",
+    statusComplete: "ukończona",
+    statusInProgress: "w toku",
+    answeredOf: (n: number, total: number) => `${n} z ${total} odpowiedzi`,
+    startedOn: (when: string) => `rozpoczęto ${when}`,
+    completedOn: (when: string) => `ukończono ${when}`,
+    stillGoing: "wciąż w toku",
+    probesAsked: (n: number) => `zadano ${n} pytań pogłębiających`,
+    probedChip: (n: number) => `${n} pogłębiających`,
+    unansweredQuestion: "Pytanie bez odpowiedzi",
   },
   answers: {
     yes: "Tak",

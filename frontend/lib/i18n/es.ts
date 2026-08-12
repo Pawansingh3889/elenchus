@@ -116,6 +116,7 @@ export const es: Messages = {
     publishShape: (q: number, p: number) => p > 0 ? `${q} preguntas, ${p} de ellas siempre repreguntan.` : `${q} preguntas.`,
     publishFreezes: "Publicar congela estas preguntas como la versión 1. Las ediciones posteriores crean una versión nueva y esta queda igual.",
     publishAgain: "Publicar crea una versión nueva. Quien esté a medias conserva la versión con la que empezó.",
+    tabResults: "Resultados",
   },
   respond: {
     title: "Encuestas abiertas",
@@ -190,6 +191,19 @@ export const es: Messages = {
     followUp: "repregunta",
     probeHint:
       "Repreguntas que el motor permitió en esta pregunta. Una repregunta se cuenta al formularse, así que este número puede superar el de respuestas de abajo.",
+    respondents: "Participantes",
+    questionsHeading: "Pregunta por pregunta",
+    openResponse: "Abrir",
+    closePanel: "Cerrar",
+    statusComplete: "completada",
+    statusInProgress: "en curso",
+    answeredOf: (n: number, total: number) => `${n} de ${total} respondidas`,
+    startedOn: (when: string) => `empezada ${when}`,
+    completedOn: (when: string) => `completada ${when}`,
+    stillGoing: "aún en curso",
+    probesAsked: (n: number) => `${n} repregunta${n === 1 ? "" : "s"} formulada${n === 1 ? "" : "s"}`,
+    probedChip: (n: number) => `${n} repreguntas`,
+    unansweredQuestion: "Pregunta sin responder",
   },
   answers: {
     yes: "Sí",

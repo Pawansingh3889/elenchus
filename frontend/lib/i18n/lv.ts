@@ -116,6 +116,7 @@ export const lv: Messages = {
     publishShape: (q: number, p: number) => p > 0 ? `${q} jautājumi, no tiem ${p} vienmēr uzdod precizējošu jautājumu.` : `${q} jautājumi.`,
     publishFreezes: "Publicējot šie jautājumi tiek fiksēti kā 1. versija. Vēlākas izmaiņas veido jaunu versiju, un šī paliek nemainīga.",
     publishAgain: "Publicējot tiek izveidota jauna versija. Tie, kas ir pusceļā, paliek pie versijas, ar kuru sāka.",
+    tabResults: "Rezultāti",
   },
   respond: {
     title: "Atvērtās aptaujas",
@@ -190,6 +191,19 @@ export const lv: Messages = {
     followUp: "precizējošs jautājums",
     probeHint:
       "Precizējošie jautājumi, ko dzinējs atļāva šim jautājumam. Tos skaita uzdošanas brīdī, tāpēc šis skaitlis var pārsniegt zemāk redzamo atbilžu skaitu.",
+    respondents: "Respondenti",
+    questionsHeading: "Jautājums pēc jautājuma",
+    openResponse: "Atvērt",
+    closePanel: "Aizvērt",
+    statusComplete: "pabeigta",
+    statusInProgress: "norit",
+    answeredOf: (n: number, total: number) => `atbildēts uz ${n} no ${total}`,
+    startedOn: (when: string) => `sākta ${when}`,
+    completedOn: (when: string) => `pabeigta ${when}`,
+    stillGoing: "vēl norit",
+    probesAsked: (n: number) => `uzdoti ${n} papildjautājumi`,
+    probedChip: (n: number) => `${n} papildjautājumi`,
+    unansweredQuestion: "Jautājums bez atbildes",
   },
   answers: {
     yes: "Jā",

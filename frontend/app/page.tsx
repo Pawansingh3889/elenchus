@@ -259,7 +259,7 @@ export default function Home() {
               <div className="flex items-center gap-2">
                 {attention === "resultsReady" ? (
                   <Button variant="primary" size="sm" asChild>
-                    <Link href={`/templates/${r.id}/report`}>{home.readResults}</Link>
+                    <Link href={`/templates/${r.id}/results`}>{home.readResults}</Link>
                   </Button>
                 ) : (
                   <Button variant="secondary" size="sm" asChild>
@@ -317,7 +317,7 @@ export default function Home() {
               <div className="flex items-center gap-2">
                 {r.completed > 0 ? (
                   <Button variant="secondary" size="sm" asChild>
-                    <Link href={`/templates/${r.id}/report`}>{home.report}</Link>
+                    <Link href={`/templates/${r.id}/results`}>{home.report}</Link>
                   </Button>
                 ) : null}
                 {closeButton(r)}
@@ -341,7 +341,7 @@ export default function Home() {
               </Link>
               {r.completed > 0 ? (
                 <Button variant="secondary" size="sm" asChild>
-                  <Link href={`/templates/${r.id}/report`}>{home.report}</Link>
+                  <Link href={`/templates/${r.id}/results`}>{home.report}</Link>
                 </Button>
               ) : null}
             </Card>
