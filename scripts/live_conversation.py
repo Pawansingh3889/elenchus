@@ -56,9 +56,20 @@ API = "http://localhost:8000/api/v1"
 AUTHOR = "00000000-0000-0000-0000-0000000000a1"
 RESPONDENT = "00000000-0000-0000-0000-0000000000b1"
 
-# Mirrors app.conduct.engine.MAX_FOLLOW_UPS. The check is "<=", so if the engine ever
-# raises its own cap this stays correct; it only fails if a question exceeds this many.
-EXPECTED_FOLLOW_UP_CAP = 3
+# The engine invariants this harness checks now live beside the backend, so the mocked
+# suite can replay them over every captured trace on every push rather than only here,
+# during a paid run somebody remembered to start. Reached by path because this script
+# runs on plain python3 with no backend virtualenv, and anchored to this file rather than
+# the working directory for the same reason LIVE_RUNS is.
+sys.path.insert(
+    0,
+    os.path.normpath(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "backend", "scripts")
+    ),
+)
+
+import conduct_invariants  # noqa: E402  (after the path insert above, necessarily)
+from conduct_invariants import EXPECTED_FOLLOW_UP_CAP, check_all  # noqa: E402
 
 TODAY = datetime.now(UTC).date()
 
@@ -190,6 +201,34 @@ class Run:
         self.captured: list[dict] = []
         self.judge_verdicts: list[dict] = []
 
+    def trace(self) -> dict:
+        """This conversation reduced to what the engine invariants need to judge it.
+
+        Written into the fixture so those invariants can be replayed for free later. Only
+        what they read: the positions the run passed through, which questions forced a
+        probe, and which answers were recorded against which question. Not the words,
+        which the rest of the fixture already carries.
+
+        `question_id` is here and nowhere else in the fixture, which is why this cannot
+        be derived from `answers` after the fact: a follow-up is counted per question, and
+        the recorded answers are keyed by question text alone.
+        """
+        return {
+            "total": self.total,
+            "positions": list(self.positions),
+            "questions": [
+                {
+                    "id": q["id"],
+                    "position": q["position"],
+                    "follow_up_policy": q.get("follow_up_policy"),
+                }
+                for q in self.qmeta
+            ],
+            "answers": [
+                {"question_id": a["question_id"], "kind": a["kind"]} for a in self.answers
+            ],
+        }
+
     def question_by_id(self, qid: str) -> dict | None:
         for x in self.qmeta:
             if x["id"] == qid:
@@ -250,13 +289,17 @@ def base_checks(run: Run) -> list[tuple]:
         if not shape_ok(run.type_by_id.get(a["question_id"], ""), a["value"])
     ]
     out.append(("every recorded value has a valid shape", not bad, True, bad[:3]))
+    # Every engine invariant, on every scenario, from the same module the mocked suite
+    # replays. Run here as well as there because here is where they see a conversation
+    # nobody scripted: a fake LLM does what the test tells it to, and these exist for
+    # what a real model does instead.
+    out += [(name, ok, True, detail) for name, ok, detail in check_all(run.trace())]
     return out
 
 
 def check_place_keeping(run: Run) -> tuple:
-    diffs = [b - a for a, b in zip(run.positions, run.positions[1:], strict=False)]
-    ok = all(d in (0, 1) for d in diffs) and all(p < run.total for p in run.positions)
-    return ("question index advances by at most one per message", ok, True, run.positions)
+    name, ok, detail = conduct_invariants.place_keeping(run.trace())
+    return (name, ok, True, detail)
 
 
 def follow_up_counts(run: Run) -> dict[str, int]:
@@ -1048,6 +1091,11 @@ def write_fixture(key: str, run: Run, template: dict, model: str) -> str:
                 "survey_title": template["title"],
                 "status": run.status,
                 "respondent_messages": [m["content"] for m in run.messages if m["role"] == "user"],
+                # How the conversation went, as opposed to what was said in it. Replayed
+                # by tests/test_behaviour_replay.py on every push, which is the only way
+                # a probe-sequencing regression gets caught by anything but a person
+                # reading a transcript.
+                "trace": run.trace(),
                 "answers": answers,
             },
             handle,
