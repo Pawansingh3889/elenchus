@@ -130,6 +130,11 @@ export const ro: Messages = {
     finishLaterHint: "Răspunsurile de până acum sunt salvate; continuă de unde ai rămas.",
     editPrevious: "Modifică răspunsul anterior",
     editPreviousHint: "Întrebarea revine ca să poți răspunde din nou.",
+    withdraw: "Retrage răspunsurile mele",
+    withdrawHint:
+      "Tot ce ai spus în acest sondaj se șterge. Această acțiune nu poate fi anulată.",
+    withdrawConfirm:
+      "Retragi răspunsurile tale la acest sondaj? Tot ce ai spus, și întreaga conversație, se șterge definitiv. Această acțiune nu poate fi anulată.",
     editPreviousConfirm:
       "Retragi răspunsul anterior? Se va șterge și tot ce a întrebat sondajul despre el, iar tu vei răspunde din nou la acea întrebare.",
     done: "Mulțumim. Răspunsurile tale sunt salvate.",

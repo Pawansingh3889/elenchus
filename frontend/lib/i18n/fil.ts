@@ -124,6 +124,11 @@ export const fil: Messages = {
     finishLaterHint: "Naka-save ang iyong mga sagot; magpatuloy kung saan ka tumigil.",
     editPrevious: "I-edit ang nakaraang sagot ko",
     editPreviousHint: "Babalik ang tanong para masagot mo itong muli.",
+    withdraw: "Bawiin ang aking mga sagot",
+    withdrawHint:
+      "Buburahin ang lahat ng sinabi mo sa survey na ito. Hindi na ito maibabalik.",
+    withdrawConfirm:
+      "Bawiin ang iyong mga sagot sa survey na ito? Permanenteng buburahin ang lahat ng sinabi mo at ang buong usapan. Hindi na ito maibabalik.",
     editPreviousConfirm:
       "Bawiin ang iyong nakaraang sagot? Aalisin din ang lahat ng itinanong ng survey tungkol dito, at sasagutin mong muli ang tanong na iyon.",
     done: "Salamat. Naka-save ang iyong mga sagot.",

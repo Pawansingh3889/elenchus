@@ -223,6 +223,11 @@ class RunSummaryService:
             **content.model_dump(),
             "prompt_version": PROMPT_VERSION,
             "verify_prompt_version": VERIFY_PROMPT_VERSION,
+            # Which model wrote the draft that survived checking. The prompt versions
+            # above were already here and answer half the question; a summary that reads
+            # badly six months from now needs the other half, because the prompt may not
+            # have moved at all and the tier underneath it may have.
+            "model": spend.last_model,
             "generated_at": datetime.now(UTC).isoformat(),
         }
         await self.session.commit()
@@ -249,15 +254,16 @@ class RunSummaryService:
                         "Return a corrected summary.",
                     }
                 )
-            turn = await self.llm.tool_turn(
-                # Written in the language the run was conducted in. A summary is read
-                # beside the answers it describes, and an English summary of an Arabic
-                # conversation forces the author to translate one of the two themselves.
-                system="\n\n".join((load_prompt(PROMPT_VERSION), language_note(run.language))),
-                messages=messages,
-                tools=[_TOOL],
-                max_tokens=2048,
-            )
+            with ledger.using_prompt(PROMPT_VERSION):
+                turn = await self.llm.tool_turn(
+                    # Written in the language the run was conducted in. A summary is read
+                    # beside the answers it describes, and an English summary of an Arabic
+                    # conversation forces the author to translate one of the two themselves.
+                    system="\n\n".join((load_prompt(PROMPT_VERSION), language_note(run.language))),
+                    messages=messages,
+                    tools=[_TOOL],
+                    max_tokens=2048,
+                )
             raw = _decode_stringified_fields(turn.tool_input)
             # Fabricated quotes are dropped before validation, never after: mutating a
             # validated model skips Pydantic's checks and can break its own invariants.
@@ -285,14 +291,17 @@ class RunSummaryService:
         """Fresh context: the checker sees the answers and the candidate, and nothing of
         how the draft was made, neither the writer's briefing nor its earlier attempts.
         """
-        turn = await self.verifier.tool_turn(
-            # The checker reads the same language it is checking, or it cannot judge
-            # whether a quote supports a claim.
-            system="\n\n".join((load_prompt(VERIFY_PROMPT_VERSION), language_note(run.language))),
-            messages=[{"role": "user", "content": _verification_brief(run, content)}],
-            tools=[_VERIFY_TOOL],
-            max_tokens=1024,
-        )
+        with ledger.using_prompt(VERIFY_PROMPT_VERSION):
+            turn = await self.verifier.tool_turn(
+                # The checker reads the same language it is checking, or it cannot judge
+                # whether a quote supports a claim.
+                system="\n\n".join(
+                    (load_prompt(VERIFY_PROMPT_VERSION), language_note(run.language))
+                ),
+                messages=[{"role": "user", "content": _verification_brief(run, content)}],
+                tools=[_VERIFY_TOOL],
+                max_tokens=1024,
+            )
         raw = dict(turn.tool_input)
         if "problems" in raw:
             raw["problems"] = decode_stringified(raw["problems"], list)

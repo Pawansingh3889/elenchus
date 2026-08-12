@@ -7,7 +7,13 @@ import { AnswerAffordances } from "@/components/AnswerAffordances";
 import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
 import { Transcript } from "@/components/Transcript";
 import { useT } from "@/lib/i18n/useT";
-import { useCurrentUser, useRewindRun, useRun, useSendRunMessage } from "@/lib/queries";
+import {
+  useCurrentUser,
+  useDeleteRun,
+  useRewindRun,
+  useRun,
+  useSendRunMessage,
+} from "@/lib/queries";
 import { useUserStore } from "@/lib/store";
 
 export default function RunPage() {
@@ -18,6 +24,7 @@ export default function RunPage() {
   const { data: run, isLoading, error } = useRun(id);
   const send = useSendRunMessage(id);
   const rewind = useRewindRun(id);
+  const remove = useDeleteRun(id);
   const [draft, setDraft] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -44,7 +51,7 @@ export default function RunPage() {
 
   // One request at a time. A rewind fired while a turn is in flight would race the answer
   // that turn is still writing, and the engine's row lock would refuse it anyway.
-  const busy = send.isPending || rewind.isPending;
+  const busy = send.isPending || rewind.isPending || remove.isPending;
 
   const answer = (text: string) => {
     const trimmed = text.trim();
@@ -63,6 +70,16 @@ export default function RunPage() {
     if (busy || !window.confirm(text.editPreviousConfirm)) return;
     setDraft("");
     rewind.mutate();
+  };
+
+  // Withdraw everything, which is a different thing from taking back one answer and is
+  // deliberately offered on a finished run as well as an unfinished one: a completed run
+  // is the only kind worth withdrawing, and the author having read it is the reason
+  // someone asks rather than a reason to refuse. Leaves for the survey list on success,
+  // because staying would leave the respondent looking at a run that no longer exists.
+  const withdraw = () => {
+    if (busy || !window.confirm(text.withdrawConfirm)) return;
+    remove.mutate(undefined, { onSuccess: () => router.push("/respond") });
   };
 
   const done = run.status !== "in_progress";
@@ -96,6 +113,7 @@ export default function RunPage() {
 
       {send.error ? <div className="error-text">{(send.error as Error).message}</div> : null}
       {rewind.error ? <div className="error-text">{(rewind.error as Error).message}</div> : null}
+      {remove.error ? <div className="error-text">{(remove.error as Error).message}</div> : null}
 
       {done ? (
         <div className="chat-done">{text.done}</div>
@@ -160,6 +178,17 @@ export default function RunPage() {
           </div>
         </>
       )}
+
+      {/* Outside the done/not-done split on purpose, and the only control that is. Every
+          other affordance here belongs to answering, which a finished run has stopped
+          doing; withdrawing is not part of answering and a finished run is the main case
+          for it. */}
+      <div className="chat-withdraw">
+        <button className="link-btn link-btn-danger" onClick={withdraw} disabled={busy}>
+          {text.withdraw}
+        </button>
+        <span className="muted">{text.withdrawHint}</span>
+      </div>
     </div>
   );
 }

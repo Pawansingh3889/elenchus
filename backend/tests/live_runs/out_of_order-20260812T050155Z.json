@@ -1,0 +1,181 @@
+{
+  "scenario": "out_of_order",
+  "captured_at": "2026-08-12T05:01:55.894872+00:00",
+  "model": "gpt-4o-mini",
+  "survey_title": "Onboarding Review",
+  "status": "completed",
+  "respondent_messages": [
+    "I'm a line lead. Oh and my onboarding was a 4, and I'm on team Alpha.",
+    "like I said, a 4",
+    "team Alpha, told you already",
+    "mornings",
+    "actually make my earlier rating a 2. and yes, i'd recommend you"
+  ],
+  "trace": {
+    "total": 5,
+    "positions": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "questions": [
+      {
+        "id": "d120170d-218a-4d18-be5b-1370b3b26d2d",
+        "position": 0,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "dcd9052f-219e-4c6c-92bd-da8ee73a2cf8",
+        "position": 1,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "04da11f5-57d5-491b-9b0f-6d8e42596ab3",
+        "position": 2,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "068608fb-5833-4551-93cd-3c332b8cf66b",
+        "position": 3,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "4770ce07-f652-4f14-86d6-809ff793cb66",
+        "position": 4,
+        "follow_up_policy": "never"
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "d120170d-218a-4d18-be5b-1370b3b26d2d",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "dcd9052f-219e-4c6c-92bd-da8ee73a2cf8",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "04da11f5-57d5-491b-9b0f-6d8e42596ab3",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "068608fb-5833-4551-93cd-3c332b8cf66b",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "4770ce07-f652-4f14-86d6-809ff793cb66",
+        "kind": "scripted"
+      }
+    ]
+  },
+  "answers": [
+    {
+      "question_text": "What is your role?",
+      "answer_type": "short_text",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "text": "line lead"
+      },
+      "said": [
+        "I'm a line lead. Oh and my onboarding was a 4, and I'm on team Alpha."
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent explicitly stated their role as 'line lead'."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How would you rate onboarding?",
+      "answer_type": "rating",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "rating": 4
+      },
+      "said": [
+        "I'm a line lead. Oh and my onboarding was a 4, and I'm on team Alpha.",
+        "like I said, a 4"
+      ],
+      "judge": {
+        "supported": false,
+        "why": "The respondent changed their rating to a 2 in a later message, so the recorded answer of 4 is unsupported."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Which team are you on?",
+      "answer_type": "single_select",
+      "options": [
+        "Alpha",
+        "Beta"
+      ],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "option": "Alpha"
+      },
+      "said": [
+        "I'm a line lead. Oh and my onboarding was a 4, and I'm on team Alpha.",
+        "like I said, a 4",
+        "team Alpha, told you already"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent confirmed they are on 'team Alpha' multiple times."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Which shift do you work?",
+      "answer_type": "single_select",
+      "options": [
+        "Days",
+        "Nights"
+      ],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "option": "Days"
+      },
+      "said": [
+        "I'm a line lead. Oh and my onboarding was a 4, and I'm on team Alpha.",
+        "like I said, a 4",
+        "team Alpha, told you already",
+        "mornings"
+      ],
+      "judge": {
+        "supported": false,
+        "why": "The respondent did not provide any information about their shift, making the recorded answer unanswerable."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Would you recommend us?",
+      "answer_type": "yes_no",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "yes_no": true
+      },
+      "said": [
+        "I'm a line lead. Oh and my onboarding was a 4, and I'm on team Alpha.",
+        "like I said, a 4",
+        "team Alpha, told you already",
+        "mornings",
+        "actually make my earlier rating a 2. and yes, i'd recommend you"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent stated they would recommend, indicated by 'yes'."
+      },
+      "invented": false
+    }
+  ]
+}

@@ -1,0 +1,199 @@
+{
+  "scenario": "probe_budget",
+  "captured_at": "2026-08-12T05:02:32.483884+00:00",
+  "model": "gpt-4o-mini",
+  "survey_title": "Handover Deep-Dive",
+  "status": "completed",
+  "respondent_messages": [
+    "it's fine i suppose",
+    "depends really",
+    "hard to put a number on it",
+    "you know how it is",
+    "not sure really",
+    "it's fine i suppose",
+    "depends really",
+    "hard to put a number on it",
+    "you know how it is"
+  ],
+  "trace": {
+    "total": 5,
+    "positions": [
+      0,
+      0,
+      0,
+      1,
+      1,
+      2,
+      3,
+      3,
+      4
+    ],
+    "questions": [
+      {
+        "id": "76c13212-a69d-4911-9877-71cd18457244",
+        "position": 0,
+        "follow_up_policy": "when_unclear"
+      },
+      {
+        "id": "d678f1d2-7bf1-4648-8599-b12d98e3c4de",
+        "position": 1,
+        "follow_up_policy": "when_unclear"
+      },
+      {
+        "id": "0866f897-fe9b-4d2e-95c2-2773969f2817",
+        "position": 2,
+        "follow_up_policy": "when_unclear"
+      },
+      {
+        "id": "87bcf449-edb7-41f3-ad5b-952fdd0c414e",
+        "position": 3,
+        "follow_up_policy": "when_unclear"
+      },
+      {
+        "id": "ea51c2e8-d150-4360-87ca-a845cb77860c",
+        "position": 4,
+        "follow_up_policy": "when_unclear"
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "76c13212-a69d-4911-9877-71cd18457244",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "d678f1d2-7bf1-4648-8599-b12d98e3c4de",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "0866f897-fe9b-4d2e-95c2-2773969f2817",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "87bcf449-edb7-41f3-ad5b-952fdd0c414e",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "ea51c2e8-d150-4360-87ca-a845cb77860c",
+        "kind": "scripted"
+      }
+    ]
+  },
+  "answers": [
+    {
+      "question_text": "How would you rate the handover?",
+      "answer_type": "rating",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "The respondent cannot provide a specific rating."
+      },
+      "said": [
+        "it's fine i suppose",
+        "depends really",
+        "hard to put a number on it"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent expressed difficulty in providing a specific rating."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "What is not working about it?",
+      "answer_type": "long_text",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "The respondent is unsure and cannot provide details about what is not working."
+      },
+      "said": [
+        "it's fine i suppose",
+        "depends really",
+        "hard to put a number on it",
+        "you know how it is",
+        "not sure really"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent is unsure and cannot provide details about what is not working."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "What is your role?",
+      "answer_type": "short_text",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "The respondent did not provide a clear answer regarding their role."
+      },
+      "said": [
+        "it's fine i suppose",
+        "depends really",
+        "hard to put a number on it",
+        "you know how it is",
+        "not sure really",
+        "it's fine i suppose"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent did not provide a clear answer regarding their role."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How would you rate communication?",
+      "answer_type": "rating",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "The respondent expressed difficulty in providing a specific rating."
+      },
+      "said": [
+        "it's fine i suppose",
+        "depends really",
+        "hard to put a number on it",
+        "you know how it is",
+        "not sure really",
+        "it's fine i suppose",
+        "depends really",
+        "hard to put a number on it"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent expressed difficulty in providing a specific rating."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "What would you change?",
+      "answer_type": "long_text",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "The respondent declined to provide an answer."
+      },
+      "said": [
+        "it's fine i suppose",
+        "depends really",
+        "hard to put a number on it",
+        "you know how it is",
+        "not sure really",
+        "it's fine i suppose",
+        "depends really",
+        "hard to put a number on it",
+        "you know how it is"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent declined to provide an answer."
+      },
+      "invented": false
+    }
+  ]
+}

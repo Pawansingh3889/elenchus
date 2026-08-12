@@ -224,3 +224,21 @@ export function useRewindRun(id: string) {
     onSuccess: (run) => qc.setQueryData(["run", id, userId], run),
   });
 }
+
+/** Withdraw a run and everything in it, at the respondent's own request.
+ *
+ *  The cached run is removed rather than invalidated: invalidating would refetch a run
+ *  the server has just erased, and the respondent would watch their withdrawal turn into
+ *  a 404 on the page they are still looking at. The unfinished-runs list is invalidated
+ *  because the erased run may have been on it. */
+export function useDeleteRun(id: string) {
+  const qc = useQueryClient();
+  const userId = useUserStore((s) => s.currentUserId);
+  return useMutation({
+    mutationFn: () => api.deleteRun(id),
+    onSuccess: () => {
+      qc.removeQueries({ queryKey: ["run", id, userId] });
+      void qc.invalidateQueries({ queryKey: ["my-runs"] });
+    },
+  });
+}

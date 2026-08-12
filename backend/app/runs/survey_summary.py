@@ -48,7 +48,7 @@ from app.llm.prompts import load_prompt
 from app.runs.enums import AnswerKind, RunStatus
 from app.runs.repository import ResultsRepository
 from app.runs.schemas import SurveyReport
-from app.runs.service import ResultsService, flatten_answer
+from app.runs.service import ResultsService, flatten_answer, respondent_label
 from app.templates.models import SurveyTemplate
 from app.templates.repository import TemplateRepository
 from app.users.models import User
@@ -311,6 +311,10 @@ class SurveySummaryService:
             "runs_included": report.runs_completed,
             "prompt_version": PROMPT_VERSION,
             "verify_prompt_version": VERIFY_PROMPT_VERSION,
+            # The tier that wrote it, for the same reason the run summary records one: a
+            # recap that reads worse than it used to may be a prompt change or a model
+            # change, and without this only one of the two can be ruled out.
+            "model": spend.last_model,
             "generated_at": datetime.now(UTC).isoformat(),
         }
         template.summary = document
@@ -349,9 +353,17 @@ class SurveySummaryService:
         Scoped to completed runs on the version the report counted, so the words and the
         numbers describe the same set of people. A quote from someone whose answers are
         excluded from every tally would be evidence for a finding the counts contradict.
+
+        Whose words they are is carried as the survey's own pseudonym, not the person's
+        name. The attribution mechanism is unchanged and needs no name to work: it needs
+        one stable key per person, which is what the number gives it. What changes is that
+        the provider is no longer sent a roster of who works here alongside what each of
+        them said about their employer, and the recap the author reads attributes a
+        complaint to Respondent 3 rather than naming a colleague.
         """
+        numbers = await self.repo.respondent_numbers(template_id)
         out: list[dict[str, str]] = []
-        for run, version, user in await self.repo.list_for_template(template_id):
+        for run, version, _ in await self.repo.list_for_template(template_id):
             if version.id != version_id or run.status is not RunStatus.completed:
                 continue
             for answer in run.answers:
@@ -360,7 +372,7 @@ class SurveySummaryService:
                     continue
                 out.append(
                     {
-                        "respondent": user.display_name,
+                        "respondent": respondent_label(numbers[run.respondent_id]),
                         "question": answer.question_text,
                         "answer": text,
                         "kind": answer.kind.value,
@@ -389,12 +401,13 @@ class SurveySummaryService:
                         "Return a corrected recap.",
                     }
                 )
-            turn = await self.llm.tool_turn(
-                system=load_prompt(PROMPT_VERSION),
-                messages=messages,
-                tools=[_TOOL],
-                max_tokens=2048,
-            )
+            with ledger.using_prompt(PROMPT_VERSION):
+                turn = await self.llm.tool_turn(
+                    system=load_prompt(PROMPT_VERSION),
+                    messages=messages,
+                    tools=[_TOOL],
+                    max_tokens=2048,
+                )
             raw = _decode_stringified_fields(turn.tool_input)
             raw = _without_invented_quotes(raw, quotable)
             raw = _without_unknown_questions(raw, report)
@@ -418,20 +431,21 @@ class SurveySummaryService:
     ) -> SurveyVerdict:
         """Fresh context, like the run checker: the results and the candidate, and
         nothing of how the draft was made."""
-        turn = await self.verifier.tool_turn(
-            system=load_prompt(VERIFY_PROMPT_VERSION),
-            messages=[
-                {
-                    "role": "user",
-                    "content": (
-                        f"{_brief(report, quotable)}\n\nCandidate recap:\n"
-                        f"{json.dumps(content.model_dump(), ensure_ascii=False, indent=2)}"
-                    ),
-                }
-            ],
-            tools=[_VERIFY_TOOL],
-            max_tokens=1024,
-        )
+        with ledger.using_prompt(VERIFY_PROMPT_VERSION):
+            turn = await self.verifier.tool_turn(
+                system=load_prompt(VERIFY_PROMPT_VERSION),
+                messages=[
+                    {
+                        "role": "user",
+                        "content": (
+                            f"{_brief(report, quotable)}\n\nCandidate recap:\n"
+                            f"{json.dumps(content.model_dump(), ensure_ascii=False, indent=2)}"
+                        ),
+                    }
+                ],
+                tools=[_VERIFY_TOOL],
+                max_tokens=1024,
+            )
         raw = dict(turn.tool_input)
         for key in ("problems", "unsupported_findings"):
             if key in raw:

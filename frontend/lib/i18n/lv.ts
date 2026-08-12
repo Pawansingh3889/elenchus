@@ -130,6 +130,11 @@ export const lv: Messages = {
     finishLaterHint: "Līdzšinējās atbildes ir saglabātas; turpiniet no vietas, kur beidzāt.",
     editPrevious: "Labot manu iepriekšējo atbildi",
     editPreviousHint: "Jautājums atgriezīsies, lai varētu atbildēt vēlreiz.",
+    withdraw: "Atsaukt manas atbildes",
+    withdrawHint:
+      "Viss, ko teicāt šajā aptaujā, tiks dzēsts. To nevar atsaukt.",
+    withdrawConfirm:
+      "Atsaukt savas atbildes šajā aptaujā? Viss, ko teicāt, un visa saruna tiks neatgriezeniski dzēsta. To nevar atsaukt.",
     editPreviousConfirm:
       "Atsaukt iepriekšējo atbildi? Tiks noņemts arī viss, ko aptauja par to jautāja, un jūs atbildēsiet uz šo jautājumu no jauna.",
     done: "Paldies. Jūsu atbildes ir saglabātas.",

@@ -1,0 +1,209 @@
+{
+  "scenario": "evasive",
+  "captured_at": "2026-08-12T05:06:32.383022+00:00",
+  "model": "gpt-4o-mini",
+  "survey_title": "Warehouse Staff Check-in on Shift Handover Process",
+  "status": "completed",
+  "respondent_messages": [
+    "i sort of run the line i guess",
+    "mostly making sure the handover actually happens",
+    "honestly it's been a bit of a mess",
+    "rather not say",
+    "eleven out of five",
+    "4",
+    "yeah fine"
+  ],
+  "trace": {
+    "total": 5,
+    "positions": [
+      0,
+      0,
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "questions": [
+      {
+        "id": "a8e2a318-c21b-4b4f-a3a1-047881bf17bc",
+        "position": 0,
+        "follow_up_policy": "always_once"
+      },
+      {
+        "id": "306e8d47-0a2f-4f4b-b355-1eeff00b2b52",
+        "position": 1,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "e1497985-bbe4-4ffb-80af-883a4134925b",
+        "position": 2,
+        "follow_up_policy": "always_once"
+      },
+      {
+        "id": "6fcf274a-a461-4cd1-9b6a-f53bf6427893",
+        "position": 3,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "750ef425-bac3-4de0-9eb7-7050afbb4e20",
+        "position": 4,
+        "follow_up_policy": "never"
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "a8e2a318-c21b-4b4f-a3a1-047881bf17bc",
+        "kind": "scripted",
+        "unanswerable": true
+      },
+      {
+        "question_id": "306e8d47-0a2f-4f4b-b355-1eeff00b2b52",
+        "kind": "scripted",
+        "unanswerable": true
+      },
+      {
+        "question_id": "e1497985-bbe4-4ffb-80af-883a4134925b",
+        "kind": "scripted",
+        "unanswerable": true
+      },
+      {
+        "question_id": "6fcf274a-a461-4cd1-9b6a-f53bf6427893",
+        "kind": "scripted",
+        "unanswerable": true
+      },
+      {
+        "question_id": "750ef425-bac3-4de0-9eb7-7050afbb4e20",
+        "kind": "scripted",
+        "unanswerable": false
+      }
+    ]
+  },
+  "answers": [
+    {
+      "question_text": "What is your role in the warehouse?",
+      "answer_type": "single_select",
+      "options": [
+        "Picker",
+        "Packer",
+        "Loader",
+        "Supervisor",
+        "Manager"
+      ],
+      "allow_other": true,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "The respondent did not provide a clear answer to the role in the warehouse."
+      },
+      "said": [
+        "i sort of run the line i guess",
+        "mostly making sure the handover actually happens",
+        "honestly it's been a bit of a mess"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent did not provide a clear answer about their role."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How well does the handover process work for you?",
+      "answer_type": "rating",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "The respondent declined to answer."
+      },
+      "said": [
+        "i sort of run the line i guess",
+        "mostly making sure the handover actually happens",
+        "honestly it's been a bit of a mess",
+        "rather not say"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent explicitly stated 'rather not say', indicating a refusal to answer."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "What one thing would you change about the handover process?",
+      "answer_type": "single_select",
+      "options": [
+        "More training",
+        "Improved communication",
+        "Better documentation",
+        "Clearer expectations"
+      ],
+      "allow_other": true,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "The response does not directly answer the question."
+      },
+      "said": [
+        "i sort of run the line i guess",
+        "mostly making sure the handover actually happens",
+        "honestly it's been a bit of a mess",
+        "rather not say",
+        "eleven out of five"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent's messages do not provide a specific change, making it unanswerable."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Which shift do you work?",
+      "answer_type": "single_select",
+      "options": [
+        "Morning Shift",
+        "Evening Shift",
+        "Night Shift"
+      ],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "The response '4' does not specify a shift option."
+      },
+      "said": [
+        "i sort of run the line i guess",
+        "mostly making sure the handover actually happens",
+        "honestly it's been a bit of a mess",
+        "rather not say",
+        "eleven out of five",
+        "4"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The response '4' does not correspond to a shift option, making it unusable."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Would you recommend the new handover process to others?",
+      "answer_type": "yes_no",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "yes_no": true
+      },
+      "said": [
+        "i sort of run the line i guess",
+        "mostly making sure the handover actually happens",
+        "honestly it's been a bit of a mess",
+        "rather not say",
+        "eleven out of five",
+        "4",
+        "yeah fine"
+      ],
+      "judge": {
+        "supported": false,
+        "why": "The response 'yeah fine' does not clearly indicate a recommendation, so the recorded answer is unsupported."
+      },
+      "invented": false
+    }
+  ]
+}

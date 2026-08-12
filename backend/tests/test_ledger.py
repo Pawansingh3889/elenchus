@@ -269,3 +269,104 @@ def test_a_fully_metered_call_is_not_flagged(ledger_file) -> None:
     with ledger.measuring(uuid4()) as spend:
         ledger.record(tier=4, model="m", op="tool_turn", usage=usage, latency_ms=1000, status=200)
     assert spend.unmetered_calls == 0
+
+
+# ------------------------------------------------------------------ provenance
+
+
+def test_the_prompt_version_is_stamped_on_every_call_in_the_block(ledger_file) -> None:
+    """`op` says what kind of call it was, never which authored text drove it. Without
+    this the whole history reads identically across a prompt bump, and "which version
+    regressed this" cannot be answered from the file that exists to answer it."""
+    with ledger.using_prompt("conduct_v7"):
+        ledger.record(tier=1, model="m", op="tool_turn", usage=None, latency_ms=1, status=200)
+    assert [line["prompt"] for line in _lines(ledger_file)] == ["conduct_v7"]
+
+
+def test_a_call_outside_any_prompt_block_records_none_rather_than_a_guess(ledger_file) -> None:
+    ledger.record(tier=1, model="m", op="tool_turn", usage=None, latency_ms=1, status=200)
+    assert _lines(ledger_file)[0]["prompt"] is None
+
+
+def test_the_prompt_name_does_not_leak_past_its_block(ledger_file) -> None:
+    with ledger.using_prompt("summarise_run_v1"):
+        pass
+    ledger.record(tier=1, model="m", op="tool_turn", usage=None, latency_ms=1, status=200)
+    assert _lines(ledger_file)[0]["prompt"] is None
+
+
+def test_nested_prompt_blocks_restore_the_outer_one(ledger_file) -> None:
+    """A summary generates under one prompt and verifies under another, inside the same
+    measured block. The inner one must not become the outer one's name on the way out."""
+    with ledger.using_prompt("summarise_run_v1"):
+        with ledger.using_prompt("verify_summary_v1"):
+            ledger.record(tier=1, model="m", op="tool_turn", usage=None, latency_ms=1, status=200)
+        ledger.record(tier=1, model="m", op="tool_turn", usage=None, latency_ms=1, status=200)
+    assert [line["prompt"] for line in _lines(ledger_file)] == [
+        "verify_summary_v1",
+        "summarise_run_v1",
+    ]
+
+
+def test_the_spend_remembers_which_tier_actually_answered(ledger_file) -> None:
+    with ledger.measuring(uuid4()) as spend:
+        ledger.record(
+            tier=2, model="llama-70b", op="tool_turn", usage=None, latency_ms=1, status=200
+        )
+    assert (spend.last_tier, spend.last_model) == (2, "llama-70b")
+
+
+def test_a_failed_tier_does_not_claim_the_turn_it_could_not_serve(ledger_file) -> None:
+    """The failover case, and the whole reason this is read from the spend rather than
+    from settings: tier 1 is what was *configured*, tier 2 is what answered, and the
+    message about to be stored holds tier 2's words."""
+    with ledger.measuring(uuid4()) as spend:
+        ledger.record(
+            tier=1,
+            model="gpt-4o-mini",
+            op="tool_turn",
+            usage=None,
+            latency_ms=1,
+            status=429,
+            error="rate limited",
+        )
+        ledger.record(
+            tier=2, model="llama-70b", op="tool_turn", usage=None, latency_ms=1, status=200
+        )
+    assert (spend.last_tier, spend.last_model) == (2, "llama-70b")
+
+
+def test_a_later_failure_does_not_overwrite_the_tier_that_answered(ledger_file) -> None:
+    """The nudged retry: tier 2 answers, the engine asks again and that attempt dies. The
+    words the respondent read still came from tier 2."""
+    with ledger.measuring(uuid4()) as spend:
+        ledger.record(
+            tier=2, model="llama-70b", op="tool_turn", usage=None, latency_ms=1, status=200
+        )
+        ledger.record(
+            tier=3,
+            model="mistral",
+            op="tool_turn",
+            usage=None,
+            latency_ms=1,
+            status=0,
+            error="connection refused",
+        )
+    assert (spend.last_tier, spend.last_model) == (2, "llama-70b")
+
+
+def test_a_block_where_every_tier_failed_names_nobody(ledger_file) -> None:
+    """None rather than the last tier tried. A turn nobody served has no provenance, and
+    recording the tier that failed as the one that answered would be a lie the column
+    exists to prevent."""
+    with ledger.measuring(uuid4()) as spend:
+        ledger.record(
+            tier=1,
+            model="gpt-4o-mini",
+            op="tool_turn",
+            usage=None,
+            latency_ms=1,
+            status=500,
+            error="boom",
+        )
+    assert (spend.last_tier, spend.last_model) == (None, None)

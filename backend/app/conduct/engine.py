@@ -13,6 +13,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import pii
 from app.access import is_admin_by_config, may_answer
 from app.conduct.repository import RunRepository
 from app.conduct.validation import (
@@ -45,6 +46,12 @@ logger = logging.getLogger("app.conduct")
 MAX_FOLLOW_UPS = 3
 MAX_REPLIES = 2  # conversational replies per question (record nothing, advance nothing)
 MAX_MODEL_TURNS = 3  # per respondent message
+# The prompt this engine conducts under. A named constant rather than the literal it used
+# to be at the call site, for two reasons: `check_prompts_versioned.py` recognises it by
+# name alongside `runs/summary.py`'s, and every assistant message is stamped with it, so
+# the version that produced a turn has to be one value rather than a string repeated
+# wherever it happens to be needed.
+PROMPT_VERSION = "conduct_v8"
 TRANSCRIPT_WINDOW = 12  # messages replayed per turn; the briefing restates the question
 _REJECTED = "run=%s question=%s tool=%s raw_input=%r raw_text=%r error=%s"
 # Said when the model supplies no closing line of its own. Resolved per run rather than
@@ -234,6 +241,18 @@ class ConductEngine:
         """
         run, questions = await self._locked_open_run(run_id, respondent)
 
+        # Before the message is stored and before it is sent anywhere. Both matter and
+        # the ordering is the whole point: a check that ran after the model call would
+        # have already handed the number to a hosted provider, and one that ran after the
+        # append would have written it into a transcript an author reads. Refusing costs
+        # the respondent a turn and costs the run nothing, since no call is made.
+        found = pii.problem(content)
+        if found is not None:
+            # The kind, never the value. A log line quoting the number it objected to has
+            # just become the second place that number is written down.
+            logger.info("refused a message carrying a %s: run=%s", found, run.id)
+            raise pii.PIIInMessageError(translate("pii_in_message", run.language))
+
         run.messages.append(RunMessage(role=MessageRole.user, content=content))
         await self.session.flush()
 
@@ -241,12 +260,53 @@ class ConductEngine:
         # run in the same transaction as the answer it produced. A turn that fails partway
         # still committed nothing, and the ledger file keeps the calls it did make: the
         # rollup is the app's summary, the file is the record.
-        with ledger.measuring(run.id) as spend:
+        with ledger.measuring(run.id) as spend, ledger.using_prompt(PROMPT_VERSION):
             utterance = await self._turn_loop(run, questions)
         add_llm_spend(run, spend)
-        run.messages.append(RunMessage(role=MessageRole.assistant, content=utterance))
+        # Stamped from the spend rather than from settings, so it says which tier actually
+        # answered rather than which one was meant to. On a turn that failed over, those
+        # are different, and the one worth recording is the one whose words are about to
+        # be stored as this message.
+        run.messages.append(
+            RunMessage(
+                role=MessageRole.assistant,
+                content=utterance,
+                prompt_version=PROMPT_VERSION,
+                model=spend.last_model,
+                tier=spend.last_tier,
+            )
+        )
         await self.session.commit()
         return await self.load(run_id, respondent)
+
+    async def delete_run(self, run_id: UUID, respondent: User) -> None:
+        """Erase this respondent's own run: its answers, its transcript, all of it.
+
+        access-exempt: this is ownership of a run, not visibility of a survey. A
+        run belongs to exactly one respondent and is never shared, so the identity
+        check inside ``load`` is the whole rule and app/access has nothing to add.
+        Nothing about the survey's audience bears on whether someone may withdraw
+        what they themselves said.
+
+        Deliberately unlike ``rewind_last_answer``, which refuses a completed run because
+        the author may already have read it. That reasoning is right for a *correction*,
+        which changes what the author is looking at while they look at it. It is exactly
+        wrong here: a finished run is the only kind worth erasing, and "the author has
+        already seen it" is the reason someone asks, not a reason to refuse them.
+
+        The author's totals drop when this happens, and that is the point rather than a
+        side effect. A count that survived the withdrawal of the answers behind it would
+        be a number with nothing under it.
+
+        No lock, because there is nothing to serialise against: a turn in flight holds
+        the row and its transaction either commits before this deletes or fails when the
+        row is gone, and the respondent doing both at once is one person with one
+        session.
+        """
+        run = await self.load(run_id, respondent)
+        await self.repo.delete(run)
+        await self.session.commit()
+        logger.info("run erased at the respondent's request: run=%s", run_id)
 
     async def rewind_last_answer(self, run_id: UUID, respondent: User) -> SurveyRun:
         """Undo the most recent scripted answer so it can be given again.
@@ -392,7 +452,7 @@ class ConductEngine:
         try:
             turn = await self.llm.tool_turn(
                 system="\n\n".join(
-                    (load_prompt("conduct_v7"), language_note(run.language), briefing)
+                    (load_prompt(PROMPT_VERSION), language_note(run.language), briefing)
                 ),
                 messages=messages,
                 tools=tools,

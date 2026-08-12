@@ -156,6 +156,8 @@ export const api = {
     request<Run>(`/runs/${id}/messages`, { method: "POST", body: JSON.stringify({ content }) }),
   // No body: which answer comes back is the engine's to decide, not the client's.
   rewindRun: (id: string) => request<Run>(`/runs/${id}/rewind`, { method: "POST" }),
+  /** Erase a run and everything in it. 204, so there is nothing to unwrap. */
+  deleteRun: (id: string) => request<void>(`/runs/${id}`, { method: "DELETE" }),
   listTemplateRuns: (templateId: string) => request<RunSummary[]>(`/templates/${templateId}/runs`),
   getTemplateRun: (templateId: string, runId: string) =>
     request<RunDetail>(`/templates/${templateId}/runs/${runId}`),

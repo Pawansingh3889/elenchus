@@ -22,6 +22,24 @@ class MessageRead(BaseModel):
     created_at: datetime
 
 
+class MessageDetailRead(MessageRead):
+    """A transcript message with its provenance, for the author reading results.
+
+    Separate from ``MessageRead`` because that one is also the respondent's own chat
+    payload (``conduct.schemas.RunRead``), and which provider served their interview is
+    not theirs to be told. Nothing here is secret; it is simply operational detail on a
+    payload sent to whoever answers a survey, and the narrower schema costs one class.
+
+    All three are optional because the column is: a respondent's message and the engine's
+    opening line were not produced by a model, and neither was anything recorded before
+    these columns existed.
+    """
+
+    prompt_version: str | None = None
+    model: str | None = None
+    tier: int | None = None
+
+
 class AnswerRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -34,7 +52,7 @@ class AnswerRead(BaseModel):
 
 class RunSummary(BaseModel):
     id: UUID
-    respondent_name: str
+    respondent_label: str
     status: RunStatus
     version: int
     answered: int
@@ -45,12 +63,12 @@ class RunSummary(BaseModel):
 
 class RunDetail(BaseModel):
     id: UUID
-    respondent_name: str
+    respondent_label: str
     status: RunStatus
     version: int
     started_at: datetime
     completed_at: datetime | None
-    messages: list[MessageRead]
+    messages: list[MessageDetailRead]
     answers: list[AnswerRead]
     # Follow-ups the engine issued, per question id. The cap is spent when a probe is
     # asked, not when a reply to one is recorded, so this is the only faithful record of

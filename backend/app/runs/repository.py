@@ -30,6 +30,35 @@ class ResultsRepository:
         )
         return list((await self.session.execute(stmt)).all())
 
+    async def respondent_numbers(self, template_id: UUID) -> dict[UUID, int]:
+        """Each respondent's number within this survey, counting from one.
+
+        The author needs to tell one respondent's answers from another's and to follow a
+        single person across the list, the run detail and the recap. A name does all of
+        that and one thing more, which is the thing that was agreed against: it tells the
+        author who said it.
+
+        Ordered by the respondent's first run rather than by name or id, so the numbers
+        read as the order people answered in, and tie-broken on the id so two runs
+        started in the same transaction cannot swap numbers between requests. Stability
+        is the whole value: a label that renumbered on refresh would be worse than none,
+        because the author would trust it and be wrong.
+
+        Scoped to the template, so the same person is Respondent 2 in one survey and
+        Respondent 7 in another. That is deliberate. A number stable across surveys would
+        be a pseudonymous identity to correlate answers with, which is what the author is
+        not supposed to have.
+        """
+        stmt = (
+            select(SurveyRun.respondent_id)
+            .join(SurveyTemplateVersion, SurveyRun.template_version_id == SurveyTemplateVersion.id)
+            .where(SurveyTemplateVersion.template_id == template_id)
+            .group_by(SurveyRun.respondent_id)
+            .order_by(func.min(SurveyRun.started_at), SurveyRun.respondent_id)
+        )
+        rows = (await self.session.execute(stmt)).scalars().all()
+        return {respondent_id: number for number, respondent_id in enumerate(rows, start=1)}
+
     async def dashboard_rows(self, author_id: UUID) -> list[Row[Any]]:
         """Every survey this author owns, with its run counts, in one query.
 

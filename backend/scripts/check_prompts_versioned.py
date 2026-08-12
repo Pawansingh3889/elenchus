@@ -31,7 +31,12 @@ VERSIONED = re.compile(r"^[a-z0-9_]+_v\d+\.md$")
 
 # Constants whose value must name a prompt file. Named rather than inferred, so
 # adding a new one is a deliberate act.
-PROMPT_CONSTANTS = ("PROMPT_VERSION", "VERIFY_PROMPT_VERSION")
+PROMPT_CONSTANTS = (
+    "PROMPT_VERSION",
+    "VERIFY_PROMPT_VERSION",
+    "GENERATE_PROMPT_VERSION",
+    "REFINE_PROMPT_VERSION",
+)
 
 # The loader itself. A literal argument names a prompt just as surely as a constant
 # does, and is the form the three engine and generation call sites use.

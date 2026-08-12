@@ -12,14 +12,17 @@ import pytest
 from app.conduct.engine import (
     MAX_FOLLOW_UPS,
     MAX_REPLIES,
+    PROMPT_VERSION,
     TRANSCRIPT_WINDOW,
     ConductEngine,
     _transcript,
 )
 from app.conduct.repository import RunRepository
-from app.errors import ConflictError, ForbiddenError
+from app.errors import ConflictError, ForbiddenError, NotFoundError
+from app.i18n import translate
 from app.llm import ledger
 from app.llm.client import LLMError, NoToolCallError, ToolTurn
+from app.pii import PIIInMessageError
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
 from app.runs.models import RunMessage, SurveyRun
 from app.templates.enums import AnswerType, FollowUpPolicy
@@ -1709,3 +1712,239 @@ async def test_an_unprobed_question_can_still_be_moved_on_from(session, responde
 
     assert "move_on" in llm.offered[-1]
     assert run.current_question_index == 1
+
+
+# ------------------------------------------------------------------ provenance
+
+
+async def test_an_assistant_turn_records_the_prompt_version_that_produced_it(
+    session, respondent, published
+):
+    """Which authored text wrote this line. Without it a prompt bump leaves every stored
+    run unattributable: the transcript reads the same before and after, and the version
+    that regressed a conversation cannot be identified from the conversation."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    llm = FakeLLM(_record("Line lead"), _move_on("Thanks."))
+    run = await ConductEngine(session, llm=llm).handle_message(run.id, "line lead", respondent)
+
+    assert run.messages[-1].prompt_version == PROMPT_VERSION
+
+
+async def test_the_respondents_own_words_carry_no_provenance(session, respondent, published):
+    """Null rather than the engine's prompt version. They wrote it; no model did, and a
+    stamp here would claim otherwise."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    llm = FakeLLM(_record("Line lead"), _move_on("Thanks."))
+    run = await ConductEngine(session, llm=llm).handle_message(run.id, "line lead", respondent)
+
+    said = [m for m in run.messages if m.role is MessageRole.user]
+    assert said and all(m.prompt_version is None and m.model is None for m in said)
+
+
+async def test_the_opening_line_carries_no_provenance(session, respondent, published):
+    """The engine composes it from the version definition without asking a model, so it
+    has no prompt version and no tier. Recorded as unknown because it is."""
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+
+    opening = run.messages[0]
+    assert opening.role is MessageRole.assistant
+    assert (opening.prompt_version, opening.model, opening.tier) == (None, None, None)
+
+
+async def test_an_assistant_turn_records_the_tier_that_actually_answered(
+    session, respondent, published
+):
+    """Read back from the measured spend rather than from settings, so it names the tier
+    that answered instead of the one that was configured. The two part company on any
+    turn that failed over, and the message about to be stored holds the words of the one
+    that answered."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    llm = FakeLLM(_record("Line lead"), _move_on("Thanks."), serves_as=(2, "llama-70b"))
+    run = await ConductEngine(session, llm=llm).handle_message(run.id, "line lead", respondent)
+
+    assert (run.messages[-1].model, run.messages[-1].tier) == ("llama-70b", 2)
+
+
+# ------------------------------------------------------- contact details never get in
+
+
+async def test_a_message_carrying_an_email_address_is_refused(session, respondent, published):
+    """Refused before the append and before the model call, which is the whole ordering.
+
+    A check after the call would have handed the address to a hosted provider already, and
+    one after the append would have written it into a transcript the author reads. Nothing
+    is stored, nothing is sent, and the fake is left holding a turn nobody asked for.
+    """
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+    before = len(run.messages)
+
+    llm = FakeLLM(_record("Line lead"), _move_on())
+    with pytest.raises(PIIInMessageError):
+        await ConductEngine(session, llm=llm).handle_message(
+            run.id, "I'm the line lead, ravi@example.com", respondent
+        )
+
+    assert llm.calls == 0  # no model call, so the refusal costs the run nothing
+    reloaded = await ConductEngine(session, llm=FakeLLM()).load(run.id, respondent)
+    assert len(reloaded.messages) == before
+    assert not any("ravi@example.com" in m.content for m in reloaded.messages)
+
+
+async def test_the_refusal_is_written_in_the_runs_language(session, respondent, published):
+    """The handler renders an AppError's message verbatim, so a respondent-facing
+    sentence has to be translated where it is raised. The engine is the only place that
+    knows which language this run is being conducted in."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent, language="es")
+
+    with pytest.raises(PIIInMessageError) as raised:
+        await ConductEngine(session, llm=FakeLLM()).handle_message(
+            run.id, "escríbeme a ravi@example.com", respondent
+        )
+
+    assert raised.value.message == translate("pii_in_message", "es")
+    assert raised.value.message != translate("pii_in_message", "en")
+
+
+async def test_the_refusal_does_not_repeat_the_value_it_objected_to(session, respondent, published):
+    """A message quoting the number it refused has just written that number into a second
+    place: the API response, and from there whatever logs it."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    with pytest.raises(PIIInMessageError) as raised:
+        await ConductEngine(session, llm=FakeLLM()).handle_message(
+            run.id, "ring me on 07700 900123", respondent
+        )
+
+    assert "07700" not in raised.value.message
+    assert "900123" not in raised.value.message
+
+
+async def test_an_answer_about_a_batch_code_is_not_refused(session, respondent, published):
+    """The other direction, at the engine rather than in isolation. This survey asks a
+    fish plant about batch codes; a gate that refused one would refuse the answer the
+    survey exists to collect."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    llm = FakeLLM(_record("Line lead"), _move_on("Thanks."))
+    run = await ConductEngine(session, llm=llm).handle_message(
+        run.id, "line lead, batch 4021998745 was the warm one", respondent
+    )
+
+    assert llm.calls == 2
+    assert run.current_question_index == 1
+
+
+# ------------------------------------------------------------------ erasure
+
+
+async def test_a_respondent_can_erase_their_own_run(session, respondent, published):
+    """The other half of the 10 Aug agreement: no names on answers, and erasure on
+    request. Answers and transcript go with the run, which the cascades already handle."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+    llm = FakeLLM(_record("Line lead"), _move_on("Thanks."))
+    run = await ConductEngine(session, llm=llm).handle_message(run.id, "line lead", respondent)
+    assert run.answers
+
+    await ConductEngine(session, llm=FakeLLM()).delete_run(run.id, respondent)
+
+    with pytest.raises(NotFoundError):
+        await ConductEngine(session, llm=FakeLLM()).load(run.id, respondent)
+
+
+async def test_erasure_takes_the_answers_and_the_transcript_with_it(
+    engine, session, respondent, published
+):
+    """Checked against the tables rather than through the engine, because "the run is
+    gone" and "what the run held is gone" are different claims and only the second one is
+    the promise. Orphaned answers would still be the respondent's words, still readable,
+    and no longer attached to anything that could be deleted again."""
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.runs.models import Answer
+
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    llm = FakeLLM(_record("Line lead"), _move_on("Thanks."))
+    run = await ConductEngine(session, llm=llm).handle_message(run.id, "line lead", respondent)
+    await session.commit()
+
+    await ConductEngine(session, llm=FakeLLM()).delete_run(run.id, respondent)
+
+    async with AsyncSession(engine, expire_on_commit=False) as fresh:
+        answers = (await fresh.execute(select(Answer).where(Answer.run_id == run.id))).all()
+        messages = (
+            await fresh.execute(select(RunMessage).where(RunMessage.run_id == run.id))
+        ).all()
+    assert answers == []
+    assert messages == []
+
+
+async def test_a_completed_run_can_still_be_erased(session, respondent, published):
+    """Deliberately unlike rewind, which refuses a finished run because the author may
+    have read it. Here that is the reason someone asks, not a reason to refuse them: a
+    finished run is the only kind worth erasing."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+    answered = FakeLLM(_record("Line lead"), _move_on())
+    run = await ConductEngine(session, llm=answered).handle_message(run.id, "line lead", respondent)
+    run = await ConductEngine(session, llm=FakeLLM(_record(4))).handle_message(
+        run.id, "4", respondent
+    )
+    assert run.status is RunStatus.completed
+
+    await ConductEngine(session, llm=FakeLLM()).delete_run(run.id, respondent)
+
+    with pytest.raises(NotFoundError):
+        await ConductEngine(session, llm=FakeLLM()).load(run.id, respondent)
+
+
+async def test_one_respondent_cannot_erase_another_persons_run(
+    session, respondent, other_respondent, published
+):
+    """The same ownership gate reading and rewinding get. Erasure reachable by guessing a
+    run id would be a way to delete someone else's answers, which is worse than reading
+    them: it cannot be undone and leaves the author's totals quietly short."""
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    with pytest.raises(ForbiddenError):
+        await ConductEngine(session, llm=FakeLLM()).delete_run(run.id, other_respondent)
+
+    assert await ConductEngine(session, llm=FakeLLM()).load(run.id, respondent) is not None
+
+
+async def test_erasing_a_run_removes_it_from_the_authors_results(
+    session, author, respondent, other_respondent, published
+):
+    """The author's totals drop, which is the point rather than a side effect: a count
+    that survived the withdrawal of the answers behind it is a number with nothing
+    under it."""
+    from app.runs.service import ResultsService
+
+    kept = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    await ConductEngine(session, llm=FakeLLM(_record("Line lead"), _move_on())).handle_message(
+        kept.id, "line lead", respondent
+    )
+    withdrawn = await ConductEngine(session, llm=FakeLLM()).start_run(
+        published.id, other_respondent
+    )
+    await ConductEngine(session, llm=FakeLLM(_record("Packer"), _move_on())).handle_message(
+        withdrawn.id, "packer", other_respondent
+    )
+    assert len(await ResultsService(session).list_runs(published.id, author)) == 2
+
+    await ConductEngine(session, llm=FakeLLM()).delete_run(withdrawn.id, other_respondent)
+
+    remaining = await ResultsService(session).list_runs(published.id, author)
+    assert [s.id for s in remaining] == [kept.id]

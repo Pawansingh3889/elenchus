@@ -5,6 +5,7 @@ Every test runs without an API key because nothing below this line reaches a pro
 
 from typing import Any
 
+from app.llm import ledger
 from app.llm.client import ToolTurn
 
 
@@ -13,10 +14,22 @@ class FakeLLM:
 
     A scripted entry may be an Exception instance instead of a ToolTurn, in which case
     that call raises it — for driving the engine's error-handling paths.
+
+    ``serves_as`` makes the fake book a ledger row the way the real client does, naming
+    the tier and model it is standing in for. Off by default, because most tests care
+    about what the engine decided and not what it cost, and a fake that writes to the
+    ledger file in every test would be writing to a file most of them never point
+    anywhere. It is on for the tests about provenance, where the whole question is
+    whether the engine reads back the tier that actually answered: without a booked row
+    there is nothing to read, and the assertion would pass against None whether the
+    engine looked or not.
     """
 
-    def __init__(self, *turns: ToolTurn | Exception) -> None:
+    def __init__(
+        self, *turns: ToolTurn | Exception, serves_as: tuple[int, str] | None = None
+    ) -> None:
         self._turns = list(turns)
+        self._serves_as = serves_as
         self.calls = 0
         self.offered: list[list[str]] = []
         self.briefings: list[str] = []
@@ -45,8 +58,30 @@ class FakeLLM:
         turn = self._turns[min(self.calls, len(self._turns) - 1)]
         self.calls += 1
         if isinstance(turn, Exception):
+            self._book(status=0, error=repr(turn))
             raise turn
+        self._book(status=200, error=None)
         return turn
+
+    def _book(self, *, status: int, error: str | None) -> None:
+        """Book this call the way ``openai_compatible`` books a real one.
+
+        Booked on the failure path too, and with ``error`` set, because that is the half
+        that decides anything: a fake that only recorded its successes could never show
+        that a tier which failed leaves the previous answer standing.
+        """
+        if self._serves_as is None:
+            return
+        tier, model = self._serves_as
+        ledger.record(
+            tier=tier,
+            model=model,
+            op="tool_turn",
+            usage=None,
+            latency_ms=0,
+            status=status,
+            error=error,
+        )
 
     async def tool_call(self, **_: Any) -> dict[str, Any]:
         raise AssertionError("the conduct engine must not use one-shot tool_call")

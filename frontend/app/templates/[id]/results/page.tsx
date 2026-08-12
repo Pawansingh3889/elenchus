@@ -191,7 +191,7 @@ export default function ResultsPage() {
                 className={run.id === selected ? "result-row result-row-on" : "result-row"}
                 onClick={() => setSelected(run.id)}
               >
-                <div className="result-name">{run.respondent_name}</div>
+                <div className="result-name">{run.respondent_label}</div>
                 <div className="result-meta">
                   {run.answered} of {run.total} · v{run.version}
                 </div>
@@ -216,7 +216,7 @@ export default function ResultsPage() {
                 <div className="card">
                   <div className="card-label">{msg.results.answers}</div>
                   <div className="detail-head">
-                    <strong>{detail.data.respondent_name}</strong>
+                    <strong>{detail.data.respondent_label}</strong>
                     <span>version {detail.data.version}</span>
                     <span>
                       started {new Date(detail.data.started_at).toLocaleString()}
@@ -253,7 +253,7 @@ export default function ResultsPage() {
                             <div className="answer-stamp">
                               {stamp(
                                 group.scripted,
-                                detail.data.respondent_name,
+                                detail.data.respondent_label,
                                 detail.data.version,
                               )}
                             </div>
@@ -269,7 +269,7 @@ export default function ResultsPage() {
                             </div>
                             <div className="answer-v">{readValue(followUp.value)}</div>
                             <div className="answer-stamp">
-                              {stamp(followUp, detail.data.respondent_name, detail.data.version)}
+                              {stamp(followUp, detail.data.respondent_label, detail.data.version)}
                             </div>
                           </div>
                         ))}

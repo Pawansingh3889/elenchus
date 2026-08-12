@@ -138,6 +138,11 @@ export const en = {
     finishLaterHint: "Your answers so far are saved; pick up where you left off.",
     editPrevious: "Edit my previous answer",
     editPreviousHint: "The question comes back so you can answer it again.",
+    withdraw: "Withdraw my answers",
+    withdrawHint:
+      "Everything you said in this survey is deleted. This cannot be undone.",
+    withdrawConfirm:
+      "Withdraw your answers to this survey? Everything you said, and the whole conversation, is deleted permanently. This cannot be undone.",
     editPreviousConfirm:
       "Take back your previous answer? Anything the survey asked about it will be removed too, and you will answer that question again.",
     done: "Thanks. Your answers are saved.",

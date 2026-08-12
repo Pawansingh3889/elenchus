@@ -58,7 +58,10 @@ plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-pythonpath = ["."]
+# "scripts" alongside the package, so the suite can import the engine invariants the
+# live harness shares (scripts/conduct_invariants.py). CI already exports the same path
+# for the guard step, so this makes the two agree rather than adding a new idea.
+pythonpath = [".", "scripts"]
 testpaths = ["tests"]
 
 # ---------------------------------------------------------------------------
