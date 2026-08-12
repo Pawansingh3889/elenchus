@@ -662,6 +662,11 @@ class ConductEngine:
         asked_probes = run.probes_asked.get(question["id"], 0)
         return {
             "scripted_recorded": scripted > 0,
+            # What the author's own question already holds, so a probe's answer can be
+            # compared against it. See _unrecordable.
+            "scripted_value": (
+                await self.repo.scripted_value(run.id, question_id) if scripted else None
+            ),
             "follow_ups_used": asked_probes,
             # A probe was asked and nothing has been recorded for it yet. The respondent
             # has answered it by the time this is read, because the engine only gets a
@@ -1066,6 +1071,24 @@ def _unrecordable(
             value = validate_answer(question, raw)
     except AnswerValidationError as exc:
         return exc.message
+    # A probe that comes back with the value already banked has answered the author's
+    # question a second time, not the one the model asked. Seen twice against live
+    # models: "What made your first week a solid 4?" recorded {"rating": 4}, and "Can
+    # you share more about why you feel that way?" recorded {"rating": 2}. Both are
+    # grounded, correctly shaped and about the right question, so every other gate here
+    # passes them, and the author reads a follow-up whose answer is the number they
+    # already had.
+    #
+    # Matched on the value rather than judged from the probe's wording, because telling
+    # "which of those did you mean?" from "why do you feel that way?" by reading the
+    # text is guesswork. The duplicate is the part that is wrong either way: a re-ask
+    # that returns the same value has added nothing to the results.
+    if state["scripted_recorded"] and value == state.get("scripted_value"):
+        return (
+            "that is the answer already recorded for this question, so it answers the "
+            "scripted question again rather than your follow-up. Record what they said "
+            "in reply to the follow-up, as text, or flag it unanswerable"
+        )
     # Shape proven, now source. Everything above establishes the answer is the right
     # kind of thing; none of it asks whether the respondent said it. Free text is the
     # shape that can be invented wholesale, and it is the one an author reads as a

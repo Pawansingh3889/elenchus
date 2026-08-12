@@ -138,7 +138,9 @@ async def test_engine_withholds_follow_up_once_the_cap_is_spent(session, respond
     # against the constant only passes while the constant happens to be two.
     for i in range(MAX_FOLLOW_UPS):
         reply = f"Probe {i + 1}, what does that involve?"
-        llm = FakeLLM(_record("Line lead"), _follow_up(reply))
+        # A distinct answer each time, because a probe that comes back with the value
+        # already banked is refused as answering the scripted question twice.
+        llm = FakeLLM(_record(f"Detail {i + 1}"), _follow_up(reply))
         run = await ConductEngine(session, llm=llm).handle_message(run.id, "…", respondent)
         assert run.current_question_index == 0  # a follow-up must not advance the survey
         assert run.messages[-1].content == reply
@@ -1997,3 +1999,37 @@ async def test_the_fallback_probe_is_bounded_by_the_budget(session, respondent, 
         await ConductEngine(session, llm=llm).handle_message(run.id, "training", respondent)
 
     assert llm.calls == 2  # no fallback offered: there was no probe left to offer
+
+
+async def test_a_probe_cannot_re_record_the_answer_it_was_asked_about(
+    session, respondent, published
+):
+    """Seen twice against live models, on different surveys and different providers:
+    "What made your first week a solid 4?" recorded {"rating": 4}, and "Can you share
+    more about why you feel that way?" recorded {"rating": 2}.
+
+    Both are grounded, correctly shaped and about the right question, so every other
+    gate here passes them, and the author reads a follow-up whose answer is the number
+    they already had. Matched on the value rather than judged from the probe's wording,
+    because telling a re-ask from an open question by reading the text is guesswork.
+    """
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    # Answer the first question and probe it, so the run is still open with a scripted
+    # answer banked and a follow-up outstanding.
+    run = await ConductEngine(
+        session, llm=FakeLLM(_record("Line lead"), _follow_up("What does that involve?"))
+    ).handle_message(run.id, "line lead", respondent)
+    assert run.status is RunStatus.in_progress
+
+    duplicate = _record("Line lead")  # the value already banked for this question
+    llm = FakeLLM(duplicate, _record("stock counts and rotas"), _move_on())
+    run = await ConductEngine(session, llm=llm).handle_message(
+        run.id, "stock counts and rotas", respondent
+    )
+
+    # Refused, corrected on the retry, and what lands is an answer to the question the
+    # model actually asked rather than the one it already had.
+    probes = [a for a in run.answers if a.kind is AnswerKind.follow_up]
+    assert [a.value for a in probes] == [{"text": "stock counts and rotas"}]
+    scripted = [a for a in run.answers if a.kind is AnswerKind.scripted]
+    assert [a.value for a in scripted] == [{"text": "Line lead"}]
