@@ -58,6 +58,11 @@ export const pl: Messages = {
     generateDraft: "✦ Utwórz szkic",
     describePlaceholder:
       "Opisz ankietę… np. Ankieta wdrożeniowa dla pracowników zakładu: ich stanowisko, systemy używane na co dzień i największe problemy z danymi.",
+    newSurvey: "Nowa ankieta",
+    creating: "Tworzenie…",
+    surveysNeedingYou: "wymaga uwagi",
+    surveysRunning: "w toku",
+    responsesIn: "otrzymanych odpowiedzi",
   },
   builder: {
     pickUser: "Wybierz użytkownika na górnym pasku.",

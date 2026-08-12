@@ -58,6 +58,11 @@ export const lt: Messages = {
     generateDraft: "✦ Sukurti juodraštį",
     describePlaceholder:
       "Aprašykite apklausą… pvz., Įvadinė apklausa gamyklos darbuotojams: jų pareigos, kasdien naudojamos sistemos ir didžiausios duomenų problemos.",
+    newSurvey: "Nauja apklausa",
+    creating: "Kuriama…",
+    surveysNeedingYou: "reikia jūsų",
+    surveysRunning: "vykdomos",
+    responsesIn: "gauta atsakymų",
   },
   builder: {
     pickUser: "Pasirinkite naudotoją viršutinėje juostoje.",

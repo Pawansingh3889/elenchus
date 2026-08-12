@@ -58,6 +58,11 @@ export const de: Messages = {
     drafting: "Entwurf läuft…",
     generateDraft: "✦ Entwurf erstellen",
     describePlaceholder: "Beschreiben Sie die Umfrage… z. B. Eine Einarbeitungsumfrage für Fabrikpersonal: ihre Rolle, die täglich genutzten Systeme und ihre größten Datenprobleme.",
+    newSurvey: "Neue Umfrage",
+    creating: "Wird erstellt…",
+    surveysNeedingYou: "brauchen Sie",
+    surveysRunning: "laufen",
+    responsesIn: "Antworten eingegangen",
   },
   builder: {
     pickUser: "Wählen Sie oben einen Benutzer.",

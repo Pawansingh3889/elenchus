@@ -64,6 +64,11 @@ export const en = {
     empty: "No templates yet. Create one or draft with AI.",
     drafting: "Drafting…",
     generateDraft: "✦ Generate draft",
+    newSurvey: "New survey",
+    creating: "Creating…",
+    surveysNeedingYou: "need you",
+    surveysRunning: "running",
+    responsesIn: "responses in",
     describePlaceholder:
       "Describe the survey… e.g. An onboarding survey for factory staff: their role, the systems they use daily, and their biggest data frustrations.",
   },
