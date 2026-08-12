@@ -267,14 +267,14 @@ class SurveySummaryService:
             # Nothing stored, for the reason the run summary stores nothing: an
             # unsupported recap sitting above the real numbers is worse than no recap.
             #
-            # ConflictError, not LLMError. The run summary raises LLMError here and it is
-            # wrong there too, but it is wrong *loudly* here: every model call succeeded,
-            # and the recap was refused on its merits by the checker. LLMError renders as
-            # 503 "the assistant is briefly unavailable, try again in a moment", which
-            # tells the author to retry something that will fail the same way and hides
-            # the one thing worth reading, which is why it was refused. A live run
-            # produced exactly that: two rounds of "says most stoppages are logged, but
-            # Q7 shows 5 yes and 3 no", reported to the client as an outage.
+            # ConflictError, not LLMError. Every model call succeeded, and the recap was
+            # refused on its merits by the checker. LLMError renders as 503 "the
+            # assistant is briefly unavailable, try again in a moment", which tells the
+            # author to retry something that will fail the same way and hides the one
+            # thing worth reading, which is why it was refused. A live run produced
+            # exactly that: two rounds of "says most stoppages are logged, but Q7 shows
+            # 5 yes and 3 no", reported to the client as an outage. The run summary
+            # refuses the same way now.
             logger.error(
                 "survey recap failed verification twice: template=%s problems=%r",
                 template_id,

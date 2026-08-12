@@ -210,12 +210,17 @@ class RunSummaryService:
             # worse than the author reading the answers themselves. Raising discards the
             # uncommitted rollup too; the ledger file keeps the calls that were made,
             # which is the record that survives failed work.
+            # ConflictError, not LLMError: every model call succeeded and the draft was
+            # refused on its merits by the checker. LLMError renders as 503 "briefly
+            # unavailable, try again in a moment", which tells the author to retry
+            # something that will fail the same way and hides the checker's reasons,
+            # the one thing worth reading. Same rule as the survey recap's refusal.
             logger.error(
                 "summary failed verification twice: run=%s problems=%r",
                 run.id,
                 verdict.problems,
             )
-            raise LLMError(
+            raise ConflictError(
                 "The summary could not be verified against the answers: "
                 + "; ".join(verdict.problems)
             )

@@ -252,7 +252,11 @@ async def test_a_summary_the_checker_refuses_twice_is_not_stored(
     session, author, respondent, published
 ):
     """After the one send-back the gate is a hard no: an unsupported summary rendered
-    beside the answers is worse than the author reading the answers themselves."""
+    beside the answers is worse than the author reading the answers themselves.
+
+    ConflictError, not LLMError: the model did not malfunction, the draft was refused
+    on its merits, and the checker's reasons must reach the author instead of a 503
+    telling them to retry something that will fail the same way."""
     run = await _completed(session, respondent, published)
     llm = FakeLLM(
         _summary(),
@@ -261,11 +265,49 @@ async def test_a_summary_the_checker_refuses_twice_is_not_stored(
         _unfaithful("the second fact is not in the answers"),
     )
 
-    with pytest.raises(LLMError, match="could not be verified"):
+    with pytest.raises(ConflictError, match="the second fact is not in the answers"):
         await RunSummaryService(session, llm=llm).summarise(published.id, run.id, author)
 
     await session.refresh(run)
     assert run.summary is None
+
+
+async def test_a_refusal_reaches_the_author_as_a_409_with_the_reasons(
+    session, author, respondent, published
+):
+    """The refusal used to raise LLMError, which the HTTP boundary renders as 503
+    "briefly unavailable, try again in a moment": the author was told to retry a
+    request that would fail identically, and the checker's reasons were discarded.
+    A live recap produced exactly that failure shape; this pins the run path to the
+    same fix."""
+    import json
+
+    from starlette.requests import Request
+
+    from app.errors import AppError
+    from app.main import app
+
+    run = await _completed(session, respondent, published)
+    llm = FakeLLM(
+        _summary(),
+        _unfaithful("the headline overreaches"),
+        _summary(),
+        _unfaithful("the headline overreaches"),
+    )
+
+    with pytest.raises(ConflictError) as refusal:
+        await RunSummaryService(session, llm=llm).summarise(published.id, run.id, author)
+
+    # Not an LLMError, so the 503 handler cannot intercept it on the way out.
+    assert not isinstance(refusal.value, LLMError)
+    handler = app.exception_handlers[AppError]
+    request = Request({"type": "http", "method": "POST", "path": "/api/v1", "headers": []})
+    response = await handler(request, refusal.value)
+    body = json.loads(response.body)
+
+    assert response.status_code == 409
+    assert body["error"]["code"] == "conflict"
+    assert "the headline overreaches" in body["error"]["message"]
 
 
 async def test_a_refusal_without_notes_is_an_invalid_verdict(
