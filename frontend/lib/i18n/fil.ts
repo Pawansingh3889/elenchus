@@ -175,7 +175,7 @@ export const fil: Messages = {
     recapStale: "Luma na",
     recapWrittenBy: (prompt: string, model: string) => `Isinulat ng ${prompt} sa ${model}`,
     recapHiddenWhileSliced: "Inilalarawan ng buod ang lahat ng sagot, kaya nakatago ito habang may aktibong salain.",
-    recapOutdatedBody: "May naisulat nang buod, pero may mga bagong sagot na dumating, kaya nagbago na ang mga bilang na inilarawan nito. Isulat muli para masakop lahat.",
+    recapOutdatedBody: "May naisulat nang buod, pero hindi na ito tugma sa mga resultang ito. Isulat muli para ma-update.",
   },
   results: {
     title: "Mga sagot",

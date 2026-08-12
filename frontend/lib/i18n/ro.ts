@@ -181,7 +181,7 @@ export const ro: Messages = {
     recapStale: "Neactualizat",
     recapWrittenBy: (prompt: string, model: string) => `Scris de ${prompt} pe ${model}`,
     recapHiddenWhileSliced: "Rezumatul descrie toate răspunsurile, așa că este ascuns cât timp există un filtru.",
-    recapOutdatedBody: "Un rezumat a fost scris mai devreme, dar între timp au sosit mai multe răspunsuri, așa că cifrele descrise s-au schimbat. Scrie-l din nou pentru a le acoperi pe toate.",
+    recapOutdatedBody: "Un rezumat a fost scris mai devreme, dar nu mai corespunde acestor rezultate. Scrie-l din nou pentru a-l actualiza.",
   },
   results: {
     title: "Răspunsuri",

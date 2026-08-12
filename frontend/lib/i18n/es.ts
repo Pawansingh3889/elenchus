@@ -181,7 +181,7 @@ export const es: Messages = {
     recapStale: "Desactualizado",
     recapWrittenBy: (prompt: string, model: string) => `Escrito por ${prompt} en ${model}`,
     recapHiddenWhileSliced: "El resumen describe todas las respuestas, así que se oculta mientras hay un filtro activo.",
-    recapOutdatedBody: "Ya se escribió un resumen, pero desde entonces han llegado más respuestas, así que las cifras que describía han cambiado. Vuelve a escribirlo para incluirlas todas.",
+    recapOutdatedBody: "Ya se escribió un resumen, pero ya no coincide con estos resultados. Vuelve a escribirlo para actualizarlo.",
   },
   results: {
     title: "Respuestas",

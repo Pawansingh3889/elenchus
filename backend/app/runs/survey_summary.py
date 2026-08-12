@@ -383,6 +383,16 @@ class SurveySummaryService:
         except PydanticValidationError:
             logger.warning("stored recap no longer validates, regenerating: %s", template.id)
             return None
+        if not all(_is_pseudonym(q.respondent) for q in content.notable_quotes):
+            # Written before quotes were attributed to the survey's own numbering, so it
+            # names colleagues beside what they said about their employer. The document
+            # is the cache, and this cache has no expiry other than the response count,
+            # so without this check a recap from before that decision is served for as
+            # long as nobody else answers. Withheld rather than edited: dropping the
+            # names would leave quotes attributed to nobody, and the author is better
+            # served by a current recap than by a redacted old one.
+            logger.warning("stored recap names respondents, regenerating: %s", template.id)
+            return None
         return _with_numbers(content, report, stored)
 
     async def _quotable(self, template_id: UUID, version_id: UUID) -> list[dict[str, str]]:
@@ -608,6 +618,17 @@ def _with_numbers(
 
 def _optional_str(value: Any) -> str | None:
     return value if isinstance(value, str) and value else None
+
+
+# The shape `respondent_label` produces. Matched rather than compared against the live
+# numbering because a stored recap outlives the runs it described: a withdrawal renumbers
+# everyone after it, so "is this one of today's labels" would reject sound recaps. The
+# question here is only whether it is a pseudonym at all or somebody's name.
+_PSEUDONYM = re.compile(r"^Respondent \d+$")
+
+
+def _is_pseudonym(who: str) -> bool:
+    return bool(_PSEUDONYM.match(who.strip()))
 
 
 def _brief(report: SurveyReport, quotable: list[dict[str, str]]) -> str:

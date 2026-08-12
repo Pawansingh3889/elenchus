@@ -382,3 +382,56 @@ async def test_an_out_of_range_index_from_the_checker_drops_nothing(session, aut
     recap = await SurveySummaryService(session, llm=llm).summarise(template.id, author)
 
     assert len(recap.findings) == 2
+
+
+async def test_a_stored_recap_that_names_people_is_not_served(session, author, respondent):
+    """Quotes are attributed to the survey's own numbering so an author reads a complaint
+    against Respondent 3 rather than against a colleague. Recaps written before that
+    decision are still in the column, and the only thing that expires one is a change in
+    the response count, so without this check the names are served for as long as nobody
+    else answers."""
+    template = await _surveyed(session, author, respondent)
+    await SurveySummaryService(session, llm=FakeLLM(_recap(), _faithful())).summarise(
+        template.id, author
+    )
+    await session.refresh(template)
+    # Exactly what the stored documents from before the change look like.
+    template.summary = {
+        **template.summary,
+        "notable_quotes": [
+            {
+                "question": "Which machine stops most often?",
+                "respondent": "Ken Respondent",
+                "quote": _QUOTE,
+            }
+        ],
+    }
+    await session.commit()
+
+    status = await SurveySummaryService(session, llm=FakeLLM()).stored(template.id, author)
+
+    assert status.recap is None
+    assert status.absence == "outdated"
+
+
+async def test_a_recap_attributed_to_numbers_is_still_served(session, author, respondent):
+    """The other half of the check: the ordinary case must not be caught by it."""
+    template = await _surveyed(session, author, respondent)
+    numbered = _recap(
+        notable_quotes=[
+            {
+                "question": "Which machine stops most often?",
+                "respondent": "Respondent 1",
+                "quote": _QUOTE,
+            }
+        ]
+    )
+    await SurveySummaryService(session, llm=FakeLLM(numbered, _faithful())).summarise(
+        template.id, author
+    )
+
+    status = await SurveySummaryService(session, llm=FakeLLM()).stored(template.id, author)
+
+    assert status.absence is None
+    assert status.recap is not None
+    assert [q.respondent for q in status.recap.notable_quotes] == ["Respondent 1"]

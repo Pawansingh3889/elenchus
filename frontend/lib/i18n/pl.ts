@@ -181,7 +181,7 @@ export const pl: Messages = {
     recapStale: "Nieaktualne",
     recapWrittenBy: (prompt: string, model: string) => `Napisane przez ${prompt} na ${model}`,
     recapHiddenWhileSliced: "Podsumowanie opisuje wszystkie odpowiedzi, więc jest ukryte przy aktywnym filtrze.",
-    recapOutdatedBody: "Podsumowanie już powstało, ale od tego czasu napłynęły kolejne odpowiedzi, więc opisane liczby się zmieniły. Napisz je ponownie, aby objąć wszystkie.",
+    recapOutdatedBody: "Podsumowanie już powstało, ale nie pasuje już do tych wyników. Napisz je ponownie, aby je zaktualizować.",
   },
   results: {
     title: "Odpowiedzi",
