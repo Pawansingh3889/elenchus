@@ -2033,3 +2033,47 @@ async def test_a_probe_cannot_re_record_the_answer_it_was_asked_about(
     assert [a.value for a in probes] == [{"text": "stock counts and rotas"}]
     scripted = [a for a in run.answers if a.kind is AnswerKind.scripted]
     assert [a.value for a in scripted] == [{"text": "Line lead"}]
+
+
+async def test_a_refused_choice_is_put_back_as_the_list(session, author, respondent):
+    """The synonymy hole, and why the answer is a question rather than a looser gate.
+
+    A live run refused "Processing" for "i'm on the filleting line". The two are the
+    same answer in meaning and share not one character the matcher can use, and no
+    string metric can be taught the difference: accepting an option nothing supports is
+    exactly the failure the gate exists for, which was "Nowhere I can see" recorded from
+    a sentence about training new starters.
+
+    So the gate is unchanged and the recovery does the work. The refusal turns into a
+    question naming the options, and the reply names one, which the gate can check.
+    """
+    svc = TemplateService(session)
+    template = await svc.create_draft(
+        TemplateCreate(
+            title="Cold chain",
+            questions=[
+                QuestionInput(
+                    text="At which stage do you work?",
+                    answer_type=AnswerType.single_select,
+                    options=["Receiving", "Processing", "Shipping"],
+                    follow_up_policy=FollowUpPolicy.when_unclear,
+                )
+            ],
+        ),
+        author,
+    )
+    await svc.publish(template.id, author)
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(template.id, respondent)
+
+    unsupported = _record("Processing")
+    llm = FakeLLM(unsupported, unsupported, _follow_up("Which of those is closest?", None))
+    run = await ConductEngine(session, llm=llm).handle_message(
+        run.id, "i'm on the filleting line, so mid-way through", respondent
+    )
+
+    assert run.messages[-1].content == "Which of those is closest?"
+    assert not run.answers  # nothing invented, and nothing lost either
+    # The options travel with the instruction, so the model can name them rather than
+    # asking the respondent to guess what the list holds.
+    correction = llm.messages_seen[2][-1]["content"]
+    assert "Receiving" in correction and "Processing" in correction
