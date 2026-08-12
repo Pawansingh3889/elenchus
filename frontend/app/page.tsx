@@ -136,17 +136,15 @@ export default function Home() {
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-5 p-4">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">{home.title}</h1>
-        <Button variant="primary" onClick={onCreate} disabled={create.isPending}>
-          {create.isPending ? home.creating : home.newSurvey}
-        </Button>
-      </header>
+      {/* No page heading: the top bar already says Dashboard, and repeating it spent a
+          row of vertical space saying where you are to someone who just clicked to get
+          here. The compose bar is the first thing instead, which is the first thing an
+          author does.
 
-      {/* First on the page. Describing a survey and having it drafted is the most
-          distinctive thing this product does, and putting it under the work made it the
-          least visible. A bar rather than a card: one line that grows as you type, so
-          the summary below it stays above the fold. */}
+          Describing a survey and having it drafted is the most distinctive thing this
+          product does, and putting it under the work made it the least visible. A bar
+          rather than a card: one line that grows as you type, so the summary below it
+          stays above the fold. */}
       <div className="flex flex-col gap-2 rounded-lg border border-ai-border bg-ai-fill p-2">
         {/* Three lines at rest: a one-line box invites a phrase, and the model drafts a
             better survey from a description. The button sits under the box rather than
@@ -158,7 +156,14 @@ export default function Home() {
           value={prompt}
           onChange={setPrompt}
         />
-        <div className="flex justify-end">
+        {/* Both ways of starting a survey sit together: describe it and have it drafted,
+            or open an empty builder. The blank one is the quieter of the two because it
+            is the longer road, but it stays reachable rather than being removed with the
+            page heading it happened to share a row with. */}
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button variant="quiet" size="sm" onClick={onCreate} disabled={create.isPending}>
+            {create.isPending ? home.creating : home.newSurvey}
+          </Button>
           <Button
             variant="ai"
             onClick={onGenerate}
