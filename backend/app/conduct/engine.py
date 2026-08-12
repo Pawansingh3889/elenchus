@@ -431,6 +431,9 @@ class ConductEngine:
         tools: list[dict[str, Any]],
         setting: str | None,
         previous_error: str | None,
+        # False on the fallback pass below, so the "ask instead of failing" path is
+        # offered once and cannot recurse.
+        probe_allowed: bool = True,
     ) -> ToolTurn:
         briefing = _briefing(
             questions, run.current_question_index, question, state, setting, previous_error
@@ -498,8 +501,8 @@ class ConductEngine:
                 error,
             )
             return await self._decide(run, questions, question, state, tools, setting, error)
-        # Second failure: the raw output is the only thing that explains why, so it is
-        # logged before the turn fails (ARCHITECTURE.md 3.3).
+        # Second failure. The raw output is the only thing that explains why, so it is
+        # logged before anything else happens (ARCHITECTURE.md 3.3).
         logger.error(
             "conduct turn failed after one retry: " + _REJECTED,
             run.id,
@@ -509,7 +512,39 @@ class ConductEngine:
             turn.text,
             error,
         )
-        raise LLMError(f"Model produced an invalid action after one retry: {error}")
+        # A refused action is not an outage. This used to raise, which the HTTP boundary
+        # renders as 503 "the assistant is briefly unavailable, try again in a moment",
+        # and every one of those words is wrong: the provider answered, the gate refused
+        # the model's *content*, and retrying re-runs the same turn against the same
+        # message. A live run lost a respondent's answer exactly that way, on a reply
+        # ("re-ice it and carry on, or call the supervisor") that was perfectly good.
+        #
+        # An answer the engine cannot accept is not a new problem: it is what a probe is
+        # for, and every other kind of unusable reply already gets one. So ask, rather
+        # than fail. The probe budget bounds it, so this cannot loop; when there is no
+        # probe left the turn still fails, because at that point there is nothing left
+        # to try and pretending otherwise would hide it.
+        if not probe_allowed or not _may_probe(question, state["follow_ups_used"]):
+            raise LLMError(f"Model produced an invalid action after one retry: {error}")
+        logger.warning("asking a follow-up rather than failing the turn: run=%s", run.id)
+        probe_only = [t for t in _tools_for(question, state) if t["name"] == FOLLOW_UP]
+        return await self._decide(
+            run,
+            questions,
+            question,
+            state,
+            probe_only,
+            setting,
+            # Written as an instruction rather than as the gate's own message, which is
+            # addressed to a model choosing a value and reads as nonsense to one being
+            # told to ask a question. `answer_so_far` is null on purpose: whatever was
+            # in their reply has just been refused twice, and banking it here would slip
+            # past the gate that refused it.
+            f"{error} Ask the respondent plainly instead: call ask_follow_up with a short "
+            "question that puts the current question to them again in their own terms, and "
+            "pass answer_so_far as null.",
+            probe_allowed=False,
+        )
 
     async def _apply(
         self,
