@@ -58,6 +58,11 @@ export const lv: Messages = {
     generateDraft: "✦ Izveidot melnrakstu",
     describePlaceholder:
       "Aprakstiet aptauju… piem., Ievadaptauja rūpnīcas darbiniekiem: viņu amats, ikdienā lietotās sistēmas un lielākās problēmas ar datiem.",
+    newSurvey: "Jauna aptauja",
+    creating: "Izveido…",
+    surveysNeedingYou: "vajag jūs",
+    surveysRunning: "norit",
+    responsesIn: "saņemtas atbildes",
   },
   builder: {
     pickUser: "Izvēlieties lietotāju augšējā joslā.",

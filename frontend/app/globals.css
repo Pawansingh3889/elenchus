@@ -173,11 +173,38 @@
   color-scheme: dark;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* ---------------------------------------------------------------------------
+   Element defaults, in a cascade layer.
+
+   `@layer base` rather than unlayered, and the distinction is load-bearing in
+   exactly one direction. Everything below this block is a *class* rule and stays
+   unlayered, so it still beats every Tailwind utility and the pages written
+   against it cannot move. These are *element* rules, and unlayered they beat
+   utilities too: `* { padding: 0 }` silently defeated every `px-*` on every new
+   component, and `a { color: inherit }` made a light-on-dark button render its
+   label in body ink, which is to say invisible. Both were found by reading the
+   computed styles off a rendered page, because both compile and lint clean.
+
+   Layered, they still beat the browser's own defaults, which is the whole job
+   they were doing. Nothing that reads them changes; what changes is that a
+   utility can now override one deliberately.
+   --------------------------------------------------------------------------- */
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+  button {
+    font-family: inherit;
+    cursor: pointer;
+  }
 }
+
 html,
 body {
   height: 100%;
@@ -223,14 +250,6 @@ body {
 }
 :lang(bn) {
   font-family: "Nirmala UI", "Noto Sans Bengali", var(--font);
-}
-a {
-  color: inherit;
-  text-decoration: none;
-}
-button {
-  font-family: inherit;
-  cursor: pointer;
 }
 input,
 textarea,

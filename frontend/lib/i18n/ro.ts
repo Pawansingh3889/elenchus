@@ -58,6 +58,11 @@ export const ro: Messages = {
     generateDraft: "✦ Generează schița",
     describePlaceholder:
       "Descrie sondajul… de ex. Un sondaj de integrare pentru personalul din fabrică: postul lor, sistemele folosite zilnic și cele mai mari probleme cu datele.",
+    newSurvey: "Sondaj nou",
+    creating: "Se creează…",
+    surveysNeedingYou: "au nevoie de tine",
+    surveysRunning: "în desfășurare",
+    responsesIn: "răspunsuri primite",
   },
   builder: {
     pickUser: "Alege un utilizator din bara de sus.",
