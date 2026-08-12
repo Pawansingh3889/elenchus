@@ -177,7 +177,7 @@ export const de: Messages = {
     recapStale: "Veraltet",
     recapWrittenBy: (prompt: string, model: string) => `Geschrieben von ${prompt} auf ${model}`,
     recapHiddenWhileSliced: "Die Zusammenfassung beschreibt alle Antworten und ist daher ausgeblendet, solange ein Filter aktiv ist.",
-    recapOutdatedBody: "Es gab schon eine Zusammenfassung, aber seitdem sind weitere Antworten eingegangen, sodass sich die beschriebenen Zahlen verschoben haben. Neu schreiben, um alle zu erfassen.",
+    recapOutdatedBody: "Es gab schon eine Zusammenfassung, aber sie passt nicht mehr zu diesen Ergebnissen. Neu schreiben, um sie zu aktualisieren.",
   },
   results: {
     title: "Antworten",

@@ -181,7 +181,7 @@ export const lv: Messages = {
     recapStale: "Novecojis",
     recapWrittenBy: (prompt: string, model: string) => `Rakstīja ${prompt} uz ${model}`,
     recapHiddenWhileSliced: "Kopsavilkums apraksta visas atbildes, tāpēc filtra laikā tas ir paslēpts.",
-    recapOutdatedBody: "Kopsavilkums jau tika uzrakstīts, taču kopš tā laika ir pienākušas jaunas atbildes, tāpēc aprakstītie skaitļi ir mainījušies. Uzraksti to no jauna, lai aptvertu visas.",
+    recapOutdatedBody: "Kopsavilkums jau tika uzrakstīts, bet tas vairs neatbilst šiem rezultātiem. Uzraksti to no jauna, lai to atjauninātu.",
   },
   results: {
     title: "Atbildes",

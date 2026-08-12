@@ -189,7 +189,7 @@ export const en = {
     recapStale: "Out of date",
     recapWrittenBy: (prompt: string, model: string) => `Written by ${prompt} on ${model}`,
     recapHiddenWhileSliced: "The recap describes every response, so it is hidden while a slice is showing.",
-    recapOutdatedBody: "A recap was written earlier, but more responses have arrived since, so the numbers it described have moved. Write it again to cover them all.",
+    recapOutdatedBody: "A recap was written earlier, but it no longer matches these results. Write it again to bring it up to date.",
   },
   results: {
     title: "Responses",
