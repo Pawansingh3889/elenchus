@@ -27,6 +27,20 @@ export const ro: Messages = {
     selectUser: "Alege un utilizator…",
     language: "Limbă",
   },
+  audience: {
+    forWhom: (who: string) => `Acest chestionar este pentru ${who}.`,
+    label: "Pentru cine este?",
+    everyone: "Toată lumea",
+    operatives: "Operatori",
+    lineLeaders: "Șefi de linie",
+    supervisors: "Supervizori",
+    managers: "Manageri",
+    qa: "Control calitate",
+    person: "O singură persoană",
+    personLabel: "Care persoană?",
+    personPlaceholder: "Alegeți pe cineva…",
+    attributable: "Adresat unei singure persoane, deci răspunsul îi poate fi atribuit.",
+  },
   home: {
     inProgress: "în curs",
     report: "Raport",
@@ -83,17 +97,6 @@ export const ro: Messages = {
     step3Title: "Răspund prin conversație",
     step3Body:
       "Respondenții parcurg întrebările într-o conversație. Motorul decide ce urmează și ce contează drept răspuns, așa că nimic nu este inventat și nimic nu este sărit.",
-    audienceLabel: "Pentru cine este?",
-    audienceEveryone: "Toată lumea",
-    audienceOperatives: "Operatori",
-    audienceLineLeaders: "Șefi de linie",
-    audienceSupervisors: "Supervizori",
-    audienceManagers: "Manageri",
-    audienceQa: "Control calitate",
-    audiencePerson: "O singură persoană",
-    personLabel: "Care persoană?",
-    personPlaceholder: "Alegeți pe cineva…",
-    attributable: "Adresat unei singure persoane, deci răspunsul îi poate fi atribuit.",
     // "așteaptă" is the same in the third person singular and plural, so only the noun
     // takes a plural here.
     needsYou: (n: number) => `${n} chestionar${n === 1 ? "" : "e"} vă așteaptă →`,
