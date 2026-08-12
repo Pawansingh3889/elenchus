@@ -1,16 +1,23 @@
-// Screenshot a page as a signed-in author, for looking at while designing. Not a test:
+// Screenshot a page as a signed-in user, for looking at while designing. Not a test:
 // the .mjs extension keeps it out of the spec glob deliberately.
 //
-// It exists mostly to hold the two traps in one place. The current user lives in
+// It exists mostly to hold the traps in one place. The current user lives in
 // localStorage and the picker's own list 401s without it, so a browser cannot click its
 // way in; and the app is built with NEXT_PUBLIC_API_URL=http://localhost:8000, which is
 // the host's backend but this browser's own container.
 // Run inside the frontend container:
 //   node e2e/shot.mjs /  /tmp/dashboard.png
+//   SHOT_USER=$RESPONDENT SHOT_WAIT=".page" node e2e/shot.mjs /respond /tmp/respond.png
+//
+// SHOT_USER matters more than it looks. Acting as an author, /respond and /runs/:id
+// both redirect to the dashboard, so shooting them with the default user photographs
+// the dashboard twice and reports it as coverage of the respondent pages. That is
+// exactly what happened while checking that Tailwind changed nothing.
 import { chromium } from "@playwright/test";
 
 const [, , path = "/", out = "/tmp/shot.png"] = process.argv;
 const AVA = "00000000-0000-0000-0000-0000000000a1";
+const USER = process.env.SHOT_USER || AVA;
 
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1280, height: 1400 } });
@@ -19,7 +26,7 @@ await context.addInitScript((id) => {
     "elenchus-user",
     JSON.stringify({ state: { currentUserId: id }, version: 0 }),
   );
-}, AVA);
+}, USER);
 // The app is built with NEXT_PUBLIC_API_URL=http://localhost:8000, which is correct for
 // a browser on the host and wrong for this one: it runs inside the frontend container,
 // where localhost:8000 is the frontend. Rewrite to the service name on the compose

@@ -173,11 +173,38 @@
   color-scheme: dark;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* ---------------------------------------------------------------------------
+   Element defaults, in a cascade layer.
+
+   `@layer base` rather than unlayered, and the distinction is load-bearing in
+   exactly one direction. Everything below this block is a *class* rule and stays
+   unlayered, so it still beats every Tailwind utility and the pages written
+   against it cannot move. These are *element* rules, and unlayered they beat
+   utilities too: `* { padding: 0 }` silently defeated every `px-*` on every new
+   component, and `a { color: inherit }` made a light-on-dark button render its
+   label in body ink, which is to say invisible. Both were found by reading the
+   computed styles off a rendered page, because both compile and lint clean.
+
+   Layered, they still beat the browser's own defaults, which is the whole job
+   they were doing. Nothing that reads them changes; what changes is that a
+   utility can now override one deliberately.
+   --------------------------------------------------------------------------- */
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+  button {
+    font-family: inherit;
+    cursor: pointer;
+  }
 }
+
 html,
 body {
   height: 100%;
@@ -223,14 +250,6 @@ body {
 }
 :lang(bn) {
   font-family: "Nirmala UI", "Noto Sans Bengali", var(--font);
-}
-a {
-  color: inherit;
-  text-decoration: none;
-}
-button {
-  font-family: inherit;
-  cursor: pointer;
 }
 input,
 textarea,
@@ -311,11 +330,6 @@ select {
   align-items: center;
   justify-content: space-between;
 }
-.page-head-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 .page-head h1 {
   font-size: var(--text-xl);
   font-weight: 800;
@@ -338,12 +352,6 @@ select {
   border-radius: 9px;
   padding: 8px 12px;
   font-size: var(--text-sm);
-}
-
-.section-head {
-  font-size: var(--text-md);
-  font-weight: 700;
-  margin-block-end: calc(-1 * var(--space-2));
 }
 
 .card {
@@ -448,12 +456,6 @@ textarea {
      rather than wrap inside it. */
   overflow-wrap: break-word;
 }
-
-.template-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
 .template-row {
   display: flex;
   align-items: center;
@@ -478,21 +480,6 @@ textarea {
 .template-meta {
   color: var(--secondary);
   font-size: var(--text-sm);
-}
-/* The row is no longer a single link: the title still navigates, but the actions beside
-   it must not, or closing a survey would also open it. */
-.template-row-main {
-  display: block;
-  flex: 1;
-  min-inline-size: 0;
-  color: inherit;
-  text-decoration: none;
-}
-.template-row-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
 }
 
 .pill {
@@ -1099,56 +1086,6 @@ select.field {
   gap: 16px;
   align-items: start;
 }
-.results-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.result-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 4px 8px;
-  text-align: start;
-  background: var(--raised);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 10px 12px;
-}
-.result-row {
-  transition:
-    border-color var(--dur-fast) var(--ease),
-    background var(--dur-fast) var(--ease);
-}
-.result-row:hover {
-  border-color: var(--muted-light);
-}
-.result-row-on {
-  border-color: var(--accent);
-}
-.result-name {
-  font-weight: 700;
-  font-size: var(--text-sm);
-}
-.result-meta {
-  grid-column: 1;
-  color: var(--secondary);
-  font-size: var(--text-xs);
-}
-.result-row .pill {
-  grid-row: 1 / span 2;
-  grid-column: 2;
-  align-self: center;
-}
-.results-detail {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.answer-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
 .answer {
   display: flex;
   flex-direction: column;
@@ -1158,99 +1095,11 @@ select.field {
   border: 1px solid var(--border-faint);
   border-radius: 9px;
 }
-.answer-q {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--text-sm);
-  color: var(--secondary);
-}
-.answer-v {
-  font-size: var(--text-base);
-  font-weight: 600;
-}
-.answer-stamp {
-  font-size: var(--text-xs);
-  color: var(--muted);
-  margin-top: 2px;
-}
-/* A follow-up sits under the question it probed, indented against a hairline. */
-.answer-follow {
-  margin-top: 8px;
-  padding-inline-start: 10px;
-  border-inline-start: 2px solid var(--ai-border);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.detail-head {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  font-size: var(--text-xs);
-  color: var(--secondary);
-  padding-bottom: 10px;
-  margin-bottom: 10px;
-  border-bottom: 1px solid var(--border-faint);
-}
-.chip-follow {
-  background: var(--ai-fill);
-  border-color: var(--ai-border);
-  font-size: var(--text-xs);
-  padding: 1px 7px;
-}
 .chat-thread-flat {
   border: none;
   padding: 0;
   min-height: 0;
   max-height: 40vh;
-}
-
-/* ---------------------------------------------------------------- AI run summary */
-.summary {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.summary-headline {
-  font-size: var(--text-md);
-  font-weight: 700;
-  line-height: 1.35;
-  margin: 0;
-}
-.summary-facts {
-  margin: 0;
-  padding-inline-start: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: var(--text-base);
-}
-.summary-quotes {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-/* Quotes are the respondent's verbatim words, so they are set apart from the model's
-   own prose above them rather than styled like it. */
-.summary-quote {
-  margin: 0;
-  padding: 8px 12px;
-  background: var(--ai-fill);
-  border-inline-start: 2px solid var(--ai-border);
-  border-start-start-radius: 0;
-  border-start-end-radius: var(--radius);
-  border-end-end-radius: var(--radius);
-  border-end-start-radius: 0;
-  font-size: var(--text-base);
-  font-style: italic;
-}
-.summary-quote cite {
-  display: block;
-  margin-top: 4px;
-  font-size: var(--text-xs);
-  font-style: normal;
-  color: var(--secondary);
 }
 
 /* ------------------------------------------------- conditional visibility (builder) */
@@ -1405,7 +1254,6 @@ select.field {
     align-items: stretch;
     gap: 10px;
   }
-  .page-head-actions,
   .builder-actions {
     justify-content: flex-start;
   }
@@ -1473,11 +1321,6 @@ select.field {
   .composer .btn {
     flex: 1;
   }
-
-  /* Wide content scrolls inside itself rather than pushing the page sideways. */
-  .answer-list {
-    overflow-x: auto;
-  }
 }
 /* Coarse pointers deserve the larger targets whatever the screen width: a tablet
    in landscape is wider than 640px and still being used with a thumb. */
@@ -1499,52 +1342,6 @@ select.field {
     scroll-behavior: auto !important;
   }
 }
-
-/* The survey report: what people said, question by question.
-
-   Bars are a share of the largest count, not of the number who answered, so a question
-   nobody agreed on still reads as a shape. The count is printed beside every bar because
-   the bar is for comparing at a glance and the number is the finding. */
-.report-question {
-  font-size: var(--text-md);
-  font-weight: 700;
-  margin-block-end: var(--space-1);
-}
-.report-meta {
-  font-size: var(--text-sm);
-  font-style: normal;
-  margin-block-end: var(--space-3);
-}
-.bars {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  list-style: none;
-}
-.bars li {
-  display: grid;
-  grid-template-columns: minmax(6rem, 14rem) 1fr auto;
-  align-items: center;
-  gap: var(--space-3);
-  font-size: var(--text-sm);
-}
-.bar-track {
-  background: var(--highlight-soft);
-  border-radius: 999px;
-  block-size: 10px;
-  overflow: hidden;
-}
-.bar-fill {
-  display: block;
-  block-size: 100%;
-  background: var(--accent-strong);
-  border-radius: 999px;
-  transition: inline-size var(--dur-slow) var(--ease);
-}
-.bar-count {
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-}
 .verbatim > summary {
   font-size: var(--text-sm);
   cursor: pointer;
@@ -1560,81 +1357,9 @@ select.field {
   font-size: var(--text-sm);
 }
 
-/* One column on a phone: a three-column grid puts the label, the bar and the count all
-   at unreadable widths long before the page itself runs out of room. */
-@media (max-width: 640px) {
-  .bars li {
-    grid-template-columns: 1fr auto;
-  }
-  .bar-track {
-    grid-column: 1 / -1;
-  }
-}
-
-/* ------------------------------------------------------- the whole-survey recap */
-/* Set above the per-question cards and marked as the model's, on the same fill the
-   per-run summary uses, so an author never has to work out which prose on the page a
-   machine wrote. The numbers inside it are the report's own. */
-.recap-block {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin-block-end: var(--space-4);
-}
 .recap {
   background: var(--ai-fill);
   border-color: var(--ai-border);
-}
-.recap-headline {
-  font-size: var(--text-lg);
-  line-height: 1.3;
-  margin: 0 0 var(--space-3);
-  text-wrap: balance;
-}
-.recap-findings {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  margin: 0;
-  padding-inline-start: var(--space-4);
-  font-size: var(--text-base);
-}
-.recap-source {
-  font-size: var(--text-xs);
-}
-/* The tally, on its own line under the statement it belongs to. Beside it, a long
-   option list would push the finding out of the reader's eye line. */
-.recap-counts {
-  display: block;
-  margin-block-start: 4px;
-  font-size: var(--text-xs);
-  font-variant-numeric: tabular-nums;
-  color: var(--secondary);
-}
-.recap-quotes {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-block-start: var(--space-3);
-}
-.recap-quotes blockquote {
-  margin: 0;
-  padding: 8px 12px;
-  background: var(--raised);
-  border-inline-start: 2px solid var(--ai-border);
-  border-start-start-radius: 0;
-  border-start-end-radius: var(--radius);
-  border-end-end-radius: var(--radius);
-  border-end-start-radius: 0;
-  font-size: var(--text-base);
-  font-style: italic;
-}
-.recap-quotes cite {
-  display: block;
-  margin-block-start: 4px;
-  font-size: var(--text-xs);
-  font-style: normal;
-  color: var(--secondary);
 }
 
 /* --------------------------------------------------------------- confirm dialog */
@@ -1702,242 +1427,6 @@ select.field {
     transform: translateY(4px);
   }
 }
-
-/* ------------------------------------------------------------------- dashboard */
-/* A survey that needs the author is marked on the row itself rather than only by which
-   group it sits in, so it still reads as urgent when the page is scrolled past the
-   heading. An inline-start rule rather than a fill: the row stays the same colour as
-   every other, and the marker cannot be mistaken for a status the survey has. */
-.template-row-alert {
-  border-inline-start: 3px solid var(--highlight);
-}
-.template-why {
-  color: var(--warn-text);
-}
-/* Closed work is finished, not urgent, so it recedes rather than competing. */
-.template-row-quiet {
-  opacity: 0.72;
-}
-.template-row-quiet:hover,
-.template-row-quiet:focus-within {
-  opacity: 1;
-}
-.section-note {
-  margin-inline-start: var(--space-2);
-  font-size: var(--text-sm);
-  font-weight: 400;
-  color: var(--muted);
-}
-
-/* One ratio against a limit, so a meter. Comparable down the column at a glance, with
-   the figure beside it because the bar is for scanning and the number is the finding. */
-.reach-meter {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  inline-size: 9rem;
-  flex: 0 0 auto;
-}
-.reach-track {
-  flex: 1;
-  block-size: 6px;
-  border-radius: 3px;
-  background: var(--muted-light);
-  overflow: hidden;
-}
-.reach-fill {
-  display: block;
-  block-size: 100%;
-  border-radius: 3px;
-  background: var(--accent-strong);
-}
-.reach-figure {
-  font-size: var(--text-sm);
-  font-variant-numeric: tabular-nums;
-  color: var(--secondary);
-  inline-size: 2.6rem;
-  text-align: end;
-}
-@media (max-width: 40rem) {
-  /* The bar is the first thing to go on a narrow screen: the figure beside it says the
-     same thing in less room, and the row's own line already says "3 of 8 answered". */
-  .reach-track {
-    display: none;
-  }
-  .reach-meter {
-    inline-size: auto;
-  }
-}
-
-/* --------------------------------------------------------- dashboard hero band */
-/* The summary is a band rather than a row of tiles because it is one thing: an audience,
-   and how far through it the author is. Three tiles floating in a wide empty strip said
-   the same and looked like an afterthought. */
-.hero-band {
-  background: var(--raised);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: var(--space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-.hero-head {
-  font-size: var(--text-sm);
-  color: var(--secondary);
-}
-
-/* One audience, three stages through it. A single hue getting darker the further along
-   the stage, because these are ordered rather than unrelated: categorical colours here
-   would say the three groups are different kinds of thing rather than the same people
-   at different points. */
-.audience-bar {
-  display: flex;
-  gap: 2px;
-  block-size: 14px;
-  border-radius: 7px;
-  overflow: hidden;
-  background: var(--canvas);
-}
-.seg {
-  display: block;
-  block-size: 100%;
-  min-inline-size: 0;
-}
-.seg-answered {
-  background: var(--accent-strong);
-}
-.seg-partway {
-  background: var(--accent);
-}
-.seg-notyet {
-  background: var(--muted-light);
-}
-
-.hero-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-4);
-  font-size: var(--text-sm);
-  color: var(--secondary);
-}
-.legend-item {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-.legend-item b {
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
-}
-.legend-count {
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-.swatch {
-  inline-size: 9px;
-  block-size: 9px;
-  border-radius: 2px;
-  align-self: center;
-}
-.swatch-answered {
-  background: var(--accent-strong);
-}
-.swatch-partway {
-  background: var(--accent);
-}
-.swatch-notyet {
-  background: var(--muted-light);
-}
-.hero-note {
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
-/* The group's size, on the group's own heading. It used to sit in a row of counts above,
-   which repeated the two headings directly below it. */
-.section-count {
-  margin-inline-start: var(--space-2);
-  font-size: var(--text-sm);
-  font-weight: 400;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-
-/* -------------------------------------------------------------- report rates */
-/* Two rates, each labelled with what it is a share of. They replaced a tile reading
-   "8/8 responded" beside one reading "8 responses", which was the same number twice,
-   and the second rate had been on the dashboard where there was no room to say what it
-   was over. The percentage leads because it is the comparable thing; the counts under
-   it are the working. */
-.report-rates {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--space-3) var(--space-5);
-  padding: var(--space-4);
-  background: var(--raised);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-.rate-value {
-  font-size: var(--text-xl);
-  font-weight: 700;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-}
-.rate-label {
-  font-size: var(--text-sm);
-  color: var(--ink);
-}
-.rate-of {
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
-/* Metadata rather than a statistic: it was a tile the same size as the numbers, which
-   said a version number was one of the survey's findings. */
-.rate-meta {
-  margin-inline-start: auto;
-  font-size: var(--text-sm);
-  color: var(--muted);
-}
-
-/* ------------------------------------------------------------------ draft bar */
-/* First on the page, and a bar rather than a card. Describing a survey and having it
-   drafted is the most distinctive thing here, so it leads; but a panel with a tall
-   textarea leading would push the summary and the work below the fold, which is what
-   moving it here would otherwise cost. One line that grows as you type. */
-.draft-bar {
-  display: flex;
-  /* Under the box, not beside it. Beside a three-line input the button takes width the
-     description wants and leaves a column of empty space under itself; under it, the
-     input runs the full width and the action reads as the next step rather than a
-     fitting. */
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-2);
-  background: var(--ai-fill);
-  border: 1px solid var(--ai-border);
-  border-radius: var(--radius);
-}
-.draft-bar .draft-input {
-  flex: 1;
-  /* Three lines at rest: a one-line box invites a phrase, and the model drafts a better
-     survey from a description. Beats the inline height the autogrow sets, so it starts
-     at three and still grows past them. */
-  min-block-size: 4.6rem;
-  background: var(--raised);
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  padding: 8px 10px;
-}
-.draft-bar .draft-input:focus {
-  border-color: var(--accent);
-}
-.draft-bar .btn {
-  flex: 0 0 auto;
-  align-self: flex-end;
-}
-
 /* ------------------------------------------------------------------ survey nav */
 /* Where you are in a survey, and the way back out. Present on all three of its pages,
    in the same place, so moving between them is a click rather than a hunt for whichever

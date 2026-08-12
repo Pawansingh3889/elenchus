@@ -128,7 +128,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
       // building and the start of waiting for answers, and the report is where those
       // arrive: it reads "nobody has answered yet" until they do, which is the true
       // state and more use than the editor they published from.
-      router.push(`/templates/${id}/report`);
+      router.push(`/templates/${id}/results`);
     } catch {
       // Rendered from update.error / publish.error below.
     }

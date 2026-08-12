@@ -220,6 +220,88 @@ async def test_a_new_response_makes_the_stored_recap_wrong_not_stale(
     assert recap.runs_included == 2
 
 
+async def test_the_stored_recap_reads_back_without_a_model_call(session, author, respondent):
+    """Reading a recap must not cost what writing one costs. Until this existed the only
+    way to see a recap was to generate it, so a page that navigated away and back paid a
+    model call to read prose already sitting in the column."""
+    template = await _surveyed(session, author, respondent)
+    await SurveySummaryService(session, llm=FakeLLM(_recap(), _faithful())).summarise(
+        template.id, author
+    )
+
+    reader = FakeLLM()  # any call would raise
+    status = await SurveySummaryService(session, llm=reader).stored(template.id, author)
+
+    assert reader.calls == 0
+    assert status.absence is None
+    assert status.recap is not None
+    assert status.recap.runs_included == 1
+    assert status.recap.findings[0].question_text == "Which machine stops most often?"
+
+
+async def test_a_survey_nobody_has_summarised_reads_as_never_generated(session, author, respondent):
+    """Not a 404: a survey with responses and no recap is healthy, and the page invites
+    a first one rather than reporting a missing resource."""
+    template = await _surveyed(session, author, respondent)
+
+    status = await SurveySummaryService(session, llm=FakeLLM()).stored(template.id, author)
+
+    assert status.recap is None
+    assert status.absence == "never_generated"
+
+
+async def test_a_recap_the_results_moved_past_reads_as_outdated(
+    session, author, respondent, other_respondent
+):
+    """The absence the page most needs to distinguish: a recap exists, it is simply no
+    longer true of the numbers, and saying so is different from offering a first one."""
+    template = await _surveyed(session, author, respondent)
+    await SurveySummaryService(session, llm=FakeLLM(_recap(), _faithful())).summarise(
+        template.id, author
+    )
+
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(template.id, other_respondent)
+    run = await ConductEngine(session, llm=FakeLLM(record("the press"), move_on())).handle_message(
+        run.id, "the press", respondent=other_respondent
+    )
+    await ConductEngine(session, llm=FakeLLM(record(True), move_on())).handle_message(
+        run.id, "yes", other_respondent
+    )
+
+    status = await SurveySummaryService(session, llm=FakeLLM()).stored(template.id, author)
+
+    assert status.recap is None
+    assert status.absence == "outdated"
+
+
+async def test_the_recap_carries_what_wrote_it(session, author, respondent):
+    """Provenance was stored from the start and readable only by opening the column. A
+    recap that reads worse than it used to may be a prompt change or a model change, and
+    the author looking at it can now see which."""
+    template = await _surveyed(session, author, respondent)
+    llm = FakeLLM(_recap(), _faithful())
+
+    written = await SurveySummaryService(session, llm=llm).summarise(template.id, author)
+    read_back = await SurveySummaryService(session, llm=FakeLLM()).stored(template.id, author)
+
+    assert written.prompt_version == "summarise_survey_v1"
+    assert written.verify_prompt_version == "verify_survey_summary_v1"
+    assert read_back.recap is not None
+    assert read_back.recap.prompt_version == "summarise_survey_v1"
+    assert read_back.recap.verify_prompt_version == "verify_survey_summary_v1"
+
+
+async def test_reading_a_recap_of_someone_elses_survey_is_a_404(
+    session, author, other_author, respondent
+):
+    """The read inherits the boundary the numbers have, because it goes through the same
+    report() call that owns the ownership check."""
+    template = await _surveyed(session, author, respondent)
+
+    with pytest.raises(NotFoundError):
+        await SurveySummaryService(session, llm=FakeLLM()).stored(template.id, other_author)
+
+
 async def test_a_survey_nobody_has_finished_is_refused(session, author, respondent):
     """No responses is not a thin recap, it is no recap. Generating one would spend a
     model call to say nothing and leave prose above an empty page."""
@@ -300,3 +382,87 @@ async def test_an_out_of_range_index_from_the_checker_drops_nothing(session, aut
     recap = await SurveySummaryService(session, llm=llm).summarise(template.id, author)
 
     assert len(recap.findings) == 2
+
+
+async def test_a_stored_recap_that_names_people_is_not_served(session, author, respondent):
+    """Quotes are attributed to the survey's own numbering so an author reads a complaint
+    against Respondent 3 rather than against a colleague. Recaps written before that
+    decision are still in the column, and the only thing that expires one is a change in
+    the response count, so without this check the names are served for as long as nobody
+    else answers."""
+    template = await _surveyed(session, author, respondent)
+    await SurveySummaryService(session, llm=FakeLLM(_recap(), _faithful())).summarise(
+        template.id, author
+    )
+    await session.refresh(template)
+    # Exactly what the stored documents from before the change look like.
+    template.summary = {
+        **template.summary,
+        "notable_quotes": [
+            {
+                "question": "Which machine stops most often?",
+                "respondent": "Ken Respondent",
+                "quote": _QUOTE,
+            }
+        ],
+    }
+    await session.commit()
+
+    status = await SurveySummaryService(session, llm=FakeLLM()).stored(template.id, author)
+
+    assert status.recap is None
+    assert status.absence == "outdated"
+
+
+async def test_a_recap_attributed_to_numbers_is_still_served(session, author, respondent):
+    """The other half of the check: the ordinary case must not be caught by it."""
+    template = await _surveyed(session, author, respondent)
+    numbered = _recap(
+        notable_quotes=[
+            {
+                "question": "Which machine stops most often?",
+                "respondent": "Respondent 1",
+                "quote": _QUOTE,
+            }
+        ]
+    )
+    await SurveySummaryService(session, llm=FakeLLM(numbered, _faithful())).summarise(
+        template.id, author
+    )
+
+    status = await SurveySummaryService(session, llm=FakeLLM()).stored(template.id, author)
+
+    assert status.absence is None
+    assert status.recap is not None
+    assert [q.respondent for q in status.recap.notable_quotes] == ["Respondent 1"]
+
+
+async def test_one_quote_past_the_cap_trims_rather_than_losing_the_recap(
+    session, author, respondent
+):
+    """A live run lost a sound recap twice because the model returned seven quotes
+    against a limit of six. The author was told the assistant was unavailable while
+    nothing was unavailable, and the recap was one quote from being served."""
+    template = await _surveyed(session, author, respondent)
+    quote = {
+        "question": "Which machine stops most often?",
+        "respondent": "Respondent 1",
+        "quote": _QUOTE,
+    }
+    llm = FakeLLM(_recap(notable_quotes=[quote] * 7), _faithful())
+
+    recap = await SurveySummaryService(session, llm=llm).summarise(template.id, author)
+
+    # Trimmed to the cap and served, rather than refused and retried into an error.
+    assert len(recap.notable_quotes) == 6
+    assert llm.calls == 2  # no schema retry was needed
+
+
+async def test_findings_past_the_cap_are_trimmed_too(session, author, respondent):
+    template = await _surveyed(session, author, respondent)
+    finding = {"statement": "Most respondents named the same machine", "question_position": 0}
+    llm = FakeLLM(_recap(findings=[finding] * 8), _faithful())
+
+    recap = await SurveySummaryService(session, llm=llm).summarise(template.id, author)
+
+    assert len(recap.findings) == 6

@@ -4,28 +4,33 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
+import { EmptyState } from "@/components/EmptyState";
+import { ErrorBanner } from "@/components/ErrorBanner";
+import { Stat } from "@/components/Stat";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { groupForDashboard, landingFor, type Attention } from "@/lib/dashboardAttention";
+import { useT } from "@/lib/i18n/useT";
 import {
   useCloseTemplate,
-  useCreateTemplate,
   useCurrentUser,
   useDashboard,
   useGenerateTemplate,
 } from "@/lib/queries";
-import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
-import { groupForDashboard, landingFor, type Attention } from "@/lib/dashboardAttention";
-import { useT } from "@/lib/i18n/useT";
 import { useDraftNoteStore, useUserStore } from "@/lib/store";
 import type { DashboardRow } from "@/lib/types";
 
 export default function Home() {
-  const { common, home } = useT();
+  const { home } = useT();
   const currentUserId = useUserStore((s) => s.currentUserId);
   const currentUser = useCurrentUser();
   // One request for the whole page: each survey and how it is going. The old list
   // showed a question count, which says what the survey is, not how it is doing.
   const { data: rows, isLoading, error } = useDashboard();
   const close = useCloseTemplate();
-  const create = useCreateTemplate();
   const generate = useGenerateTemplate();
   const router = useRouter();
   const [prompt, setPrompt] = useState("");
@@ -39,21 +44,13 @@ export default function Home() {
   }, [isRespondent, router]);
 
   if (!currentUserId) {
-    return <div className="empty">{home.pickUser}</div>;
+    // The exact wording is asserted by e2e/smoke.spec.ts, which has no backend and so
+    // can only see the signed-out state. Changing it breaks the only end-to-end proof
+    // that the app renders at all.
+    return <p className="p-6 text-muted">{home.pickUser}</p>;
   }
   if (isRespondent) {
-    return <div className="empty">{home.goingToRespond}</div>;
-  }
-
-  async function onCreate() {
-    // Aimed nowhere in particular until its author says so, which is what the
-    // respondent pool means.
-    const t = await create.mutateAsync({
-      title: "Untitled survey",
-      audience: "respondents",
-      questions: [],
-    });
-    router.push(`/templates/${t.id}`);
+    return <p className="p-6 text-muted">{home.goingToRespond}</p>;
   }
 
   async function onGenerate() {
@@ -64,24 +61,14 @@ export default function Home() {
     router.push(`/templates/${template.id}`);
   }
 
-  // Three numbers, and each answers a different question. The old row had six, two of
-  // which ("Surveys" and "Published") were the same number on every screen anyone has
-  // looked at, and two of which were percentages sitting side by side with no way to
-  // tell which was over what.
   const groups = rows ? groupForDashboard(rows) : null;
-  const totals = groups
-    ? {
-        needsYou: groups.needsYou.length,
-        running: groups.running.length,
-        // Completed runs, not people: summing people across surveys would count someone
-        // asked twice as two people, and there is no distinct count to be had from rows
-        // that are already aggregated per survey.
-        responses: (rows ?? []).reduce((n, r) => n + r.completed, 0),
-      }
-    : null;
+  // Completed runs, not people: summing people across surveys would count someone
+  // asked twice as two people, and there is no distinct count to be had from rows
+  // that are already aggregated per survey.
+  const responses = (rows ?? []).reduce((n, r) => n + r.completed, 0);
 
   // The whole audience as one bar: answered, part-way, not yet. One shape instead of two
-  // percentages, which is what made the old pair unreadable — the reader had to work out
+  // percentages, which is what made the old pair unreadable: the reader had to work out
   // what each was over, and the two denominators were different. Here there is one
   // denominator and the segments are three stages of the same journey through it.
   //
@@ -109,8 +96,8 @@ export default function Home() {
 
   // The line under each row. Reach is the denominator throughout, so there is one
   // percentage on this page and it is always "of the people it was for". Completion,
-  // which is a share of whoever turned up, lives on the report where there is room to
-  // say so.
+  // which is a share of whoever turned up, lives on the results page where there is
+  // room to say so.
   const reachLine = (r: DashboardRow) =>
     r.reach > 0 ? home.ofPeople(r.people_completed, r.reach) : home.noResponses;
 
@@ -121,236 +108,239 @@ export default function Home() {
     return home.whyNotPublished;
   };
 
-  const draftBar = (
-    <div className="draft-bar">
-      <AutoGrowTextarea
-        className="draft-input"
-        placeholder={home.describePlaceholder}
-        value={prompt}
-        onChange={setPrompt}
-      />
-      <button
-        className="btn btn-ai"
-        onClick={onGenerate}
-        disabled={generate.isPending || !prompt.trim()}
-      >
-        {generate.isPending ? home.drafting : home.generateDraft}
-      </button>
-    </div>
+  const closeButton = (r: DashboardRow) => (
+    // Closing is the only way to retire a published survey: it cannot be deleted,
+    // because its frozen versions are what real answers point at.
+    <Button
+      variant="quiet"
+      size="sm"
+      onClick={() => close.mutate(r.id)}
+      disabled={close.isPending}
+    >
+      {close.isPending && close.variables === r.id ? home.closing : home.closeSurvey}
+    </Button>
   );
 
   return (
-    <div className="page">
-      <div className="page-head">
-        <h1>{home.title}</h1>
-        <button className="btn btn-primary" onClick={onCreate} disabled={create.isPending}>
-          {create.isPending ? "Creating…" : "New template"}
-        </button>
+    <div className="mx-auto flex max-w-5xl flex-col gap-5 p-4">
+      {/* No page heading: the top bar already says Dashboard, and repeating it spent a
+          row of vertical space saying where you are to someone who just clicked to get
+          here. The compose bar is the first thing instead, which is the first thing an
+          author does.
+
+          Describing a survey and having it drafted is the most distinctive thing this
+          product does, and putting it under the work made it the least visible. A bar
+          rather than a card: one line that grows as you type, so the summary below it
+          stays above the fold. */}
+      <div className="flex flex-col gap-2 rounded-lg border border-ai-border bg-ai-fill p-3">
+        {/* Named, because an unlabelled box at the top of a page is a box you have to
+            click to find out about. The heading it replaces said where you were; this
+            says what the box makes. */}
+        <div>
+          <h1 className="text-md font-semibold text-ink">{home.newSurvey}</h1>
+          <p className="text-sm text-muted">{home.newSurveyHint}</p>
+        </div>
+        {/* Three lines at rest: a one-line box invites a phrase, and the model drafts a
+            better survey from a description. The button sits under the box rather than
+            beside it, because beside a three-line input it takes width the description
+            wants and leaves a column of empty space under itself. */}
+        <AutoGrowTextarea
+          className="autogrow min-h-[4.6rem] w-full rounded-md border border-line bg-raised px-2.5 py-2"
+          placeholder={home.describePlaceholder}
+          value={prompt}
+          onChange={setPrompt}
+        />
+        <div className="flex justify-end">
+          <Button
+            variant="ai"
+            onClick={onGenerate}
+            disabled={generate.isPending || !prompt.trim()}
+          >
+            {generate.isPending ? home.drafting : home.generateDraft}
+          </Button>
+        </div>
       </div>
 
-      {/* First on the page. Describing a survey and having it drafted is the most
-          distinctive thing this product does, and putting it under the work made it the
-          least visible. A bar rather than a card: one line that grows as you type, so
-          the summary below it stays above the fold. */}
-      {draftBar}
+      {generate.error ? <ErrorBanner error={generate.error} /> : null}
+      {error ? <ErrorBanner error={error} /> : null}
 
-      {generate.error ? (
-        <div className="error-text">{(generate.error as Error).message}</div>
+      {isLoading ? (
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-28 w-full" />
+          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-20 w-full" />
+        </div>
       ) : null}
 
-      {create.error ? (
-        <div className="error-text">{(create.error as Error).message}</div>
-      ) : null}
+      {groups && audience && audience.surveys > 0 ? (
+        <Card className="flex flex-col gap-3 p-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-xs uppercase tracking-wide text-muted">
+              {home.bandTitle(audience.surveys)}
+            </p>
+          </div>
 
-      {totals && audience && audience.surveys > 0 ? (
-        <div className="hero-band">
-          <div className="hero-head">{home.bandTitle(audience.surveys)}</div>
+          <div className="flex flex-wrap gap-6">
+            <Stat value={groups.needsYou.length} label={home.surveysNeedingYou} />
+            <Stat value={groups.running.length} label={home.surveysRunning} />
+            <Stat value={responses} label={home.responsesIn} />
+          </div>
 
           {/* Three stages of one journey through one audience, so a single hue getting
               darker as it gets further along rather than three unrelated colours. The
-              gaps between segments are the surface showing through, which keeps two
-              adjacent shades from reading as one block. */}
+              2px gaps are the surface showing through, which keeps two adjacent shades
+              from reading as one block. A div bar rather than a charting component: one
+              stacked bar has no axis to draw and would not earn the mount. */}
           <div
-            className="audience-bar"
+            className="flex h-3.5 gap-0.5 overflow-hidden rounded-full bg-canvas"
             role="img"
-            aria-label={home.bandAria(
-              share(audience.answered),
-              share(partWay),
-              share(notYet),
-            )}
+            aria-label={home.bandAria(share(audience.answered), share(partWay), share(notYet))}
           >
-            <span className="seg seg-answered" style={{ inlineSize: `${share(audience.answered)}%` }} />
-            <span className="seg seg-partway" style={{ inlineSize: `${share(partWay)}%` }} />
-            <span className="seg seg-notyet" style={{ inlineSize: `${share(notYet)}%` }} />
+            <span
+              className="bg-accent-strong"
+              style={{ inlineSize: `${share(audience.answered)}%` }}
+            />
+            <span className="bg-accent" style={{ inlineSize: `${share(partWay)}%` }} />
+            <span className="bg-muted-light" style={{ inlineSize: `${share(notYet)}%` }} />
           </div>
 
-          <div className="hero-legend">
-            <span className="legend-item">
-              <span className="swatch swatch-answered" />
-              <b>{share(audience.answered)}%</b> {home.segAnswered}
-              <span className="legend-count">{audience.answered}</span>
-            </span>
-            <span className="legend-item">
-              <span className="swatch swatch-partway" />
-              <b>{share(partWay)}%</b> {home.segPartWay}
-              <span className="legend-count">{partWay}</span>
-            </span>
-            <span className="legend-item">
-              <span className="swatch swatch-notyet" />
-              <b>{share(notYet)}%</b> {home.segNotYet}
-              <span className="legend-count">{notYet}</span>
-            </span>
+          {/* Every segment is named and counted here, so the bar is never the only thing
+              carrying the meaning: the same reason each bar elsewhere is direct-labelled. */}
+          <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+            {[
+              { swatch: "bg-accent-strong", pct: share(audience.answered), label: home.segAnswered, n: audience.answered },
+              { swatch: "bg-accent", pct: share(partWay), label: home.segPartWay, n: partWay },
+              { swatch: "bg-muted-light", pct: share(notYet), label: home.segNotYet, n: notYet },
+            ].map((seg) => (
+              <span key={seg.label} className="flex items-center gap-1.5">
+                <span className={`size-2.5 shrink-0 rounded-sm ${seg.swatch}`} aria-hidden />
+                <b className="tabular-nums">{seg.pct}%</b>
+                <span className="text-muted">{seg.label}</span>
+                <span className="text-muted tabular-nums">{seg.n}</span>
+              </span>
+            ))}
           </div>
 
           {/* Said on the page rather than left as a puzzle: reach is summed per survey,
               so a person in two audiences is two of this number. Only shown when it can
               actually be happening. */}
           {audience.surveys > 1 ? (
-            <div className="hero-note">{home.countedPerSurvey}</div>
+            <p className="text-xs text-muted">{home.countedPerSurvey}</p>
           ) : null}
-
-        </div>
+        </Card>
       ) : null}
 
-      {isLoading ? <div className="muted">{common.loading}</div> : null}
-      {error ? <div className="error-text">{(error as Error).message}</div> : null}
-
       {groups && groups.needsYou.length > 0 ? (
-        <>
-          <h2 className="section-head">
+        <section className="flex flex-col gap-2">
+          <h2 className="flex items-center gap-2 text-md font-semibold">
             {home.groupNeedsYou}
-            <span className="section-count">{groups.needsYou.length}</span>
+            <Badge variant="warn">{groups.needsYou.length}</Badge>
           </h2>
-          <div className="template-list">
-            {groups.needsYou.map(({ row: r, why: attention }) => (
-              <div key={r.id} className="template-row template-row-alert">
-                <Link href={landingFor(r)} className="template-row-main">
-                  <div className="template-title">{r.title}</div>
-                  <div className="template-meta template-why">{why(r, attention)}</div>
-                </Link>
-                <div className="template-row-actions">
-                  {attention === "resultsReady" ? (
-                    <Link href={`/templates/${r.id}/report`} className="btn btn-primary">
-                      {home.readResults}
-                    </Link>
-                  ) : (
-                    <Link href={`/templates/${r.id}`} className="btn btn-secondary">
-                      {home.openBuilder}
-                    </Link>
-                  )}
-                  {/* Closing is the only way to retire a published survey: it cannot be
-                      deleted, because its frozen versions are what real answers point at.
-                      Grouping the rows by attention gave each one a single action and
-                      took this off exactly the rows that need it most, since a survey
-                      nobody is finishing is the likeliest one an author wants to stop. */}
-                  {r.status === "published" ? (
-                    <button
-                      className="btn btn-quiet"
-                      onClick={() => close.mutate(r.id)}
-                      disabled={close.isPending}
-                    >
-                      {close.isPending && close.variables === r.id
-                        ? home.closing
-                        : home.closeSurvey}
-                    </button>
-                  ) : null}
-                </div>
+          {groups.needsYou.map(({ row: r, why: attention }) => (
+            // `template-row` is the selector e2e/shot.mjs waits for before taking a
+            // screenshot. It carries no styling now and is kept as that hook.
+            <Card
+              key={r.id}
+              className="template-row flex flex-wrap items-center gap-3 border-s-2 border-s-highlight p-3"
+            >
+              <Link href={landingFor(r)} className="min-w-0 flex-1 no-underline">
+                <span className="block truncate font-medium text-ink">{r.title}</span>
+                <span className="block text-sm text-warn-text">{why(r, attention)}</span>
+              </Link>
+              <div className="flex items-center gap-2">
+                {attention === "resultsReady" ? (
+                  <Button variant="primary" size="sm" asChild>
+                    <Link href={`/templates/${r.id}/results`}>{home.readResults}</Link>
+                  </Button>
+                ) : (
+                  <Button variant="secondary" size="sm" asChild>
+                    <Link href={`/templates/${r.id}`}>{home.openBuilder}</Link>
+                  </Button>
+                )}
+                {r.status === "published" ? closeButton(r) : null}
               </div>
-            ))}
-          </div>
-        </>
+            </Card>
+          ))}
+        </section>
       ) : null}
 
       {groups && groups.running.length > 0 ? (
-        <>
-          <h2 className="section-head">
+        <section className="flex flex-col gap-2">
+          <h2 className="flex items-center gap-2 text-md font-semibold">
             {home.groupRunning}
-            <span className="section-count">{groups.running.length}</span>
+            <Badge>{groups.running.length}</Badge>
             {groups.needsYou.length === 0 ? (
-              <span className="section-note">{home.allRunning}</span>
+              <span className="text-sm font-normal text-muted">{home.allRunning}</span>
             ) : null}
           </h2>
-          <div className="template-list">
-            {groups.running.map((r) => (
-              <div key={r.id} className="template-row">
-                <Link href={landingFor(r)} className="template-row-main">
-                  <div className="template-title">{r.title}</div>
-                  <div className="template-meta">
-                    {reachLine(r)}
-                    {r.in_progress > 0 ? ` · ${r.in_progress} ${home.inProgress}` : ""}
-                    {/* Only when the two disagree, which is only on rows written before
-                        one answer per person was enforced. It shrinks to nothing on its
-                        own rather than being a permanent feature of the page. */}
-                    {r.started > r.people_started
-                      ? ` · ${home.runsFromPeople(r.started, r.people_started)}`
-                      : ""}
-                  </div>
-                </Link>
-                {/* One ratio against a limit, so a meter rather than a number: the bar
-                    is comparable down the column at a glance and the figure beside it
-                    is the finding. */}
-                <div className="reach-meter" title={reachLine(r)}>
-                  <span className="reach-track">
-                    <span
-                      className="reach-fill"
-                      style={{
-                        inlineSize: `${Math.min(100, Math.round((r.response_rate ?? 0) * 100))}%`,
-                      }}
-                    />
-                  </span>
-                  <span className="reach-figure">
-                    {r.response_rate === null ? "-" : `${Math.round(r.response_rate * 100)}%`}
-                  </span>
-                </div>
-                <div className="template-row-actions">
-                  {r.completed > 0 ? (
-                    <Link href={`/templates/${r.id}/report`} className="btn btn-secondary">
-                      {home.report}
-                    </Link>
-                  ) : null}
-                  <button
-                    className="btn btn-quiet"
-                    onClick={() => close.mutate(r.id)}
-                    disabled={close.isPending}
-                  >
-                    {close.isPending && close.variables === r.id ? home.closing : home.closeSurvey}
-                  </button>
-                </div>
+          {groups.running.map((r) => (
+            <Card key={r.id} className="template-row flex flex-wrap items-center gap-3 p-3">
+              <Link href={landingFor(r)} className="min-w-0 flex-1 no-underline">
+                <span className="block truncate font-medium text-ink">{r.title}</span>
+                <span className="block text-sm text-muted">
+                  {reachLine(r)}
+                  {r.in_progress > 0 ? ` · ${r.in_progress} ${home.inProgress}` : ""}
+                  {/* Only when the two disagree, which is only on rows written before
+                      one answer per person was enforced. It shrinks to nothing on its
+                      own rather than being a permanent feature of the page. */}
+                  {r.started > r.people_started
+                    ? ` · ${home.runsFromPeople(r.started, r.people_started)}`
+                    : ""}
+                </span>
+              </Link>
+              {/* One ratio against a limit, so a meter rather than a number: the bar is
+                  comparable down the column at a glance and the figure beside it is the
+                  finding. A dash, not 0%, when nobody has started: the rate is null
+                  there, and 0% would read as everyone refusing. */}
+              <div className="flex w-32 items-center gap-2" title={reachLine(r)}>
+                <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted-light">
+                  <span
+                    className="block h-full rounded-full bg-accent-strong"
+                    style={{
+                      inlineSize: `${Math.min(100, Math.round((r.response_rate ?? 0) * 100))}%`,
+                    }}
+                  />
+                </span>
+                <span className="w-9 text-end text-sm tabular-nums text-muted">
+                  {r.response_rate === null ? "-" : `${Math.round(r.response_rate * 100)}%`}
+                </span>
               </div>
-            ))}
-          </div>
-        </>
+              <div className="flex items-center gap-2">
+                {r.completed > 0 ? (
+                  <Button variant="secondary" size="sm" asChild>
+                    <Link href={`/templates/${r.id}/results`}>{home.report}</Link>
+                  </Button>
+                ) : null}
+                {closeButton(r)}
+              </div>
+            </Card>
+          ))}
+        </section>
       ) : null}
 
       {groups && groups.closed.length > 0 ? (
-        <>
-          <h2 className="section-head">
+        <section className="flex flex-col gap-2">
+          <h2 className="flex items-center gap-2 text-md font-semibold">
             {home.groupClosed}
-            <span className="section-count">{groups.closed.length}</span>
+            <Badge>{groups.closed.length}</Badge>
           </h2>
-          <div className="template-list">
-            {groups.closed.map((r) => (
-              <div key={r.id} className="template-row template-row-quiet">
-                <Link href={landingFor(r)} className="template-row-main">
-                  <div className="template-title">{r.title}</div>
-                  <div className="template-meta">{reachLine(r)}</div>
-                </Link>
-                <div className="template-row-actions">
-                  {r.completed > 0 ? (
-                    <Link href={`/templates/${r.id}/report`} className="btn btn-secondary">
-                      {home.report}
-                    </Link>
-                  ) : null}
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
+          {groups.closed.map((r) => (
+            <Card key={r.id} className="template-row flex flex-wrap items-center gap-3 p-3 opacity-75">
+              <Link href={landingFor(r)} className="min-w-0 flex-1 no-underline">
+                <span className="block truncate font-medium text-ink">{r.title}</span>
+                <span className="block text-sm text-muted">{reachLine(r)}</span>
+              </Link>
+              {r.completed > 0 ? (
+                <Button variant="secondary" size="sm" asChild>
+                  <Link href={`/templates/${r.id}/results`}>{home.report}</Link>
+                </Button>
+              ) : null}
+            </Card>
+          ))}
+        </section>
       ) : null}
 
-      {rows && rows.length === 0 ? <div className="muted">{home.empty}</div> : null}
-
-
+      {rows && rows.length === 0 ? <EmptyState title={home.empty} /> : null}
     </div>
   );
 }

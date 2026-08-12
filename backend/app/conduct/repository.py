@@ -1,5 +1,6 @@
 """All run, answer, and transcript queries."""
 
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -117,6 +118,21 @@ class RunRepository:
             .where(Answer.run_id == run_id, Answer.question_id == question_id, Answer.kind == kind)
         )
         return int((await self.session.execute(stmt)).scalar_one())
+
+    async def scripted_value(self, run_id: UUID, question_id: UUID) -> dict[str, Any] | None:
+        """What this run already recorded against the author's own question, or None.
+
+        Read so a follow-up's answer can be compared against it: a probe that comes back
+        with the value already banked has answered the scripted question a second time,
+        not the one the model asked.
+        """
+        stmt = select(Answer.value).where(
+            Answer.run_id == run_id,
+            Answer.question_id == question_id,
+            Answer.kind == AnswerKind.scripted,
+        )
+        value = (await self.session.execute(stmt)).scalars().first()
+        return value if isinstance(value, dict) else None
 
     async def answered_already(self, template_id: UUID, respondent_id: UUID) -> SurveyRun | None:
         """This respondent's existing run of this survey, newest first, or None.

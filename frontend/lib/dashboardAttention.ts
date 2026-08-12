@@ -61,11 +61,11 @@ export function groupForDashboard(rows: DashboardRow[]): Grouped {
  *
  * Every row used to open the builder, including one eight people had answered, which
  * offered an author their own questions back when what they came for was the answers.
- * A survey with responses opens on its report; anything else opens on the builder,
- * because a published survey nobody has answered has an empty report and editing is the
+ * A survey with responses opens on its results; anything else opens on the builder,
+ * because a published survey nobody has answered has empty results and editing is the
  * only thing left to do with it.
  */
 export function landingFor(row: DashboardRow): string {
   const readable = row.status !== "draft" && row.completed > 0;
-  return readable ? `/templates/${row.id}/report` : `/templates/${row.id}`;
+  return readable ? `/templates/${row.id}/results` : `/templates/${row.id}`;
 }

@@ -4,31 +4,29 @@ import Link from "next/link";
 
 import { useT } from "@/lib/i18n/useT";
 
-export type SurveyTab = "build" | "responses" | "report";
+export type SurveyTab = "build" | "results";
 
 /**
- * Where you are in a survey, and the two other places you can be.
+ * Where you are in a survey, and the other place you can be.
  *
- * The three pages used to reach each other through whatever buttons each had happened to
- * grow. Results could get to the builder and not to the report; the report could reach
- * both; every "back" went to the builder, including from a survey with eight responses;
- * and no page linked to the dashboard at all, so the only way out was the top bar. Three
- * pages about one survey with three different ideas of what the others were.
+ * Two tabs rather than three. Responses and Report were separate pages that answered
+ * halves of one question: Report had the tallies with the respondent stripped out, and
+ * Responses had the respondents with no way to see how one answer sat against the rest.
+ * An author moving between them was doing the join by hand, and the tab strip made that
+ * look like a choice rather than a gap.
  *
- * A `nav` with `aria-current` rather than three buttons, because that is what this is:
- * the current page is marked for a screen reader the same way it is marked visually.
+ * A `nav` with `aria-current` rather than buttons, because that is what this is: the
+ * current page is marked for a screen reader the same way it is marked visually.
  *
- * Responses and Report are shown whatever the survey's state. A draft has neither, and
- * both pages say so plainly when opened; hiding them would make the tab strip change
- * shape under an author who published a moment ago, which is worse than a page that
- * explains it is empty.
+ * Results is shown whatever the survey's state. A draft has none, and the page says so
+ * plainly when opened; hiding the tab would make the strip change shape under an author
+ * who published a moment ago, which is worse than a page that explains it is empty.
  */
 export function SurveyNav({ templateId, current }: { templateId: string; current: SurveyTab }) {
   const { builder, common } = useT();
   const tabs: { key: SurveyTab; href: string; label: string }[] = [
     { key: "build", href: `/templates/${templateId}`, label: builder.tabBuild },
-    { key: "responses", href: `/templates/${templateId}/results`, label: builder.responses },
-    { key: "report", href: `/templates/${templateId}/report`, label: builder.report },
+    { key: "results", href: `/templates/${templateId}/results`, label: builder.tabResults },
   ];
 
   return (

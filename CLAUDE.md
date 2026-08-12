@@ -90,3 +90,7 @@ Alembic migrations from the first table; no `create_all` in application code.
   OpenAI-compatible server can fill from `.env`, so this is config to undo, not code.
   Do not reintroduce an inference service to the stack without a reason that names
   what the hosted tiers cannot do.
+- **Frontend decisions live in `frontend/CLAUDE.md`**, which loads when working under that
+  directory. The Tailwind layering rule, the class guard and the unified Results page are
+  there: each only bites while editing frontend files, and this file is in context for
+  every session including the ones that never open it.

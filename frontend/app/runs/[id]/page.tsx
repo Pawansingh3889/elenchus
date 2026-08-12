@@ -96,7 +96,10 @@ export default function RunPage() {
           {run.answered} of {run.total} answered
         </div>
         <div className="progress-bar">
-          <span style={{ width: `${progress}%` }} />
+          {/* inlineSize, not width: every other bar in the app uses the logical
+              property, and this one filled from the left in Arabic and Hebrew while the
+              rest of the page read right to left. */}
+          <span style={{ inlineSize: `${progress}%` }} />
         </div>
       </div>
 

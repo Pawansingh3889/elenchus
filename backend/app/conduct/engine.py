@@ -431,6 +431,9 @@ class ConductEngine:
         tools: list[dict[str, Any]],
         setting: str | None,
         previous_error: str | None,
+        # False on the fallback pass below, so the "ask instead of failing" path is
+        # offered once and cannot recurse.
+        probe_allowed: bool = True,
     ) -> ToolTurn:
         briefing = _briefing(
             questions, run.current_question_index, question, state, setting, previous_error
@@ -498,8 +501,8 @@ class ConductEngine:
                 error,
             )
             return await self._decide(run, questions, question, state, tools, setting, error)
-        # Second failure: the raw output is the only thing that explains why, so it is
-        # logged before the turn fails (ARCHITECTURE.md 3.3).
+        # Second failure. The raw output is the only thing that explains why, so it is
+        # logged before anything else happens (ARCHITECTURE.md 3.3).
         logger.error(
             "conduct turn failed after one retry: " + _REJECTED,
             run.id,
@@ -509,7 +512,52 @@ class ConductEngine:
             turn.text,
             error,
         )
-        raise LLMError(f"Model produced an invalid action after one retry: {error}")
+        # A refused action is not an outage. This used to raise, which the HTTP boundary
+        # renders as 503 "the assistant is briefly unavailable, try again in a moment",
+        # and every one of those words is wrong: the provider answered, the gate refused
+        # the model's *content*, and retrying re-runs the same turn against the same
+        # message. A live run lost a respondent's answer exactly that way, on a reply
+        # ("re-ice it and carry on, or call the supervisor") that was perfectly good.
+        #
+        # An answer the engine cannot accept is not a new problem: it is what a probe is
+        # for, and every other kind of unusable reply already gets one. So ask, rather
+        # than fail. The probe budget bounds it, so this cannot loop; when there is no
+        # probe left the turn still fails, because at that point there is nothing left
+        # to try and pretending otherwise would hide it.
+        if not probe_allowed or not _may_probe(question, state["follow_ups_used"]):
+            raise LLMError(f"Model produced an invalid action after one retry: {error}")
+        logger.warning("asking a follow-up rather than failing the turn: run=%s", run.id)
+        probe_only = [t for t in _tools_for(question, state) if t["name"] == FOLLOW_UP]
+        # On a closed question, put the list in front of them. The commonest reason a
+        # choice is refused is that the respondent described their answer instead of
+        # naming it: "i'm on the filleting line" against options including "Processing"
+        # is grounded in meaning and in nothing the string matcher can see, and no
+        # string matcher can be taught the difference. Asking which one they mean turns
+        # that from a lost answer into one more question, and the reply names an option,
+        # which the gate can check.
+        options = question.get("options") or []
+        naming = (
+            f" The question is closed, so name the choices in your question: {options}."
+            if options
+            else ""
+        )
+        return await self._decide(
+            run,
+            questions,
+            question,
+            state,
+            probe_only,
+            setting,
+            # Written as an instruction rather than as the gate's own message, which is
+            # addressed to a model choosing a value and reads as nonsense to one being
+            # told to ask a question. `answer_so_far` is null on purpose: whatever was
+            # in their reply has just been refused twice, and banking it here would slip
+            # past the gate that refused it.
+            f"{error} Ask the respondent plainly instead: call ask_follow_up with a short "
+            "question that puts the current question to them again in their own terms, and "
+            f"pass answer_so_far as null.{naming}",
+            probe_allowed=False,
+        )
 
     async def _apply(
         self,
@@ -627,6 +675,11 @@ class ConductEngine:
         asked_probes = run.probes_asked.get(question["id"], 0)
         return {
             "scripted_recorded": scripted > 0,
+            # What the author's own question already holds, so a probe's answer can be
+            # compared against it. See _unrecordable.
+            "scripted_value": (
+                await self.repo.scripted_value(run.id, question_id) if scripted else None
+            ),
             "follow_ups_used": asked_probes,
             # A probe was asked and nothing has been recorded for it yet. The respondent
             # has answered it by the time this is read, because the engine only gets a
@@ -1031,6 +1084,24 @@ def _unrecordable(
             value = validate_answer(question, raw)
     except AnswerValidationError as exc:
         return exc.message
+    # A probe that comes back with the value already banked has answered the author's
+    # question a second time, not the one the model asked. Seen twice against live
+    # models: "What made your first week a solid 4?" recorded {"rating": 4}, and "Can
+    # you share more about why you feel that way?" recorded {"rating": 2}. Both are
+    # grounded, correctly shaped and about the right question, so every other gate here
+    # passes them, and the author reads a follow-up whose answer is the number they
+    # already had.
+    #
+    # Matched on the value rather than judged from the probe's wording, because telling
+    # "which of those did you mean?" from "why do you feel that way?" by reading the
+    # text is guesswork. The duplicate is the part that is wrong either way: a re-ask
+    # that returns the same value has added nothing to the results.
+    if state["scripted_recorded"] and value == state.get("scripted_value"):
+        return (
+            "that is the answer already recorded for this question, so it answers the "
+            "scripted question again rather than your follow-up. Record what they said "
+            "in reply to the follow-up, as text, or flag it unanswerable"
+        )
     # Shape proven, now source. Everything above establishes the answer is the right
     # kind of thing; none of it asks whether the respondent said it. Free text is the
     # shape that can be invented wholesale, and it is the one an author reads as a

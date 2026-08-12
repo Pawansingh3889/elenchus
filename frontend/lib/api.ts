@@ -1,5 +1,6 @@
 import { useLocaleStore, useUserStore } from "./store";
 import type {
+  AnswersMatrix,
   DashboardRow,
   GeneratedTemplate,
   Run,
@@ -7,6 +8,7 @@ import type {
   RunDetail,
   RunSummary,
   RunSummaryContent,
+  SurveyRecapStatus,
   SurveySummary,
   SurveyReport,
   Template,
@@ -161,6 +163,12 @@ export const api = {
   listTemplateRuns: (templateId: string) => request<RunSummary[]>(`/templates/${templateId}/runs`),
   getTemplateRun: (templateId: string, runId: string) =>
     request<RunDetail>(`/templates/${templateId}/runs/${runId}`),
+  /** The recap already stored, if the results have not moved past it. A GET, so
+   *  reading one costs no model call; POST is what writes a new one. */
+  surveyRecap: (templateId: string) =>
+    request<SurveyRecapStatus>(`/templates/${templateId}/summary`),
+  answersMatrix: (templateId: string) =>
+    request<AnswersMatrix>(`/templates/${templateId}/answers`),
   summariseSurvey: (templateId: string, refresh = false) =>
     request<SurveySummary>(
       `/templates/${templateId}/summary${refresh ? "?refresh=true" : ""}`,

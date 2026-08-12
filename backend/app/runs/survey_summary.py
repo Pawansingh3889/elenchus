@@ -32,7 +32,7 @@ import json
 import logging
 import re
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
@@ -144,6 +144,25 @@ class SurveySummaryRead(BaseModel):
     version: int
     runs_included: int
     generated_at: str
+    # Provenance, already stored in the document and until now readable only by opening
+    # the column. A recap that reads worse than it used to may be a prompt change or a
+    # model change, and the author looking at it can see which without asking.
+    prompt_version: str | None = None
+    verify_prompt_version: str | None = None
+    model: str | None = None
+
+
+class SurveyRecapStatus(BaseModel):
+    """The stored recap if it is still true of the results, else why there is none.
+
+    An envelope rather than a 404, because neither absence is an error: a survey nobody
+    has summarised yet is healthy, and a recap the results have moved past is a thing
+    the page wants to say out loud ("written when 4 people had answered; 7 have now")
+    rather than a missing resource.
+    """
+
+    recap: SurveySummaryRead | None = None
+    absence: Literal["never_generated", "outdated"] | None = None
 
 
 _TOOL: dict[str, Any] = {
@@ -220,6 +239,29 @@ class SurveySummaryService:
             self._verifier = self.llm
         return self._verifier
 
+    async def stored(self, template_id: UUID, author: User) -> SurveyRecapStatus:
+        """The recap this survey already has, without writing a new one.
+
+        The page needs this because generating is the only way it could read a recap
+        before, so navigating away and back cost a model call to see prose that was
+        already sitting in the column. Nothing here builds an LLM: the `llm` property
+        is lazy precisely so a read costs no key.
+        """
+        # report() does the ownership check, so this inherits the numbers' boundary.
+        report = await self.results.report(template_id, author)
+        template = await self.templates.get(template_id)
+        if template is None:  # pragma: no cover - report() would have raised first
+            raise NotFoundError("Template not found.")
+
+        recap = self._reusable(template, report)
+        if recap is not None:
+            return SurveyRecapStatus(recap=recap, absence=None)
+        # Two different absences, and the page says different things about them: one
+        # invites a first recap, the other says the results have moved past the one
+        # that exists.
+        absence = "never_generated" if template.summary is None else "outdated"
+        return SurveyRecapStatus(recap=None, absence=absence)
+
     async def summarise(
         self, template_id: UUID, author: User, refresh: bool = False
     ) -> SurveySummaryRead:
@@ -267,14 +309,14 @@ class SurveySummaryService:
             # Nothing stored, for the reason the run summary stores nothing: an
             # unsupported recap sitting above the real numbers is worse than no recap.
             #
-            # ConflictError, not LLMError. The run summary raises LLMError here and it is
-            # wrong there too, but it is wrong *loudly* here: every model call succeeded,
-            # and the recap was refused on its merits by the checker. LLMError renders as
-            # 503 "the assistant is briefly unavailable, try again in a moment", which
-            # tells the author to retry something that will fail the same way and hides
-            # the one thing worth reading, which is why it was refused. A live run
-            # produced exactly that: two rounds of "says most stoppages are logged, but
-            # Q7 shows 5 yes and 3 no", reported to the client as an outage.
+            # ConflictError, not LLMError. Every model call succeeded, and the recap was
+            # refused on its merits by the checker. LLMError renders as 503 "the
+            # assistant is briefly unavailable, try again in a moment", which tells the
+            # author to retry something that will fail the same way and hides the one
+            # thing worth reading, which is why it was refused. A live run produced
+            # exactly that: two rounds of "says most stoppages are logged, but Q7 shows
+            # 5 yes and 3 no", reported to the client as an outage. The run summary
+            # refuses the same way now.
             logger.error(
                 "survey recap failed verification twice: template=%s problems=%r",
                 template_id,
@@ -340,6 +382,16 @@ class SurveySummaryService:
             content = SurveySummaryContent.model_validate(stored)
         except PydanticValidationError:
             logger.warning("stored recap no longer validates, regenerating: %s", template.id)
+            return None
+        if not all(_is_pseudonym(q.respondent) for q in content.notable_quotes):
+            # Written before quotes were attributed to the survey's own numbering, so it
+            # names colleagues beside what they said about their employer. The document
+            # is the cache, and this cache has no expiry other than the response count,
+            # so without this check a recap from before that decision is served for as
+            # long as nobody else answers. Withheld rather than edited: dropping the
+            # names would leave quotes attributed to nobody, and the author is better
+            # served by a current recap than by a redacted old one.
+            logger.warning("stored recap names respondents, regenerating: %s", template.id)
             return None
         return _with_numbers(content, report, stored)
 
@@ -411,6 +463,7 @@ class SurveySummaryService:
             raw = _decode_stringified_fields(turn.tool_input)
             raw = _without_invented_quotes(raw, quotable)
             raw = _without_unknown_questions(raw, report)
+            raw = _within_caps(raw)
             try:
                 return SurveySummaryContent.model_validate(raw)
             except PydanticValidationError as exc:
@@ -473,6 +526,30 @@ def _decode_stringified_fields(raw: dict[str, Any]) -> dict[str, Any]:
 
 def _normalised(text: str) -> str:
     return " ".join(text.split()).casefold()
+
+
+def _within_caps(raw: dict[str, Any]) -> dict[str, Any]:
+    """Trim an over-long list to its cap instead of losing the recap over it.
+
+    A live run threw away a sound recap twice because the model returned seven quotes
+    against a limit of six, so the author was told the assistant was unavailable when
+    nothing was unavailable and the recap was one quote from being served.
+
+    Dropping rather than refusing is the rule this file already follows for a quote that
+    cannot be traced to the person it names and for a finding the checker will not stand
+    behind. A quote past the cap is a weaker fault than either: nothing about it is
+    wrong, there is simply one more than the page shows. Trimmed before validation, for
+    the reason the other gates are: the validated model is never mutated.
+
+    Only the tail is cut, so the model's own ordering decides what survives, which is
+    the same order the page would have shown.
+    """
+    for field, cap in (("findings", MAX_FINDINGS), ("notable_quotes", MAX_QUOTES)):
+        items = raw.get(field)
+        if isinstance(items, list) and len(items) > cap:
+            logger.warning("recap %s over cap, trimming %d to %d", field, len(items), cap)
+            raw = {**raw, field: items[:cap]}
+    return raw
 
 
 def _without_invented_quotes(raw: dict[str, Any], quotable: list[dict[str, str]]) -> dict[str, Any]:
@@ -555,7 +632,28 @@ def _with_numbers(
         version=int(document["version"]),
         runs_included=int(document["runs_included"]),
         generated_at=str(document["generated_at"]),
+        # Optional metadata, so `.get` is honest here rather than a shrug over required
+        # data: a recap written before these were recorded has none, and that is a fact
+        # about the document, not a failure to read it.
+        prompt_version=_optional_str(document.get("prompt_version")),
+        verify_prompt_version=_optional_str(document.get("verify_prompt_version")),
+        model=_optional_str(document.get("model")),
     )
+
+
+def _optional_str(value: Any) -> str | None:
+    return value if isinstance(value, str) and value else None
+
+
+# The shape `respondent_label` produces. Matched rather than compared against the live
+# numbering because a stored recap outlives the runs it described: a withdrawal renumbers
+# everyone after it, so "is this one of today's labels" would reject sound recaps. The
+# question here is only whether it is a pseudonym at all or somebody's name.
+_PSEUDONYM = re.compile(r"^Respondent \d+$")
+
+
+def _is_pseudonym(who: str) -> bool:
+    return bool(_PSEUDONYM.match(who.strip()))
 
 
 def _brief(report: SurveyReport, quotable: list[dict[str, str]]) -> str:

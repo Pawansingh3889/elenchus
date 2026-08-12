@@ -7,10 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import require_author
 from app.db.session import get_session
-from app.runs.schemas import DashboardRow, RunDetail, RunSummary, SurveyReport
+from app.runs.schemas import AnswersMatrix, DashboardRow, RunDetail, RunSummary, SurveyReport
 from app.runs.service import ResultsService
 from app.runs.summary import RunSummaryContent, RunSummaryService
-from app.runs.survey_summary import SurveySummaryRead, SurveySummaryService
+from app.runs.survey_summary import SurveyRecapStatus, SurveySummaryRead, SurveySummaryService
 from app.users.models import User
 
 router = APIRouter(prefix="/api/v1/templates", tags=["results"])
@@ -40,8 +40,6 @@ async def list_runs(
     return await ResultsService(session).list_runs(template_id, author)
 
 
-# Declared before the {run_id} route so the literal path segment "export" is never
-# parsed as a run id.
 @router.get("/{template_id}/report", response_model=SurveyReport)
 async def survey_report(
     template_id: UUID,
@@ -52,6 +50,36 @@ async def survey_report(
     is irrelevant here (different literal), but it is grouped with the other read
     endpoints for the same reason they are: one service call, shaped by the schema."""
     return await ResultsService(session).report(template_id, author)
+
+
+@router.get("/{template_id}/answers", response_model=AnswersMatrix)
+async def answers_matrix(
+    template_id: UUID,
+    author: User = Depends(require_author),
+    session: AsyncSession = Depends(get_session),
+) -> AnswersMatrix:
+    """Every answer on the current version, by respondent, with nothing tallied.
+
+    The report shows one question at a time and cannot answer "did the people who said X
+    also say Y". Reconstructing that took one request per run, so the join lives here
+    once and the client slices it.
+    """
+    return await ResultsService(session).answers_matrix(template_id, author)
+
+
+@router.get("/{template_id}/summary", response_model=SurveyRecapStatus)
+async def survey_recap(
+    template_id: UUID,
+    author: User = Depends(require_author),
+    session: AsyncSession = Depends(get_session),
+) -> SurveyRecapStatus:
+    """The recap this survey already has, if the results have not moved past it.
+
+    Same path as the POST, different verb: reading a recap should not cost a model call,
+    and until this existed generating one was the only way to see it, so a page that
+    navigated away and back paid to read prose already sitting in the column.
+    """
+    return await SurveySummaryService(session).stored(template_id, author)
 
 
 @router.post("/{template_id}/summary", response_model=SurveySummaryRead)

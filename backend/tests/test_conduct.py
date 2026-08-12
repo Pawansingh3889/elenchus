@@ -138,7 +138,9 @@ async def test_engine_withholds_follow_up_once_the_cap_is_spent(session, respond
     # against the constant only passes while the constant happens to be two.
     for i in range(MAX_FOLLOW_UPS):
         reply = f"Probe {i + 1}, what does that involve?"
-        llm = FakeLLM(_record("Line lead"), _follow_up(reply))
+        # A distinct answer each time, because a probe that comes back with the value
+        # already banked is refused as answering the scripted question twice.
+        llm = FakeLLM(_record(f"Detail {i + 1}"), _follow_up(reply))
         run = await ConductEngine(session, llm=llm).handle_message(run.id, "…", respondent)
         assert run.current_question_index == 0  # a follow-up must not advance the survey
         assert run.messages[-1].content == reply
@@ -230,7 +232,10 @@ async def test_malformed_tool_output_is_rejected(session, respondent, published)
     llm = FakeLLM(garbage)
     with pytest.raises(LLMError):
         await ConductEngine(session, llm=llm).handle_message(run.id, "hello", respondent)
-    assert llm.calls == 2
+    # Rejected, retried, then offered the chance to ask a follow-up instead of failing.
+    # A model that returns the same unusable call all three times has run out of things
+    # to try, and the turn fails rather than pretending otherwise.
+    assert llm.calls == 3
 
 
 async def test_unknown_tool_name_is_rejected(session, respondent, published):
@@ -241,7 +246,7 @@ async def test_unknown_tool_name_is_rejected(session, respondent, published):
     llm = FakeLLM(invented)
     with pytest.raises(LLMError):
         await ConductEngine(session, llm=llm).handle_message(run.id, "hello", respondent)
-    assert llm.calls == 2
+    assert llm.calls == 3  # rejected, retried, offered a follow-up, still unusable
 
 
 async def test_declining_a_question_advances_it(session, respondent, published):
@@ -489,7 +494,7 @@ async def test_cross_question_tool_call_is_rejected(session, respondent, publish
     llm = FakeLLM(cross)
     with pytest.raises(LLMError):
         await ConductEngine(session, llm=llm).handle_message(run.id, "and I'd say 4", respondent)
-    assert llm.calls == 2  # rejected, retried, failed loudly
+    assert llm.calls == 3  # rejected, retried, offered a follow-up, still unusable
     assert not run.answers
 
     placeholder = ToolTurn(
@@ -1948,3 +1953,127 @@ async def test_erasing_a_run_removes_it_from_the_authors_results(
 
     remaining = await ResultsService(session).list_runs(published.id, author)
     assert [s.id for s in remaining] == [kept.id]
+
+
+async def test_a_twice_refused_answer_asks_rather_than_failing(session, respondent, published):
+    """The failure this replaces cost a respondent their answer.
+
+    A live run refused the model's reading of "if it's a bit over we re-ice it and carry
+    on, if it's properly warm i call the supervisor" twice, and the engine raised, which
+    the HTTP boundary renders as 503 "the assistant is briefly unavailable, try again in
+    a moment". Every provider call had returned 200; the gate had refused the model's
+    content. Retrying re-runs the same turn against the same message, so the advice was
+    wrong as well as the diagnosis, and the reply was lost.
+
+    An answer the engine cannot accept is what a probe is for.
+    """
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    ungrounded = _record("Nowhere I can see")  # supported by nothing they said
+    llm = FakeLLM(ungrounded, ungrounded, _follow_up("Which of those is closest?", None))
+
+    run = await ConductEngine(session, llm=llm).handle_message(
+        run.id, "training new starters, thats where wed feel it", respondent
+    )
+
+    # A question, not an error, and the survey is still on the same question.
+    assert run.messages[-1].content == "Which of those is closest?"
+    assert run.current_question_index == 0
+    assert not run.answers
+    assert llm.calls == 3
+    # The third call is offered the probe alone: recording is what just failed twice.
+    assert list(llm.offered[2]) == ["ask_follow_up"]
+
+
+async def test_the_fallback_probe_is_bounded_by_the_budget(session, respondent, published):
+    """The probe budget is what stops this looping. With none left the turn fails, because
+    at that point there is nothing further to try and hiding it would be worse."""
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    for _ in range(MAX_FOLLOW_UPS):
+        run = await ConductEngine(
+            session, llm=FakeLLM(_follow_up("Say more?", None))
+        ).handle_message(run.id, "hm", respondent)
+
+    ungrounded = _record("Nowhere I can see")
+    llm = FakeLLM(ungrounded, ungrounded)
+    with pytest.raises(LLMError):
+        await ConductEngine(session, llm=llm).handle_message(run.id, "training", respondent)
+
+    assert llm.calls == 2  # no fallback offered: there was no probe left to offer
+
+
+async def test_a_probe_cannot_re_record_the_answer_it_was_asked_about(
+    session, respondent, published
+):
+    """Seen twice against live models, on different surveys and different providers:
+    "What made your first week a solid 4?" recorded {"rating": 4}, and "Can you share
+    more about why you feel that way?" recorded {"rating": 2}.
+
+    Both are grounded, correctly shaped and about the right question, so every other
+    gate here passes them, and the author reads a follow-up whose answer is the number
+    they already had. Matched on the value rather than judged from the probe's wording,
+    because telling a re-ask from an open question by reading the text is guesswork.
+    """
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    # Answer the first question and probe it, so the run is still open with a scripted
+    # answer banked and a follow-up outstanding.
+    run = await ConductEngine(
+        session, llm=FakeLLM(_record("Line lead"), _follow_up("What does that involve?"))
+    ).handle_message(run.id, "line lead", respondent)
+    assert run.status is RunStatus.in_progress
+
+    duplicate = _record("Line lead")  # the value already banked for this question
+    llm = FakeLLM(duplicate, _record("stock counts and rotas"), _move_on())
+    run = await ConductEngine(session, llm=llm).handle_message(
+        run.id, "stock counts and rotas", respondent
+    )
+
+    # Refused, corrected on the retry, and what lands is an answer to the question the
+    # model actually asked rather than the one it already had.
+    probes = [a for a in run.answers if a.kind is AnswerKind.follow_up]
+    assert [a.value for a in probes] == [{"text": "stock counts and rotas"}]
+    scripted = [a for a in run.answers if a.kind is AnswerKind.scripted]
+    assert [a.value for a in scripted] == [{"text": "Line lead"}]
+
+
+async def test_a_refused_choice_is_put_back_as_the_list(session, author, respondent):
+    """The synonymy hole, and why the answer is a question rather than a looser gate.
+
+    A live run refused "Processing" for "i'm on the filleting line". The two are the
+    same answer in meaning and share not one character the matcher can use, and no
+    string metric can be taught the difference: accepting an option nothing supports is
+    exactly the failure the gate exists for, which was "Nowhere I can see" recorded from
+    a sentence about training new starters.
+
+    So the gate is unchanged and the recovery does the work. The refusal turns into a
+    question naming the options, and the reply names one, which the gate can check.
+    """
+    svc = TemplateService(session)
+    template = await svc.create_draft(
+        TemplateCreate(
+            title="Cold chain",
+            questions=[
+                QuestionInput(
+                    text="At which stage do you work?",
+                    answer_type=AnswerType.single_select,
+                    options=["Receiving", "Processing", "Shipping"],
+                    follow_up_policy=FollowUpPolicy.when_unclear,
+                )
+            ],
+        ),
+        author,
+    )
+    await svc.publish(template.id, author)
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(template.id, respondent)
+
+    unsupported = _record("Processing")
+    llm = FakeLLM(unsupported, unsupported, _follow_up("Which of those is closest?", None))
+    run = await ConductEngine(session, llm=llm).handle_message(
+        run.id, "i'm on the filleting line, so mid-way through", respondent
+    )
+
+    assert run.messages[-1].content == "Which of those is closest?"
+    assert not run.answers  # nothing invented, and nothing lost either
+    # The options travel with the instruction, so the model can name them rather than
+    # asking the respondent to guess what the list holds.
+    correction = llm.messages_seen[2][-1]["content"]
+    assert "Receiving" in correction and "Processing" in correction
