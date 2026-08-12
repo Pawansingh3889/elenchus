@@ -48,14 +48,16 @@ class ResultsService:
         self.users = UserRepository(session)
 
     async def dashboard(self, author: User) -> list[DashboardRow]:
-        """Every survey this author owns, with how each one is going.
+        """Every survey this author's department owns, with how each one is going.
 
-        Author-scoped in the query rather than filtered afterwards, so another author's
-        survey is never loaded in the first place.
+        Scoped in the query to the author plus their department rather than filtered
+        afterwards, so a survey from outside it is never loaded in the first place.
         """
-        rows = await self.repo.dashboard_rows(author.id)
+        creators = {author.id} | await self.users.ids_in_department(author.department)
+        rows = await self.repo.dashboard_rows(creators)
         admin = is_admin_by_config(author)
         reach = await self._reach_by_audience()
+        departments = await self.users.departments_by_id()
         return [
             DashboardRow(
                 id=template.id,
@@ -67,7 +69,15 @@ class ResultsService:
                 completed=completed,
                 in_progress=in_progress,
                 abandoned=abandoned,
-                reach=reach.get(template.audience, 0),
+                # A survey aimed at one person has a reach of one, and no shared count
+                # can say so: `reach` is per audience, and every person-aimed survey
+                # names a different person. Zero when it names nobody, which is a broken
+                # row rather than a survey with an audience of none.
+                reach=(
+                    (1 if template.audience_user_id is not None else 0)
+                    if template.audience is SurveyAudience.person
+                    else reach.get(template.audience, 0)
+                ),
                 people_started=people_started,
                 people_completed=people_completed,
                 last_started_at=last_started_at,
@@ -84,7 +94,14 @@ class ResultsService:
                 last_started_at,
                 last_completed_at,
             ) in rows
-            if may_list(author, template.audience, template.created_by, admin)
+            if may_list(
+                author,
+                template.audience,
+                template.created_by,
+                admin,
+                target=template.audience_user_id,
+                creator_department=departments.get(template.created_by),
+            )
         ]
 
     async def _reach_by_audience(self) -> dict[SurveyAudience, int]:
@@ -104,7 +121,11 @@ class ResultsService:
         users = await self.users.list_all()
         return {
             audience: sum(1 for user in users if in_audience(user, audience))
+            # `person` is skipped: its reach is one by definition and depends on which
+            # person, so a single entry here would be a number that is wrong for every
+            # survey. The dashboard supplies it directly.
             for audience in SurveyAudience
+            if audience is not SurveyAudience.person
         }
 
     async def list_runs(self, template_id: UUID, author: User) -> list[RunSummary]:

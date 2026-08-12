@@ -82,7 +82,8 @@ class GenerationService:
         self,
         prompt: str,
         author: User,
-        audience: SurveyAudience = SurveyAudience.respondents,
+        audience: SurveyAudience = SurveyAudience.everyone,
+        audience_user_id: UUID | None = None,
     ) -> tuple[SurveyTemplate, str]:
         """Draft a new survey from a description. Returns the saved draft and the model's
         short note on what it built.
@@ -100,7 +101,9 @@ class GenerationService:
                 [{"role": "user", "content": f"{prompt}\n\n{_policy()}"}],
                 previous_error=None,
             )
-        drafted = _without_catch_alls(template_in).model_copy(update={"audience": audience})
+        drafted = _without_catch_alls(template_in).model_copy(
+            update={"audience": audience, "audience_user_id": audience_user_id}
+        )
         template = await self.templates.create_draft(drafted, author)
         return template, note
 

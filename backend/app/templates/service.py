@@ -22,6 +22,7 @@ from app.templates.repository import TemplateRepository
 from app.templates.schemas import QuestionInput, TemplateCreate, TemplateUpdate
 from app.templates.snapshot import questions_of
 from app.users.models import User
+from app.users.repository import UserRepository
 
 logger = logging.getLogger("app.templates")
 
@@ -30,12 +31,19 @@ class TemplateService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
         self.repo = TemplateRepository(session)
+        # Departments and colleagues live in the users domain, and the access rules are
+        # pure functions that cannot go and fetch them. Same pattern as RunService.
+        self.users = UserRepository(session)
 
     async def create_draft(self, data: TemplateCreate, author: User) -> SurveyTemplate:
         template = SurveyTemplate(
             title=data.title,
             description=data.description,
             audience=data.audience,
+            # Carried with the audience, never separately: the pair is validated together
+            # on the schema and enforced together by a check constraint, and dropping this
+            # line writes a survey aimed at a person it does not name.
+            audience_user_id=data.audience_user_id,
             setting=data.setting,
             created_by=author.id,
         )
@@ -50,13 +58,26 @@ class TemplateService:
     async def list_drafts(
         self, status: TemplateStatus | None, author: User
     ) -> list[tuple[SurveyTemplate, int]]:
-        """An author's own workspace. Already scoped to them in the query; filtered again
-        here so the one rule decides, rather than the query agreeing with it by luck."""
+        """An author's workspace, and their department's.
+
+        Scoped in the query to the author plus everyone in their department, then filtered
+        again here so the one rule decides rather than the query agreeing with it by luck.
+        The query has to be widened as well as the rule: a survey a colleague made is not
+        in `created_by = me`, so no amount of filtering would have let it through."""
         admin = is_admin_by_config(author)
+        creators = {author.id} | await self.users.ids_in_department(author.department)
+        departments = await self.users.departments_by_id()
         return [
             row
-            for row in await self.repo.list_summaries(status, created_by=author.id)
-            if may_list(author, row[0].audience, row[0].created_by, admin)
+            for row in await self.repo.list_summaries(status, created_by_in=creators)
+            if may_list(
+                author,
+                row[0].audience,
+                row[0].created_by,
+                admin,
+                target=row[0].audience_user_id,
+                creator_department=departments.get(row[0].created_by),
+            )
         ]
 
     async def list_published(self, user: User) -> list[tuple[SurveyTemplate, int, int, bool]]:
@@ -77,7 +98,13 @@ class TemplateService:
         return [
             (template, len(questions), estimated_minutes(questions), template.id in answered)
             for template, definition in rows
-            if may_answer(user, template.audience, template.created_by, admin)
+            if may_answer(
+                user,
+                template.audience,
+                template.created_by,
+                admin,
+                target=template.audience_user_id,
+            )
             for questions in [questions_of(definition)]
         ]
 
@@ -96,6 +123,7 @@ class TemplateService:
         template.title = data.title
         template.description = data.description
         template.audience = data.audience
+        template.audience_user_id = data.audience_user_id
         template.setting = data.setting
         # Full replace of questions covers add / edit / reorder / delete. Delete the
         # old rows first so the (template_id, position) unique constraint can't clash.
@@ -162,8 +190,14 @@ class TemplateService:
         # can't be used to enumerate which ids exist. The rule itself lives in
         # app/access: this used to compare created_by here, which was the same rule
         # written in a second place and free to drift from the one the engine uses.
+        departments = await self.users.departments_by_id()
         decision = may_list(
-            author, template.audience, template.created_by, is_admin_by_config(author)
+            author,
+            template.audience,
+            template.created_by,
+            is_admin_by_config(author),
+            target=template.audience_user_id,
+            creator_department=departments.get(template.created_by),
         )
         if not decision:
             logger.info(

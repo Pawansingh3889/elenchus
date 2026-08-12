@@ -6,22 +6,37 @@ import enum
 class SurveyAudience(str, enum.Enum):
     """Who a survey is for. Exactly one, and fixed once the survey is published.
 
-    `respondents` means the whole respondent pool, which is what every survey written
-    before this existed was, and so it is the default: nothing already published changes
-    reach. The rest name a creator department, and a survey aimed at one is answered by
-    the creators in it rather than by respondents.
+    `everyone` is anyone in any plant-floor group, whatever kind of account they hold. It
+    is deliberately not "every user": a manager with a Teams login is an author account
+    and belongs in an all-staff survey, while a service or administration account does
+    not, and membership is the line between them.
 
-    Deliberately a separate enum from CreatorDepartment even though three values match.
-    They answer different questions, "which part of the business is this person in" and
-    "who is this survey for", and merging them would mean a survey could be aimed at
-    `admin` as though that were a team to survey.
+    The five in the middle each name a `RespondentGroup`. Who may answer one is decided by
+    membership of that group and never by `role`, because the people in the senior groups
+    hold author accounts.
+
+    `person` is one named individual, carried in `survey_templates.audience_user_id`
+    rather than here: an enum cannot hold a user id, and inventing a value per person
+    would be a vocabulary that grows with the payroll. It exists for the case it was asked
+    for, a survey about their first weeks aimed at the person who just joined.
+
+    Note what this replaced. The values used to be `respondents` plus four creator
+    departments, so a survey was aimed at an office team. Those four were remapped to
+    `managers` when this vocabulary arrived, which rewrote what those surveys said they
+    were for; that was decided knowingly rather than by accident.
+
+    Still a separate enum from RespondentGroup even though five values match. They answer
+    different questions, "what does this person do" and "who is this survey for", and
+    merging them would leave `person` and `everyone` sitting in a list of job roles.
     """
 
-    respondents = "respondents"
-    hr = "hr"
-    operations = "operations"
-    finance = "finance"
-    technical = "technical"
+    everyone = "everyone"
+    operatives = "operatives"
+    line_leaders = "line_leaders"
+    supervisors = "supervisors"
+    managers = "managers"
+    qa = "qa"
+    person = "person"
 
 
 class TemplateStatus(str, enum.Enum):

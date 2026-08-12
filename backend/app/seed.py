@@ -7,9 +7,14 @@ access rules are the interesting thing to look at now and they are invisible wit
 single department: Ava in HR and Fatima in Finance seeing different lists is the whole
 feature, and it cannot be demonstrated by a database that has only one team in it.
 
-Nobody here is an administrator. Admin comes from the ADMIN_EMAILS allowlist in the
-environment, so putting a seeded address in it is how you grant yourself admin locally,
-and a committed seed cannot hand it to anyone by accident.
+Nobody here is in IT, and so nobody here is an administrator. That is deliberate: IT
+membership now grants admin, and a committed seed that shipped an administrator would
+hand one to every checkout. Admin locally is still ADMIN_EMAILS, or moving one of these
+accounts into IT yourself.
+
+Everyone on the floor is in at least one group, including the senior people who hold
+author accounts. That is the case worth being able to see: a survey aimed at supervisors
+has to reach Ava, who signs in as a creator and is a supervisor on the line.
 """
 
 import asyncio
@@ -17,7 +22,7 @@ from uuid import UUID
 
 from app.db.session import SessionFactory
 from app.sample_data.loader import load_sample_data
-from app.users.models import CreatorDepartment, User, UserRole
+from app.users.models import CreatorDepartment, RespondentGroup, User, UserGroupMembership, UserRole
 
 SEED_USERS: list[tuple[UUID, str, str, UserRole, CreatorDepartment | None]] = [
     (
@@ -25,9 +30,10 @@ SEED_USERS: list[tuple[UUID, str, str, UserRole, CreatorDepartment | None]] = [
         "ava@elenchus.dev",
         "Ava Author",
         UserRole.author,
-        # Operations, matching the migration's backfill: the walkthroughs and demo script
-        # all run as Ava, so she is the one whose department has to be the ordinary case.
-        CreatorDepartment.operations,
+        # Management, matching the migration's remap of the old Operations department:
+        # the walkthroughs and demo script all run as Ava, so she is the one whose
+        # department has to be the ordinary case.
+        CreatorDepartment.management,
     ),
     (
         UUID("00000000-0000-0000-0000-0000000000a2"),
@@ -48,9 +54,10 @@ SEED_USERS: list[tuple[UUID, str, str, UserRole, CreatorDepartment | None]] = [
         "adaeze@elenchus.dev",
         "Adaeze Author",
         UserRole.author,
-        # The admin *department*, which is grouping and not permission. This account has
-        # no more rights than any other until its address is in ADMIN_EMAILS.
-        CreatorDepartment.admin,
+        # Management rather than IT, though this was the administration account before.
+        # IT now grants admin, and a seeded administrator is a seeded way in: move this
+        # account to IT yourself if that is what you want locally.
+        CreatorDepartment.management,
     ),
     (
         UUID("00000000-0000-0000-0000-0000000000a5"),
@@ -83,6 +90,29 @@ SEED_USERS: list[tuple[UUID, str, str, UserRole, CreatorDepartment | None]] = [
 ]
 
 
+# Who is on the floor, and as what. Ava is a supervisor as well as an author, which is
+# the case the whole membership model exists for: her Teams login makes her a creator by
+# `role`, and a survey aimed at supervisors is written for her all the same.
+#
+# Managers has members on purpose. The migration remaps every survey that used to name an
+# office team onto `managers`, and landing those on an empty group would leave a shelf of
+# surveys nobody can answer and a dashboard reporting a reach of zero for all of them.
+SEED_GROUPS: list[tuple[UUID, tuple[RespondentGroup, ...]]] = [
+    (UUID("00000000-0000-0000-0000-0000000000a1"), (RespondentGroup.supervisors,)),
+    (UUID("00000000-0000-0000-0000-0000000000a2"), (RespondentGroup.managers,)),
+    (UUID("00000000-0000-0000-0000-0000000000a4"), (RespondentGroup.managers,)),
+    (UUID("00000000-0000-0000-0000-0000000000a5"), (RespondentGroup.qa,)),
+    (UUID("00000000-0000-0000-0000-0000000000b1"), (RespondentGroup.operatives,)),
+    # In two groups, because that is the thing a join table buys and a column could not:
+    # a line leader who also covers QA is really in both.
+    (
+        UUID("00000000-0000-0000-0000-0000000000b2"),
+        (RespondentGroup.line_leaders, RespondentGroup.qa),
+    ),
+    (UUID("00000000-0000-0000-0000-0000000000b3"), (RespondentGroup.operatives,)),
+]
+
+
 async def seed() -> None:
     async with SessionFactory() as session:
         for uid, email, name, role, department in SEED_USERS:
@@ -97,10 +127,19 @@ async def seed() -> None:
                     )
                 )
         await session.commit()
+        memberships = 0
+        for uid, groups in SEED_GROUPS:
+            for group in groups:
+                # Keyed on the pair, so re-running adds nothing and the seed stays safe to
+                # run over a database somebody has already been using.
+                if await session.get(UserGroupMembership, (uid, group)) is None:
+                    session.add(UserGroupMembership(user_id=uid, group=group))
+                    memberships += 1
+        await session.commit()
         surveys_added, runs_added = await load_sample_data(session)
     print(
-        f"Seeded {len(SEED_USERS)} users; loaded {surveys_added} sample surveys "
-        f"and {runs_added} runs (idempotent)."
+        f"Seeded {len(SEED_USERS)} users and {memberships} new group memberships; "
+        f"loaded {surveys_added} sample surveys and {runs_added} runs (idempotent)."
     )
 
 

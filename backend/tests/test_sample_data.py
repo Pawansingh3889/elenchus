@@ -19,8 +19,8 @@ from app.runs.enums import RunStatus
 from app.runs.service import ResultsService
 from app.sample_data import SAMPLE_RUNS, SAMPLE_SURVEYS, survey_for_run
 from app.sample_data.loader import load_sample_data
-from app.seed import SEED_USERS
-from app.users.models import User, UserRole
+from app.seed import SEED_GROUPS, SEED_USERS
+from app.users.models import User, UserGroupMembership, UserRole
 from tests.fakes import FakeLLM, move_on, record
 
 AUTHOR_KEYS = {"ava", "arjun"}
@@ -28,9 +28,25 @@ AUTHOR_KEYS = {"ava", "arjun"}
 
 @pytest_asyncio.fixture
 async def seeded_users(session) -> dict[str, UUID]:
-    """The stable seed users the dataset refers to, keyed by email local-part."""
+    """The stable seed users the dataset refers to, keyed by email local-part.
+
+    Group memberships come from the seed's own SEED_GROUPS rather than being invented
+    here. Answering is decided by membership now, so a copy of the seed that left them out
+    would produce people who cannot answer anything, and this fixture exists precisely to
+    stand in for the seeded database.
+    """
+    groups = dict(SEED_GROUPS)
     for uid, email, name, role, department in SEED_USERS:
-        session.add(User(id=uid, email=email, display_name=name, role=role, department=department))
+        session.add(
+            User(
+                id=uid,
+                email=email,
+                display_name=name,
+                role=role,
+                department=department,
+                memberships=[UserGroupMembership(group=group) for group in groups.get(uid, ())],
+            )
+        )
     await session.flush()
     return {row[1].split("@", 1)[0]: row[0] for row in SEED_USERS}
 

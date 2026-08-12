@@ -59,28 +59,28 @@ async def test_generate_persists_valid_draft(session, author):
 async def test_generate_applies_the_authors_audience(session, author):
     fake = FakeLLM(_VALID)
     template, _ = await GenerationService(session, llm=fake).generate_draft(
-        "onboarding", author, SurveyAudience.hr
+        "onboarding", author, SurveyAudience.supervisors
     )
-    assert template.audience is SurveyAudience.hr
+    assert template.audience is SurveyAudience.supervisors
 
 
 async def test_authors_audience_beats_the_one_the_model_drafted(session, author):
     """The draft tool's schema carries `audience` because it extends TemplateCreate, but
-    no prompt tells the model what the field means. A model picking `technical` off the
+    no prompt tells the model what the field means. A model picking `operatives` off the
     wording of a survey would quietly change who is allowed to answer it, so the author's
     choice is applied after the draft returns rather than merged with it."""
-    fake = FakeLLM({**_VALID, "audience": "technical"})
+    fake = FakeLLM({**_VALID, "audience": "operatives"})
     template, _ = await GenerationService(session, llm=fake).generate_draft(
-        "onboarding", author, SurveyAudience.finance
+        "onboarding", author, SurveyAudience.managers
     )
-    assert template.audience is SurveyAudience.finance
+    assert template.audience is SurveyAudience.managers
 
 
-async def test_generate_defaults_to_the_respondent_pool(session, author):
-    """A caller with no opinion means the whole pool, matching TemplateWrite's default."""
-    fake = FakeLLM({**_VALID, "audience": "operations"})
+async def test_generate_defaults_to_everyone(session, author):
+    """A caller with no opinion means everyone on the floor, matching TemplateWrite's default."""
+    fake = FakeLLM({**_VALID, "audience": "line_leaders"})
     template, _ = await GenerationService(session, llm=fake).generate_draft("onboarding", author)
-    assert template.audience is SurveyAudience.respondents
+    assert template.audience is SurveyAudience.everyone
 
 
 async def test_generate_returns_the_models_note(session, author):

@@ -59,8 +59,12 @@ class ResultsRepository:
         rows = (await self.session.execute(stmt)).scalars().all()
         return {respondent_id: number for number, respondent_id in enumerate(rows, start=1)}
 
-    async def dashboard_rows(self, author_id: UUID) -> list[Row[Any]]:
-        """Every survey this author owns, with its run counts, in one query.
+    async def dashboard_rows(self, author_ids: set[UUID]) -> list[Row[Any]]:
+        """Every survey these authors own, with its run counts, in one query.
+
+        A set rather than one id, because a survey belongs to a department as well as to
+        the person who made it: a colleague has to see it, and a survey they did not
+        create is not in `created_by = me` for any amount of filtering afterwards.
 
         One query rather than one per survey. The obvious wrong turn here is to list the
         templates and then count each one's runs, which is an N+1 that looks fine against
@@ -105,7 +109,7 @@ class ResultsRepository:
                 SurveyTemplateVersion.template_id == SurveyTemplate.id,
             )
             .outerjoin(SurveyRun, SurveyRun.template_version_id == SurveyTemplateVersion.id)
-            .where(SurveyTemplate.created_by == author_id)
+            .where(SurveyTemplate.created_by.in_(author_ids))
             .group_by(SurveyTemplate.id)
             .order_by(SurveyTemplate.updated_at.desc())
         )

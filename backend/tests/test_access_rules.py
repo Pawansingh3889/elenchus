@@ -5,9 +5,13 @@ combination of who is asking and what they are asking about, checked directly, w
 fixtures and no session. The matrix is the point. A rule with one untested corner is a
 rule nobody can safely change.
 
-Reading these, the shape to hold onto is that answering and reading are different
-questions. Being in a survey's audience means you were asked. It does not mean you may
-read what your colleagues answered.
+Reading these, the shapes to hold onto:
+
+* Answering is decided by group membership, never by `role`. The senior groups are full
+  of people who sign in with Teams and therefore hold author accounts.
+* Answering and reading are different questions. Being in a survey's audience means you
+  were asked. It does not mean you may read what your colleagues answered.
+* Departments group authors, and a department colleague may now read the rows.
 """
 
 from uuid import UUID, uuid4
@@ -17,28 +21,56 @@ import pytest
 from app.access import NOBODY, in_audience, may_answer, may_list, may_read_rows, may_read_totals
 from app.access.rules import is_admin
 from app.templates.enums import SurveyAudience
-from app.users.models import CreatorDepartment, User, UserRole
+from app.users.models import (
+    CreatorDepartment,
+    RespondentGroup,
+    User,
+    UserGroupMembership,
+    UserRole,
+)
 
 AUTHOR_ID = uuid4()
 OTHER_ID = uuid4()
 
 
-def _user(role: UserRole, department: CreatorDepartment | None = None, **kw) -> User:
-    return User(
+def _user(
+    role: UserRole,
+    department: CreatorDepartment | None = None,
+    groups: tuple[RespondentGroup, ...] = (),
+    **kw,
+) -> User:
+    user = User(
         id=kw.get("id", uuid4()),
         email=kw.get("email", "someone@test.dev"),
         display_name="Test",
         role=role,
         department=department,
     )
+    # Assigned rather than passed to the constructor so `groups` stays a property over the
+    # rows: one source of truth, and no way for a test to set up a user the database could
+    # not produce.
+    user.memberships = [UserGroupMembership(user_id=user.id, group=g) for g in groups]
+    return user
 
 
-AUTHOR = _user(UserRole.author, CreatorDepartment.hr, id=AUTHOR_ID, email="author@test.dev")
-HR = _user(UserRole.author, CreatorDepartment.hr)
+AUTHOR = _user(
+    UserRole.author,
+    CreatorDepartment.hr,
+    (RespondentGroup.managers,),
+    id=AUTHOR_ID,
+    email="author@test.dev",
+)
+# The case the whole model exists for: an author account whose holder works on the line.
+SUPERVISOR_AUTHOR = _user(UserRole.author, CreatorDepartment.hr, (RespondentGroup.supervisors,))
+OPERATIVE = _user(UserRole.respondent, None, (RespondentGroup.operatives,))
+# In two groups at once, which a single column could not have expressed.
+LINE_LEADER_QA = _user(
+    UserRole.respondent, None, (RespondentGroup.line_leaders, RespondentGroup.qa)
+)
+UNGROUPED = _user(UserRole.respondent, None, ())
+HR_COLLEAGUE = _user(UserRole.author, CreatorDepartment.hr)
 FINANCE = _user(UserRole.author, CreatorDepartment.finance)
-TECHNICAL = _user(UserRole.author, CreatorDepartment.technical)
-NO_DEPARTMENT = _user(UserRole.author, None)
-RESPONDENT = _user(UserRole.respondent)
+TARGET = _user(UserRole.respondent, None, (RespondentGroup.operatives,))
 
 
 # ----------------------------------------------------------------------------- answering
@@ -47,40 +79,81 @@ RESPONDENT = _user(UserRole.respondent)
 @pytest.mark.parametrize(
     "user,audience,admin,expected",
     [
-        # A respondent-aimed survey is for respondents, and for its author testing it.
-        (RESPONDENT, SurveyAudience.respondents, False, True),
-        (HR, SurveyAudience.respondents, False, False),
-        (AUTHOR, SurveyAudience.respondents, False, True),
-        # A department survey is for that department. Being a creator is not enough.
-        (HR, SurveyAudience.hr, False, True),
-        (FINANCE, SurveyAudience.hr, False, False),
-        (RESPONDENT, SurveyAudience.hr, False, False),
+        # A group survey is for that group's members.
+        (OPERATIVE, SurveyAudience.operatives, False, True),
+        (OPERATIVE, SurveyAudience.supervisors, False, False),
+        (LINE_LEADER_QA, SurveyAudience.line_leaders, False, True),
+        # Both of them, because membership is a set and not a column.
+        (LINE_LEADER_QA, SurveyAudience.qa, False, True),
+        # The point of the rewrite: an author account in the group may answer. Under the
+        # old rule this was refused for being a creator, which refused every supervisor a
+        # survey written for supervisors.
+        (SUPERVISOR_AUTHOR, SurveyAudience.supervisors, False, True),
+        (SUPERVISOR_AUTHOR, SurveyAudience.operatives, False, False),
+        # Everyone means everyone on the floor, whatever kind of account they hold.
+        (OPERATIVE, SurveyAudience.everyone, False, True),
+        (SUPERVISOR_AUTHOR, SurveyAudience.everyone, False, True),
+        # And not an account belonging to nobody on the floor.
+        (UNGROUPED, SurveyAudience.everyone, False, False),
+        (UNGROUPED, SurveyAudience.operatives, False, False),
         # Admin reaches everything, and so does the survey's own author.
-        (FINANCE, SurveyAudience.hr, True, True),
-        (AUTHOR, SurveyAudience.finance, False, True),
-        # Technical, the fifth department, behaves like the rest of them.
-        (TECHNICAL, SurveyAudience.technical, False, True),
-        (HR, SurveyAudience.technical, False, False),
-        # Fails closed: no department cannot be matched to any audience.
-        (NO_DEPARTMENT, SurveyAudience.hr, False, False),
+        (FINANCE, SurveyAudience.operatives, True, True),
+        (AUTHOR, SurveyAudience.qa, False, True),
     ],
 )
 def test_who_may_answer(user, audience, admin, expected):
     assert bool(may_answer(user, audience, AUTHOR_ID, admin)) is expected
 
 
+def test_role_is_not_consulted_when_deciding_who_may_answer():
+    """Stated as its own test because it is the rule that changed and the one most likely
+    to be quietly reinstated by someone tidying up. A respondent and an author who are in
+    the same group get the same answer."""
+    author_side = _user(UserRole.author, CreatorDepartment.hr, (RespondentGroup.qa,))
+    respondent_side = _user(UserRole.respondent, None, (RespondentGroup.qa,))
+    for user in (author_side, respondent_side):
+        assert may_answer(user, SurveyAudience.qa, OTHER_ID, admin=False)
+
+
+# ------------------------------------------------------------------- one named person
+
+
+def test_a_survey_for_one_person_reaches_only_that_person():
+    assert may_answer(TARGET, SurveyAudience.person, OTHER_ID, False, target=TARGET.id)
+    assert not may_answer(OPERATIVE, SurveyAudience.person, OTHER_ID, False, target=TARGET.id)
+    # Being in a group is no help: the audience is a person, not a group.
+    assert not may_answer(LINE_LEADER_QA, SurveyAudience.person, OTHER_ID, False, target=TARGET.id)
+
+
+def test_a_survey_for_a_person_who_was_never_named_reaches_nobody():
+    """Fails closed and says which half is missing. A `person` row with no id cannot be
+    answered by anyone, and reading it as "for everybody" would be the dangerous guess."""
+    decision = may_answer(TARGET, SurveyAudience.person, OTHER_ID, False, target=None)
+    assert not decision
+    assert "names nobody" in decision.reason
+
+
+def test_the_author_and_an_admin_still_reach_a_personal_survey():
+    """Same two escape hatches as every other audience: an author has to be able to try
+    what they built, and an admin has to be able to look."""
+    assert may_answer(AUTHOR, SurveyAudience.person, AUTHOR_ID, False, target=TARGET.id)
+    assert may_answer(FINANCE, SurveyAudience.person, OTHER_ID, True, target=TARGET.id)
+
+
 def test_a_survey_with_no_audience_is_answerable_by_nobody():
     """Fails closed. The dangerous failure is not a refusal, it is a survey reaching
     people it was never aimed at."""
-    for user in (RESPONDENT, HR, FINANCE, AUTHOR):
+    for user in (OPERATIVE, SUPERVISOR_AUTHOR, FINANCE, AUTHOR):
         assert not may_answer(user, None, AUTHOR_ID, admin=False)
 
 
 def test_a_refusal_says_which_piece_was_missing():
     """A bare False is enough to enforce the rule and useless to fix a deployment."""
-    assert "no department" in may_answer(NO_DEPARTMENT, SurveyAudience.hr, OTHER_ID, False).reason
-    assert "no audience" in may_answer(HR, None, OTHER_ID, False).reason
-    assert "hr team" in may_answer(FINANCE, SurveyAudience.hr, OTHER_ID, False).reason
+    ungrouped = may_answer(UNGROUPED, SurveyAudience.everyone, OTHER_ID, False)
+    wrong_group = may_answer(OPERATIVE, SurveyAudience.supervisors, OTHER_ID, False)
+    assert "not in any group" in ungrouped.reason
+    assert "no audience" in may_answer(OPERATIVE, None, OTHER_ID, False).reason
+    assert "supervisors" in wrong_group.reason
 
 
 # ------------------------------------------------------------------------------- reading
@@ -90,31 +163,43 @@ def test_a_refusal_says_which_piece_was_missing():
     "user,admin,expected",
     [
         (AUTHOR, False, True),
-        (HR, True, True),
-        (HR, False, False),
+        (HR_COLLEAGUE, True, True),
+        # A colleague in the author's department, which is the new grant.
+        (HR_COLLEAGUE, False, True),
         (FINANCE, False, False),
-        (RESPONDENT, False, False),
+        (OPERATIVE, False, False),
     ],
 )
 def test_who_may_read_individual_rows(user, admin, expected):
-    assert bool(may_read_rows(user, AUTHOR_ID, admin)) is expected
+    assert (
+        bool(may_read_rows(user, AUTHOR_ID, admin, creator_department=CreatorDepartment.hr))
+        is expected
+    )
+
+
+def test_two_people_without_a_department_are_not_colleagues():
+    """The bug this rules out is a one-character one. `None is None` is true, so a rule
+    that compared departments without checking for one would make every person on the
+    floor a colleague of every other and hand them each other's answers."""
+    assert not may_read_rows(UNGROUPED, AUTHOR_ID, False, creator_department=None)
+    assert not may_read_rows(OPERATIVE, AUTHOR_ID, False, creator_department=None)
 
 
 def test_being_in_the_audience_does_not_let_you_read_the_rows():
-    """The distinction the whole design rests on. An HR creator may answer an HR survey
-    and may see its totals, and may not read what their colleagues individually said."""
-    assert may_answer(HR, SurveyAudience.hr, OTHER_ID, admin=False)
-    assert may_read_totals(HR, SurveyAudience.hr, OTHER_ID, admin=False)
-    assert not may_read_rows(HR, OTHER_ID, admin=False)
+    """The distinction the whole design rests on. An operative may answer a survey aimed
+    at operatives and may see its totals, and may not read what their colleagues said."""
+    assert may_answer(OPERATIVE, SurveyAudience.operatives, OTHER_ID, admin=False)
+    assert may_read_totals(OPERATIVE, SurveyAudience.operatives, OTHER_ID, admin=False)
+    assert not may_read_rows(OPERATIVE, OTHER_ID, admin=False)
 
 
 @pytest.mark.parametrize(
     "user,audience,expected",
     [
-        (HR, SurveyAudience.hr, True),
-        (FINANCE, SurveyAudience.hr, False),
-        (RESPONDENT, SurveyAudience.respondents, True),
-        (RESPONDENT, SurveyAudience.hr, False),
+        (OPERATIVE, SurveyAudience.operatives, True),
+        (FINANCE, SurveyAudience.operatives, False),
+        (LINE_LEADER_QA, SurveyAudience.everyone, True),
+        (UNGROUPED, SurveyAudience.everyone, False),
     ],
 )
 def test_who_may_read_totals(user, audience, expected):
@@ -125,17 +210,35 @@ def test_who_may_read_totals(user, audience, expected):
 
 
 def test_a_survey_you_cannot_answer_is_not_even_named_to_you():
-    """Existence is information: 'Finance restructure feedback' says something before a
-    single answer is given."""
-    assert not may_list(HR, SurveyAudience.finance, OTHER_ID, admin=False)
-    assert may_list(FINANCE, SurveyAudience.finance, OTHER_ID, admin=False)
-    assert may_list(HR, SurveyAudience.finance, OTHER_ID, admin=True)
+    """Existence is information: 'Redundancy consultation' says something before a single
+    answer is given."""
+    assert not may_list(FINANCE, SurveyAudience.operatives, OTHER_ID, admin=False)
+    assert may_list(OPERATIVE, SurveyAudience.operatives, OTHER_ID, admin=False)
+    assert may_list(FINANCE, SurveyAudience.operatives, OTHER_ID, admin=True)
+
+
+def test_a_department_colleague_sees_the_survey():
+    """Asked for so that work does not stop when the person who made it is away."""
+    assert may_list(
+        HR_COLLEAGUE,
+        SurveyAudience.operatives,
+        AUTHOR_ID,
+        admin=False,
+        creator_department=CreatorDepartment.hr,
+    )
+    assert not may_list(
+        FINANCE,
+        SurveyAudience.operatives,
+        AUTHOR_ID,
+        admin=False,
+        creator_department=CreatorDepartment.hr,
+    )
 
 
 def test_an_author_always_sees_their_own_work():
-    """Even aimed at a department they are not in, or with no audience at all, or they
-    could create something and lose it."""
-    assert may_list(AUTHOR, SurveyAudience.finance, AUTHOR_ID, admin=False)
+    """Even aimed at a group they are not in, or with no audience at all, or they could
+    create something and lose it."""
+    assert may_list(AUTHOR, SurveyAudience.operatives, AUTHOR_ID, admin=False)
     assert may_list(AUTHOR, None, AUTHOR_ID, admin=False)
 
 
@@ -152,41 +255,50 @@ def test_an_empty_allowlist_grants_nobody():
     assert not is_admin(AUTHOR, frozenset())
 
 
+def test_the_it_department_grants_admin():
+    """The reversal, tested so it is deliberate rather than incidental: a column now
+    confers administration, where the older rule kept that strictly in configuration."""
+    assert is_admin(_user(UserRole.author, CreatorDepartment.it), frozenset())
+    assert not is_admin(_user(UserRole.author, CreatorDepartment.management), frozenset())
+
+
 # ------------------------------------------------------------------- completeness
 
 
-def test_every_department_audience_maps_to_a_department():
+def test_every_group_audience_maps_to_a_group():
     """The failure this exists for is silent and fatal. `may_answer` looks the audience up
-    in `_AUDIENCE_DEPARTMENT` with no fallback, so an audience added to the enum without a
-    matching entry does not refuse anyone: it raises KeyError the first time somebody opens
-    that survey. Enumerating the enum means the next department cannot be half-added.
+    in `_AUDIENCE_GROUP` with no fallback, so an audience added to the enum without a
+    matching entry does not refuse anyone: it raises KeyError the first time somebody
+    opens that survey. Enumerating the enum means the next group cannot be half-added.
 
-    `respondents` is excluded deliberately. No department answers it, respondents do.
+    `everyone` and `person` are excluded deliberately. Neither is a group.
     """
-    from app.access.rules import _AUDIENCE_DEPARTMENT
+    from app.access.rules import _AUDIENCE_GROUP
 
-    departmental = {a for a in SurveyAudience if a is not SurveyAudience.respondents}
-    assert departmental == set(
-        _AUDIENCE_DEPARTMENT
-    ), "every departmental audience needs an entry in _AUDIENCE_DEPARTMENT"
-
-
-def test_every_department_can_be_aimed_at_except_admin():
-    """Admin is grouping, not a team to survey, which is why the two enums are separate.
-    Every other department should have an audience that reaches it."""
-    aimable = {d.value for d in CreatorDepartment} - {"admin"}
-    assert aimable <= {a.value for a in SurveyAudience}
+    grouped = {
+        a for a in SurveyAudience if a not in (SurveyAudience.everyone, SurveyAudience.person)
+    }
+    assert grouped == set(_AUDIENCE_GROUP), "every group audience needs an entry in _AUDIENCE_GROUP"
 
 
-def test_reach_counts_the_audience_and_not_the_ways_around_it(author, respondent):
+def test_every_group_can_be_aimed_at():
+    """A group nobody can survey is a group that only half exists."""
+    assert {g.value for g in RespondentGroup} <= {a.value for a in SurveyAudience}
+
+
+def test_reach_counts_the_audience_and_not_the_ways_around_it():
     """`in_audience` is the denominator's rule, and a denominator must count the people a
     survey was written for. The author testing their own survey and an admin reaching in
     are how it gets answered by someone it was not aimed at, so neither is counted."""
     # The author owns nothing here: NOBODY can match no user, so the owner branch is shut.
-    assert in_audience(respondent, SurveyAudience.respondents)
-    assert not in_audience(author, SurveyAudience.respondents)
-    # And the admin branch with it, whatever the allowlist says.
-    assert not in_audience(respondent, SurveyAudience.hr)
+    assert in_audience(OPERATIVE, SurveyAudience.operatives)
+    assert not in_audience(FINANCE, SurveyAudience.operatives)
+    assert not in_audience(UNGROUPED, SurveyAudience.everyone)
+
+
+def test_reach_for_one_person_is_that_person_alone():
+    assert in_audience(TARGET, SurveyAudience.person, target=TARGET.id)
+    assert not in_audience(OPERATIVE, SurveyAudience.person, target=TARGET.id)
 
 
 def test_nobody_is_nobody(author, respondent):
@@ -195,11 +307,3 @@ def test_nobody_is_nobody(author, respondent):
     assert NOBODY == UUID(int=0)
     assert author.id != NOBODY
     assert respondent.id != NOBODY
-
-
-def test_a_department_survey_counts_only_that_department(author):
-    """The other audience shape. An author in one department is not part of another's."""
-    author.department = CreatorDepartment.operations
-    assert in_audience(author, SurveyAudience.operations)
-    assert not in_audience(author, SurveyAudience.finance)
-    assert not in_audience(author, SurveyAudience.respondents)

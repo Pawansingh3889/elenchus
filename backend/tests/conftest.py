@@ -26,7 +26,7 @@ from app.templates import models as _templates  # noqa: F401
 from app.templates.enums import AnswerType, FollowUpPolicy
 from app.templates.schemas import QuestionInput, TemplateCreate
 from app.templates.service import TemplateService
-from app.users.models import User, UserRole
+from app.users.models import RespondentGroup, User, UserGroupMembership, UserRole
 
 ADMIN_URL = "postgresql+asyncpg://elenchus:elenchus@localhost:5432/elenchus"
 TEST_URL = "postgresql+asyncpg://elenchus:elenchus@localhost:5432/elenchus_test"
@@ -163,9 +163,28 @@ async def other_author(session):
 
 @pytest_asyncio.fixture
 async def respondent(session):
+    """Someone who answers surveys, and who is therefore on the floor.
+
+    In a group on purpose. Membership is what grants the right to answer now, so a
+    respondent in no group cannot answer anything, including a survey aimed at everyone.
+    That is the rule working rather than a fixture detail: an account belonging to nobody
+    on the plant is not part of any audience.
+    """
     user = User(
-        email="respondent@test.dev", display_name="Test Respondent", role=UserRole.respondent
+        email="respondent@test.dev",
+        display_name="Test Respondent",
+        role=UserRole.respondent,
+        memberships=[UserGroupMembership(group=RespondentGroup.operatives)],
     )
+    session.add(user)
+    await session.flush()
+    return user
+
+
+@pytest_asyncio.fixture
+async def ungrouped_respondent(session):
+    """Someone with an account and no place on the floor, for the refusal path."""
+    user = User(email="ungrouped@test.dev", display_name="Ungrouped", role=UserRole.respondent)
     session.add(user)
     await session.flush()
     return user
@@ -222,8 +241,17 @@ async def published(session, author):
 
 @pytest_asyncio.fixture
 async def other_respondent(session):
-    """A second respondent, for proving one cannot resume another's run."""
-    user = User(email="second@test.dev", display_name="Second Respondent", role=UserRole.respondent)
+    """A second respondent, for proving one cannot resume another's run.
+
+    In a different group from the first, so that a test which needs two people who are
+    both on the floor gets them, and a test about group boundaries has one to hand.
+    """
+    user = User(
+        email="second@test.dev",
+        display_name="Second Respondent",
+        role=UserRole.respondent,
+        memberships=[UserGroupMembership(group=RespondentGroup.line_leaders)],
+    )
     session.add(user)
     await session.flush()
     return user
