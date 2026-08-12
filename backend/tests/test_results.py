@@ -501,3 +501,163 @@ async def test_the_same_person_carries_one_label_across_list_and_detail(
     from_detail = await service.get_run(published.id, run.id, author)
 
     assert from_list.respondent_label == from_detail.respondent_label == "Respondent 2"
+
+
+async def test_the_matrix_puts_every_answer_beside_the_person_who_gave_it(
+    session, author, respondent, other_respondent
+):
+    """The question the report cannot answer. Per-question tallies say what each question
+    found; they cannot say whether the people who picked one thing also picked another,
+    and reconstructing that took one request per run."""
+    template = await _reportable(session, author)
+    await _answer_all(session, template, respondent, [["Cleaning", "Waste"], True, 4])
+    await _answer_all(session, template, other_respondent, [["Cleaning"], False, 2])
+
+    matrix = await ResultsService(session).answers_matrix(template.id, author)
+
+    assert matrix.version == 1
+    assert [q.text for q in matrix.questions] == [
+        "Which aspects need improvement?",
+        "Are practices followed consistently?",
+        "Rate the hygiene overall",
+    ]
+    # The author's option list travels with the question, so a slice can offer an option
+    # nobody picked rather than only what happens to be in the data.
+    assert matrix.questions[0].options == ["Cleaning", "Waste", "PPE"]
+    # Newest first, the order the run list already uses. The numbering is by when each
+    # person first answered, so the labels run backwards down a newest-first table and
+    # that is the same person either way round.
+    assert [r.respondent_label for r in matrix.runs] == ["Respondent 2", "Respondent 1"]
+
+    # The join itself: one person's answers, in one place, unaggregated.
+    first = next(r for r in matrix.runs if r.respondent_label == "Respondent 1")
+    by_question = {str(a.question_id): a.value for a in first.answers}
+    aspects, consistent, rated = (str(q.id) for q in matrix.questions)
+    assert by_question[aspects]["options"] == ["Cleaning", "Waste"]
+    assert by_question[consistent]["yes_no"] is True
+    assert by_question[rated]["rating"] == 4
+
+
+async def test_the_matrix_carries_raw_values_not_printable_ones(session, author, respondent):
+    """A slice keys on the stored shape. Flattened to strings, "Cleaning" the option and
+    "Cleaning" typed as a write-in would land in one bucket, which is the distinction the
+    tallies are most careful about."""
+    template = await _reportable(session, author)
+    await _answer_all(
+        session, template, respondent, [["Cleaning", "drains blocked again"], True, 3]
+    )
+
+    matrix = await ResultsService(session).answers_matrix(template.id, author)
+
+    aspects = next(a for a in matrix.runs[0].answers if a.question_id == matrix.questions[0].id)
+    assert aspects.value["options"] == ["Cleaning"]
+    assert aspects.value["other"] == ["drains blocked again"]
+
+
+async def test_the_matrix_includes_unfinished_runs_and_says_so(
+    session, author, respondent, other_respondent, published
+):
+    """The report tallies answers from runs still in progress, so the matrix must describe
+    the same people. A matrix over completed runs only would produce sliced totals that
+    disagreed with the unsliced ones printed beside them."""
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    await _answer_first(session, run, respondent)
+
+    matrix = await ResultsService(session).answers_matrix(published.id, author)
+
+    assert [r.status for r in matrix.runs] == [RunStatus.in_progress]
+    assert matrix.runs[0].completed_at is None
+    assert len(matrix.runs[0].answers) == 1
+
+
+async def test_the_matrix_carries_follow_up_answers_with_their_kind(
+    session, author, respondent, published
+):
+    """A follow-up answers a question the model wrote, so it can never join a tally. It is
+    still what the respondent elaborated, and the client shows it beside the answer it
+    came from, so it travels with its kind rather than being dropped."""
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    probing = FakeLLM(follow_up("What does that involve day to day?", "Line lead"))
+    run = await ConductEngine(session, llm=probing).handle_message(run.id, "line lead", respondent)
+    elaborating = FakeLLM(record("stock counts and rotas, mostly"), move_on())
+    await ConductEngine(session, llm=elaborating).handle_message(
+        run.id, "stock counts and rotas, mostly", respondent
+    )
+
+    matrix = await ResultsService(session).answers_matrix(published.id, author)
+
+    answers = matrix.runs[0].answers
+    assert [a.kind for a in answers] == [AnswerKind.scripted, AnswerKind.follow_up]
+    # The model's own question travels with it, because the author reading the probe
+    # needs to know what was asked to make sense of what came back.
+    assert answers[1].question_text == "What does that involve day to day?"
+
+
+async def test_the_matrix_excludes_earlier_versions_and_counts_them(
+    session, author, respondent, other_respondent, published
+):
+    """The report's rule, and for the report's reason: a run that answered different
+    questions under different ids cannot join these columns, so it is left out and named
+    rather than folded in."""
+    stale = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    await _answer_first(session, stale, respondent)
+
+    svc = TemplateService(session)
+    await svc.update_draft(
+        published.id,
+        update_of(
+            published,
+            questions=[QuestionInput(text="One question now", answer_type=AnswerType.long_text)],
+        ),
+        author,
+    )
+    await svc.publish(published.id, author)
+    current = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, other_respondent)
+    llm = FakeLLM(record("a fresh answer"), move_on())
+    await ConductEngine(session, llm=llm).handle_message(
+        current.id, "a fresh answer", other_respondent
+    )
+
+    matrix = await ResultsService(session).answers_matrix(published.id, author)
+
+    assert matrix.version == 2
+    assert matrix.runs_on_earlier_versions == 1
+    assert [r.run_id for r in matrix.runs] == [current.id]
+
+
+async def test_the_matrix_labels_match_the_run_list(
+    session, author, respondent, other_respondent, published
+):
+    """The label is the survey's own pseudonym and also the key the recap's quote gate
+    matches on. An author moving between the table and a response must be looking at the
+    same person, or the numbering is worse than none: they would trust it and be wrong."""
+    first = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
+    await _answer_first(session, first, respondent)
+    second = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, other_respondent)
+    await _answer_first(session, second, other_respondent)
+
+    service = ResultsService(session)
+    from_list = {s.id: s.respondent_label for s in await service.list_runs(published.id, author)}
+    matrix = await service.answers_matrix(published.id, author)
+
+    assert {r.run_id: r.respondent_label for r in matrix.runs} == from_list
+
+
+async def test_the_matrix_is_scoped_to_the_owning_author(session, author, other_author, published):
+    """Every answer in the survey with the respondent beside it is the most attribution
+    dense payload in the API, so it inherits exactly the boundary the numbers have."""
+    with pytest.raises(NotFoundError):
+        await ResultsService(session).answers_matrix(published.id, other_author)
+
+
+async def test_a_matrix_needs_a_published_version(session, author):
+    template = await TemplateService(session).create_draft(
+        TemplateCreate(
+            title="Draft only",
+            questions=[QuestionInput(text="Anything?", answer_type=AnswerType.short_text)],
+        ),
+        author,
+    )
+
+    with pytest.raises(NotFoundError):
+        await ResultsService(session).answers_matrix(template.id, author)

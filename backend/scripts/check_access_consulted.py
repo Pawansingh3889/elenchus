@@ -49,6 +49,9 @@ GUARDED_TYPES = frozenset(
         "RunSummary",
         "DashboardRow",
         "ResultRow",
+        # The most attribution-dense payload in the API: every answer in the survey with
+        # the respondent beside it, which is exactly what must not leak to a colleague.
+        "AnswersMatrix",
     }
 )
 
