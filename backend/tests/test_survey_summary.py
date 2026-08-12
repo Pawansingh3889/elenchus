@@ -435,3 +435,34 @@ async def test_a_recap_attributed_to_numbers_is_still_served(session, author, re
     assert status.absence is None
     assert status.recap is not None
     assert [q.respondent for q in status.recap.notable_quotes] == ["Respondent 1"]
+
+
+async def test_one_quote_past_the_cap_trims_rather_than_losing_the_recap(
+    session, author, respondent
+):
+    """A live run lost a sound recap twice because the model returned seven quotes
+    against a limit of six. The author was told the assistant was unavailable while
+    nothing was unavailable, and the recap was one quote from being served."""
+    template = await _surveyed(session, author, respondent)
+    quote = {
+        "question": "Which machine stops most often?",
+        "respondent": "Respondent 1",
+        "quote": _QUOTE,
+    }
+    llm = FakeLLM(_recap(notable_quotes=[quote] * 7), _faithful())
+
+    recap = await SurveySummaryService(session, llm=llm).summarise(template.id, author)
+
+    # Trimmed to the cap and served, rather than refused and retried into an error.
+    assert len(recap.notable_quotes) == 6
+    assert llm.calls == 2  # no schema retry was needed
+
+
+async def test_findings_past_the_cap_are_trimmed_too(session, author, respondent):
+    template = await _surveyed(session, author, respondent)
+    finding = {"statement": "Most respondents named the same machine", "question_position": 0}
+    llm = FakeLLM(_recap(findings=[finding] * 8), _faithful())
+
+    recap = await SurveySummaryService(session, llm=llm).summarise(template.id, author)
+
+    assert len(recap.findings) == 6

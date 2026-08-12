@@ -463,6 +463,7 @@ class SurveySummaryService:
             raw = _decode_stringified_fields(turn.tool_input)
             raw = _without_invented_quotes(raw, quotable)
             raw = _without_unknown_questions(raw, report)
+            raw = _within_caps(raw)
             try:
                 return SurveySummaryContent.model_validate(raw)
             except PydanticValidationError as exc:
@@ -525,6 +526,30 @@ def _decode_stringified_fields(raw: dict[str, Any]) -> dict[str, Any]:
 
 def _normalised(text: str) -> str:
     return " ".join(text.split()).casefold()
+
+
+def _within_caps(raw: dict[str, Any]) -> dict[str, Any]:
+    """Trim an over-long list to its cap instead of losing the recap over it.
+
+    A live run threw away a sound recap twice because the model returned seven quotes
+    against a limit of six, so the author was told the assistant was unavailable when
+    nothing was unavailable and the recap was one quote from being served.
+
+    Dropping rather than refusing is the rule this file already follows for a quote that
+    cannot be traced to the person it names and for a finding the checker will not stand
+    behind. A quote past the cap is a weaker fault than either: nothing about it is
+    wrong, there is simply one more than the page shows. Trimmed before validation, for
+    the reason the other gates are: the validated model is never mutated.
+
+    Only the tail is cut, so the model's own ordering decides what survives, which is
+    the same order the page would have shown.
+    """
+    for field, cap in (("findings", MAX_FINDINGS), ("notable_quotes", MAX_QUOTES)):
+        items = raw.get(field)
+        if isinstance(items, list) and len(items) > cap:
+            logger.warning("recap %s over cap, trimming %d to %d", field, len(items), cap)
+            raw = {**raw, field: items[:cap]}
+    return raw
 
 
 def _without_invented_quotes(raw: dict[str, Any], quotable: list[dict[str, str]]) -> dict[str, Any]:
