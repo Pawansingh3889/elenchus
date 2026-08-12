@@ -21,6 +21,7 @@ never been observed to reject anything is decoration.
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -541,3 +542,97 @@ def test_access_sees_through_a_wrapped_return_type(fake_repo: Path) -> None:
         encoding="utf-8",
     )
     assert run_guard("check_access_consulted.py", fake_repo).returncode == 1
+
+
+# ------------------------------------------------------------ the eval ratchet
+
+
+def _corpus(root: Path, *, answers: int, invented: int = 0, traced: bool = True) -> None:
+    """A fake tests/live_runs holding one fixture, plus a baseline that matches it."""
+    live_runs = root / "tests" / "live_runs"
+    live_runs.mkdir(parents=True, exist_ok=True)
+    fixture = {
+        "scenario": "demo",
+        "model": "gpt-4o-mini",
+        "status": "completed",
+        "respondent_messages": ["line lead"],
+        "answers": [
+            {"kind": "scripted", "value": {"text": "Line lead"}, "invented": i < invented}
+            for i in range(answers)
+        ],
+    }
+    if traced:
+        fixture["trace"] = {
+            "total": 1,
+            "positions": [0],
+            "questions": [{"id": "q1", "position": 0, "follow_up_policy": "never"}],
+            "answers": [{"question_id": "q1", "kind": "scripted"}],
+        }
+    (live_runs / "demo.json").write_text(json.dumps(fixture), encoding="utf-8")
+    (root / "tests" / "eval_baseline.json").write_text(
+        json.dumps({"answers": answers, "known_inventions": invented, "traced_fixtures": 1}),
+        encoding="utf-8",
+    )
+
+
+def test_a_corpus_that_matches_its_baseline_passes(tmp_path: Path) -> None:
+    _corpus(tmp_path, answers=4, invented=1)
+    result = run_guard("eval_report.py", tmp_path)
+    assert result.returncode == 0, result.stderr
+    assert "ok: eval corpus ratchet" in result.stdout
+
+
+def test_a_shrinking_corpus_is_rejected(tmp_path: Path) -> None:
+    """The regression this exists for. Fixtures are the only record of a live finding, and
+    deleting one silently narrows what every future push is checked against."""
+    _corpus(tmp_path, answers=4)
+    (tmp_path / "tests" / "eval_baseline.json").write_text(
+        json.dumps({"answers": 9, "known_inventions": 0, "traced_fixtures": 1}), encoding="utf-8"
+    )
+    result = run_guard("eval_report.py", tmp_path)
+    assert result.returncode == 1
+    assert "answers fell from 9 to 4" in result.stderr
+
+
+def test_unmarking_a_known_invention_is_rejected(tmp_path: Path) -> None:
+    """`invented: true` is the one field a human writes, and it is what turns a live
+    finding into a permanent test. Quietly clearing one would retire that test with no
+    other sign."""
+    _corpus(tmp_path, answers=4, invented=0)
+    (tmp_path / "tests" / "eval_baseline.json").write_text(
+        json.dumps({"answers": 4, "known_inventions": 2, "traced_fixtures": 1}), encoding="utf-8"
+    )
+    result = run_guard("eval_report.py", tmp_path)
+    assert result.returncode == 1
+    assert "known_inventions fell from 2 to 0" in result.stderr
+
+
+def test_a_trace_that_violates_an_invariant_is_rejected(tmp_path: Path) -> None:
+    """Not a count but still a fact: a recorded conversation where the engine went
+    backwards is a bug, whatever the corpus size says."""
+    _corpus(tmp_path, answers=1)
+    path = tmp_path / "tests" / "live_runs" / "demo.json"
+    fixture = json.loads(path.read_text(encoding="utf-8"))
+    fixture["trace"]["positions"] = [1, 0]
+    path.write_text(json.dumps(fixture), encoding="utf-8")
+    result = run_guard("eval_report.py", tmp_path)
+    assert result.returncode == 1
+    assert "advances by at most one" in result.stderr
+
+
+def test_the_ratchet_fails_when_there_is_no_corpus(tmp_path: Path) -> None:
+    """The failure mode this whole file is about. An empty corpus checks nothing, and a
+    checker that reports success over it is worse than no checker."""
+    result = run_guard("eval_report.py", tmp_path)
+    assert result.returncode != 0
+    assert "cannot run" in result.stderr
+
+
+def test_the_ratchet_fails_when_the_baseline_is_missing(tmp_path: Path) -> None:
+    """A corpus with nothing to measure against cannot regress, which would make this
+    guard green forever the moment somebody deleted one file."""
+    _corpus(tmp_path, answers=3)
+    (tmp_path / "tests" / "eval_baseline.json").unlink()
+    result = run_guard("eval_report.py", tmp_path)
+    assert result.returncode == 1
+    assert "missing" in result.stderr

@@ -65,18 +65,14 @@ jobs:
       - name: import contracts
         run: uv run lint-imports
 
+      # Delegated to the Makefile rather than listed again here. A second copy of the
+      # list is a list that drifts, and it had: `check_access_consulted.py` was in the
+      # Makefile and not in this file, so the guard that stops a service handing survey
+      # data to whoever asked never ran in CI at all. "make gate is exactly what CI runs"
+      # has to be true by construction, not by two lists being kept in step by hand.
       - name: guards
-        env:
-          PYTHONPATH: scripts
-        run: |
-          for guard in scripts/check_query_surface.py \
-                       scripts/check_no_create_all.py \
-                       scripts/check_prompts_versioned.py \
-                       scripts/check_contrast.py \
-                       scripts/check_logical_properties.py; do
-            echo "--> $guard"
-            uv run python "$guard" || exit 1
-          done
+        working-directory: .
+        run: make guards
 
       # tests/test_gates.py is inside this run: it plants a violation for each
       # guard and asserts a non-zero exit, so a gate that has stopped rejecting

@@ -1,4 +1,4 @@
-.PHONY: help setup test gate lint fmt typecheck imports guards gate-proof \
+.PHONY: help setup test gate lint fmt typecheck imports guards gate-proof eval \
         stack-up stack-down migrate serve front front-gate all-gates clean
 
 PY := uv run
@@ -7,7 +7,8 @@ GUARDS := scripts/check_query_surface.py \
           scripts/check_no_create_all.py \
           scripts/check_prompts_versioned.py \
           scripts/check_contrast.py \
-          scripts/check_logical_properties.py
+          scripts/check_logical_properties.py \
+          scripts/eval_report.py
 
 # The guards import _guard.py as a sibling, so scripts/ must be importable.
 GUARD_ENV := PYTHONPATH=scripts
@@ -18,6 +19,7 @@ help:
 	@echo "make test        Run the backend suite"
 	@echo "make gate        Every architecture check (what CI runs)"
 	@echo "make gate-proof  Prove each gate rejects a planted violation"
+	@echo "make eval        The replay corpus in numbers, and what must not regress"
 	@echo "make front-gate  Frontend checks (tsc, eslint, vitest) in the container"
 	@echo "make all-gates   Both gates, backend then frontend"
 	@echo "make serve       Run the backend on the host, against the compose Postgres"
@@ -69,6 +71,12 @@ guards:
 # has never been observed to reject anything is decoration.
 gate-proof:
 	./scripts/test.sh tests/test_gates.py -v
+
+# The corpus in numbers. Runs inside `gate` too, where it ratchets; run alone it is the
+# scorecard you read before and after changing the model. Nothing here needs a key or a
+# database: it reads the committed fixtures.
+eval:
+	@cd backend && $(GUARD_ENV) $(PY) python scripts/eval_report.py
 
 gate: lint typecheck imports guards test
 	@echo ""
