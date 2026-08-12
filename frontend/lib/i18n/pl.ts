@@ -186,4 +186,19 @@ export const pl: Messages = {
     probeHint:
       "Pytania pogłębiające, na które silnik pozwolił przy tym pytaniu. Liczy się je w chwili zadania, więc ta liczba może przekraczać liczbę odpowiedzi poniżej.",
   },
+  answers: {
+    yes: "Tak",
+    no: "Nie",
+    ratingOf: (n: number) => `${n} z 5`,
+    plusWriteIns: (written: string) => ` (+ ${written})`,
+    declinedBecause: (reason: string) => `Odmowa odpowiedzi: ${reason}`,
+    unreadable: "Ta odpowiedź została zapisana w formacie, którego ta strona nie potrafi odczytać.",
+  },
+  errors: {
+    refusedTitle: "Nie zapisano, a oto dlaczego",
+    outageTitle: "Asystent jest niedostępny",
+    outageBody: "Nic nie zostało zapisane. Zwykle mija samo.",
+    genericTitle: "To się nie udało",
+    retry: "Spróbuj ponownie",
+  },
 };

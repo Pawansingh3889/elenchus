@@ -186,4 +186,19 @@ export const es: Messages = {
     probeHint:
       "Repreguntas que el motor permitió en esta pregunta. Una repregunta se cuenta al formularse, así que este número puede superar el de respuestas de abajo.",
   },
+  answers: {
+    yes: "Sí",
+    no: "No",
+    ratingOf: (n: number) => `${n} de 5`,
+    plusWriteIns: (written: string) => ` (+ ${written})`,
+    declinedBecause: (reason: string) => `Prefirió no responder: ${reason}`,
+    unreadable: "Esta respuesta se guardó en un formato que esta página no puede leer.",
+  },
+  errors: {
+    refusedTitle: "No se guardó, y este es el motivo",
+    outageTitle: "El asistente no está disponible",
+    outageBody: "No se guardó nada. Suele resolverse solo.",
+    genericTitle: "Eso no funcionó",
+    retry: "Reintentar",
+  },
 };

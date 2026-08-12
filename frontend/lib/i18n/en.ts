@@ -194,6 +194,27 @@ export const en = {
     probeHint:
       "Follow-ups the engine allowed on this question. A probe is counted when it is asked, so this can exceed the number of follow-up answers below.",
   },
+  // Reading a stored answer. These were English inside the results page while the rest
+  // of the app was translated, so a Polish author read Polish answers in an English
+  // frame.
+  answers: {
+    yes: "Yes",
+    no: "No",
+    ratingOf: (n: number) => `${n} out of 5`,
+    plusWriteIns: (written: string) => ` (+ ${written})`,
+    declinedBecause: (reason: string) => `Declined: ${reason}`,
+    unreadable: "This answer was stored in a shape this page cannot read.",
+  },
+  // How a failure reads. The distinction is the point: a refusal is the server having
+  // considered the request and declined it, and telling the author to try again would
+  // send them at something that will fail identically.
+  errors: {
+    refusedTitle: "Not saved, and here is why",
+    outageTitle: "The assistant is unavailable",
+    outageBody: "Nothing was saved. This usually clears on its own.",
+    genericTitle: "That did not work",
+    retry: "Try again",
+  },
 };
 
 /** The shape every locale must satisfy.

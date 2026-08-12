@@ -186,4 +186,19 @@ export const lv: Messages = {
     probeHint:
       "Precizējošie jautājumi, ko dzinējs atļāva šim jautājumam. Tos skaita uzdošanas brīdī, tāpēc šis skaitlis var pārsniegt zemāk redzamo atbilžu skaitu.",
   },
+  answers: {
+    yes: "Jā",
+    no: "Nē",
+    ratingOf: (n: number) => `${n} no 5`,
+    plusWriteIns: (written: string) => ` (+ ${written})`,
+    declinedBecause: (reason: string) => `Atteicās atbildēt: ${reason}`,
+    unreadable: "Šī atbilde saglabāta formātā, ko šī lapa nevar nolasīt.",
+  },
+  errors: {
+    refusedTitle: "Netika saglabāts, un lūk kāpēc",
+    outageTitle: "Asistents nav pieejams",
+    outageBody: "Nekas netika saglabāts. Parasti tas nokārtojas pats.",
+    genericTitle: "Tas neizdevās",
+    retry: "Mēģināt vēlreiz",
+  },
 };
