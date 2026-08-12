@@ -125,6 +125,8 @@ export const en = {
     publishFreezes: "Publishing freezes these questions as version 1. Later edits become a new version, and this one stays exactly as it is.",
     publishAgain: "Publishing creates a new version. Anyone part-way through keeps the version they started on, and their answers stay with it.",
     tabResults: "Results",
+    typeChangeTitle: "Change the answer type?",
+    typeChangeConfirm: "Change it",
   },
   respond: {
     title: "Open surveys",

@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 import { ANSWER_TYPES, labelForAnswerType } from "@/lib/answerTypes";
 import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useT } from "@/lib/i18n/useT";
 import type { AnswerType, FollowUpPolicy, QuestionInput, ShowWhenOp } from "@/lib/types";
 
@@ -60,19 +61,16 @@ export function QuestionEditor({
   // the whole reason this exists.
   const stashedOptions = useRef<string[]>([]);
 
-  const setType = (t: AnswerType) => {
-    const leavingSelect = selectType && !isSelect(t);
+  // The type the author has asked for but not yet confirmed, when confirming is needed.
+  // `window.confirm` was here, which the app's own ConfirmDialog docstring called out as
+  // the last holdout: a native dialog prefixes the page origin ("localhost:3000 says"),
+  // which reads as the browser warning about the page rather than as the app asking
+  // about the author's own options. It also blocks the whole tab, which is worse here
+  // than anywhere else because the warning is about losing typed work.
+  const [pendingType, setPendingType] = useState<AnswerType | null>(null);
+
+  const applyType = (t: AnswerType) => {
     const returningToSelect = !selectType && isSelect(t);
-
-    if (leavingSelect && question.options.length > 0) {
-      const count = question.options.length;
-      const confirmed = window.confirm(
-        msg.builder.typeChangeWarning(labelFor(t), count),
-      );
-      if (!confirmed) return;
-      stashedOptions.current = question.options;
-    }
-
     // Only restore into an empty question: if the author has since typed new options,
     // those are the current intent and the stash is stale.
     const restored =
@@ -83,6 +81,14 @@ export function QuestionEditor({
       options: isSelect(t) ? restored : [],
       allow_other: isSelect(t) ? question.allow_other : false,
     });
+  };
+
+  const setType = (t: AnswerType) => {
+    if (selectType && !isSelect(t) && question.options.length > 0) {
+      setPendingType(t);
+      return;
+    }
+    applyType(t);
   };
 
   const setOption = (i: number, value: string) =>
@@ -296,6 +302,24 @@ export function QuestionEditor({
           </button>
         </div>
       </div>
+
+      {pendingType ? (
+        <ConfirmDialog
+          title={msg.builder.typeChangeTitle}
+          confirmLabel={msg.builder.typeChangeConfirm}
+          cancelLabel={msg.common.cancel}
+          danger
+          onConfirm={() => {
+            // Stash before applying, so returning to a select puts the options back.
+            stashedOptions.current = question.options;
+            applyType(pendingType);
+            setPendingType(null);
+          }}
+          onCancel={() => setPendingType(null)}
+        >
+          <p>{msg.builder.typeChangeWarning(labelFor(pendingType), question.options.length)}</p>
+        </ConfirmDialog>
+      ) : null}
     </div>
   );
 }

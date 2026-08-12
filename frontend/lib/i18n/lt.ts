@@ -117,6 +117,8 @@ export const lt: Messages = {
     publishFreezes: "Paskelbus šie klausimai užfiksuojami kaip 1 versija. Vėlesni pakeitimai sukuria naują versiją, o ši lieka tokia pati.",
     publishAgain: "Paskelbus sukuriama nauja versija. Nebaigusieji lieka prie tos versijos, kurią pradėjo.",
     tabResults: "Rezultatai",
+    typeChangeTitle: "Keisti atsakymo tipą?",
+    typeChangeConfirm: "Keisti",
   },
   respond: {
     title: "Atviros apklausos",
