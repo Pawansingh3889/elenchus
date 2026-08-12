@@ -1,0 +1,882 @@
+{
+  "scenario": "max_length",
+  "captured_at": "2026-08-12T05:01:03.532320+00:00",
+  "model": "gpt-4o-mini",
+  "survey_title": "Annual Employee Experience Review",
+  "status": "completed",
+  "respondent_messages": [
+    "senior data analyst, supply chain side",
+    "senior data analyst, supply chain side",
+    "the ninth of this month",
+    "about three",
+    "yeah it was alright, solid 4",
+    "yeah it was alright, solid 4",
+    "about three",
+    "probably hull",
+    "probably alpha",
+    "the approval process for anything over a grand takes weeks",
+    "it mainly needs to be faster and clearer, that's the crux of it",
+    "it mainly needs to be faster and clearer, that's the crux of it",
+    "yeah, definitely",
+    "the pension and the gym",
+    "the ninth of this month",
+    "about three",
+    "the approval process for anything over a grand takes weeks",
+    "yeah it was alright, solid 4",
+    "probably days",
+    "yeah, definitely",
+    "yeah it was alright, solid 4",
+    "it mainly needs to be faster and clearer, that's the crux of it",
+    "it mainly needs to be faster and clearer, that's the crux of it",
+    "the approval process for anything over a grand takes weeks"
+  ],
+  "trace": {
+    "total": 20,
+    "positions": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      9,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      18,
+      18,
+      19
+    ],
+    "questions": [
+      {
+        "id": "de164d20-4825-4d47-a308-377d6f599609",
+        "position": 0,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "3f04cd32-ff31-4122-abfa-56a3cea25275",
+        "position": 1,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "783f49a1-90ed-4458-8c69-66d04cb1ce58",
+        "position": 2,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "88e98d5f-9bba-4263-af35-26ae80313378",
+        "position": 3,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "868336cf-12a3-4b56-bd69-c0db2bdbdf77",
+        "position": 4,
+        "follow_up_policy": "when_unclear"
+      },
+      {
+        "id": "eceb0ab7-c0a4-43a0-80cd-0f2570c4119a",
+        "position": 5,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "ac77f1da-5962-41dc-930c-b2c7074a1e4e",
+        "position": 6,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "9d198057-2f03-4827-9090-d9b81a8319f8",
+        "position": 7,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "0e01ca62-8977-4a8d-a57c-5259bd750132",
+        "position": 8,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "b12c9b80-196c-45a1-a7c2-2b9bdba25b9f",
+        "position": 9,
+        "follow_up_policy": "when_unclear"
+      },
+      {
+        "id": "25db7897-ac48-4ec5-aee6-5d86179964ab",
+        "position": 10,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "7d117680-d190-435c-b3df-20aeab28b6e9",
+        "position": 11,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "cc07f691-65b3-4d7d-aa35-df7270019121",
+        "position": 12,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "73863aaa-f28c-4504-83f9-4401341a9a6b",
+        "position": 13,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "947cf063-00b7-4b11-b7d0-73f805d91967",
+        "position": 14,
+        "follow_up_policy": "when_unclear"
+      },
+      {
+        "id": "c88d97f7-8d95-41de-85a9-e43dd8da5cca",
+        "position": 15,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "4b94a01e-5892-46c9-9a45-60ecfc080336",
+        "position": 16,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "af51f33c-577c-48e0-83b6-edfc87bf3cff",
+        "position": 17,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "ddafd2da-805a-4253-aaaf-3b238bc51e25",
+        "position": 18,
+        "follow_up_policy": "when_unclear"
+      },
+      {
+        "id": "76310b03-bcea-49c5-9dbc-a8cf88c13c08",
+        "position": 19,
+        "follow_up_policy": "never"
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "de164d20-4825-4d47-a308-377d6f599609",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "3f04cd32-ff31-4122-abfa-56a3cea25275",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "783f49a1-90ed-4458-8c69-66d04cb1ce58",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "88e98d5f-9bba-4263-af35-26ae80313378",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "868336cf-12a3-4b56-bd69-c0db2bdbdf77",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "eceb0ab7-c0a4-43a0-80cd-0f2570c4119a",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "ac77f1da-5962-41dc-930c-b2c7074a1e4e",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "9d198057-2f03-4827-9090-d9b81a8319f8",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "0e01ca62-8977-4a8d-a57c-5259bd750132",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "b12c9b80-196c-45a1-a7c2-2b9bdba25b9f",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "25db7897-ac48-4ec5-aee6-5d86179964ab",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "7d117680-d190-435c-b3df-20aeab28b6e9",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "cc07f691-65b3-4d7d-aa35-df7270019121",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "73863aaa-f28c-4504-83f9-4401341a9a6b",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "947cf063-00b7-4b11-b7d0-73f805d91967",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "c88d97f7-8d95-41de-85a9-e43dd8da5cca",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "4b94a01e-5892-46c9-9a45-60ecfc080336",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "af51f33c-577c-48e0-83b6-edfc87bf3cff",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "ddafd2da-805a-4253-aaaf-3b238bc51e25",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "ddafd2da-805a-4253-aaaf-3b238bc51e25",
+        "kind": "follow_up"
+      },
+      {
+        "question_id": "76310b03-bcea-49c5-9dbc-a8cf88c13c08",
+        "kind": "scripted"
+      }
+    ]
+  },
+  "answers": [
+    {
+      "question_text": "What is your job title?",
+      "answer_type": "short_text",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "text": "senior data analyst, supply chain side"
+      },
+      "said": [
+        "senior data analyst, supply chain side"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent explicitly stated their job title."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Which department do you sit in?",
+      "answer_type": "short_text",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "text": "supply chain"
+      },
+      "said": [
+        "senior data analyst, supply chain side",
+        "senior data analyst, supply chain side"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The department is clearly mentioned in the job title."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "What date did you join the company?",
+      "answer_type": "date",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "date": "2026-08-09"
+      },
+      "said": [
+        "senior data analyst, supply chain side",
+        "senior data analyst, supply chain side",
+        "the ninth of this month"
+      ],
+      "judge": {
+        "supported": false,
+        "why": "The date 'the ninth of this month' does not support the recorded date of '2026-08-09'."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How many years of experience do you have?",
+      "answer_type": "number",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "number": 3
+      },
+      "said": [
+        "senior data analyst, supply chain side",
+        "senior data analyst, supply chain side",
+        "the ninth of this month",
+        "about three"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent stated 'about three' years of experience."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How would you rate your first week?",
+      "answer_type": "rating",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "rating": 4
+      },
+      "said": [
+        "senior data analyst, supply chain side",
+        "senior data analyst, supply chain side",
+        "the ninth of this month",
+        "about three",
+        "yeah it was alright, solid 4"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent rated their first week as 'solid 4'."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How would you rate the tools you were given?",
+      "answer_type": "rating",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "rating": 4
+      },
+      "said": [
+        "senior data analyst, supply chain side",
+        "senior data analyst, supply chain side",
+        "the ninth of this month",
+        "about three",
+        "yeah it was alright, solid 4",
+        "yeah it was alright, solid 4"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent rated the tools as 'solid 4'."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How many days of induction did you get?",
+      "answer_type": "number",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "number": 3
+      },
+      "said": [
+        "senior data analyst, supply chain side",
+        "senior data analyst, supply chain side",
+        "the ninth of this month",
+        "about three",
+        "yeah it was alright, solid 4",
+        "yeah it was alright, solid 4",
+        "about three"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent stated 'about three' days of induction."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Which site are you based at?",
+      "answer_type": "single_select",
+      "options": [
+        "Hull",
+        "Leeds",
+        "Remote"
+      ],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "option": "Hull"
+      },
+      "said": [
+        "senior data analyst, supply chain side",
+        "senior data analyst, supply chain side",
+        "the ninth of this month",
+        "about three",
+        "yeah it was alright, solid 4",
+        "yeah it was alright, solid 4",
+        "about three",
+        "probably hull"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent mentioned 'probably hull'."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Which team did you join?",
+      "answer_type": "single_select",
+      "options": [
+        "Alpha",
+        "Beta"
+      ],
+      "allow_other": true,
+      "kind": "scripted",
+      "value": {
+        "option": "Alpha"
+      },
+      "said": [
+        "senior data analyst, supply chain side",
+        "senior data analyst, supply chain side",
+        "the ninth of this month",
+        "about three",
+        "yeah it was alright, solid 4",
+        "yeah it was alright, solid 4",
+        "about three",
+        "probably hull",
+        "probably alpha"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent mentioned 'probably alpha'."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "What went well?",
+      "answer_type": "long_text",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "The respondent did not specify what went well."
+      },
+      "said": [
+        "senior data analyst, supply chain side",
+        "senior data analyst, supply chain side",
+        "the ninth of this month",
+        "about three",
+        "yeah it was alright, solid 4",
+        "yeah it was alright, solid 4",
+        "about three",
+        "probably hull",
+        "probably alpha",
+        "the approval process for anything over a grand takes weeks",
+        "it mainly needs to be faster and clearer, that's the crux of it",
+        "it mainly needs to be faster and clearer, that's the crux of it"
+      ],
+      "judge": {
+        "supported": false,
+        "why": "The respondent did not specify what went well, making this unanswerable."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Were you assigned a buddy?",
+      "answer_type": "yes_no",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "yes_no": true
+      },
+      "said": [
+        "senior data analyst, supply chain side",
+        "senior data analyst, supply chain side",
+        "the ninth of this month",
+        "about three",
+        "yeah it was alright, solid 4",
+        "yeah it was alright, solid 4",
+        "about three",
+        "probably hull",
+        "probably alpha",
+        "the approval process for anything over a grand takes weeks",
+        "it mainly needs to be faster and clearer, that's the crux of it",
+        "it mainly needs to be faster and clearer, that's the crux of it",
+        "yeah, definitely"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent confirmed they were assigned a buddy with 'yeah, definitely'."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Which benefits do you use?",
+      "answer_type": "multi_select",
+      "options": [
+        "Pension",
+        "Gym"
+      ],
+      "allow_other": true,
+      "kind": "scripted",
+      "value": {
+        "options": [
+          "Pension",
+          "Gym"
+        ]
+      },
+      "said": [
+        "senior data analyst, supply chain side",
+        "senior data analyst, supply chain side",
+        "the ninth of this month",
+        "about three",
+        "yeah it was alright, solid 4",
+        "yeah it was alright, solid 4",
+        "about three",
+        "probably hull",
+        "probably alpha",
+        "the approval process for anything over a grand takes weeks",
+        "it mainly needs to be faster and clearer, that's the crux of it",
+        "it mainly needs to be faster and clearer, that's the crux of it",
+        "yeah, definitely",
+        "the pension and the gym"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent mentioned 'the pension and the gym'."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "What date is your next review?",
+      "answer_type": "date",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "date": "2026-08-09"
+      },
+      "said": [
+        "senior data analyst, supply chain side",
+        "senior data analyst, supply chain side",
+        "the ninth of this month",
+        "about three",
+        "yeah it was alright, solid 4",
+        "yeah it was alright, solid 4",
+        "about three",
+        "probably hull",
+        "probably alpha",
+        "the approval process for anything over a grand takes weeks",
+        "it mainly needs to be faster and clearer, that's the crux of it",
+        "it mainly needs to be faster and clearer, that's the crux of it",
+        "yeah, definitely",
+        "the pension and the gym",
+        "the ninth of this month"
+      ],
+      "judge": {
+        "supported": false,
+        "why": "The date 'the ninth of this month' does not support the recorded date of '2026-08-09'."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How many one-to-ones have you had?",
+      "answer_type": "number",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "number": 3
+      },
+      "said": [
+        "senior data analyst, supply chain side",
+        "senior data analyst, supply chain side",
+        "the ninth of this month",
+        "about three",
+        "yeah it was alright, solid 4",
+        "yeah it was alright, solid 4",
+        "about three",
+        "probably hull",
+        "probably alpha",
+        "the approval process for anything over a grand takes weeks",
+        "it mainly needs to be faster and clearer, that's the crux of it",
+        "it mainly needs to be faster and clearer, that's the crux of it",
+        "yeah, definitely",
+        "the pension and the gym",
+        "the ninth of this month",
+        "about three"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent stated 'about three' one-to-ones."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "What would you change?",
+      "answer_type": "long_text",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "text": "the approval process for anything over a grand takes weeks"
+      },
+      "said": [
+        "senior data analyst, supply chain side",
+        "senior data analyst, supply chain side",
+        "the ninth of this month",
+        "about three",
+        "yeah it was alright, solid 4",
+        "yeah it was alright, solid 4",
+        "about three",
+        "probably hull",
+        "probably alpha",
+        "the approval process for anything over a grand takes weeks",
+        "it mainly needs to be faster and clearer, that's the crux of it",
+        "it mainly needs to be faster and clearer, that's the crux of it",
+        "yeah, definitely",
+        "the pension and the gym",
+        "the ninth of this month",
+        "about three",
+        "the approval process for anything over a grand takes weeks"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent clearly stated what they would change."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How likely are you to recommend us?",
+      "answer_type": "rating",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "rating": 4
+      },
+      "said": [
+        "senior data analyst, supply chain side",
+        "senior data analyst, supply chain side",
+        "the ninth of this month",
+        "about three",
+        "yeah it was alright, solid 4",
+        "yeah it was alright, solid 4",
+        "about three",
+        "probably hull",
+        "probably alpha",
+        "the approval process for anything over a grand takes weeks",
+        "it mainly needs to be faster and clearer, that's the crux of it",
+        "it mainly needs to be faster and clearer, that's the crux of it",
+        "yeah, definitely",
+        "the pension and the gym",
+        "the ninth of this month",
+        "about three",
+        "the approval process for anything over a grand takes weeks",
+        "yeah it was alright, solid 4"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent rated their likelihood to recommend as 'solid 4'."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Which shift do you work?",
+      "answer_type": "single_select",
+      "options": [
+        "Days",
+        "Nights"
+      ],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "option": "Days"
+      },
+      "said": [
+        "senior data analyst, supply chain side",
+        "senior data analyst, supply chain side",
+        "the ninth of this month",
+        "about three",
+        "yeah it was alright, solid 4",
+        "yeah it was alright, solid 4",
+        "about three",
+        "probably hull",
+        "probably alpha",
+        "the approval process for anything over a grand takes weeks",
+        "it mainly needs to be faster and clearer, that's the crux of it",
+        "it mainly needs to be faster and clearer, that's the crux of it",
+        "yeah, definitely",
+        "the pension and the gym",
+        "the ninth of this month",
+        "about three",
+        "the approval process for anything over a grand takes weeks",
+        "yeah it was alright, solid 4",
+        "probably days"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent mentioned 'probably days'."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Do you feel supported?",
+      "answer_type": "yes_no",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "yes_no": true
+      },
+      "said": [
+        "senior data analyst, supply chain side",
+        "senior data analyst, supply chain side",
+        "the ninth of this month",
+        "about three",
+        "yeah it was alright, solid 4",
+        "yeah it was alright, solid 4",
+        "about three",
+        "probably hull",
+        "probably alpha",
+        "the approval process for anything over a grand takes weeks",
+        "it mainly needs to be faster and clearer, that's the crux of it",
+        "it mainly needs to be faster and clearer, that's the crux of it",
+        "yeah, definitely",
+        "the pension and the gym",
+        "the ninth of this month",
+        "about three",
+        "the approval process for anything over a grand takes weeks",
+        "yeah it was alright, solid 4",
+        "probably days",
+        "yeah, definitely"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent confirmed feeling supported with 'yeah, definitely'."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How settled do you feel?",
+      "answer_type": "rating",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "rating": 4
+      },
+      "said": [
+        "senior data analyst, supply chain side",
+        "senior data analyst, supply chain side",
+        "the ninth of this month",
+        "about three",
+        "yeah it was alright, solid 4",
+        "yeah it was alright, solid 4",
+        "about three",
+        "probably hull",
+        "probably alpha",
+        "the approval process for anything over a grand takes weeks",
+        "it mainly needs to be faster and clearer, that's the crux of it",
+        "it mainly needs to be faster and clearer, that's the crux of it",
+        "yeah, definitely",
+        "the pension and the gym",
+        "the ninth of this month",
+        "about three",
+        "the approval process for anything over a grand takes weeks",
+        "yeah it was alright, solid 4",
+        "probably days",
+        "yeah, definitely",
+        "yeah it was alright, solid 4"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent rated their settled feeling as 'solid 4'."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "I appreciate your feedback! Can you give me a rating from 1 to 5 on how settled you feel?",
+      "answer_type": "rating",
+      "options": [],
+      "allow_other": false,
+      "kind": "follow_up",
+      "value": {
+        "unanswerable": "The respondent did not provide a rating for how settled they feel."
+      },
+      "said": [
+        "senior data analyst, supply chain side",
+        "senior data analyst, supply chain side",
+        "the ninth of this month",
+        "about three",
+        "yeah it was alright, solid 4",
+        "yeah it was alright, solid 4",
+        "about three",
+        "probably hull",
+        "probably alpha",
+        "the approval process for anything over a grand takes weeks",
+        "it mainly needs to be faster and clearer, that's the crux of it",
+        "it mainly needs to be faster and clearer, that's the crux of it",
+        "yeah, definitely",
+        "the pension and the gym",
+        "the ninth of this month",
+        "about three",
+        "the approval process for anything over a grand takes weeks",
+        "yeah it was alright, solid 4",
+        "probably days",
+        "yeah, definitely",
+        "yeah it was alright, solid 4",
+        "it mainly needs to be faster and clearer, that's the crux of it",
+        "it mainly needs to be faster and clearer, that's the crux of it"
+      ],
+      "judge": {
+        "supported": false,
+        "why": "The respondent did not provide a specific rating for how settled they feel."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Any final comments?",
+      "answer_type": "long_text",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "text": "the approval process for anything over a grand takes weeks"
+      },
+      "said": [
+        "senior data analyst, supply chain side",
+        "senior data analyst, supply chain side",
+        "the ninth of this month",
+        "about three",
+        "yeah it was alright, solid 4",
+        "yeah it was alright, solid 4",
+        "about three",
+        "probably hull",
+        "probably alpha",
+        "the approval process for anything over a grand takes weeks",
+        "it mainly needs to be faster and clearer, that's the crux of it",
+        "it mainly needs to be faster and clearer, that's the crux of it",
+        "yeah, definitely",
+        "the pension and the gym",
+        "the ninth of this month",
+        "about three",
+        "the approval process for anything over a grand takes weeks",
+        "yeah it was alright, solid 4",
+        "probably days",
+        "yeah, definitely",
+        "yeah it was alright, solid 4",
+        "it mainly needs to be faster and clearer, that's the crux of it",
+        "it mainly needs to be faster and clearer, that's the crux of it",
+        "the approval process for anything over a grand takes weeks"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent repeated their comment about the approval process."
+      },
+      "invented": false
+    }
+  ]
+}

@@ -72,12 +72,22 @@ def follow_up_cap(trace: dict[str, Any]) -> Check:
 
 
 def forced_probes_were_asked(trace: dict[str, Any]) -> Check:
-    """Every ``always_once`` question drew a follow-up answer.
+    """Every ``always_once`` question drew a follow-up answer, unless it was declined.
 
     Defect 20: across 8 runs and ~90 model turns the engine asked no follow-up at all,
     because ``allow_follow_ups`` could grant permission but not express intent. The policy
     is enforced by withholding ``record_answer``, and this is what proves it still is.
+
+    The exemption is not a softening, it is the rule stated correctly. A respondent who
+    declines a question has nothing to be probed about, and the engine records that
+    refusal rather than an answer. Written without it, this failed the evasive scenario on
+    its first real run: a respondent who declined four of five questions was reported as
+    an engine that had stopped honouring the policy. That reading is the way a check
+    becomes something people skip past.
     """
+    declined = {
+        str(a.get("question_id")) for a in trace.get("answers", []) if a.get("unanswerable")
+    }
     forced = [
         str(q["id"])
         for q in trace.get("questions", [])
@@ -86,8 +96,12 @@ def forced_probes_were_asked(trace: dict[str, Any]) -> Check:
     answered = {
         str(a.get("question_id")) for a in trace.get("answers", []) if a.get("kind") == "follow_up"
     }
-    missed = [qid for qid in forced if qid not in answered]
-    return ("every always_once question recorded a follow-up answer", not missed, missed)
+    missed = [qid for qid in forced if qid not in answered and qid not in declined]
+    return (
+        "every always_once question recorded a follow-up answer or was declined",
+        not missed,
+        missed,
+    )
 
 
 def the_answer_before_the_probe_survived(trace: dict[str, Any]) -> Check:

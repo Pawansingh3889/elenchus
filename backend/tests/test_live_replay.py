@@ -121,8 +121,24 @@ def test_a_recorded_value_still_has_a_shape_the_gate_accepts(name: str, answer: 
         "options": answer["options"],
         "allow_other": answer["allow_other"],
     }
-    stored = next(iter(value.values()))
     try:
-        validate_answer(question, stored)
+        validate_answer(question, _as_submitted(value))
     except AnswerValidationError as exc:
         pytest.fail(f"{name} was stored live and its shape is refused now: {exc.message}")
+
+
+def _as_submitted(value: dict[str, Any]) -> Any:
+    """The stored value turned back into what the model would have sent.
+
+    Every shape but one stores a single key, so the value alone reconstructs it. A
+    multi-select splits itself: chosen options under ``options`` and write-ins under
+    ``other``, from one list the model sent. Taking the first key alone therefore replayed
+    half the answer, and on a run where every item was a write-in it replayed an empty
+    list and failed the gate over data the engine had accepted perfectly well.
+
+    Found by the corpus rather than by reading: the shape needs a multi-select answered
+    entirely in write-ins to show up, and there was none until this pass captured one.
+    """
+    if "options" in value:
+        return list(value["options"]) + list(value.get("other", []))
+    return next(iter(value.values()))

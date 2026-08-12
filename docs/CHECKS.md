@@ -203,6 +203,38 @@ make clean                    # remove caches
 
 ---
 
+## Changing the model
+
+A model swap is a behaviour change that no test in `make gate` can see, because the whole
+suite fakes the LLM at the client wrapper. Nothing in CI will go red when
+`LLM_TIER1_MODEL` moves, and nothing will go red when a provider quietly rolls the model
+behind that name forward either. The mocked suite proves the engine still does what it is
+told; it cannot prove the model still does.
+
+So the promotion is manual:
+
+```bash
+# Every scenario on the new model, three times each, judge on. ~450 model calls.
+LLM_TIER1_MODEL=<new-model> python3 scripts/live_conversation.py all --repeat 3
+```
+
+What to look at, in order:
+
+- **Hard-check failures.** Any at all means the engine's invariants broke on this model.
+  That is a blocker, not a note.
+- **The variance report.** The same survey and the same scripted respondent, three times.
+  A model that answers the same question three different ways is one you will be
+  debugging later.
+- **The judge's notes.** Soft, and read anyway. They are where the next invented answer
+  shows up first.
+
+Then recapture: the fixtures written by that run record the new model, and committing the
+informative ones is what makes the corpus a claim about the model you actually ship.
+Fixtures are written whether the run passed or not, so `git add` stays a decision. Read
+the transcript before you make it.
+
+---
+
 ## Your daily rhythm
 
 **Starting work:**

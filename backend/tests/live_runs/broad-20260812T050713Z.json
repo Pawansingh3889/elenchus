@@ -1,0 +1,479 @@
+{
+  "scenario": "broad",
+  "captured_at": "2026-08-12T05:07:13.816890+00:00",
+  "model": "gpt-4o-mini",
+  "survey_title": "Onboarding Survey for New Hires",
+  "status": "completed",
+  "respondent_messages": [
+    "data analyst, on the reporting side",
+    "i started on the 3rd of march this year",
+    "two days i think, maybe three including the IT bit",
+    "yeah it was alright, solid 4",
+    "reporting and insight",
+    "the handbook and the buddy scheme, and there was a slack channel too",
+    "yeah i had one",
+    "the team were really welcoming, people made time for me",
+    "less of the generic corporate video honestly",
+    "the compliance modules were the same ones everyone does regardless of role",
+    "hard to say really",
+    "probably a 3",
+    "that's me done",
+    "nothing else"
+  ],
+  "trace": {
+    "total": 10,
+    "positions": [
+      0,
+      1,
+      2,
+      3,
+      3,
+      4,
+      5,
+      6,
+      7,
+      7,
+      7,
+      8,
+      8,
+      9
+    ],
+    "questions": [
+      {
+        "id": "a62a2b05-4fc8-4dd0-bc4e-7a8ebb4d88a7",
+        "position": 0,
+        "follow_up_policy": "when_unclear"
+      },
+      {
+        "id": "ceaaa517-f4bb-4cfe-8169-34e147d72be0",
+        "position": 1,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "b380299a-c7bb-451a-83dc-91eea8fc55d3",
+        "position": 2,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "190bcb6d-fdc0-4bff-b5bc-976f24ed084d",
+        "position": 3,
+        "follow_up_policy": "always_once"
+      },
+      {
+        "id": "4f32cf87-ad23-41f2-9979-80ae15fb371e",
+        "position": 4,
+        "follow_up_policy": "when_unclear"
+      },
+      {
+        "id": "9ad55a03-5660-4f41-b1e8-3fc89a78e5d7",
+        "position": 5,
+        "follow_up_policy": "when_unclear"
+      },
+      {
+        "id": "1bad9f2c-20fa-4992-bf27-cc7412109086",
+        "position": 6,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "8f225025-52cf-4ce5-b327-ac4ec104283c",
+        "position": 7,
+        "follow_up_policy": "always_once"
+      },
+      {
+        "id": "d4158605-9498-42e8-b58b-e8d332a7fe7d",
+        "position": 8,
+        "follow_up_policy": "always_once"
+      },
+      {
+        "id": "9d00bba3-5ed8-4310-a1c8-398a8509ffbe",
+        "position": 9,
+        "follow_up_policy": "always_once"
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "a62a2b05-4fc8-4dd0-bc4e-7a8ebb4d88a7",
+        "kind": "scripted",
+        "unanswerable": false
+      },
+      {
+        "question_id": "a62a2b05-4fc8-4dd0-bc4e-7a8ebb4d88a7",
+        "kind": "follow_up",
+        "unanswerable": true
+      },
+      {
+        "question_id": "ceaaa517-f4bb-4cfe-8169-34e147d72be0",
+        "kind": "scripted",
+        "unanswerable": false
+      },
+      {
+        "question_id": "b380299a-c7bb-451a-83dc-91eea8fc55d3",
+        "kind": "scripted",
+        "unanswerable": true
+      },
+      {
+        "question_id": "190bcb6d-fdc0-4bff-b5bc-976f24ed084d",
+        "kind": "scripted",
+        "unanswerable": false
+      },
+      {
+        "question_id": "190bcb6d-fdc0-4bff-b5bc-976f24ed084d",
+        "kind": "follow_up",
+        "unanswerable": false
+      },
+      {
+        "question_id": "4f32cf87-ad23-41f2-9979-80ae15fb371e",
+        "kind": "scripted",
+        "unanswerable": true
+      },
+      {
+        "question_id": "9ad55a03-5660-4f41-b1e8-3fc89a78e5d7",
+        "kind": "scripted",
+        "unanswerable": true
+      },
+      {
+        "question_id": "1bad9f2c-20fa-4992-bf27-cc7412109086",
+        "kind": "scripted",
+        "unanswerable": true
+      },
+      {
+        "question_id": "8f225025-52cf-4ce5-b327-ac4ec104283c",
+        "kind": "scripted",
+        "unanswerable": true
+      },
+      {
+        "question_id": "d4158605-9498-42e8-b58b-e8d332a7fe7d",
+        "kind": "scripted",
+        "unanswerable": true
+      },
+      {
+        "question_id": "9d00bba3-5ed8-4310-a1c8-398a8509ffbe",
+        "kind": "scripted",
+        "unanswerable": true
+      }
+    ]
+  },
+  "answers": [
+    {
+      "question_text": "What is your job title?",
+      "answer_type": "single_select",
+      "options": [
+        "Manager",
+        "Team Lead",
+        "Developer",
+        "Designer",
+        "Sales",
+        "Marketing",
+        "Support",
+        "HR"
+      ],
+      "allow_other": true,
+      "kind": "scripted",
+      "value": {
+        "other": "data analyst"
+      },
+      "said": [
+        "data analyst, on the reporting side"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent explicitly stated their job title as 'data analyst'."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Thanks for taking Onboarding Survey for New Hires. What is your job title?",
+      "answer_type": "single_select",
+      "options": [
+        "Manager",
+        "Team Lead",
+        "Developer",
+        "Designer",
+        "Sales",
+        "Marketing",
+        "Support",
+        "HR"
+      ],
+      "allow_other": true,
+      "kind": "follow_up",
+      "value": {
+        "unanswerable": "The respondent did not select from the provided options."
+      },
+      "said": [
+        "data analyst, on the reporting side"
+      ],
+      "judge": {
+        "supported": false,
+        "why": "The respondent did provide a job title, so marking it as unanswerable is incorrect."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "What is your start date?",
+      "answer_type": "date",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "date": "2026-03-03"
+      },
+      "said": [
+        "data analyst, on the reporting side",
+        "i started on the 3rd of march this year"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent provided their start date as '3rd of March this year', which is correctly recorded as '2026-03-03'."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How many induction days did you attend?",
+      "answer_type": "number",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "The respondent is unsure about the exact number of induction days attended."
+      },
+      "said": [
+        "data analyst, on the reporting side",
+        "i started on the 3rd of march this year",
+        "two days i think, maybe three including the IT bit"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent mentioned 'two days i think, maybe three', indicating uncertainty but still providing a usable answer."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How would you rate your first week?",
+      "answer_type": "rating",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "rating": 4
+      },
+      "said": [
+        "data analyst, on the reporting side",
+        "i started on the 3rd of march this year",
+        "two days i think, maybe three including the IT bit",
+        "yeah it was alright, solid 4"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent rated their first week as 'solid 4', which is correctly recorded as a rating of 4."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "What made your first week a solid 4?",
+      "answer_type": "rating",
+      "options": [],
+      "allow_other": false,
+      "kind": "follow_up",
+      "value": {
+        "rating": 4
+      },
+      "said": [
+        "data analyst, on the reporting side",
+        "i started on the 3rd of march this year",
+        "two days i think, maybe three including the IT bit",
+        "yeah it was alright, solid 4",
+        "reporting and insight"
+      ],
+      "judge": {
+        "supported": false,
+        "why": "The respondent did not provide a rating for this question; they only rated their first week."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Which team are you part of?",
+      "answer_type": "single_select",
+      "options": [
+        "Engineering",
+        "Marketing",
+        "Sales",
+        "Product",
+        "HR",
+        "Customer Support"
+      ],
+      "allow_other": true,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "The response did not answer the question about which team they are part of."
+      },
+      "said": [
+        "data analyst, on the reporting side",
+        "i started on the 3rd of march this year",
+        "two days i think, maybe three including the IT bit",
+        "yeah it was alright, solid 4",
+        "reporting and insight",
+        "the handbook and the buddy scheme, and there was a slack channel too"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent did not specify which team they are part of, making this unanswerable."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Which parts of the onboarding process did you utilize?",
+      "answer_type": "multi_select",
+      "options": [
+        "Online Training Modules",
+        "Onboarding Meetings",
+        "Mentorship Program",
+        "Team Introductions",
+        "Company Policies Materials"
+      ],
+      "allow_other": true,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "The response does not answer the question about which parts of the onboarding process were utilized."
+      },
+      "said": [
+        "data analyst, on the reporting side",
+        "i started on the 3rd of march this year",
+        "two days i think, maybe three including the IT bit",
+        "yeah it was alright, solid 4",
+        "reporting and insight",
+        "the handbook and the buddy scheme, and there was a slack channel too",
+        "yeah i had one"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent did not specify which parts of the onboarding process they utilized, making this unanswerable."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Did you have a buddy assigned during your onboarding?",
+      "answer_type": "yes_no",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "The respondent did not directly answer the question about having a buddy assigned."
+      },
+      "said": [
+        "data analyst, on the reporting side",
+        "i started on the 3rd of march this year",
+        "two days i think, maybe three including the IT bit",
+        "yeah it was alright, solid 4",
+        "reporting and insight",
+        "the handbook and the buddy scheme, and there was a slack channel too",
+        "yeah i had one",
+        "the team were really welcoming, people made time for me"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent confirmed they had a buddy, but did not directly answer the question, making this unanswerable."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "What went well during your onboarding?",
+      "answer_type": "multi_select",
+      "options": [
+        "Communication",
+        "Resources Provided",
+        "Peer Support",
+        "Training Sessions",
+        "Company Culture"
+      ],
+      "allow_other": true,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "The respondent was unsure about specific areas that went well during onboarding."
+      },
+      "said": [
+        "data analyst, on the reporting side",
+        "i started on the 3rd of march this year",
+        "two days i think, maybe three including the IT bit",
+        "yeah it was alright, solid 4",
+        "reporting and insight",
+        "the handbook and the buddy scheme, and there was a slack channel too",
+        "yeah i had one",
+        "the team were really welcoming, people made time for me",
+        "less of the generic corporate video honestly",
+        "the compliance modules were the same ones everyone does regardless of role",
+        "hard to say really"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent did not specify what went well, making this unanswerable."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "What changes would you suggest for the onboarding process?",
+      "answer_type": "multi_select",
+      "options": [
+        "More Training Resources",
+        "Better Communication",
+        "Longer Induction Period",
+        "More Team Interaction"
+      ],
+      "allow_other": true,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "The respondent did not provide specific changes for the onboarding process."
+      },
+      "said": [
+        "data analyst, on the reporting side",
+        "i started on the 3rd of march this year",
+        "two days i think, maybe three including the IT bit",
+        "yeah it was alright, solid 4",
+        "reporting and insight",
+        "the handbook and the buddy scheme, and there was a slack channel too",
+        "yeah i had one",
+        "the team were really welcoming, people made time for me",
+        "less of the generic corporate video honestly",
+        "the compliance modules were the same ones everyone does regardless of role",
+        "hard to say really",
+        "probably a 3",
+        "that's me done"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent did not provide specific changes, making this unanswerable."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How likely are you to stay with the company for the next year? (1 being unlikely, 5 being very likely)",
+      "answer_type": "rating",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "The respondent declined to answer the question."
+      },
+      "said": [
+        "data analyst, on the reporting side",
+        "i started on the 3rd of march this year",
+        "two days i think, maybe three including the IT bit",
+        "yeah it was alright, solid 4",
+        "reporting and insight",
+        "the handbook and the buddy scheme, and there was a slack channel too",
+        "yeah i had one",
+        "the team were really welcoming, people made time for me",
+        "less of the generic corporate video honestly",
+        "the compliance modules were the same ones everyone does regardless of role",
+        "hard to say really",
+        "probably a 3",
+        "that's me done",
+        "nothing else"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent did not provide an answer to how likely they are to stay, making this unanswerable."
+      },
+      "invented": false
+    }
+  ]
+}

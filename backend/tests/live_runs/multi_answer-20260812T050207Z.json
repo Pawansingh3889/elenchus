@@ -1,0 +1,212 @@
+{
+  "scenario": "multi_answer",
+  "captured_at": "2026-08-12T05:02:07.465403+00:00",
+  "model": "gpt-4o-mini",
+  "survey_title": "Quick Review",
+  "status": "completed",
+  "respondent_messages": [
+    "I'm a data analyst, been here about 5 years, I'd rate it a 4, and I'm on the analytics team - lots packed in here on purpose.",
+    "five years",
+    "a 4",
+    "analytics",
+    "x",
+    "I would change the induction. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help."
+  ],
+  "trace": {
+    "total": 6,
+    "positions": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "questions": [
+      {
+        "id": "918a4340-1ea7-4cc8-b323-d83f0096e2b7",
+        "position": 0,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "bd66df15-6337-4e4a-b5dc-8a5008b6b967",
+        "position": 1,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "117c59f9-6a15-4d3d-8b57-ae448ccfd05b",
+        "position": 2,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "8dd772d6-d88c-4388-b7f8-9ab8428f29ed",
+        "position": 3,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "1dd8a901-b4a6-427e-9963-49bf2d503708",
+        "position": 4,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "51d0999f-1833-4f09-83c7-e6fcc9f5895c",
+        "position": 5,
+        "follow_up_policy": "never"
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "918a4340-1ea7-4cc8-b323-d83f0096e2b7",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "bd66df15-6337-4e4a-b5dc-8a5008b6b967",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "117c59f9-6a15-4d3d-8b57-ae448ccfd05b",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "8dd772d6-d88c-4388-b7f8-9ab8428f29ed",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "1dd8a901-b4a6-427e-9963-49bf2d503708",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "51d0999f-1833-4f09-83c7-e6fcc9f5895c",
+        "kind": "scripted"
+      }
+    ]
+  },
+  "answers": [
+    {
+      "question_text": "What is your role?",
+      "answer_type": "short_text",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "text": "data analyst"
+      },
+      "said": [
+        "I'm a data analyst, been here about 5 years, I'd rate it a 4, and I'm on the analytics team - lots packed in here on purpose."
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent explicitly stated they are a data analyst."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How many years have you been here?",
+      "answer_type": "number",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "number": 5
+      },
+      "said": [
+        "I'm a data analyst, been here about 5 years, I'd rate it a 4, and I'm on the analytics team - lots packed in here on purpose.",
+        "five years"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent mentioned they have been there for five years."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How would you rate it?",
+      "answer_type": "rating",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "rating": 4
+      },
+      "said": [
+        "I'm a data analyst, been here about 5 years, I'd rate it a 4, and I'm on the analytics team - lots packed in here on purpose.",
+        "five years",
+        "a 4"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent rated it a 4 in their first message."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Which team are you on?",
+      "answer_type": "single_select",
+      "options": [
+        "Analytics",
+        "Ops"
+      ],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "option": "Analytics"
+      },
+      "said": [
+        "I'm a data analyst, been here about 5 years, I'd rate it a 4, and I'm on the analytics team - lots packed in here on purpose.",
+        "five years",
+        "a 4",
+        "analytics"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent stated they are on the analytics team."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Would you recommend us?",
+      "answer_type": "yes_no",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "The respondent did not provide an answer."
+      },
+      "said": [
+        "I'm a data analyst, been here about 5 years, I'd rate it a 4, and I'm on the analytics team - lots packed in here on purpose.",
+        "five years",
+        "a 4",
+        "analytics",
+        "x"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent did not provide an answer to the recommendation question."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "What would you change?",
+      "answer_type": "long_text",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "text": "I would change the induction. More hands-on practice would help."
+      },
+      "said": [
+        "I'm a data analyst, been here about 5 years, I'd rate it a 4, and I'm on the analytics team - lots packed in here on purpose.",
+        "five years",
+        "a 4",
+        "analytics",
+        "x",
+        "I would change the induction. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. More hands-on practice would help. "
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent provided a clear suggestion for change."
+      },
+      "invented": false
+    }
+  ]
+}

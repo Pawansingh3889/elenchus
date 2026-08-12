@@ -1,0 +1,142 @@
+{
+  "scenario": "numbers_dates",
+  "captured_at": "2026-08-12T05:01:37.601736+00:00",
+  "model": "gpt-4o-mini",
+  "survey_title": "Induction Facts",
+  "status": "completed",
+  "respondent_messages": [
+    "i started on the ninth of this month",
+    "a couple, maybe three including the IT bit",
+    "somewhere around a four",
+    "eleven out of ten honestly"
+  ],
+  "trace": {
+    "total": 4,
+    "positions": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "questions": [
+      {
+        "id": "813d9f47-de1f-4025-8a07-b694b008aa8a",
+        "position": 0,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "4cd263be-db7a-42f5-9ac4-4bca131075a8",
+        "position": 1,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "ca98ad92-d283-45e9-9efe-7b1739dc4d44",
+        "position": 2,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "814cf1bd-a771-4d1e-9f97-e81ea030ce5e",
+        "position": 3,
+        "follow_up_policy": "never"
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "813d9f47-de1f-4025-8a07-b694b008aa8a",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "4cd263be-db7a-42f5-9ac4-4bca131075a8",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "ca98ad92-d283-45e9-9efe-7b1739dc4d44",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "814cf1bd-a771-4d1e-9f97-e81ea030ce5e",
+        "kind": "scripted"
+      }
+    ]
+  },
+  "answers": [
+    {
+      "question_text": "What date did you start?",
+      "answer_type": "date",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "date": "2026-08-09"
+      },
+      "said": [
+        "i started on the ninth of this month"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent stated they started on the ninth of this month, which supports the recorded date."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How many days of induction did you receive?",
+      "answer_type": "number",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "The respondent mentioned 'a couple' or 'three', but did not provide a specific number."
+      },
+      "said": [
+        "i started on the ninth of this month",
+        "a couple, maybe three including the IT bit"
+      ],
+      "judge": {
+        "supported": false,
+        "why": "The respondent provided a usable answer ('a couple, maybe three'), which should not be marked as unanswerable."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How would you rate your first week?",
+      "answer_type": "rating",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "rating": 4
+      },
+      "said": [
+        "i started on the ninth of this month",
+        "a couple, maybe three including the IT bit",
+        "somewhere around a four"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent rated their first week as 'somewhere around a four', which supports the recorded rating of 4."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How would you rate the canteen?",
+      "answer_type": "rating",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "rating": 5
+      },
+      "said": [
+        "i started on the ninth of this month",
+        "a couple, maybe three including the IT bit",
+        "somewhere around a four",
+        "eleven out of ten honestly"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent's answer 'eleven out of ten honestly' is unusable for the canteen rating, but the system recorded a rating of 5, which is not supported by the transcript."
+      },
+      "invented": false
+    }
+  ]
+}

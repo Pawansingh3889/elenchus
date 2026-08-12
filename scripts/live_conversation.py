@@ -36,6 +36,15 @@ status, because a judge is a model and a red build that turns on judgement gets 
 
     --strict-judge   promote the judge's verdicts to hard failures
     --no-judge       skip the audit, for a cheaper run
+    --repeat N       run each scenario N times and report what answered differently
+
+``--repeat`` exists because the same survey and the same scripted respondent do not
+always produce the same recorded answers, and until it is measured nobody knows how
+often. The invented "yes" that produced the yes/no gate could not be reproduced against a
+real model minutes later; that is not a curiosity, it is the reason a single green run
+proves less than it looks like it does. The variance report prints and never fails: some
+of it is legitimate, and a threshold guessed before the numbers exist is a threshold that
+means nothing.
 
 Needs a funded LLM_TIER1_API_KEY in the backend's environment and a running stack. The
 judge additionally needs LLM_TIER1_BASE_URL, _API_KEY and _MODEL in *this* shell, since it
@@ -200,6 +209,7 @@ class Run:
         # a run-wide snapshot taken at the end cannot replay one.
         self.captured: list[dict] = []
         self.judge_verdicts: list[dict] = []
+        self.id: str = ""  # the conducted run, for reading its provenance back
 
     def trace(self) -> dict:
         """This conversation reduced to what the engine invariants need to judge it.
@@ -225,7 +235,16 @@ class Run:
                 for q in self.qmeta
             ],
             "answers": [
-                {"question_id": a["question_id"], "kind": a["kind"]} for a in self.answers
+                {
+                    "question_id": a["question_id"],
+                    "kind": a["kind"],
+                    # Whether this records a refusal rather than an answer. The invariants
+                    # need it: a question the respondent declined cannot also carry a
+                    # follow-up, so a forced-probe rule written without this reports an
+                    # evasive respondent as an engine that stopped honouring its policy.
+                    "unanswerable": "unanswerable" in a["value"],
+                }
+                for a in self.answers
             ],
         }
 
@@ -238,6 +257,7 @@ class Run:
 
 def conduct(scenario: dict, run: Run, template: dict) -> None:
     convo = call("POST", "/runs", RESPONDENT, {"template_id": template["id"]})
+    run.id = convo["id"]
     print(f"  assistant: {convo['messages'][-1]['content']}")
 
     seen: dict[str, int] = {}
@@ -283,12 +303,18 @@ def conduct(scenario: dict, run: Run, template: dict) -> None:
 
 def base_checks(run: Run) -> list[tuple]:
     out = [("run reached completed", run.status == "completed", True, run.status)]
+    # Scripted answers only. A follow-up is a question the *model* wrote, and it is
+    # judged against a different rule on purpose: asked "could you describe the issues?"
+    # off a yes/no question, the right answer is prose, and the engine records it as
+    # prose. Checking it against the parent's type reported that correct behaviour as a
+    # violation, which is how a red people learn to skip past gets made.
     bad = [
         a["question_text"]
         for a in run.answers
-        if not shape_ok(run.type_by_id.get(a["question_id"], ""), a["value"])
+        if a["kind"] == "scripted"
+        and not shape_ok(run.type_by_id.get(a["question_id"], ""), a["value"])
     ]
-    out.append(("every recorded value has a valid shape", not bad, True, bad[:3]))
+    out.append(("every recorded scripted value has a valid shape", not bad, True, bad[:3]))
     # Every engine invariant, on every scenario, from the same module the mocked suite
     # replays. Run here as well as there because here is where they see a conversation
     # nobody scripted: a fake LLM does what the test tells it to, and these exist for
@@ -1050,6 +1076,34 @@ LIVE_RUNS = os.path.normpath(
 )
 
 
+def model_that_answered(run: Run, template: dict) -> str:
+    """Which model actually conducted this run, read back from the transcript.
+
+    Asked of the backend rather than assumed from this shell's environment, and the
+    difference is not pedantic: the backend has its own configuration, the chain fails
+    over, and a fixture is a claim about what produced these answers. It used to say
+    "unknown" whenever the judge was off, which is how one committed fixture came to
+    record a corpus entry nobody can attribute to a model at all.
+
+    Read as the author, because provenance is deliberately absent from the respondent's
+    own payload: which provider conducted their interview is not theirs to be told.
+
+    Fails loudly rather than falling back to a label. A corpus that cannot say what
+    produced it cannot answer the one question it exists for when a model is swapped.
+    """
+    detail = call("GET", f"/templates/{template['id']}/runs/{run.id}", AUTHOR)
+    served = [m.get("model") for m in detail.get("messages", []) if m.get("model")]
+    if not served:
+        raise SystemExit(
+            f"run {run.id} recorded no model on any assistant turn, so this capture "
+            "cannot say what produced it. Check the backend is running a migrated "
+            "database with run_messages.model."
+        )
+    # The last one, matching the rule the engine stamps by: on a turn that failed over,
+    # the tier that answered is the one whose words are in the transcript.
+    return str(served[-1])
+
+
 def write_fixture(key: str, run: Run, template: dict, model: str) -> str:
     """Write this run down as a replayable fixture and return the path."""
     by_index = {v.get("index"): v for v in run.judge_verdicts if isinstance(v.get("index"), int)}
@@ -1109,9 +1163,10 @@ def write_fixture(key: str, run: Run, template: dict, model: str) -> str:
 # --------------------------------------------------------------------------- driver
 
 
-def run_scenario(key: str, judge: bool, strict: bool) -> int:
+def run_scenario(key: str, judge: bool, strict: bool, repeat: int = 1) -> int:
     scenario = SCENARIOS[key]
-    print(f"\n{'=' * 78}\n{key}: {scenario['title']}\n{'=' * 78}")
+    label = f"{key} ({repeat})" if repeat > 1 else key
+    print(f"\n{'=' * 78}\n{label}: {scenario['title']}\n{'=' * 78}")
     template = build_survey(scenario)
     print(f"  survey: {template['title']} ({len(template['questions'])} questions)")
 
@@ -1130,9 +1185,49 @@ def run_scenario(key: str, judge: bool, strict: bool) -> int:
         print("\n  --- judge ---")
         hard_failures += _report(judge_checks(run, strict))
 
-    config = judge_config()
-    print(f"\n  captured: {write_fixture(key, run, template, config[2] if config else 'unknown')}")
+    path = write_fixture(key, run, template, model_that_answered(run, template))
+    print(f"\n  captured: {path}")
+    _ANSWERS_BY_SCENARIO.setdefault(key, []).append(
+        {a["question_text"]: json.dumps(a["value"], sort_keys=True) for a in run.answers}
+    )
     return hard_failures
+
+
+# What each repeat of a scenario recorded, so variance can be reported at the end.
+_ANSWERS_BY_SCENARIO: dict[str, list[dict[str, str]]] = {}
+
+
+def report_variance() -> None:
+    """Say which questions answered differently across repeats of the same scenario.
+
+    The same survey and the same scripted respondent, run again. Anything that differs is
+    the model, not the input, and that is worth seeing before a threshold is set from a
+    guess. The talk this came from runs each eval three times and flags variance above a
+    threshold; there is no threshold here yet because there is no measurement yet, and
+    inventing one before the numbers exist is how a gate ends up meaning nothing.
+
+    Printed and never a failure. Some variance is correct: a respondent who says "about
+    three" can legitimately be recorded as a number or as prose on a text question, and a
+    harness that went red on that would be teaching people to ignore red. This is the same
+    reasoning written above the judge, for the same reason.
+    """
+    repeated = {k: v for k, v in _ANSWERS_BY_SCENARIO.items() if len(v) > 1}
+    if not repeated:
+        return
+    print(f"\n{'=' * 78}\nvariance across repeats\n{'=' * 78}")
+    for key, runs in repeated.items():
+        questions = {q for run in runs for q in run}
+        differing = {
+            q: sorted({run.get(q, "<not asked>") for run in runs})
+            for q in sorted(questions)
+            if len({run.get(q, "<not asked>") for run in runs}) > 1
+        }
+        settled = len(questions) - len(differing)
+        print(f"\n  {key}: {settled} of {len(questions)} question(s) answered the same every time")
+        for question, values in differing.items():
+            print(f"    [note] {question}")
+            for value in values:
+                print(f"             {value}")
 
 
 def _report(checks: list[tuple]) -> int:
@@ -1151,11 +1246,21 @@ def main() -> None:
     argv = sys.argv[1:]
     strict = "--strict-judge" in argv
     no_judge = "--no-judge" in argv
-    requested = [a for a in argv if not a.startswith("-")] or ["all"]
+    repeat = _repeat_from(argv)
+    # `--repeat 3` leaves a bare "3" in argv, which would otherwise be read as the name of
+    # a scenario and stop the run with "unknown scenario(s): 3".
+    consumed = {i + 1 for i, a in enumerate(argv) if a == "--repeat"}
+    requested = [
+        a for i, a in enumerate(argv) if not a.startswith("-") and i not in consumed
+    ] or ["all"]
     keys = ORDER if requested == ["all"] else requested
     unknown = [k for k in keys if k not in SCENARIOS]
     if unknown:
-        print(f"unknown scenario(s): {', '.join(unknown)}\nchoose from: all, {', '.join(ORDER)}")
+        print(
+            f"unknown scenario(s): {', '.join(unknown)}\n"
+            f"choose from: all, {', '.join(ORDER)}\n"
+            "flags: --repeat N, --no-judge, --strict-judge"
+        )
         sys.exit(2)
 
     # Asking for the judge without the means to run it is a mistake worth stopping for.
@@ -1170,17 +1275,51 @@ def main() -> None:
         why = "--no-judge" if no_judge else "LLM_TIER1_* not set in this shell"
         print(f"judge: off ({why}). Recorded answers will not be audited for invention.")
 
+    if repeat > 1:
+        print(f"repeat: {repeat}x per scenario, {len(keys) * repeat} conversation(s) in total")
+
     total_failures = 0
+    # Scenario-major rather than repeat-major, so a run interrupted halfway leaves whole
+    # scenarios finished rather than one pass of everything and nothing to compare.
     for key in keys:
-        try:
-            total_failures += run_scenario(key, judge, strict)
-        except urllib.error.HTTPError:
-            print(f"  [FAIL] {key} raised an HTTP error mid-conversation")
-            total_failures += 1
+        for attempt in range(1, repeat + 1):
+            try:
+                total_failures += run_scenario(key, judge, strict, repeat=attempt)
+            except urllib.error.HTTPError:
+                print(f"  [FAIL] {key} raised an HTTP error mid-conversation")
+                total_failures += 1
+
+    report_variance()
 
     print(f"\n{'=' * 78}")
-    print(f"{len(keys)} scenario(s) run, {total_failures} hard-check failure(s)")
+    print(
+        f"{len(keys)} scenario(s) run {repeat}x, {total_failures} hard-check failure(s)"
+        if repeat > 1
+        else f"{len(keys)} scenario(s) run, {total_failures} hard-check failure(s)"
+    )
     sys.exit(1 if total_failures else 0)
+
+
+def _repeat_from(argv: list[str]) -> int:
+    """How many times to run each scenario. `--repeat 3` or `--repeat=3`.
+
+    Hand-parsed like every other flag here rather than reaching for argparse, which would
+    rewrite the whole interface for one option and change how the positional scenario
+    names behave.
+    """
+    for i, arg in enumerate(argv):
+        raw = None
+        if arg.startswith("--repeat="):
+            raw = arg.split("=", 1)[1]
+        elif arg == "--repeat":
+            raw = argv[i + 1] if i + 1 < len(argv) else None
+        if raw is None:
+            continue
+        if not raw.isdigit() or int(raw) < 1:
+            print(f"--repeat needs a whole number of at least 1, not {raw!r}")
+            sys.exit(2)
+        return int(raw)
+    return 1
 
 
 if __name__ == "__main__":

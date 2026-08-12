@@ -131,6 +131,44 @@ def test_an_always_once_question_that_drew_no_probe_is_rejected() -> None:
     assert not ok, f"{name} accepted a forced question that was never probed"
 
 
+def test_a_declined_question_needs_no_probe() -> None:
+    """Found by the first real run of this invariant, not by imagination.
+
+    The evasive scenario's respondent declined four of five questions, two of them
+    ``always_once``. Written without this exemption the check called that an engine which
+    had stopped honouring its policy, when the engine had done exactly the right thing:
+    there is nothing to probe a refusal about, and the refusal is what got recorded.
+    """
+    declined = {
+        **SOUND,
+        "answers": [
+            {"question_id": "q1", "kind": "scripted", "unanswerable": True},
+            {"question_id": "q2", "kind": "scripted"},
+        ],
+    }
+    name, ok, detail = conduct_invariants.forced_probes_were_asked(declined)
+    assert ok, f"{name} refused a declined question for having no follow-up ({detail})"
+
+
+def test_a_declined_question_does_not_excuse_the_others() -> None:
+    """The exemption is per question, not a switch a single refusal turns off for the run.
+    Two forced questions, one declined and one answered without a probe: still a failure."""
+    mixed = {
+        **SOUND,
+        "questions": [
+            {"id": "q1", "position": 0, "follow_up_policy": "always_once"},
+            {"id": "q2", "position": 1, "follow_up_policy": "always_once"},
+        ],
+        "answers": [
+            {"question_id": "q1", "kind": "scripted", "unanswerable": True},
+            {"question_id": "q2", "kind": "scripted"},
+        ],
+    }
+    name, ok, detail = conduct_invariants.forced_probes_were_asked(mixed)
+    assert not ok, f"{name} let one refusal excuse a forced question that was answered"
+    assert detail == ["q2"]
+
+
 def test_an_answer_lost_to_its_own_probe_is_rejected() -> None:
     """Defect 22: the force lapsed when the probe was issued, so `move_on` returned on the
     turn the answer arrived and 3 of 16 forced probes threw their answer away. The worst

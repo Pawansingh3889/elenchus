@@ -1,0 +1,253 @@
+{
+  "scenario": "skip_heavy",
+  "captured_at": "2026-08-12T05:01:18.845218+00:00",
+  "model": "gpt-4o-mini",
+  "survey_title": "Onboarding Check-In",
+  "status": "completed",
+  "respondent_messages": [
+    "i'm a warehouse shift supervisor",
+    "skip",
+    "i'd rather not say",
+    "why do you need that",
+    "not comfortable sharing",
+    "next",
+    "pass",
+    "skip"
+  ],
+  "trace": {
+    "total": 7,
+    "positions": [
+      0,
+      1,
+      2,
+      3,
+      3,
+      4,
+      5,
+      6
+    ],
+    "questions": [
+      {
+        "id": "a1ced620-6425-47c4-aa0a-62fc165d6455",
+        "position": 0,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "b199c640-45d3-4698-b3fc-c06b07659b0a",
+        "position": 1,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "aaf9a4c3-3924-4419-8092-2d7fdd322d71",
+        "position": 2,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "48a6bb13-97d4-465d-95c8-96980c544adb",
+        "position": 3,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "ba85eda9-611c-4a99-b767-b2d69a82c838",
+        "position": 4,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "62a79dc3-e4a5-4c94-aeea-625c5dbcd099",
+        "position": 5,
+        "follow_up_policy": "when_unclear"
+      },
+      {
+        "id": "d1069565-f5c2-40fa-832d-30f6ab1788f6",
+        "position": 6,
+        "follow_up_policy": "never"
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "a1ced620-6425-47c4-aa0a-62fc165d6455",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "b199c640-45d3-4698-b3fc-c06b07659b0a",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "aaf9a4c3-3924-4419-8092-2d7fdd322d71",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "48a6bb13-97d4-465d-95c8-96980c544adb",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "ba85eda9-611c-4a99-b767-b2d69a82c838",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "62a79dc3-e4a5-4c94-aeea-625c5dbcd099",
+        "kind": "scripted"
+      },
+      {
+        "question_id": "d1069565-f5c2-40fa-832d-30f6ab1788f6",
+        "kind": "scripted"
+      }
+    ]
+  },
+  "answers": [
+    {
+      "question_text": "What is your role?",
+      "answer_type": "short_text",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "text": "warehouse shift supervisor"
+      },
+      "said": [
+        "i'm a warehouse shift supervisor"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent explicitly stated their role as 'warehouse shift supervisor'."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How would you rate onboarding?",
+      "answer_type": "rating",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "The respondent indicated they wanted to skip this question."
+      },
+      "said": [
+        "i'm a warehouse shift supervisor",
+        "skip"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent indicated they wanted to skip this question."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How many days of training?",
+      "answer_type": "number",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "I'd rather not say."
+      },
+      "said": [
+        "i'm a warehouse shift supervisor",
+        "skip",
+        "i'd rather not say"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent explicitly stated 'I'd rather not say', which supports unanswerable."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "What date did you start?",
+      "answer_type": "date",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "not comfortable sharing"
+      },
+      "said": [
+        "i'm a warehouse shift supervisor",
+        "skip",
+        "i'd rather not say",
+        "why do you need that",
+        "not comfortable sharing"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent's message 'not comfortable sharing' supports unanswerable."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Which team are you on?",
+      "answer_type": "single_select",
+      "options": [
+        "A",
+        "B"
+      ],
+      "allow_other": true,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "The respondent declined to answer."
+      },
+      "said": [
+        "i'm a warehouse shift supervisor",
+        "skip",
+        "i'd rather not say",
+        "why do you need that",
+        "not comfortable sharing",
+        "next"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent's refusal to answer is supported by their messages."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "What would you change?",
+      "answer_type": "long_text",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "respondent declined to answer"
+      },
+      "said": [
+        "i'm a warehouse shift supervisor",
+        "skip",
+        "i'd rather not say",
+        "why do you need that",
+        "not comfortable sharing",
+        "next",
+        "pass"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent's refusal to answer is supported by their messages."
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Would you recommend us?",
+      "answer_type": "yes_no",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "The respondent declined to answer."
+      },
+      "said": [
+        "i'm a warehouse shift supervisor",
+        "skip",
+        "i'd rather not say",
+        "why do you need that",
+        "not comfortable sharing",
+        "next",
+        "pass",
+        "skip"
+      ],
+      "judge": {
+        "supported": true,
+        "why": "The respondent's refusal to answer is supported by their messages."
+      },
+      "invented": false
+    }
+  ]
+}
