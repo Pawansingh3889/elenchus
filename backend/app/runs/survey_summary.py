@@ -32,7 +32,7 @@ import json
 import logging
 import re
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
@@ -144,6 +144,25 @@ class SurveySummaryRead(BaseModel):
     version: int
     runs_included: int
     generated_at: str
+    # Provenance, already stored in the document and until now readable only by opening
+    # the column. A recap that reads worse than it used to may be a prompt change or a
+    # model change, and the author looking at it can see which without asking.
+    prompt_version: str | None = None
+    verify_prompt_version: str | None = None
+    model: str | None = None
+
+
+class SurveyRecapStatus(BaseModel):
+    """The stored recap if it is still true of the results, else why there is none.
+
+    An envelope rather than a 404, because neither absence is an error: a survey nobody
+    has summarised yet is healthy, and a recap the results have moved past is a thing
+    the page wants to say out loud ("written when 4 people had answered; 7 have now")
+    rather than a missing resource.
+    """
+
+    recap: SurveySummaryRead | None = None
+    absence: Literal["never_generated", "outdated"] | None = None
 
 
 _TOOL: dict[str, Any] = {
@@ -219,6 +238,29 @@ class SurveySummaryService:
         if self._verifier is None:
             self._verifier = self.llm
         return self._verifier
+
+    async def stored(self, template_id: UUID, author: User) -> SurveyRecapStatus:
+        """The recap this survey already has, without writing a new one.
+
+        The page needs this because generating is the only way it could read a recap
+        before, so navigating away and back cost a model call to see prose that was
+        already sitting in the column. Nothing here builds an LLM: the `llm` property
+        is lazy precisely so a read costs no key.
+        """
+        # report() does the ownership check, so this inherits the numbers' boundary.
+        report = await self.results.report(template_id, author)
+        template = await self.templates.get(template_id)
+        if template is None:  # pragma: no cover - report() would have raised first
+            raise NotFoundError("Template not found.")
+
+        recap = self._reusable(template, report)
+        if recap is not None:
+            return SurveyRecapStatus(recap=recap, absence=None)
+        # Two different absences, and the page says different things about them: one
+        # invites a first recap, the other says the results have moved past the one
+        # that exists.
+        absence = "never_generated" if template.summary is None else "outdated"
+        return SurveyRecapStatus(recap=None, absence=absence)
 
     async def summarise(
         self, template_id: UUID, author: User, refresh: bool = False
@@ -555,7 +597,17 @@ def _with_numbers(
         version=int(document["version"]),
         runs_included=int(document["runs_included"]),
         generated_at=str(document["generated_at"]),
+        # Optional metadata, so `.get` is honest here rather than a shrug over required
+        # data: a recap written before these were recorded has none, and that is a fact
+        # about the document, not a failure to read it.
+        prompt_version=_optional_str(document.get("prompt_version")),
+        verify_prompt_version=_optional_str(document.get("verify_prompt_version")),
+        model=_optional_str(document.get("model")),
     )
+
+
+def _optional_str(value: Any) -> str | None:
+    return value if isinstance(value, str) and value else None
 
 
 def _brief(report: SurveyReport, quotable: list[dict[str, str]]) -> str:
