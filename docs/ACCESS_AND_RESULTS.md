@@ -19,7 +19,7 @@ person cannot both administer and work in Finance.
 | --- | --- |
 | Departments | `admin`, `hr`, `operations`, `finance`, `technical` |
 | Audiences | `respondents`, `hr`, `operations`, `finance`, `technical` |
-| Admin | The `ADMIN_EMAILS` allowlist, not a column |
+| Admin | The `ADMIN_EMAILS` allowlist, **or the `it` department** (see 13 Aug below) |
 
 `app/access` holds the rule and nothing else holds it: pure functions over values, no
 session and no queries, so it reads in one sitting and its tests need no database.
@@ -143,3 +143,63 @@ engine enforces it whatever the model asks for, which is its own test.
   knowingly. The slicing should be built so a threshold is one constant away.
 - **A respondent panel with its own attributes.** Respondents are one pool. Creator
   departments are the only grouping that exists.
+
+## 13 Aug 2026: accounts are made in the app
+
+Everything above describes access once people exist. This is how they come to exist, and it
+is a later change than the rest of this file, so read it as the correction it is.
+
+Until now `users.role` was written by `app/seed.py` and by nothing else. The honest answer
+to "who decides who can be an author" was "whoever can run the seed or reach the database",
+which is a deploy action rather than a product one, and it left the plant unstaffable:
+somebody in no group can be asked nothing at all, not even a survey aimed at everyone.
+
+`POST` and `PUT /api/v1/admin/users` now create accounts and change what somebody is, and
+`/people` is where an administrator does it. Both routes are guarded by `require_admin`,
+which asks `is_admin` and therefore never consults `role`: an administrator whose own
+account is a respondent must still reach the screen that would fix that.
+
+Four shapes of account are refused, each because the access rules above would otherwise
+read the row as something nobody meant:
+
+- **An author with no department.** It decides who their colleagues are, and for `it`
+  whether they administer the system.
+- **A respondent with a department.** The one that matters most. `_colleague` makes anyone
+  sharing a department a colleague and `may_read_rows` hands a colleague every individual
+  answer, so this would quietly grant the raw answers to every survey that department ever
+  ran.
+- **A respondent in no group.** Nobody can survey them, which is the gap this work closed.
+- **Two accounts on one address or one Entra id.** Addresses are case-folded on the way in,
+  because `is_admin` folds when it matches the allowlist and the unique index does not.
+
+An administrator cannot edit away their own administration. That state is unrecoverable
+from inside the app: the last one moves out of `it` and nobody can grant it back.
+
+**`role` is stored as sent, not derived from `microsoft_id`.** That was chosen knowingly
+and it contradicts the direction recorded in `app/users/models.py`, where an Entra object
+id is meant to decide `role` once real sign-in exists. So an author created here with no
+Entra id may build surveys today and will stop being able to the day that derivation is
+switched on. The form sets the Entra id for that reason, and `/people` marks every author
+that lacks one. That marker is a warning, not a guarantee: nothing enforces the pair.
+
+### Reach is live, and edits are witnessed
+
+Who a survey is for is whoever is in its group at the moment of asking. That is a
+decision, reaffirmed 13 Aug over freezing membership into published versions: a new
+starter is asked Monday's survey, and every denominator, including a closed survey's
+completion rate, moves when membership does. Three things make that honest:
+
+- **The publish confirmation shows the live headcount** beside the audience, phrased as
+  "right now", because that is what it is.
+- **An admin edit that would move an open survey's reach shows the impact first**: which
+  surveys, reach before and after, whether the person can still answer. Warn and
+  proceed, never block. People genuinely leave teams; the number dropping is then true.
+- **`account_changes` records every create and edit**, append-only, in the same
+  transaction as the change, with before and after snapshots and the administrator's
+  name. The edit dialog shows the recent rows. An account with no rows was made by the
+  seed or will arrive from Entra: nobody in the app did it, and that too is information.
+
+Authorization engines (Casbin, Oso, OpenFGA, SpiceDB, Cerbos) were evaluated for this
+and rejected with reasons recorded in the project log: the guardrails above are
+change-management around what the access rules read, which no engine ships, and
+`app/access` stays the one place the rules live.

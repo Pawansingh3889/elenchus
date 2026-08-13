@@ -117,6 +117,53 @@ Alembic migrations from the first table; no `create_all` in application code.
   `role` once real sign-in exists; everyone else is a named account reached by a QR link.
   Until then `role` is a stored column and the header shim stands in for a login, so
   `test_the_seed_agrees_with_how_people_will_sign_in` holds the two consistent while the
-  data is small enough to fix. The admin screen for creating floor accounts and setting
-  their groups is the blocker before real staff arrive: somebody in no group can be asked
-  nothing at all, not even a survey aimed at everyone.
+  data is small enough to fix.
+- **An administrator makes accounts, and `role` is stored as sent.** Built 13 Aug 2026,
+  and it closes the blocker the entry above named: `POST`/`PUT /api/v1/admin/users` behind
+  `require_admin`, with `/people` as the screen. `users.created_by` records which
+  administrator made each account, null for everyone the screen did not create. Four
+  shapes are refused at the schema, and the one to understand before relaxing any of them
+  is **a respondent with a department**: `_colleague` would make them a colleague of that
+  department's authors, and `may_read_rows` hands a colleague every individual answer.
+  The knowing cost: `role` comes from the request rather than being derived from
+  `microsoft_id`, which is the opposite of what the entry above intends. An author with no
+  Entra id therefore builds surveys today and loses that the day the derivation lands. The
+  form sets the Entra id and `/people` badges the authors missing one, but nothing
+  enforces the pair, and the seed test only covers `SEED_USERS` rather than the table.
+  **A seeded account already in the database never gains a column the seed adds later**,
+  because the seed inserts only when the id is absent: every author in a dev database
+  seeded before 12 Aug has a null `microsoft_id` while the constant says otherwise.
+- **Reach is live, and the guardrails are a witness, not a freeze.** Decided 13 Aug 2026,
+  against snapshotting membership into published versions: who a survey is for is whoever
+  is in the group today, so a new starter is asked Monday's survey and every denominator
+  moves when membership does. What makes that honest is that changes are seen and
+  recorded: the publish dialog shows the live headcount beside the audience; an admin
+  edit that would move an open survey's reach shows exactly which surveys and by how much
+  before saving (warn and proceed, never block, because people genuinely leave teams);
+  and `account_changes` is an append-only audit table written in the same transaction as
+  every create and edit, so "why did the completion rate drop on Tuesday" has an answer
+  with a name on it. Open-source engines were evaluated for this on 13 Aug and rejected
+  with reasons: Oso's library is deprecated, OpenFGA/SpiceDB/Cerbos are always-on
+  services against the no-local-services decision, and pycasbin would replace the pure,
+  reasoned `app/access` with a PERM DSL while providing none of the guardrails, which
+  are change-management, not authorization. Do not re-litigate that without new facts.
+  One number to keep in mind: reach and preview iterate every user and open survey per
+  request, which is fine at plant size and author-side only, so the break-time burst
+  (the whole floor answering at once, the reason `DB_POOL_SIZE`/`DB_POOL_MAX_OVERFLOW`
+  exist and are forwarded in compose) never pays for them.
+- **Seed ids are forever, and the seed refuses impostors.** Two ids reused from a retired
+  generation of `SEED_USERS` were still occupied in databases seeded before 10 Aug; the
+  insert silently skipped and the membership loop decorated the strangers holding them.
+  New seed users take fresh c-block ids, `seed()` raises when an id's email disagrees,
+  and `test_the_seed_only_decorates_its_own_users` pins the shape.
+- **Signing in is an address, not a list.** `POST /api/v1/dev/identify` added 13 Aug 2026,
+  because the app could not be entered at all from a clean browser: listing users requires
+  a caller, a caller is an id under the header shim, and that list was the only source of
+  an id. Every page told you to pick a user in a dropdown that could never be filled, and
+  only a leftover localStorage entry hid it. The endpoint is unauthenticated of necessity,
+  so **its mount is its only protection**: registered beside the picker and only outside
+  production, pinned by a test. Knowing an address is therefore enough to act as somebody,
+  which is the honest state of authentication here until a real provider replaces
+  `get_current_user`. Do not move it out from behind that branch, and do not "fix" the
+  deadlock by unauthenticating the user list: that hands out every id, which is every
+  credential.

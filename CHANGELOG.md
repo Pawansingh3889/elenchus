@@ -5,6 +5,96 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-08-13. Reach stays live, and gets witnesses instead of a freeze
+
+A survey's denominator follows its group: somebody hired Tuesday is asked Monday's
+survey, and every reach number moves when membership does. That was confirmed as the
+intended design, against snapshotting membership at publish, and this work makes it
+honest rather than surprising. Open-source authorization engines were evaluated first
+and none adopted: Oso's library is deprecated, the Zanzibar family and Cerbos are
+always-on services this stack has a decision against, and pycasbin would swap the
+readable, reasoned access rules for a policy DSL while providing none of what was
+actually needed, which is change-management around the data those rules read.
+
+- **The publish confirmation counts.** Beside who the survey is for, it now says "2
+  people can answer it right now", from a new author-side reach endpoint that asks the
+  same rule the dashboard and report already ask. Live, and phrased so.
+- **An admin edit warns before it moves a denominator.** Saving a change that would flip
+  a person in or out of any open survey's audience first shows those surveys with reach
+  before and after, and Save becomes "Save anyway". Warn, never block: people genuinely
+  leave teams, and a reach dropping is then the truth.
+- **Every account change is recorded.** `account_changes` is append-only, written in the
+  same transaction as the create or edit it records, with before and after snapshots.
+  The edit dialog shows the recent entries, so "why did this number move" is answered
+  where the mover is standing. Seeded and Entra-provisioned accounts have no rows,
+  which is itself information: nobody in the app did it.
+- **The pool is sized for break-time.** The plant answers surveys in bursts, a shift at
+  once, and each live conversation holds a database connection across its LLM call. The
+  SQLAlchemy defaults queued half of a thirty-person break into 30-second timeouts;
+  `DB_POOL_SIZE`/`DB_POOL_MAX_OVERFLOW` now default to 10+30, are forwarded through
+  compose, and none of the new endpoints sit on the respondent path that burst travels.
+- **Quality and shift managers exist.** A `quality` office department and a
+  `shift_managers` floor group with its matching audience, in the enums, the access
+  map, both pickers, all eight locales, and the seed: Quinn (Quality, and QA on the
+  line), Rina and Rohan. Two ids first chosen for the new seed users collided with
+  rows an older seed generation left behind, which silently handed the new group to
+  two bystanders; the seed now takes fresh ids, refuses an id whose email disagrees,
+  and a test pins that SEED_GROUPS can only decorate SEED_USERS.
+
+## 2026-08-13. Somebody can be given an account, and told what they are
+
+Until today `users.role` was written by the seed script and by nothing else, so the real
+answer to "who decides who can be an author" was "whoever can reach the database". That
+also left the plant unstaffable: an account in no group can be asked nothing at all, not
+even a survey aimed at everyone, and there was no way to put anybody in one.
+
+- **`POST` and `PUT /api/v1/admin/users`**, behind a new `require_admin`. It asks
+  `is_admin` and so never consults `role`, deliberately: an administrator whose own
+  account is a respondent must still reach the screen that would fix that.
+- **`/people` is that screen.** An administrator gets an "Add person" button and a per-row
+  edit; everybody else sees exactly the table that was there before. Hiding the controls is
+  a courtesy, not the enforcement, and the page asks the server whether it is talking to an
+  administrator rather than guessing, because half of `is_admin` is an email allowlist that
+  never leaves the server.
+- **`users.created_by`** records which administrator made each account. Null for everyone
+  the screen did not make, which is every account that exists today and every account a
+  real Microsoft sign-in will provision.
+- **Four shapes of account are refused**, each named after the row the access rules would
+  otherwise misread. The one worth knowing is a respondent holding a department: that would
+  make them a colleague of that department's authors, and a colleague may read every
+  individual answer.
+- **An administrator cannot edit away their own administration**, because from that state
+  nobody inside the app can give it back.
+- **`role` is stored as sent, not derived from `microsoft_id`.** Chosen knowingly, against
+  the direction recorded in the model: an author created without an Entra id will stop
+  being one the day sign-in derives the role from it. The form sets that id and the
+  directory badges the authors missing one, but nothing enforces the pair.
+
+### A browser could not get in at all
+
+Found while using the above, and older than it. `GET /api/v1/users` was hardened to
+require a caller, and under the header shim a caller is an id, and that list was the only
+place to get an id. So a browser with empty storage was locked out permanently: the picker
+had nothing in it, and every page's advice to "pick a user in the top bar" was advice
+about an empty dropdown. Only an id left over in localStorage from an earlier session hid
+it.
+
+- **`POST /api/v1/dev/identify`** trades an address for an id, and the top bar shows a
+  sign-in box while nobody is selected. Deliberately an address rather than a list: the
+  list is what needs a caller, and handing it out unauthenticated would hand out every id.
+  Knowing somebody's address is now enough to act as them, which is the whole of the
+  authentication story until a real provider replaces `get_current_user`, so the endpoint
+  is registered only outside production. A test asserts that mounting, because the mount
+  is the protection.
+- **The advice now matches the control.** All four "pick a user in the top bar" strings
+  and the landing hint say sign in, in all eight locales.
+- **The cold load no longer fails a request on purpose.** `useUsers` did not wait for an
+  id, so every signed-out page spent a request to be told 401 and left a real error in the
+  dev overlay of a page that was working.
+- **A new account appears in the picker immediately.** The account mutations invalidated
+  the directory and the dashboard but not `["users"]`, which backs that picker and the
+  author nav, so somebody just created could not be switched to until a hard reload.
+
 ## 2026-08-09. The live check audits itself, and stops forgetting
 
 Yesterday's invented `yes` was found by a human reading a transcript, and could not be
