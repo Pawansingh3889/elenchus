@@ -6,8 +6,9 @@ surveys through a conversational, LLM-driven runner that keeps the model on rail
 
 Full brief in [`trial-brief/`](trial-brief/README.md); what the app does
 in [`docs/OVERVIEW.md`](docs/OVERVIEW.md); build conventions in [`CLAUDE.md`](CLAUDE.md);
-what every check is asking in [`docs/CHECKS.md`](docs/CHECKS.md); project history
-in [`CHANGELOG.md`](CHANGELOG.md); every defect and what fixed it
+what every check is asking in [`docs/CHECKS.md`](docs/CHECKS.md); who can see what, and
+what an answer is worth, in [`docs/ACCESS_AND_RESULTS.md`](docs/ACCESS_AND_RESULTS.md);
+project history in [`CHANGELOG.md`](CHANGELOG.md); every defect and what fixed it
 in [`docs/DEFECTS.md`](docs/DEFECTS.md).
 
 ## Stack
@@ -46,39 +47,54 @@ Dev auth is deliberately thin: every request identifies its caller with an `X-Us
 header, resolved by a single dependency. A real deployment replaces that dependency with
 an identity provider without touching the routes. Requests without the header get a 401.
 
-`python -m app.seed` runs automatically on backend start and is idempotent. It creates
-two authors and three respondents with stable ids:
+In the browser you sign in by typing a seeded email address in the top bar, which calls
+`POST /api/v1/dev/identify` and stores the id the header needs. That endpoint is
+unauthenticated by necessity and is only mounted outside production (a test pins this).
+When trying endpoints from `/docs`, add the `X-User-Id` header yourself.
 
-| Role | Name | Email | `X-User-Id` |
+`python -m app.seed` runs automatically on backend start and is idempotent. There is no
+stored role: each person holds one job, a function crossed with a band, and every right
+derives from it (authoring is manager band and up; see
+[`docs/ACCESS_AND_RESULTS.md`](docs/ACCESS_AND_RESULTS.md)). The cast covers what the
+access rules need to be visible; the "Author"/"Respondent" surnames are cosmetic
+leftovers from a retired vocabulary. The ones the walkthrough uses:
+
+| Name | Email | Job | Why they are in the cast |
 |---|---|---|---|
-| author | Ava Author | ava@elenchus.dev | `00000000-0000-0000-0000-0000000000a1` |
-| author | Arjun Author | arjun@elenchus.dev | `00000000-0000-0000-0000-0000000000a2` |
-| respondent | Rosa Respondent | rosa@elenchus.dev | `00000000-0000-0000-0000-0000000000b1` |
-| respondent | Ravi Respondent | ravi@elenchus.dev | `00000000-0000-0000-0000-0000000000b2` |
-| respondent | Remy Respondent | remy@elenchus.dev | `00000000-0000-0000-0000-0000000000b3` |
+| Ava Author | ava@elenchus.dev | production / manager | A shift manager who authors from the floor |
+| Arjun Author | arjun@elenchus.dev | hr / manager | An office author |
+| Adaeze Author | adaeze@elenchus.dev | executive / head | Reads every survey, edits none |
+| Rosa Respondent | rosa@elenchus.dev | production / operative | The floor |
+| Ravi Respondent | ravi@elenchus.dev | production / line_leader | One job only, on purpose |
+| Rohan Respondent | rohan@elenchus.dev | production / supervisor | Carries the health and safety hat |
+
+`app/seed.py` holds the full list of thirteen, with a comment on each explaining which
+rule it exists to demonstrate. Nobody seeded is in IT, so nobody seeded is an
+administrator; that is deliberate.
 
 ```bash
 curl -s http://localhost:8000/api/v1/templates \
   -H "X-User-Id: 00000000-0000-0000-0000-0000000000a1"
 ```
 
-In the browser app you pick a user in the top bar and the header is sent for you. When
-trying endpoints from `/docs`, add the header yourself.
-
 ## Walk through it
 
-1. Pick **Ava Author** in the top bar. On **Dashboard**, which lists your surveys and how
-   each is going, write a survey or describe one in the "Draft with AI" box, then
-   **Publish** it. Publishing freezes the current draft as an immutable version; the
-   draft carries on evolving separately.
-2. Switch to **Rosa Respondent** and open **Respond**. Start the survey and answer it in
+1. Sign in as **ava@elenchus.dev** in the top bar. The home page is a landing page;
+   **Dashboard** lists your surveys and how each is going. Write a survey or describe one
+   in the compose bar, pick who it is for beside it, then **Publish**. The publish dialog
+   shows the live headcount of the audience; publishing freezes the current draft as an
+   immutable version, while the draft carries on evolving separately.
+2. Sign in as **rosa@elenchus.dev** and open **Respond**. Start the survey and answer it in
    the chat. Chips, stars and date pickers appear with the question, but they only produce
    text: the engine validates every answer against the question's type either way.
-3. Switch back to an author and open **Responses** on that template to read what came back,
-   both the answers and the full transcript. Follow-ups the model chose to ask are marked,
-   and each question shows how many times it was probed. **Generate summary** asks the model
-   for the headline, key facts and notable quotes in that response; quotes are checked
-   verbatim against the recorded answers before they are shown.
+3. Sign back in as Ava and open the survey's **Results** page: the headline numbers and
+   flags first, a card per question below, and the whole page sliceable by any closed
+   answer. Individual runs sit behind it with their full transcripts; follow-ups the model
+   chose to ask are marked, and each question shows how many times it was probed.
+   **Generate summary** asks the model for the headline, key facts and notable quotes in
+   a response; quotes are checked verbatim against the recorded answers before they are
+   shown, and the survey-level recap has a fixed short shape whose caveat line is computed
+   by the engine, never written by the model.
 
 Two more things worth trying:
 
@@ -101,12 +117,15 @@ backend/
   app/
     config.py          settings (env-driven, no fallbacks)
     db/                declarative base + async session
-    users/             User model
+    users/             User model (one job: function x band + hats), admin account
+                       routes, the append-only account_changes audit table
+    access/            every access rule, as pure functions over the job
     templates/         template, question, immutable version models + publishing
     runs/              run, answer and transcript models, and results for authors
     conduct/           the deterministic run engine (answer validation, run locking)
     templates/…        visibility.py (show_when evaluation), estimate.py (time to complete)
     runs/summary.py    the AI summary of a completed run
+    runs/survey_summary.py   the survey-level recap, fixed shape, engine-computed caveat
     llm/               the OpenAI-compatible client + tier failover chain,
                        tolerant decoding of model JSON, versioned prompts
     auth/              dev-auth dependency
@@ -114,20 +133,23 @@ backend/
   tests/               pytest against a real Postgres, LLM faked at the client boundary
 frontend/
   app/
-    page.tsx           template list, and drafting one with AI
+    page.tsx           landing page: what the service is, for a visitor with no user
+    dashboard/         your surveys and how each is going, plus the compose bar
     templates/[id]/    the builder, with live preview
-    templates/[id]/results/   responses to a survey
-    respond/           surveys open to the current respondent
+    templates/[id]/results/   the one Results page: report, slicing, individual runs
+    respond/           surveys open to the current user
     runs/[id]/         the conversational runner
+    people/            the admin screen: create accounts, change jobs and hats
   lib/                 typed API client, TanStack Query hooks, Zustand store,
-                       conditions.ts (repointing show_when when questions move)
+                       conditions.ts (repointing show_when when questions move),
+                       tally.ts + slicing.ts (client-side retally for sliced views)
 docker-compose.yml        development stack: postgres, backend, frontend
 docker-compose.prod.yml   deployment: pinned digests, no seeding, no bind mounts
 ```
 
 ## Tests and CI
 
-`make gate` is the whole contract, and it is exactly what CI runs.
+`make gate` is the whole backend contract, and it is exactly what CI runs for the backend.
 [docs/CHECKS.md](docs/CHECKS.md) says what each check is asking, what a failure means and
 how to fix it, and collects every command in one place.
 
@@ -141,9 +163,14 @@ it ships on) and fakes the LLM at the client wrapper, so it needs no API key. If
 needs one, that is the bug. The tiers follow the same rule: the OpenAI-compatible client is
 driven through an in-process mock transport, so failover coverage runs offline too.
 
-GitHub Actions runs the same gates on every pull request: `alembic upgrade head` from an empty
-database, `ruff`, `black`, `mypy` and `pytest` for the backend; `tsc --noEmit`, `eslint` and
-`next build` for the frontend. Both are required to pass before `main` will accept a merge.
+The frontend's checks are `make front-gate` (`tsc --noEmit`, `eslint`, the Tailwind class
+guard and `vitest`), which runs inside the frontend container because the host has no
+node. There is no browser suite: rendering is verified by looking at the rendered page.
+
+GitHub Actions runs the same gates on every pull request: `alembic upgrade head` from an
+empty database, `ruff`, `black`, `mypy`, the import contracts, the guards and `pytest` for
+the backend; `tsc --noEmit`, `eslint`, the Tailwind class guard, `next build` and `vitest`
+for the frontend. Both are required to pass before `main` will accept a merge.
 
 `.github/workflows/live-conduct.yml` is the opposite check: it drives real conversations
 through a real model and only runs when you press *Run workflow*, since it costs credit. It

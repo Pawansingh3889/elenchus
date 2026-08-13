@@ -37,8 +37,9 @@ The frontend uses `pnpm` the same way, with `pnpm-lock.yaml` playing the same ro
 make gate
 ```
 
-This is exactly what CI runs, no more and no less. If it is green you can commit and push
-with confidence. If it is red, one of the questions below got a "no".
+This is exactly what CI runs for the backend, no more and no less. If it is green you can
+commit and push with confidence. If it is red, one of the questions below got a "no".
+The frontend has its own single command, [`make front-gate`](#the-frontend), below.
 
 **It needs Postgres running**, because the suite uses a real database rather than a
 stand-in:
@@ -59,19 +60,22 @@ formatting problem can produce a confusing type error.
 | `make lint` | Is the code tidy and free of obvious slips? | An unused import, imports in the wrong order, a variable assigned and never read | `cd backend && uv run ruff check --fix app tests scripts`, then `make fmt` |
 | `make typecheck` | Do the types line up? | Text passed where a number is expected, or something that might be `None` used as though it cannot be | Read the file and line it names and fix the code. Do not silence it. |
 | `make imports` | Does the code respect the layers? | A router reached into the database directly, or something outside the LLM client imported `httpx` | Move the code to the layer it belongs in |
-| `make guards` | Do this project's own rules hold? | See the five below | Each guard prints the file, the line and the rule |
+| `make guards` | Do this project's own rules hold? | See the six below | Each guard prints the file, the line and the rule |
 | `make test` | Does it actually work? | Real broken behaviour | Read the failure and fix the code |
 | `make gate-proof` | Do the guards still catch anything? | A guard has quietly stopped working | Rare, and it is the reason the guards can be trusted at all |
 
 `make fmt` is not a check. It rewrites the code into one consistent style. Run it, look at
 what changed, and commit.
 
-### The five guards, in plain terms
+### The six guards, in plain terms
 
 These enforce decisions that a linter cannot express. They live in `backend/scripts/`.
 
 - **query surface**: only repository files may write database queries. Stops queries
   leaking into routers where nobody thinks to look for them.
+- **access consulted**: survey data may not leave a service without asking `app/access`
+  first. A wrong rule is visible in review; a method that never asks is not. An
+  exemption comment without a written reason is itself a violation.
 - **no create_all**: the database schema comes from migrations, never from the models.
   Stops tests passing against a schema that a real deployment would never have.
 - **prompts versioned**: every AI prompt file is named with a version, and every prompt
@@ -81,6 +85,12 @@ These enforce decisions that a linter cannot express. They live in `backend/scri
 - **contrast**: text colours are readable against their backgrounds.
 - **logical properties**: no `left` or `right` in the stylesheet, so the layout still works
   in a language that reads right to left.
+
+`make guards` also runs `scripts/eval_report.py`, which is a ratchet rather than a rule:
+it prints what the live-run replay corpus covers and fails the build if a fact regresses,
+such as the corpus shrinking, a known invention being unmarked, or a recorded trace no
+longer satisfying an engine invariant. The baseline in `tests/eval_baseline.json` is
+raised by hand, deliberately.
 
 ### Why `gate-proof` exists
 
@@ -93,15 +103,27 @@ checker that walks no files, finds nothing, and reports success having verified 
 
 ## The frontend
 
-There is no test suite here by design. Two checks:
+One command, and it runs **inside the frontend container**, because there is no node on
+the host. Running `pnpm` on the host exits 127, which a script can misread as a pass, so
+do not try:
 
 ```bash
-cd frontend
-pnpm exec tsc --noEmit    # do the types line up (there is no "typecheck" script)
-pnpm lint                 # eslint
+make front-gate    # tsc --noEmit, eslint, the Tailwind class guard, vitest
 ```
 
-CI also runs `next build`, which catches things the two above miss.
+It needs the stack up (the frontend container is where it runs). It is kept out of
+`make gate` on purpose: `gate` runs on the host through uv, and folding the frontend in
+would fail the backend gate whenever Docker happens to be down. `make all-gates` runs
+both halves when you have the stack up.
+
+The vitest suite is small by policy: a frontend test is written when something breaks, so
+each one names a bug that actually happened. There is no browser suite; rendering is
+verified by looking at the rendered page (screenshot, computed styles), not by a runner.
+The Tailwind class guard (`frontend/scripts/check-tailwind-classes.mjs`) fails on any
+class literal that produces no CSS, because an invented utility passes `tsc` and `eslint`
+and renders unstyled.
+
+CI also runs `next build`, which catches things the others miss.
 
 ---
 
@@ -110,14 +132,17 @@ CI also runs `next build`, which catches things the two above miss.
 ### Checks
 
 ```bash
-make gate            # everything CI runs
+make gate            # everything CI runs for the backend
+make front-gate      # the frontend checks, inside the frontend container
+make all-gates       # both halves, for when the stack is up
 make lint            # ruff + black --check
 make fmt             # rewrite to the standard format
 make typecheck       # mypy
 make imports         # the layering contracts
-make guards          # the five architecture guards
+make guards          # the six architecture guards + the eval ratchet
 make test            # the pytest suite alone
 make gate-proof      # prove each guard rejects a planted violation
+make eval            # the replay-corpus scorecard, readable alone
 ```
 
 ### Running tests directly
@@ -253,11 +278,11 @@ feedback:
 ./scripts/test.sh -k grounded
 ```
 
-**Before committing**, always both of these:
+**Before committing**, always both of these (the second needs the stack up):
 
 ```bash
 make gate
-cd frontend && pnpm exec tsc --noEmit && pnpm lint
+make front-gate
 ```
 
 ---
