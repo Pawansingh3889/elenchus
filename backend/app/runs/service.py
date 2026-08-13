@@ -11,7 +11,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.access import in_audience, is_admin_by_config, may_list, may_read_rows
+from app.access import is_admin_by_config, may_list, may_read_rows
 from app.errors import NotFoundError
 from app.runs.enums import AnswerKind, RunStatus
 from app.runs.models import REPLY_PREFIX, SurveyRun
@@ -36,6 +36,7 @@ from app.templates.snapshot import questions_of
 from app.templates.visibility import remaining_possible
 from app.users.models import User
 from app.users.repository import UserRepository
+from app.users.service import UserService
 
 logger = logging.getLogger("app.runs.results")
 
@@ -105,28 +106,14 @@ class ResultsService:
         ]
 
     async def _reach_by_audience(self) -> dict[SurveyAudience, int]:
-        """How many people each audience is, counted once for the whole page.
+        """One shared answer to "how many people is this audience": UserService's.
 
-        The rule is asked, not paraphrased: `in_audience` is `may_answer` with the author
-        and admin escape hatches shut, so this cannot drift from the rule that decides who
-        may actually answer. Writing the same thing in SQL would be a second copy with
-        nothing to catch it diverging.
-
-        Every user is loaded and the predicate run five times over them, which is one
-        query and a few hundred comparisons for a plant's staff list, and the wrong shape
-        at ten thousand users. The escape hatch when that day comes is one grouped query,
-        `SELECT role, department, count(*) GROUP BY 1, 2`, asking the rule once per group
-        instead of once per person.
+        Moved there when the publish dialog started asking too. Kept as a private
+        delegating method rather than inlined at the call sites, so the dashboard and
+        the report keep reading like they did and the one-answer property is a fact of
+        UserService rather than of everyone remembering to call it.
         """
-        users = await self.users.list_all()
-        return {
-            audience: sum(1 for user in users if in_audience(user, audience))
-            # `person` is skipped: its reach is one by definition and depends on which
-            # person, so a single entry here would be a number that is wrong for every
-            # survey. The dashboard supplies it directly.
-            for audience in SurveyAudience
-            if audience is not SurveyAudience.person
-        }
+        return await UserService(self.session).reach_by_audience()
 
     async def list_runs(self, template_id: UUID, author: User) -> list[RunSummary]:
         await self._owned_or_404(template_id, author)

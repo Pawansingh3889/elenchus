@@ -85,8 +85,9 @@ chain through a third module all fail it.
 
 service and models are parenthesised because they are optional, not because
 they are less binding: app.conduct puts its logic in engine.py and reads the
-run models from app.runs, and app.users has no service. A layer that is absent
-is skipped; a layer that exists is ordered.
+run models from app.runs. A layer that is absent is skipped; a layer that
+exists is ordered. app.users had no service until the admin path needed one,
+which is the case the parentheses were there for.
 """
 
 [[tool.importlinter.contracts]]
