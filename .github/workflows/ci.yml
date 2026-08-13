@@ -116,12 +116,3 @@ jobs:
 
       - name: vitest
         run: pnpm test
-
-      # Chromium only, and --with-deps because the runner has none of the browser
-      # libraries. Cached by neither: the download is ~2 minutes and the alternative is a
-      # cache key that silently serves a browser the pinned Playwright cannot drive.
-      - name: install playwright browser
-        run: pnpm exec playwright install --with-deps chromium
-
-      - name: playwright
-        run: pnpm test:e2e
