@@ -94,52 +94,42 @@ Alembic migrations from the first table; no `create_all` in application code.
   directory. The Tailwind layering rule, the class guard and the unified Results page are
   there: each only bites while editing frontend files, and this file is in context for
   every session including the ones that never open it.
-- **A survey is aimed at the floor, and membership decides who may answer.** Adopted
-  12 Aug 2026. `SurveyAudience` is everyone, one of five plant groups, or one named
-  person; the office-team values it replaced were remapped onto `managers`, which rewrote
-  what those surveys said they were for and was chosen knowingly. Membership lives in
-  `user_group_memberships` because the groups overlap, and it is read live rather than
-  frozen at publish so somebody who starts on Tuesday can answer a survey published on
-  Monday. **`role` is not consulted when deciding who may answer**, and reinstating that
-  check is the specific mistake to avoid: the senior groups are full of people who sign in
-  with Teams and therefore hold author accounts, so a role check refuses a supervisors
-  survey to every supervisor. `tests/test_access_rules.py` pins this.
-- **Departments group authors; IT grants admin.** The second half reverses the earlier
-  rule that administration came only from `ADMIN_EMAILS` so it could never be a database
-  edit. It was asked for directly. Be clear-eyed about the cost: `UPDATE users SET
-  department = 'it'` is now a grant of administration. The allowlist still works alongside
-  it, so an admin who does not work in IT is still expressible. Colleagues in a department
-  read each other's surveys and results and **cannot change them**: `may_edit` is owner or
-  admin, and it exists because every mutation used to fetch its template through the
-  listing rule, so widening that for reading widened it for writing in the same line.
-- **Identity: a Microsoft account makes you a creator.** Recorded 12 Aug 2026, not yet
-  wired. `users.microsoft_id` is the Entra object id, and its presence is what will decide
-  `role` once real sign-in exists; everyone else is a named account reached by a QR link.
-  Until then `role` is a stored column and the header shim stands in for a login, so
-  `test_the_seed_agrees_with_how_people_will_sign_in` holds the two consistent while the
-  data is small enough to fix.
-- **An administrator makes accounts, and `role` is stored as sent.** Built 13 Aug 2026,
-  and it closes the blocker the entry above named: `POST`/`PUT /api/v1/admin/users` behind
-  `require_admin`, with `/people` as the screen. `users.created_by` records which
-  administrator made each account, null for everyone the screen did not create. Four
-  shapes are refused at the schema, and the one to understand before relaxing any of them
-  is **a respondent with a department**: `_colleague` would make them a colleague of that
-  department's authors, and `may_read_rows` hands a colleague every individual answer.
-  The knowing cost: `role` comes from the request rather than being derived from
-  `microsoft_id`, which is the opposite of what the entry above intends. An author with no
-  Entra id therefore builds surveys today and loses that the day the derivation lands. The
-  form sets the Entra id and `/people` badges the authors missing one, but nothing
-  enforces the pair, and the seed test only covers `SEED_USERS` rather than the table.
-  **A seeded account already in the database never gains a column the seed adds later**,
-  because the seed inserts only when the id is absent: every author in a dev database
-  seeded before 12 Aug has a null `microsoft_id` while the constant says otherwise.
+- **One job per person, and every right derives from it.** Built 13 Aug 2026, replacing
+  the three vocabularies this section used to describe (`role`, `CreatorDepartment`,
+  `RespondentGroup` with its membership table), after the org chart showed the flaw:
+  the membership table recorded a line leader who was also QA, a job the plant does not
+  contain. A person now holds one job, a `function` (production, quality,
+  health_safety, technical, planning, hr, finance, supply_chain, it, executive) crossed
+  with an ordered `band` (operative, line_leader, supervisor, manager, head, director),
+  plus zero or more `hats` (health_safety first: a supervisor with H&S duties keeps
+  their job and carries the hat). One job per person is the schema's version of an RBAC
+  separation-of-duty constraint, so the impossible overlap cannot be recorded again.
+  Everything else is derived in `app/access` and stored nowhere: **authoring is band >=
+  manager** (the `role` column is gone, and `require_author`'s name survives its
+  contents); audiences are predicates over the job (`qa` is the whole quality ladder,
+  `health_safety` is the function or the hat, `managers` is the band anywhere,
+  `everyone` is anyone with a job, which now includes the office, decided knowingly);
+  colleagues are the authoring bands of one function, symmetric and silo'd per office
+  function; the executive function reads every survey and edits none; and the
+  audience's own seniors do **not** read surveys aimed at their team, so HR can survey
+  a team candidly about its own management. IT still grants admin at any band and the
+  allowlist stays beside it. `microsoft_id` is a sign-in method and decides nothing,
+  which dissolves the stored-role contradiction the old entries recorded: line leaders
+  hold ERP logins without that making them authors. The admin screen writes jobs and
+  hats; the reach preview warns on band and hat edits the way it warned on group edits,
+  and carries `may_author_before/after` so the browser never re-derives band order. The
+  migration remaps by an explicit seed map plus generic rules, deliberately leaves
+  Adaeze's local IT grant alone, and serves old `account_changes` rows in their old
+  vocabulary, because an audit trail that rewrites history is not one. Grounded in the
+  NIST RBAC model (role hierarchy plus static separation of duty) and ordinary
+  job-architecture practice; `tests/test_access_rules.py` is the matrix that pins it.
 - **Reach is live, and the guardrails are a witness, not a freeze.** Decided 13 Aug 2026,
-  against snapshotting membership into published versions: who a survey is for is whoever
-  is in the group today, so a new starter is asked Monday's survey and every denominator
-  moves when membership does. What makes that honest is that changes are seen and
+  against snapshotting audiences into published versions: who a survey is for is whoever
+  holds the job today, so a new starter is asked Monday's survey and every denominator
+  moves when a job does. What makes that honest is that changes are seen and
   recorded: the publish dialog shows the live headcount beside the audience; an admin
   edit that would move an open survey's reach shows exactly which surveys and by how much
-  before saving (warn and proceed, never block, because people genuinely leave teams);
+  before saving (warn and proceed, never block, because people genuinely change jobs);
   and `account_changes` is an append-only audit table written in the same transaction as
   every create and edit, so "why did the completion rate drop on Tuesday" has an answer
   with a name on it. Open-source engines were evaluated for this on 13 Aug and rejected
