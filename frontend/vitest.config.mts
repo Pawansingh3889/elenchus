@@ -19,9 +19,9 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./tests/setup.ts"],
-    // Scoped deliberately: e2e/ belongs to Playwright, and a runner that picks up the
-    // other one's files fails in a way that reads like a broken test rather than a
-    // misrouted file.
+    // Scoped deliberately: anything test-shaped outside tests/ is a script or a
+    // fixture, and a runner that picks one up fails in a way that reads like a broken
+    // test rather than a misrouted file.
     include: ["tests/**/*.test.{ts,tsx}"],
   },
 });

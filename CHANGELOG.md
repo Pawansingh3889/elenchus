@@ -5,6 +5,17 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-08-13. Playwright leaves the repo
+
+The browser suite was one smoke spec asserting the landing page's copy, and it cost
+more than it caught: it sat red for five hours on a copy change, the dev image cannot
+install its browser libraries at all, and CI paid a two minute browser download on
+every push to run it. Removed rather than fixed: `frontend/e2e/`,
+`playwright.config.ts`, the `@playwright/test` dependency, the `test:e2e` script and
+both CI steps. The `shot.mjs` screenshot helper goes with the dependency it imported.
+Rendering is still verified, but by looking at the rendered page rather than by a
+runner; vitest, `tsc`, `eslint` and the Tailwind class guard are unchanged.
+
 ## 2026-08-13. The recap gets a fixed short shape
 
 Asked for directly: a survey recap the author can trust to read the same way every

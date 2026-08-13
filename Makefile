@@ -86,11 +86,6 @@ gate: lint typecheck imports guards test
 # uv; there is no node here, so the frontend has to run inside its container, and folding
 # it in would make the backend gate fail whenever Docker happens to be down. Two commands
 # that each say what they need beats one that lies about it.
-#
-# Playwright is not included: it needs browser libraries the dev image does not carry.
-# To run it locally once, inside the container:
-#   pnpm exec playwright install --with-deps chromium && pnpm test:e2e
-# Otherwise CI is where the browser tests live.
 FRONT_CONTAINER ?= elenchus_frontend_1
 
 front-gate:

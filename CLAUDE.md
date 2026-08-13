@@ -49,10 +49,10 @@ Alembic migrations from the first table; no `create_all` in application code.
   the client-wrapper boundary so tests run without an API key.
 - **Frontend quality**: `make front-gate` clean, which is `tsc --noEmit` + `eslint` +
   `vitest`, run inside the frontend container because there is no node on the host.
-  Playwright drives a real browser from `frontend/e2e/`; CI runs it, and locally it
-  needs `pnpm exec playwright install --with-deps chromium` in the container first.
   Frontend tests are written when something breaks, so each one names a bug that
-  actually happened rather than a failure someone imagined.
+  actually happened rather than a failure someone imagined. There is no browser
+  suite: rendering is verified by looking at the rendered page (screenshot, computed
+  styles), not by a runner.
 - **Secrets**: `.env` is git-ignored, `.env.example` is committed. No provider key ever
   enters the repo.
 - **Prompts as code**: versioned under `backend/app/llm/prompts/`, loaded by name + version.
