@@ -12,9 +12,9 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.access import is_admin_by_config, may_answer, may_list
+from app.access import is_admin_by_config, may_answer, may_edit, may_list, reads_all_surveys
 from app.config import get_settings
-from app.errors import ConflictError, NotFoundError
+from app.errors import ConflictError, ForbiddenError, NotFoundError
 from app.templates.enums import TemplateStatus
 from app.templates.estimate import estimated_minutes
 from app.templates.models import SurveyQuestion, SurveyTemplate, SurveyTemplateVersion
@@ -22,6 +22,7 @@ from app.templates.repository import TemplateRepository
 from app.templates.schemas import QuestionInput, TemplateCreate, TemplateUpdate
 from app.templates.snapshot import questions_of
 from app.users.models import User
+from app.users.repository import UserRepository
 
 logger = logging.getLogger("app.templates")
 
@@ -30,12 +31,19 @@ class TemplateService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
         self.repo = TemplateRepository(session)
+        # Departments and colleagues live in the users domain, and the access rules are
+        # pure functions that cannot go and fetch them. Same pattern as RunService.
+        self.users = UserRepository(session)
 
     async def create_draft(self, data: TemplateCreate, author: User) -> SurveyTemplate:
         template = SurveyTemplate(
             title=data.title,
             description=data.description,
             audience=data.audience,
+            # Carried with the audience, never separately: the pair is validated together
+            # on the schema and enforced together by a check constraint, and dropping this
+            # line writes a survey aimed at a person it does not name.
+            audience_user_id=data.audience_user_id,
             setting=data.setting,
             created_by=author.id,
         )
@@ -50,13 +58,33 @@ class TemplateService:
     async def list_drafts(
         self, status: TemplateStatus | None, author: User
     ) -> list[tuple[SurveyTemplate, int]]:
-        """An author's own workspace. Already scoped to them in the query; filtered again
-        here so the one rule decides, rather than the query agreeing with it by luck."""
+        """An author's workspace, and their function's.
+
+        Scoped in the query to the author plus everyone in their function, then filtered
+        again here so the one rule decides rather than the query agreeing with it by luck.
+        The query has to be widened as well as the rule: a survey a colleague made is not
+        in `created_by = me`, so no amount of filtering would have let it through. An
+        executive's scope is every creator, for the same reason in the other direction:
+        `reads_all_surveys` grants them the lot, and a query still scoped to their own
+        function would silently show them a sliver of it."""
         admin = is_admin_by_config(author)
+        functions = await self.users.functions_by_id()
+        creators = (
+            set(functions)
+            if reads_all_surveys(author)
+            else {author.id} | await self.users.ids_in_function(author.function)
+        )
         return [
             row
-            for row in await self.repo.list_summaries(status, created_by=author.id)
-            if may_list(author, row[0].audience, row[0].created_by, admin)
+            for row in await self.repo.list_summaries(status, created_by_in=creators)
+            if may_list(
+                author,
+                row[0].audience,
+                row[0].created_by,
+                admin,
+                target=row[0].audience_user_id,
+                creator_function=functions.get(row[0].created_by),
+            )
         ]
 
     async def list_published(self, user: User) -> list[tuple[SurveyTemplate, int, int, bool]]:
@@ -77,14 +105,20 @@ class TemplateService:
         return [
             (template, len(questions), estimated_minutes(questions), template.id in answered)
             for template, definition in rows
-            if may_answer(user, template.audience, template.created_by, admin)
+            if may_answer(
+                user,
+                template.audience,
+                template.created_by,
+                admin,
+                target=template.audience_user_id,
+            )
             for questions in [questions_of(definition)]
         ]
 
     async def update_draft(
         self, template_id: UUID, data: TemplateUpdate, author: User
     ) -> SurveyTemplate:
-        template = await self._get_or_404(template_id, author)
+        template = await self._get_for_edit_or_404(template_id, author)
         # Frozen once published. The audience is part of what was published, like the
         # questions: a survey that starts collecting Finance answers and is then pointed
         # at HR ends up with one set of results drawn from two different populations, and
@@ -96,6 +130,7 @@ class TemplateService:
         template.title = data.title
         template.description = data.description
         template.audience = data.audience
+        template.audience_user_id = data.audience_user_id
         template.setting = data.setting
         # Full replace of questions covers add / edit / reorder / delete. Delete the
         # old rows first so the (template_id, position) unique constraint can't clash.
@@ -104,10 +139,10 @@ class TemplateService:
         for i, q in enumerate(data.questions):
             template.questions.append(_to_question(q, i))
         await self.session.commit()
-        return await self._get_or_404(template_id, author)
+        return await self._get_for_edit_or_404(template_id, author)
 
     async def delete_draft(self, template_id: UUID, author: User) -> None:
-        template = await self._get_or_404(template_id, author)
+        template = await self._get_for_edit_or_404(template_id, author)
         await self.repo.delete(template)
         try:
             await self.session.commit()
@@ -116,7 +151,7 @@ class TemplateService:
             raise ConflictError("Cannot delete a template that has published versions.") from exc
 
     async def publish(self, template_id: UUID, author: User) -> SurveyTemplateVersion:
-        template = await self._get_or_404(template_id, author)
+        template = await self._get_for_edit_or_404(template_id, author)
         if not template.questions:
             raise ConflictError("Cannot publish a template with no questions.")
         version = SurveyTemplateVersion(
@@ -143,7 +178,7 @@ class TemplateService:
         stopping mid-question would lose answers a respondent has already given, and for a
         chat that is a worse bargain than a final count that settles a few minutes late.
         """
-        template = await self._get_or_404(template_id, author)
+        template = await self._get_for_edit_or_404(template_id, author)
         if template.status is not TemplateStatus.published:
             raise ConflictError(
                 f"Only a published survey can be closed; this one is {template.status.value}."
@@ -162,8 +197,14 @@ class TemplateService:
         # can't be used to enumerate which ids exist. The rule itself lives in
         # app/access: this used to compare created_by here, which was the same rule
         # written in a second place and free to drift from the one the engine uses.
+        functions = await self.users.functions_by_id()
         decision = may_list(
-            author, template.audience, template.created_by, is_admin_by_config(author)
+            author,
+            template.audience,
+            template.created_by,
+            is_admin_by_config(author),
+            target=template.audience_user_id,
+            creator_function=functions.get(template.created_by),
         )
         if not decision:
             logger.info(
@@ -173,6 +214,31 @@ class TemplateService:
                 decision.reason,
             )
             raise NotFoundError("Template not found.")
+        return template
+
+    async def _get_for_edit_or_404(self, template_id: UUID, author: User) -> SurveyTemplate:
+        """The same fetch, asking whether this user may *change* the survey.
+
+        Separate from `_get_or_404` because the two questions came apart the moment a
+        department colleague could see somebody else's work. Every mutation used to reach
+        for the listing rule, so widening that rule for reading widened it for writing at
+        the same time, and a colleague could rename and publish a survey in another
+        author's name without either of them noticing.
+
+        Still a 404 rather than a 403 on refusal, but only after `_get_or_404` has already
+        agreed the survey is visible: a colleague who can see it and cannot change it
+        should be told it exists, so the refusal here is about the action, not the row.
+        """
+        template = await self._get_or_404(template_id, author)
+        decision = may_edit(author, template.created_by, is_admin_by_config(author))
+        if not decision:
+            logger.info(
+                "template edit refused: template=%s user=%s reason=%s",
+                template_id,
+                author.id,
+                decision.reason,
+            )
+            raise ForbiddenError(decision.reason)
         return template
 
 

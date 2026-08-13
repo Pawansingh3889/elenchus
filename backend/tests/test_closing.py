@@ -9,7 +9,7 @@ is a worse bargain than a final count that settles a few minutes late.
 import pytest
 
 from app.conduct.engine import ConductEngine
-from app.errors import ConflictError, NotFoundError
+from app.errors import ConflictError, ForbiddenError
 from app.runs.enums import RunStatus
 from app.templates.enums import TemplateStatus
 from app.templates.service import TemplateService
@@ -62,9 +62,11 @@ async def test_only_a_published_survey_can_be_closed(session, author):
 
 
 async def test_closing_someone_elses_survey_reads_as_absent(session, other_author, published):
-    """Same rule as the rest of the template API: not yours reads as missing, so the
-    endpoint cannot be used to find out which ids exist."""
-    with pytest.raises(NotFoundError):
+    """Same rule as the rest of the template API: a survey outside your audience reads
+    as missing, so the endpoint cannot be used to find out which ids exist. The
+    `published` fixture is aimed at everyone, which every jobbed person may now see, so
+    the refusal a stranger gets on the close itself is forbidden rather than absent."""
+    with pytest.raises(ForbiddenError):
         await TemplateService(session).close(published.id, other_author)
 
 

@@ -65,18 +65,9 @@ function RecapBody({ recap }: { recap: SurveySummary }) {
         ))}
       </ul>
 
-      {recap.notable_quotes.length > 0 ? (
-        <div className="flex flex-col gap-2">
-          {recap.notable_quotes.map((quote, i) => (
-            <blockquote key={i} className="border-s-2 border-ai-border ps-3">
-              <p className="text-ink">{quote.quote}</p>
-              <cite className="text-sm not-italic text-muted">
-                {quote.respondent} · {quote.question}
-              </cite>
-            </blockquote>
-          ))}
-        </div>
-      ) : null}
+      {/* The evidence line. Computed on the server from the report, so the one line
+          that qualifies the findings above is never the model's to get wrong. */}
+      <p className="text-sm text-muted">{recap.caveat}</p>
 
       {/* Which prompt and which tier wrote it. A recap that reads worse than it used to
           may be a prompt change or a model change, and this is what tells them apart. */}

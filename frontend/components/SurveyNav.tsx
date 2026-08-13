@@ -31,7 +31,7 @@ export function SurveyNav({ templateId, current }: { templateId: string; current
 
   return (
     <div className="survey-nav">
-      <Link href="/" className="survey-back">
+      <Link href="/dashboard" className="survey-back">
         {common.backToDashboard}
       </Link>
       <nav className="survey-tabs" aria-label={builder.tabsLabel}>

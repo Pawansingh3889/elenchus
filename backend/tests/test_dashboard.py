@@ -10,7 +10,7 @@ import pytest
 
 from app.conduct.engine import ConductEngine
 from app.runs.service import ResultsService
-from app.templates.enums import AnswerType, TemplateStatus
+from app.templates.enums import AnswerType, SurveyAudience, TemplateStatus
 from app.templates.schemas import QuestionInput, TemplateCreate
 from app.templates.service import TemplateService
 from tests.fakes import FakeLLM
@@ -105,18 +105,31 @@ async def test_the_dashboard_counts_people_as_well_as_runs(
 
     assert (row.started, row.completed) == (2, 2)
     assert (row.people_started, row.people_completed) == (2, 2)
-    # The audience is every respondent that exists, which here is the two who answered.
-    assert row.reach == 2
-    assert row.response_rate == pytest.approx(1.0)
+    # The audience is everyone with a job: the two who answered, and the author, whose
+    # manager band is a job like any other since the job model landed.
+    assert row.reach == 3
+    assert row.response_rate == pytest.approx(2 / 3)
 
 
-async def test_a_survey_aimed_at_nobody_has_no_rate(session, author, published):
+async def test_a_survey_aimed_at_nobody_has_no_rate(session, author):
     """None rather than 0. A survey aimed at a team with nobody in it has no response
     rate, and 0% would read as everyone refusing rather than as nobody being asked.
 
-    This survey is aimed at respondents and no respondent exists in this test, so the
-    empty audience is real rather than constructed."""
-    row = next(r for r in await ResultsService(session).dashboard(author) if r.id == published.id)
+    Aimed at health and safety, and nobody in this test holds that function or the hat,
+    so the empty audience is real rather than constructed. It cannot be `everyone` any
+    more: the author's own job puts them in that one."""
+    svc = TemplateService(session)
+    template = await svc.create_draft(
+        TemplateCreate(
+            title="H&S check",
+            audience=SurveyAudience.health_safety,
+            questions=[QuestionInput(text="Anything unsafe?", answer_type=AnswerType.short_text)],
+        ),
+        author,
+    )
+    await svc.publish(template.id, author)
+
+    row = next(r for r in await ResultsService(session).dashboard(author) if r.id == template.id)
 
     assert row.reach == 0
     assert row.response_rate is None

@@ -7,16 +7,19 @@ import { LivePreview } from "@/components/LivePreview";
 import { QuestionEditor } from "@/components/QuestionEditor";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { SurveyNav } from "@/components/SurveyNav";
+import { audienceLabel } from "@/lib/audience";
 import { publishBlockers } from "@/lib/publishBlockers";
 import { publishQuip } from "@/lib/publishQuip";
 import { useDraftQuestions } from "@/lib/useDraftQuestions";
 import {
+  useAudienceReach,
   useCurrentUser,
   useDeleteTemplate,
   usePublishTemplate,
   useRefineTemplate,
   useTemplate,
   useUpdateTemplate,
+  useUsers,
 } from "@/lib/queries";
 import { ApiError } from "@/lib/api";
 import { useT } from "@/lib/i18n/useT";
@@ -36,6 +39,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
   const publish = usePublishTemplate(id);
   const remove = useDeleteTemplate(id);
   const refine = useRefineTemplate(id);
+  const { data: users } = useUsers();
   const router = useRouter();
 
   const [loadedId, setLoadedId] = useState<string | null>(null);
@@ -43,10 +47,17 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
   const [description, setDescription] = useState("");
   const draft = useDraftQuestions();
   const questions = draft.questions;
-  const [audience, setAudience] = useState<SurveyAudience>("respondents");
+  const [audience, setAudience] = useState<SurveyAudience>("everyone");
+  // Carried, not edited, exactly like `audience`. The builder renders no control for
+  // either; both exist here so a save cannot silently change who a survey is for.
+  const [audienceUserId, setAudienceUserId] = useState<string | null>(null);
   const [setting, setSetting] = useState("");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [confirmingPublish, setConfirmingPublish] = useState(false);
+  // Fetched when the dialog opens and not before: the number belongs to the moment of
+  // publishing, and it is live, so a count fetched with the page could be minutes old
+  // by the time anyone reads it. A person-aimed survey needs no count; it is one.
+  const { data: reach } = useAudienceReach(confirmingPublish && audience !== "person");
   const [instruction, setInstruction] = useState("");
   // Seed the Refine panel with the note from the generate that opened this draft…
   const [notes, setNotes] = useState<string[]>(() => {
@@ -58,7 +69,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
     useDraftNoteStore.getState().clearPendingNote(id);
   }, [id]);
 
-  const isRespondent = currentUser?.role === "respondent";
+  const isRespondent = currentUser ? !currentUser.may_author : false;
   useEffect(() => {
     if (isRespondent) router.replace("/respond");
   }, [isRespondent, router]);
@@ -73,6 +84,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
     setTitle(template.title);
     setDescription(template.description ?? "");
     setAudience(template.audience);
+    setAudienceUserId(template.audience_user_id);
     setSetting(template.setting ?? "");
     draft.reset(
       template.questions.map((q) => ({
@@ -103,13 +115,18 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
 
   const blockers = publishBlockers(questions, msg.builder);
 
-  // audience and setting ride on every write although nothing here edits them: a save
-  // replaces the whole template, so leaving one out clears it. Read from the template,
-  // sent straight back.
+  // audience, the person it names, and setting ride on every write although nothing here
+  // edits them: a save replaces the whole template, so leaving one out clears it. Read
+  // from the template, sent straight back.
+  //
+  // The person is not optional once the audience is `person`: the server validates the
+  // pair, so a save that dropped it would be a 422 on a survey the author only opened to
+  // fix a typo.
   const body = {
     title,
     description: description || null,
     audience,
+    audience_user_id: audienceUserId,
     // Empty box means no setting, not an empty one: null is what "not described" is
     // stored as, and the engine reads a blank string the same way.
     setting: setting.trim() || null,
@@ -133,7 +150,9 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
       // Rendered from update.error / publish.error below.
     }
   };
-  const onDelete = () => remove.mutate(undefined, { onSuccess: () => router.push("/") });
+  // Back to the workspace, not the landing page. `/` explains the product now, which is
+  // not what somebody who has just deleted a draft is looking for.
+  const onDelete = () => remove.mutate(undefined, { onSuccess: () => router.push("/dashboard") });
   const onRefine = async () => {
     const text = instruction.trim();
     if (!text) return;
@@ -147,6 +166,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
       // cannot change it, so this only ever re-states what was already saved. Re-seeding
       // it with the rest keeps one source of truth for the whole form.
       setAudience(revised.audience);
+      setAudienceUserId(revised.audience_user_id);
       setSetting(revised.setting ?? "");
       draft.reset(
         revised.questions.map((q) => ({
@@ -170,6 +190,10 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
 
   const probing = questions.filter((q) => q.follow_up_policy === "always_once").length;
   const republishing = template?.status !== "draft";
+  // The name behind `audience_user_id`, for the publish confirmation. Same cached
+  // query the top bar already runs, so naming the person costs no extra request.
+  const personName = users?.find((u) => u.id === audienceUserId)?.display_name ?? null;
+
   const quip = publishQuip(questions, republishing, locale);
 
   return (
@@ -183,8 +207,28 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
           onConfirm={onPublish}
           onCancel={() => setConfirmingPublish(false)}
         >
+          {/* Who it is for, on the one screen where it still matters. The audience is
+              chosen on the prompt and frozen at publish, so this dialog is the last point
+              at which an author can notice that a survey about the night shift is pointed
+              at Finance. Named, not implied: "Managers" and one person's name are both
+              things you can check at a glance and neither is visible anywhere else here. */}
+          <p>{msg.audience.forWhom(audienceLabel(msg.audience, audience, personName))}</p>
+          {/* The denominator, at the moment it starts to matter. Live by decision, so
+              this is "right now" and says so: the count follows the group as people
+              join and leave, and the number the results page divides by later may
+              legitimately differ. Absent while loading rather than a spinner; the
+              sentence above already says who it is for. */}
+          {audience !== "person" && reach ? (
+            <p>{msg.audience.reachNow(reach[audience])}</p>
+          ) : null}
           <p>{msg.builder.publishShape(questions.length, probing)}</p>
           <p>{republishing ? msg.builder.publishAgain : msg.builder.publishFreezes}</p>
+          {/* The same warning the prompt gives, repeated at the irreversible step. An
+              audience of one makes the answer attributable however it is labelled, and
+              publishing is the moment that stops being hypothetical. */}
+          {audience === "person" ? (
+            <p className="modal-aside">{msg.audience.attributable}</p>
+          ) : null}
           {/* English only, and absent rather than translated: everything load-bearing
               above is said in every locale, and this line is not. */}
           {quip ? <p className="modal-aside">{quip}</p> : null}

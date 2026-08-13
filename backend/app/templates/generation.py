@@ -19,7 +19,7 @@ from app.llm.client import LLMError, LLMProtocol
 from app.llm.decoding import decode_stringified
 from app.llm.factory import get_llm
 from app.llm.prompts import load_prompt
-from app.templates.enums import AnswerType, FollowUpPolicy
+from app.templates.enums import AnswerType, FollowUpPolicy, SurveyAudience
 from app.templates.models import SurveyTemplate
 from app.templates.schemas import TemplateCreate, TemplateUpdate
 from app.templates.service import TemplateService
@@ -78,9 +78,22 @@ class GenerationService:
         self.llm: LLMProtocol = llm or get_llm()
         self.templates = TemplateService(session)
 
-    async def generate_draft(self, prompt: str, author: User) -> tuple[SurveyTemplate, str]:
+    async def generate_draft(
+        self,
+        prompt: str,
+        author: User,
+        audience: SurveyAudience = SurveyAudience.everyone,
+        audience_user_id: UUID | None = None,
+    ) -> tuple[SurveyTemplate, str]:
         """Draft a new survey from a description. Returns the saved draft and the model's
-        short note on what it built."""
+        short note on what it built.
+
+        The audience is the author's, not the model's. `_DraftToolInput` extends
+        `TemplateCreate`, so `audience` sits in the tool schema and the model can fill it
+        in, yet no prompt file mentions the field or what the values mean. That leaves who
+        may answer a survey decided by a model that was told nothing about the question,
+        which is the same failure the `TemplateUpdate` docstring records. Overriding after
+        the draft returns keeps one answer to "who is this for", and it is the author's."""
         system = load_prompt(GENERATE_PROMPT_VERSION)
         with ledger.using_prompt(GENERATE_PROMPT_VERSION):
             template_in, note = await self._draft(
@@ -88,7 +101,10 @@ class GenerationService:
                 [{"role": "user", "content": f"{prompt}\n\n{_policy()}"}],
                 previous_error=None,
             )
-        template = await self.templates.create_draft(_without_catch_alls(template_in), author)
+        drafted = _without_catch_alls(template_in).model_copy(
+            update={"audience": audience, "audience_user_id": audience_user_id}
+        )
+        template = await self.templates.create_draft(drafted, author)
         return template, note
 
     async def refine_draft(
@@ -112,9 +128,22 @@ class GenerationService:
                 # rejected for returning.
                 kept=frozenset(q.text for q in current.questions if q.answer_type in FREE_TEXT),
             )
-        updated = await self.templates.update_draft(
-            template_id, _to_update(_without_catch_alls(template_in)), author
+        # The settings the brief never shows, restored from the stored draft rather than
+        # trusted back. The tool schema carries them because it extends TemplateCreate,
+        # so the model returns a guess (usually the schema defaults), and update_draft
+        # replaces every column it names: left alone, a refine deleted the setting and
+        # re-aimed the survey at whoever the guess said. They are the author's decisions,
+        # exactly as generate_draft already rules for `audience`, and restoring them also
+        # keeps a refine of a published survey clear of update_draft's audience guard,
+        # which a wrong guess used to trip as a 409.
+        revised = _without_catch_alls(template_in).model_copy(
+            update={
+                "audience": current.audience,
+                "audience_user_id": current.audience_user_id,
+                "setting": current.setting,
+            }
         )
+        updated = await self.templates.update_draft(template_id, _to_update(revised), author)
         return updated, note
 
     async def _draft(
@@ -230,11 +259,17 @@ def _to_update(template_in: TemplateCreate) -> TemplateUpdate:
 def _describe(template: SurveyTemplate) -> str:
     """Render the current draft as plain text for the model to revise.
 
-    Everything the author can set has to appear here. A refine returns the COMPLETE
-    survey and ``update_draft`` replaces every row with it, so any attribute this
-    omits is not "left alone", it is deleted. ``show_when`` was omitted, and so every
-    conditional-visibility rule in a draft was silently dropped the first time the
-    author asked for any unrelated change.
+    Everything the model is trusted to revise has to appear here. A refine returns the
+    COMPLETE survey and ``update_draft`` replaces every row with it, so any attribute
+    this omits is not "left alone", it is deleted. ``show_when`` was omitted, and so
+    every conditional-visibility rule in a draft was silently dropped the first time
+    the author asked for any unrelated change.
+
+    The deliberate exceptions are ``audience``, ``audience_user_id`` and ``setting``,
+    which ``refine_draft`` restores from the stored draft after the model answers.
+    They lost data the same way ``show_when`` did, but the fix is the opposite one:
+    they are the author's decisions rather than prose to revise, so showing them to
+    the model would only invite it to change them.
     """
     lines = [
         f"Title: {template.title}",

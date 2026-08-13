@@ -34,7 +34,7 @@ export default function RunPage() {
   }, [run?.messages.length, send.isPending]);
 
   // Conducting is respondent-only; an author following a run link is sent to Build.
-  const isAuthor = currentUser?.role === "author";
+  const isAuthor = currentUser?.may_author === true;
   useEffect(() => {
     if (isAuthor) router.replace("/");
   }, [isAuthor, router]);

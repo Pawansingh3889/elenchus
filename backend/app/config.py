@@ -16,6 +16,20 @@ class Settings(BaseSettings):
     database_url: str = Field(
         ..., description="Async SQLAlchemy URL, e.g. postgresql+asyncpg://user:pass@host/db"
     )
+    # Sized for the plant's actual traffic shape, which is a burst: the floor answers
+    # surveys on breaks, so the load is near zero most of the day and then roughly a
+    # shift's worth of people at once for half an hour. A conduct turn checks its
+    # connection out when it loads the run and holds it through the LLM call, seconds at
+    # a time, so concurrent respondents map one-to-one onto held connections. The
+    # SQLAlchemy defaults (5 + 10 overflow) put half of a 30-person break in the pool
+    # queue, where the default 30s wait turns into a 500 mid-conversation.
+    #
+    # 10 + 30 covers that burst with room for the authors watching it happen, and stays
+    # comfortably under Postgres's default max_connections of 100.
+    db_pool_size: int = Field(10, gt=0, description="Connections kept open in the pool")
+    db_pool_max_overflow: int = Field(
+        30, ge=0, description="Extra connections allowed above the pool during a burst"
+    )
     # The LLM tiers form one ordered failover chain. Tier 1 serves every turn until it
     # raises, then tier 2, and so on; the intended order is OpenAI, Groq, then OpenRouter,
     # with tier 4 left as a spare slot. Every tier speaks the OpenAI Chat Completions API,

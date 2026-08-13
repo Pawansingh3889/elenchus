@@ -11,9 +11,10 @@ from uuid import UUID
 from fastapi import Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.access import is_admin_by_config, may_author
 from app.db.session import get_session
 from app.errors import ForbiddenError, UnauthorizedError
-from app.users.models import User, UserRole
+from app.users.models import User
 from app.users.repository import UserRepository
 
 
@@ -30,12 +31,27 @@ async def get_current_user(
 
 
 async def require_author(user: User = Depends(get_current_user)) -> User:
-    if user.role is not UserRole.author:
-        raise ForbiddenError("This action requires an author account.")
+    """The gate on the authoring surface: building, publishing, reading results.
+
+    Derived from the job (`may_author`: manager band and up) rather than read from a
+    stored role, which is the column this check used to consult and the column that
+    could disagree with the org chart. The name stays `require_author` because that is
+    still the question; only where the answer comes from changed.
+    """
+    if not may_author(user):
+        raise ForbiddenError("Building surveys needs a manager-band account.")
     return user
 
 
-async def require_respondent(user: User = Depends(get_current_user)) -> User:
-    if user.role is not UserRole.respondent:
-        raise ForbiddenError("Only respondents can take surveys.")
+async def require_admin(user: User = Depends(get_current_user)) -> User:
+    """The gate on everything that changes who somebody is.
+
+    Deliberately not layered on `require_author`. The two answer different questions and
+    an administrator is not defined in terms of a role: `is_admin` asks the IT department
+    and the email allowlist, and neither consults `role` at all. Chaining them would mean
+    an administrator whose own account happened to be a respondent could no longer reach
+    the screen that would fix it.
+    """
+    if not is_admin_by_config(user):
+        raise ForbiddenError("This action requires an administrator account.")
     return user

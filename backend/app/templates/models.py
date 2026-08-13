@@ -40,8 +40,19 @@ class SurveyTemplate(Base):
     # aimed at the respondent pool. Frozen at publish: see TemplateService.publish.
     audience: Mapped[SurveyAudience] = mapped_column(
         SAEnum(SurveyAudience, name="survey_audience"),
-        default=SurveyAudience.respondents,
-        server_default=SurveyAudience.respondents.value,
+        default=SurveyAudience.everyone,
+        server_default=SurveyAudience.everyone.value,
+    )
+    # The one person a survey is for, and only meaningful when `audience` is `person`.
+    #
+    # Nullable, and the pairing is enforced in the service rather than left to the caller:
+    # `person` with no id is a survey nobody can answer, and an id with any other audience
+    # is a target that silently does nothing. Both are rejected loudly.
+    #
+    # No cascade to `users`: deleting a person must not quietly delete the survey that was
+    # about them, and the erasure route already replaces their answers with a withdrawal.
+    audience_user_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id"), default=None, index=True
     )
     # What the interviewer needs to know about the workplace to read answers here, in the
     # author's words. Nullable, because most surveys need none and an empty one is not a

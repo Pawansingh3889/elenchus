@@ -94,3 +94,66 @@ Alembic migrations from the first table; no `create_all` in application code.
   directory. The Tailwind layering rule, the class guard and the unified Results page are
   there: each only bites while editing frontend files, and this file is in context for
   every session including the ones that never open it.
+- **One job per person, and every right derives from it.** Built 13 Aug 2026, replacing
+  the three vocabularies this section used to describe (`role`, `CreatorDepartment`,
+  `RespondentGroup` with its membership table), after the org chart showed the flaw:
+  the membership table recorded a line leader who was also QA, a job the plant does not
+  contain. A person now holds one job, a `function` (production, quality,
+  health_safety, technical, planning, hr, finance, supply_chain, it, executive) crossed
+  with an ordered `band` (operative, line_leader, supervisor, manager, head, director),
+  plus zero or more `hats` (health_safety first: a supervisor with H&S duties keeps
+  their job and carries the hat). One job per person is the schema's version of an RBAC
+  separation-of-duty constraint, so the impossible overlap cannot be recorded again.
+  Everything else is derived in `app/access` and stored nowhere: **authoring is band >=
+  manager** (the `role` column is gone, and `require_author`'s name survives its
+  contents); audiences are predicates over the job (`qa` is the whole quality ladder,
+  `health_safety` is the function or the hat, `managers` is the band anywhere,
+  `everyone` is anyone with a job, which now includes the office, decided knowingly);
+  colleagues are the authoring bands of one function, symmetric and silo'd per office
+  function; the executive function reads every survey and edits none; and the
+  audience's own seniors do **not** read surveys aimed at their team, so HR can survey
+  a team candidly about its own management. IT still grants admin at any band and the
+  allowlist stays beside it. `microsoft_id` is a sign-in method and decides nothing,
+  which dissolves the stored-role contradiction the old entries recorded: line leaders
+  hold ERP logins without that making them authors. The admin screen writes jobs and
+  hats; the reach preview warns on band and hat edits the way it warned on group edits,
+  and carries `may_author_before/after` so the browser never re-derives band order. The
+  migration remaps by an explicit seed map plus generic rules, deliberately leaves
+  Adaeze's local IT grant alone, and serves old `account_changes` rows in their old
+  vocabulary, because an audit trail that rewrites history is not one. Grounded in the
+  NIST RBAC model (role hierarchy plus static separation of duty) and ordinary
+  job-architecture practice; `tests/test_access_rules.py` is the matrix that pins it.
+- **Reach is live, and the guardrails are a witness, not a freeze.** Decided 13 Aug 2026,
+  against snapshotting audiences into published versions: who a survey is for is whoever
+  holds the job today, so a new starter is asked Monday's survey and every denominator
+  moves when a job does. What makes that honest is that changes are seen and
+  recorded: the publish dialog shows the live headcount beside the audience; an admin
+  edit that would move an open survey's reach shows exactly which surveys and by how much
+  before saving (warn and proceed, never block, because people genuinely change jobs);
+  and `account_changes` is an append-only audit table written in the same transaction as
+  every create and edit, so "why did the completion rate drop on Tuesday" has an answer
+  with a name on it. Open-source engines were evaluated for this on 13 Aug and rejected
+  with reasons: Oso's library is deprecated, OpenFGA/SpiceDB/Cerbos are always-on
+  services against the no-local-services decision, and pycasbin would replace the pure,
+  reasoned `app/access` with a PERM DSL while providing none of the guardrails, which
+  are change-management, not authorization. Do not re-litigate that without new facts.
+  One number to keep in mind: reach and preview iterate every user and open survey per
+  request, which is fine at plant size and author-side only, so the break-time burst
+  (the whole floor answering at once, the reason `DB_POOL_SIZE`/`DB_POOL_MAX_OVERFLOW`
+  exist and are forwarded in compose) never pays for them.
+- **Seed ids are forever, and the seed refuses impostors.** Two ids reused from a retired
+  generation of `SEED_USERS` were still occupied in databases seeded before 10 Aug; the
+  insert silently skipped and the membership loop decorated the strangers holding them.
+  New seed users take fresh c-block ids, `seed()` raises when an id's email disagrees,
+  and `test_the_seed_only_decorates_its_own_users` pins the shape.
+- **Signing in is an address, not a list.** `POST /api/v1/dev/identify` added 13 Aug 2026,
+  because the app could not be entered at all from a clean browser: listing users requires
+  a caller, a caller is an id under the header shim, and that list was the only source of
+  an id. Every page told you to pick a user in a dropdown that could never be filled, and
+  only a leftover localStorage entry hid it. The endpoint is unauthenticated of necessity,
+  so **its mount is its only protection**: registered beside the picker and only outside
+  production, pinned by a test. Knowing an address is therefore enough to act as somebody,
+  which is the honest state of authentication here until a real provider replaces
+  `get_current_user`. Do not move it out from behind that branch, and do not "fix" the
+  deadlock by unauthenticating the user list: that hands out every id, which is every
+  credential.

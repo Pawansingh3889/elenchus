@@ -14,15 +14,154 @@ export type AnswerType =
 export type FollowUpPolicy = "never" | "when_unclear" | "always_once";
 
 export type TemplateStatus = "draft" | "published" | "closed" | "archived";
-/** Who a survey is for: the whole respondent pool, or one creator department. */
-export type SurveyAudience = "respondents" | "hr" | "operations" | "finance" | "technical";
-export type UserRole = "author" | "respondent";
+/** Who a survey is for: everyone with a job, one slice of the org chart, or one named
+ *  person. Membership is derived server-side from each person's job, never stored.
+ *  `person` carries its target in `audience_user_id`; the two only mean anything
+ *  together, and the API refuses either half on its own. */
+export type SurveyAudience =
+  | "everyone"
+  | "operatives"
+  | "line_leaders"
+  | "supervisors"
+  | "shift_managers"
+  | "managers"
+  | "qa"
+  | "health_safety"
+  | "person";
+/** Which ladder somebody is on. `JobFunction` rather than `Function`, which is a
+ *  global type in TypeScript and shadowing it invites quiet breakage. `it` also
+ *  grants admin. */
+export type JobFunction =
+  | "production"
+  | "quality"
+  | "health_safety"
+  | "technical"
+  | "planning"
+  | "hr"
+  | "finance"
+  | "supply_chain"
+  | "it"
+  | "executive";
+/** How high on the ladder. Ordered on the server; manager and up may author. The
+ *  order is deliberately not re-derived here: `may_author` arrives computed. */
+export type Band =
+  | "operative"
+  | "line_leader"
+  | "supervisor"
+  | "manager"
+  | "head"
+  | "director";
+/** A cross-cutting responsibility on top of the job. */
+export type Hat = "health_safety";
+
+/** One person as the directory shows them. Deliberately no email: a name and a job
+ *  answer "who is in this audience", and an address is contactable data the page has
+ *  no use for. A null job is a service account: in no audience at all. */
+export interface Person {
+  id: string;
+  display_name: string;
+  function: JobFunction | null;
+  band: Band | null;
+  hats: Hat[];
+  /** Derived server-side from the band, so the page never re-invents the cutoff. */
+  may_author: boolean;
+  /** Whether this account carries an Entra object id, not the id itself. Somebody at
+   *  an authoring band without one builds surveys today and has no way to sign in
+   *  when the header shim is replaced, so the directory marks it. */
+  has_microsoft_id: boolean;
+}
+
+/** The caller, as themselves. Both derived flags are the server's to compute:
+ *  `may_author` turns on band order, and half of `is_admin` is an email allowlist
+ *  that lives in server settings. */
+export interface Me {
+  id: string;
+  display_name: string;
+  function: JobFunction | null;
+  band: Band | null;
+  may_author: boolean;
+  is_admin: boolean;
+}
+
+/** What an administrator sets on an account: the job, both halves required, plus any
+ *  hats. There is no role field; what the account may do derives from these. The
+ *  update is a full replacement rather than a patch, so the form sends everything. */
+export interface AccountWrite {
+  display_name: string;
+  function: JobFunction;
+  band: Band;
+  microsoft_id: string | null;
+  hats: Hat[];
+}
+
+/** Creating adds the address. There is no way to change one afterwards: `is_admin`
+ *  matches its allowlist on the email, so editing it would be a way to hand somebody
+ *  administration through a field that looks like a typo correction. */
+export type AccountCreate = AccountWrite & { email: string };
+
+export interface Account {
+  id: string;
+  email: string;
+  display_name: string;
+  function: JobFunction | null;
+  band: Band | null;
+  microsoft_id: string | null;
+  created_by: string | null;
+  hats: Hat[];
+}
+
+/** How many people each audience is, right now. Live by decision: the count follows
+ *  the org chart as jobs change. `person` is absent, not zero; its reach is one by
+ *  definition and the screen already names the person. */
+export type AudienceReach = Record<Exclude<SurveyAudience, "person">, number>;
+
+/** One audit row. `changed_by_name` is null when the editor's account is gone; the row
+ *  outlives them on purpose. `before`/`after` arrive as the plain JSON the row stores:
+ *  the log is append-only and outlives vocabularies, so rows written before the job
+ *  model say `role`, `department` and `groups`, and the screen renders whichever keys
+ *  a row carries rather than the server rewriting history into today's shape. */
+export interface AccountChangeEntry {
+  id: string;
+  changed_at: string;
+  changed_by: string | null;
+  changed_by_name: string | null;
+  kind: "created" | "updated";
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown>;
+}
+
+/** One open survey this edit would move the person in or out of. */
+export interface SurveyImpact {
+  template_id: string;
+  title: string;
+  audience: SurveyAudience;
+  now_in: boolean;
+  reach_before: number;
+  reach_after: number;
+}
+
+/** What saving an edit would change, computed server-side before anything is saved. */
+export interface AccountImpact {
+  function_before: JobFunction | null;
+  function_after: JobFunction;
+  band_before: Band | null;
+  band_after: Band;
+  /** Whether the edit changes who they are to the app, derived where band order
+   *  lives. The dialog warns on a flip in either direction. */
+  may_author_before: boolean;
+  may_author_after: boolean;
+  hats_added: Hat[];
+  hats_removed: Hat[];
+  surveys: SurveyImpact[];
+}
 
 export interface User {
   id: string;
   email: string;
   display_name: string;
-  role: UserRole;
+  function: JobFunction | null;
+  band: Band | null;
+  may_author: boolean;
 }
 
 export type ShowWhenOp = "is" | "is_not";
@@ -61,6 +200,8 @@ export interface Template {
   created_at: string;
   updated_at: string;
   audience: SurveyAudience;
+  /** The one person, when `audience` is `person`, and null otherwise. */
+  audience_user_id: string | null;
   setting: string | null;
   questions: Question[];
 }
@@ -97,9 +238,13 @@ export interface GeneratedTemplate {
 export interface TemplateWrite {
   title: string;
   description?: string | null;
-  /** Who the survey is for. Required on an update, where omitting it used to reset an
-   *  HR survey to the whole respondent pool on every save. */
+  /** Who the survey is for. Required on an update, where omitting it used to reset a
+   *  targeted survey to the whole floor on every save. */
   audience: SurveyAudience;
+  /** Rides with `audience` on every write. A save that carries `person` without this
+   *  is a 422, and one that carries this without `person` is too: the server refuses
+   *  either half alone rather than storing a survey aimed at nobody. */
+  audience_user_id?: string | null;
   /** What the interviewer needs to know about the workplace to read answers here.
    *  Never shown to the respondent. Optional: most surveys need none. */
   setting?: string | null;
@@ -286,18 +431,15 @@ export interface SurveyFinding {
   average: number | null;
 }
 
-export interface SurveyQuote {
-  question: string;
-  respondent: string;
-  quote: string;
-}
-
-/** The recap of a whole survey. `runs_included` is what it was written from, shown on
+/** The recap of a whole survey: a fixed short shape, one headline, at most three
+ *  findings, and a caveat line. `runs_included` is what it was written from, shown on
  *  the page because a recap is only true of the responses it read. */
 export interface SurveySummary {
   headline: string;
   findings: SurveyFinding[];
-  notable_quotes: SurveyQuote[];
+  /** The evidence line, computed server-side from the report (who answered, earlier
+   *  versions, mostly-declined questions). Engine numbers, never model prose. */
+  caveat: string;
   version: number;
   runs_included: number;
   generated_at: string;

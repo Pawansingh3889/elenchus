@@ -84,12 +84,40 @@ class QuestionInput(BaseModel):
         return self
 
 
-class TemplateWrite(BaseModel):
+class AudienceTarget(BaseModel):
+    """Who a survey is for, as the two fields that only mean anything together.
+
+    A base class rather than two copies of the pair, because the rule binding them is the
+    interesting part and a second copy of it is a second thing to forget. Both the builder
+    and the AI draft request carry it.
+    """
+
+    # Defaulted on a new draft, where "nothing said yet" honestly means everyone on the
+    # floor. Required on an update: see TemplateUpdate.
+    audience: SurveyAudience = SurveyAudience.everyone
+    # The one person, and only when `audience` is `person`.
+    audience_user_id: UUID | None = None
+
+    @model_validator(mode="after")
+    def _person_and_id_agree(self) -> "AudienceTarget":
+        """The pair is valid together or not at all, and saying so is a 422 rather than a
+        row nobody can explain later.
+
+        Both halves are wrong in their own way. `person` with no id is a survey aimed at
+        somebody unnamed, which nobody can answer and which the dashboard would show with
+        a reach of zero. An id with any other audience is a target that silently does
+        nothing, and would go on doing nothing after the audience changed to `person`.
+        """
+        if self.audience is SurveyAudience.person and self.audience_user_id is None:
+            raise ValueError("A survey aimed at one person must name them.")
+        if self.audience is not SurveyAudience.person and self.audience_user_id is not None:
+            raise ValueError("Only a survey aimed at one person may name a person.")
+        return self
+
+
+class TemplateWrite(AudienceTarget):
     title: str = Field(min_length=1, max_length=300)
     description: str | None = None
-    # Who the survey is for. Defaulted on a new draft, where "nothing said yet" honestly
-    # means the respondent pool. Required on an update: see TemplateUpdate.
-    audience: SurveyAudience = SurveyAudience.respondents
     # The workplace, for the interviewer rather than the respondent. See SurveyTemplate.
     # Optional everywhere, including on an update: unlike the settings above there is no
     # value that is true of a survey whose author has not written one, so None keeps
@@ -176,7 +204,13 @@ class TemplateUpdate(TemplateWrite):
     audience: SurveyAudience
 
 
-class GenerateRequest(BaseModel):
+class GenerateRequest(AudienceTarget):
+    """A description to draft from, plus who the result is for.
+
+    The audience is the author's rather than the model's: see
+    GenerationService.generate_draft for why it overrides the drafted value.
+    """
+
     prompt: str = Field(min_length=1, max_length=4000)
 
 
@@ -210,6 +244,10 @@ class TemplateRead(BaseModel):
     updated_at: datetime
     closed_at: datetime | None
     audience: SurveyAudience
+    # Read back as well as written. Without it the builder can load a survey aimed at a
+    # person, fail to see who, and save it back naming nobody, which is the update path
+    # of the bug the check constraint caught on the way in.
+    audience_user_id: UUID | None = None
     setting: str | None
     questions: list[QuestionRead]
 
@@ -228,7 +266,8 @@ class TemplateSummary(BaseModel):
     status: TemplateStatus
     updated_at: datetime
     closed_at: datetime | None = None
-    audience: SurveyAudience = SurveyAudience.respondents
+    audience: SurveyAudience = SurveyAudience.everyone
+    audience_user_id: UUID | None = None
     question_count: int
     # Only populated for the published list a respondent chooses from; a draft has no
     # meaningful estimate because it is not what anyone will be asked.

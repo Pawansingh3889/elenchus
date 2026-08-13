@@ -6,22 +6,40 @@ import enum
 class SurveyAudience(str, enum.Enum):
     """Who a survey is for. Exactly one, and fixed once the survey is published.
 
-    `respondents` means the whole respondent pool, which is what every survey written
-    before this existed was, and so it is the default: nothing already published changes
-    reach. The rest name a creator department, and a survey aimed at one is answered by
-    the creators in it rather than by respondents.
+    Membership is derived from the job model, never stored: each value below is a
+    predicate over (function, band, hats) in `app.access.rules`, so who a survey
+    reaches follows the org chart as jobs change and there are no membership rows to
+    drift. `everyone` is anyone who holds a job; it is deliberately not "every
+    account", because a service or administration login belongs to nobody on any
+    ladder and counting it would put people in a denominator who were never asked.
 
-    Deliberately a separate enum from CreatorDepartment even though three values match.
-    They answer different questions, "which part of the business is this person in" and
-    "who is this survey for", and merging them would mean a survey could be aimed at
-    `admin` as though that were a team to survey.
+    The production ladder gets a value per band because that is how the floor is
+    actually addressed (operatives, line leaders, supervisors, shift managers). `qa`
+    is the whole quality function, ground QA to head. `health_safety` is the H&S
+    function plus everyone carrying the H&S hat, because the duty is what the survey
+    is about, not the ladder. `managers` is a band, not a function: manager and up,
+    wherever they work.
+
+    `person` is one named individual, carried in `survey_templates.audience_user_id`
+    rather than here: an enum cannot hold a user id, and inventing a value per person
+    would be a vocabulary that grows with the payroll. It exists for the case it was
+    asked for, a survey about their first weeks aimed at the person who just joined.
+
+    Still a separate enum from Function and Band even though several values echo
+    them. They answer different questions, "what is this person's job" and "who is
+    this survey for", and merging them would leave `person` and `everyone` sitting in
+    a list of jobs.
     """
 
-    respondents = "respondents"
-    hr = "hr"
-    operations = "operations"
-    finance = "finance"
-    technical = "technical"
+    everyone = "everyone"
+    operatives = "operatives"
+    line_leaders = "line_leaders"
+    supervisors = "supervisors"
+    shift_managers = "shift_managers"
+    managers = "managers"
+    qa = "qa"
+    health_safety = "health_safety"
+    person = "person"
 
 
 class TemplateStatus(str, enum.Enum):

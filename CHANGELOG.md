@@ -5,6 +5,174 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-08-13. The recap gets a fixed short shape
+
+Asked for directly: a survey recap the author can trust to read the same way every
+time, short enough to take in whole. One headline sentence, at most three findings with
+their counts attached from the report, and one caveat line.
+
+- **Findings cap drops from six to three**, and the writer is told the ranking is the
+  job: with three slots, a finding that restates one bar chart is a wasted third.
+- **Quotes leave the survey recap.** The per-run summary keeps its verbatim quotes and
+  their grounding gate; the report's question cards still carry every answer in full.
+  A side effect worth naming: the who-said-what roster no longer travels to the
+  provider at all on this path.
+- **The caveat is the engine's, never the model's.** Computed from the report and
+  stored with the recap: who answered of how many, how many answered an earlier
+  version, which question was mostly declined. The one line that qualifies the
+  findings cannot itself be a model's claim.
+- **Old recaps read as outdated rather than mis-rendering.** The prompt version joins
+  the reuse condition, so a document written under the old shape invites a fresh recap
+  instead of being served into a page that renders today's. Prompts move to
+  `summarise_survey_v2` and `verify_survey_summary_v2`.
+
+## 2026-08-13. One job per person, and the org chart becomes the access model
+
+The plant's own hierarchy said the old model was wrong: the membership table happily
+recorded a line leader who was also QA, a job that does not exist, and the stored role
+column both duplicated and contradicted it. Rebuilt after looking at how this is done
+elsewhere (NIST RBAC's role hierarchies and separation-of-duty constraints, ordinary
+job-architecture practice, and the food industry's requirement that QA stands apart
+from production): every person now holds exactly one job, and every right derives.
+
+- **`function` x `band`, plus hats.** Ten functions (production, quality,
+  health_safety, technical, planning, hr, finance, supply_chain, it, executive), six
+  ordered bands (operative, line_leader, supervisor, manager, head, director), and a
+  hats table for cross-cutting duties, H&S first: a supervisor with H&S responsibility
+  keeps their production job and carries the hat. One job per person is a schema fact,
+  so the impossible overlap cannot be recorded again.
+- **`role`, `department` and `user_group_memberships` are gone.** Authoring is manager
+  band and up; admin is the IT function or the allowlist; `microsoft_id` is a sign-in
+  method and decides nothing. The admin screen writes jobs and hats, the reach preview
+  warns on the edits that move denominators (band and hat changes now), and old audit
+  rows keep their old vocabulary because history is served as written.
+- **Audiences derive from the job.** The production audiences are that ladder's bands,
+  `qa` is the whole quality function, the new `health_safety` audience is the function
+  or the hat, `managers` is the band anywhere, and `everyone` is anyone with a job,
+  which now includes the office, decided knowingly: a finance manager was never
+  honestly outside an all-staff survey.
+- **Sharing rules settled and pinned.** Colleagues are the authoring bands of one
+  function, symmetric, office functions silo'd; the executive function reads every
+  survey and its results and edits none of them; the audience's own seniors do not
+  read surveys aimed at their team, so HR can survey a team candidly about its own
+  management. Colleague results-reading had actually been dormant (the rule existed
+  and its call site never passed the department); it is wired and tested now.
+- **Migration with a remap, not a reset.** Seed accounts map by email to their new
+  jobs, stranger rows map by deterministic rules (authors by department at manager
+  band, respondents by their highest group), Adaeze's local IT grant survives, and the
+  seed grows a floor H&S manager (Hana) and a ground QA (Noor) on fresh c-block ids.
+
+## 2026-08-13. A refine no longer discards what the model was never shown
+
+Found by a live end-to-end run rather than by the suite: the first refine of the
+traceability survey came back with its setting deleted, and kept its audience only
+because the description happened to mention the QA team. The refine brief deliberately
+omits both fields, but the tool schema still carries them, so the model returned
+guesses and `update_draft` wrote them through: the show_when loss again, one shelf over.
+
+- **`refine_draft` restores `audience`, `audience_user_id` and `setting` from the
+  stored draft** after the model answers, the same ruling `generate_draft` already
+  makes for the author's audience. A wrong guess can also no longer trip the
+  published-audience guard, which used to fail the whole refine as a 409.
+- **`_describe` now names its deliberate exceptions** and why their remedy is carry-over
+  rather than description: they are the author's decisions, not prose to revise, so
+  showing them to the model would only invite it to change them.
+- **`update_of` in the test builders carries `setting` and `audience_user_id`**, so a
+  test changing one thing cannot quietly clear another: the same mistake the app-side
+  builder made once, waiting in the test helper.
+- Four tests pin it: the setting kept, the audience kept against a guess, a person
+  target kept as a pair, and a refine of a published survey surviving a wrong guess.
+
+## 2026-08-13. Reach stays live, and gets witnesses instead of a freeze
+
+A survey's denominator follows its group: somebody hired Tuesday is asked Monday's
+survey, and every reach number moves when membership does. That was confirmed as the
+intended design, against snapshotting membership at publish, and this work makes it
+honest rather than surprising. Open-source authorization engines were evaluated first
+and none adopted: Oso's library is deprecated, the Zanzibar family and Cerbos are
+always-on services this stack has a decision against, and pycasbin would swap the
+readable, reasoned access rules for a policy DSL while providing none of what was
+actually needed, which is change-management around the data those rules read.
+
+- **The publish confirmation counts.** Beside who the survey is for, it now says "2
+  people can answer it right now", from a new author-side reach endpoint that asks the
+  same rule the dashboard and report already ask. Live, and phrased so.
+- **An admin edit warns before it moves a denominator.** Saving a change that would flip
+  a person in or out of any open survey's audience first shows those surveys with reach
+  before and after, and Save becomes "Save anyway". Warn, never block: people genuinely
+  leave teams, and a reach dropping is then the truth.
+- **Every account change is recorded.** `account_changes` is append-only, written in the
+  same transaction as the create or edit it records, with before and after snapshots.
+  The edit dialog shows the recent entries, so "why did this number move" is answered
+  where the mover is standing. Seeded and Entra-provisioned accounts have no rows,
+  which is itself information: nobody in the app did it.
+- **The pool is sized for break-time.** The plant answers surveys in bursts, a shift at
+  once, and each live conversation holds a database connection across its LLM call. The
+  SQLAlchemy defaults queued half of a thirty-person break into 30-second timeouts;
+  `DB_POOL_SIZE`/`DB_POOL_MAX_OVERFLOW` now default to 10+30, are forwarded through
+  compose, and none of the new endpoints sit on the respondent path that burst travels.
+- **Quality and shift managers exist.** A `quality` office department and a
+  `shift_managers` floor group with its matching audience, in the enums, the access
+  map, both pickers, all eight locales, and the seed: Quinn (Quality, and QA on the
+  line), Rina and Rohan. Two ids first chosen for the new seed users collided with
+  rows an older seed generation left behind, which silently handed the new group to
+  two bystanders; the seed now takes fresh ids, refuses an id whose email disagrees,
+  and a test pins that SEED_GROUPS can only decorate SEED_USERS.
+
+## 2026-08-13. Somebody can be given an account, and told what they are
+
+Until today `users.role` was written by the seed script and by nothing else, so the real
+answer to "who decides who can be an author" was "whoever can reach the database". That
+also left the plant unstaffable: an account in no group can be asked nothing at all, not
+even a survey aimed at everyone, and there was no way to put anybody in one.
+
+- **`POST` and `PUT /api/v1/admin/users`**, behind a new `require_admin`. It asks
+  `is_admin` and so never consults `role`, deliberately: an administrator whose own
+  account is a respondent must still reach the screen that would fix that.
+- **`/people` is that screen.** An administrator gets an "Add person" button and a per-row
+  edit; everybody else sees exactly the table that was there before. Hiding the controls is
+  a courtesy, not the enforcement, and the page asks the server whether it is talking to an
+  administrator rather than guessing, because half of `is_admin` is an email allowlist that
+  never leaves the server.
+- **`users.created_by`** records which administrator made each account. Null for everyone
+  the screen did not make, which is every account that exists today and every account a
+  real Microsoft sign-in will provision.
+- **Four shapes of account are refused**, each named after the row the access rules would
+  otherwise misread. The one worth knowing is a respondent holding a department: that would
+  make them a colleague of that department's authors, and a colleague may read every
+  individual answer.
+- **An administrator cannot edit away their own administration**, because from that state
+  nobody inside the app can give it back.
+- **`role` is stored as sent, not derived from `microsoft_id`.** Chosen knowingly, against
+  the direction recorded in the model: an author created without an Entra id will stop
+  being one the day sign-in derives the role from it. The form sets that id and the
+  directory badges the authors missing one, but nothing enforces the pair.
+
+### A browser could not get in at all
+
+Found while using the above, and older than it. `GET /api/v1/users` was hardened to
+require a caller, and under the header shim a caller is an id, and that list was the only
+place to get an id. So a browser with empty storage was locked out permanently: the picker
+had nothing in it, and every page's advice to "pick a user in the top bar" was advice
+about an empty dropdown. Only an id left over in localStorage from an earlier session hid
+it.
+
+- **`POST /api/v1/dev/identify`** trades an address for an id, and the top bar shows a
+  sign-in box while nobody is selected. Deliberately an address rather than a list: the
+  list is what needs a caller, and handing it out unauthenticated would hand out every id.
+  Knowing somebody's address is now enough to act as them, which is the whole of the
+  authentication story until a real provider replaces `get_current_user`, so the endpoint
+  is registered only outside production. A test asserts that mounting, because the mount
+  is the protection.
+- **The advice now matches the control.** All four "pick a user in the top bar" strings
+  and the landing hint say sign in, in all eight locales.
+- **The cold load no longer fails a request on purpose.** `useUsers` did not wait for an
+  id, so every signed-out page spent a request to be told 401 and left a real error in the
+  dev overlay of a page that was working.
+- **A new account appears in the picker immediately.** The account mutations invalidated
+  the directory and the dashboard but not `["users"]`, which backs that picker and the
+  author nav, so somebody just created could not be switched to until a hard reload.
+
 ## 2026-08-09. The live check audits itself, and stops forgetting
 
 Yesterday's invented `yes` was found by a human reading a transcript, and could not be

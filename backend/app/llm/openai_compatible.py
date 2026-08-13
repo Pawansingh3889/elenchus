@@ -351,7 +351,12 @@ class OpenAICompatibleLLMClient:
     ) -> dict[str, Any]:
         payload = {
             "model": self._model,
-            "max_tokens": max_tokens,
+            # "max_completion_tokens", not "max_tokens". The gpt-5 and o-series models
+            # reject the older name with a 400 rather than ignoring it, which would take
+            # tier 1 out of the chain silently and leave every call served by tier 2.
+            # Groq and OpenRouter both accept this spelling, so it is the one name every
+            # tier answers to; checked against all three on 12 Aug 2026.
+            "max_completion_tokens": max_tokens,
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": prompt},
@@ -386,7 +391,8 @@ class OpenAICompatibleLLMClient:
     ) -> ToolTurn:
         payload = {
             "model": self._model,
-            "max_tokens": max_tokens,
+            # The newer spelling, for the reason given in tool_call above.
+            "max_completion_tokens": max_tokens,
             "messages": [{"role": "system", "content": system}, *messages],
             "tools": self._as_openai_tools(tools),
             # "required" alone means at least one call, not exactly one. The second half

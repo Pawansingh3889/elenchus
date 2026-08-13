@@ -1,13 +1,22 @@
 import { useLocaleStore, useUserStore } from "./store";
 import type {
+  Account,
+  AccountChangeEntry,
+  AccountCreate,
+  AccountImpact,
+  AccountWrite,
   AnswersMatrix,
+  AudienceReach,
   DashboardRow,
   GeneratedTemplate,
+  Me,
+  Person,
   Run,
   ResumableRun,
   RunDetail,
   RunSummary,
   RunSummaryContent,
+  SurveyAudience,
   SurveyRecapStatus,
   SurveySummary,
   SurveyReport,
@@ -139,16 +148,44 @@ export const api = {
     request<TemplateVersion>(`/templates/${id}/publish`, { method: "POST" }),
   closeTemplate: (id: string) =>
     request<Template>(`/templates/${id}/close`, { method: "POST" }),
-  generateTemplate: (prompt: string) =>
+  generateTemplate: (
+    prompt: string,
+    audience: SurveyAudience,
+    audienceUserId: string | null = null,
+  ) =>
     request<GeneratedTemplate>("/templates/generate", {
       method: "POST",
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify({ prompt, audience, audience_user_id: audienceUserId }),
     }),
   refineTemplate: (id: string, instruction: string) =>
     request<GeneratedTemplate>(`/templates/${id}/refine`, {
       method: "POST",
       body: JSON.stringify({ instruction }),
     }),
+  listPeople: () => request<Person[]>("/people"),
+  me: () => request<Me>("/me"),
+  /** Trade an address for the id the header shim uses as a session. The only way into
+   *  the app from a browser with empty storage: listing users needs a caller, and a
+   *  caller is an id, and that list was the only place to get one. Dev-only on the
+   *  server, which is where it is guarded. */
+  identify: (email: string) =>
+    request<User>("/dev/identify", { method: "POST", body: JSON.stringify({ email }) }),
+  createAccount: (data: AccountCreate) =>
+    request<Account>("/admin/users", { method: "POST", body: JSON.stringify(data) }),
+  /** A full replacement, which is what makes removing a group expressible: a body that
+   *  only ever added could not move somebody off a line. */
+  replaceAccount: (id: string, data: AccountWrite) =>
+    request<Account>(`/admin/users/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  /** What saving this edit would change, without saving it. POST for the body only:
+   *  the server writes nothing. */
+  previewAccount: (id: string, data: AccountWrite) =>
+    request<AccountImpact>(`/admin/users/${id}/preview`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  accountHistory: (id: string) => request<AccountChangeEntry[]>(`/admin/users/${id}/history`),
+  /** Live headcount per audience, for the screens that aim a survey. */
+  audienceReach: () => request<AudienceReach>("/people/reach"),
   listPublished: () => request<TemplateSummary[]>("/templates/published"),
   startRun: (templateId: string) =>
     request<Run>("/runs", { method: "POST", body: JSON.stringify({ template_id: templateId }) }),

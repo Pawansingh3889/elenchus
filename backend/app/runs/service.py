@@ -11,7 +11,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.access import in_audience, is_admin_by_config, may_list, may_read_rows
+from app.access import is_admin_by_config, may_list, may_read_rows, reads_all_surveys
 from app.errors import NotFoundError
 from app.runs.enums import AnswerKind, RunStatus
 from app.runs.models import REPLY_PREFIX, SurveyRun
@@ -36,6 +36,7 @@ from app.templates.snapshot import questions_of
 from app.templates.visibility import remaining_possible
 from app.users.models import User
 from app.users.repository import UserRepository
+from app.users.service import UserService
 
 logger = logging.getLogger("app.runs.results")
 
@@ -48,12 +49,20 @@ class ResultsService:
         self.users = UserRepository(session)
 
     async def dashboard(self, author: User) -> list[DashboardRow]:
-        """Every survey this author owns, with how each one is going.
+        """Every survey this author's function owns, with how each one is going.
 
-        Author-scoped in the query rather than filtered afterwards, so another author's
-        survey is never loaded in the first place.
+        Scoped in the query to the author plus their function rather than filtered
+        afterwards, so a survey from outside it is never loaded in the first place. An
+        executive's scope is everyone: `reads_all_surveys` is their oversight, and this
+        dashboard is where they exercise it.
         """
-        rows = await self.repo.dashboard_rows(author.id)
+        functions = await self.users.functions_by_id()
+        creators = (
+            set(functions)
+            if reads_all_surveys(author)
+            else {author.id} | await self.users.ids_in_function(author.function)
+        )
+        rows = await self.repo.dashboard_rows(creators)
         admin = is_admin_by_config(author)
         reach = await self._reach_by_audience()
         return [
@@ -67,7 +76,15 @@ class ResultsService:
                 completed=completed,
                 in_progress=in_progress,
                 abandoned=abandoned,
-                reach=reach.get(template.audience, 0),
+                # A survey aimed at one person has a reach of one, and no shared count
+                # can say so: `reach` is per audience, and every person-aimed survey
+                # names a different person. Zero when it names nobody, which is a broken
+                # row rather than a survey with an audience of none.
+                reach=(
+                    (1 if template.audience_user_id is not None else 0)
+                    if template.audience is SurveyAudience.person
+                    else reach.get(template.audience, 0)
+                ),
                 people_started=people_started,
                 people_completed=people_completed,
                 last_started_at=last_started_at,
@@ -84,28 +101,25 @@ class ResultsService:
                 last_started_at,
                 last_completed_at,
             ) in rows
-            if may_list(author, template.audience, template.created_by, admin)
+            if may_list(
+                author,
+                template.audience,
+                template.created_by,
+                admin,
+                target=template.audience_user_id,
+                creator_function=functions.get(template.created_by),
+            )
         ]
 
     async def _reach_by_audience(self) -> dict[SurveyAudience, int]:
-        """How many people each audience is, counted once for the whole page.
+        """One shared answer to "how many people is this audience": UserService's.
 
-        The rule is asked, not paraphrased: `in_audience` is `may_answer` with the author
-        and admin escape hatches shut, so this cannot drift from the rule that decides who
-        may actually answer. Writing the same thing in SQL would be a second copy with
-        nothing to catch it diverging.
-
-        Every user is loaded and the predicate run five times over them, which is one
-        query and a few hundred comparisons for a plant's staff list, and the wrong shape
-        at ten thousand users. The escape hatch when that day comes is one grouped query,
-        `SELECT role, department, count(*) GROUP BY 1, 2`, asking the rule once per group
-        instead of once per person.
+        Moved there when the publish dialog started asking too. Kept as a private
+        delegating method rather than inlined at the call sites, so the dashboard and
+        the report keep reading like they did and the one-answer property is a fact of
+        UserService rather than of everyone remembering to call it.
         """
-        users = await self.users.list_all()
-        return {
-            audience: sum(1 for user in users if in_audience(user, audience))
-            for audience in SurveyAudience
-        }
+        return await UserService(self.session).reach_by_audience()
 
     async def list_runs(self, template_id: UUID, author: User) -> list[RunSummary]:
         await self._owned_or_404(template_id, author)
@@ -266,14 +280,25 @@ class ResultsService:
         )
 
     async def _owned_or_404(self, template_id: UUID, author: User) -> SurveyTemplate:
-        """Responses carry respondent names and verbatim transcripts, so they are readable
-        only by the author and an admin. Being in a survey's audience means you were asked,
-        not that you may read what your colleagues said. Someone else's template reads as
-        absent rather than forbidden."""
+        """Responses carry pseudonyms and verbatim transcripts, so they are readable by
+        the author, the authoring bands of the author's own function, leadership and an
+        admin, and nobody else. Being in a survey's audience means you were asked, not
+        that you may read what your colleagues said. Someone else's template reads as
+        absent rather than forbidden.
+
+        The creator's function is passed since the job model landed: the colleague
+        branch of `may_read_rows` sat dead here for want of it, which made "colleagues
+        read each other's results" a sentence in the docs rather than a behaviour."""
         template = await self.templates.get(template_id)
         if template is None:
             raise NotFoundError("Template not found.")
-        decision = may_read_rows(author, template.created_by, is_admin_by_config(author))
+        functions = await self.users.functions_by_id()
+        decision = may_read_rows(
+            author,
+            template.created_by,
+            is_admin_by_config(author),
+            creator_function=functions.get(template.created_by),
+        )
         if not decision:
             logger.info(
                 "responses hidden: template=%s user=%s reason=%s",

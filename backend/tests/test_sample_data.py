@@ -12,6 +12,7 @@ from uuid import UUID
 import pytest
 import pytest_asyncio
 
+from app.access import may_author
 from app.conduct.engine import ConductEngine
 from app.conduct.validation import validate_answer
 from app.llm.client import ToolTurn
@@ -19,18 +20,41 @@ from app.runs.enums import RunStatus
 from app.runs.service import ResultsService
 from app.sample_data import SAMPLE_RUNS, SAMPLE_SURVEYS, survey_for_run
 from app.sample_data.loader import load_sample_data
-from app.seed import SEED_USERS
-from app.users.models import User, UserRole
+from app.seed import SEED_HATS, SEED_USERS
+from app.users.models import User, UserHat
 from tests.fakes import FakeLLM, move_on, record
 
-AUTHOR_KEYS = {"ava", "arjun"}
+# Whoever the seed gives an authoring band: derived rather than listed, so a band
+# change in the seed moves this with it.
+AUTHOR_KEYS = {
+    email.split("@", 1)[0]
+    for _, email, name, function, band, _ in SEED_USERS
+    if may_author(User(email=email, display_name=name, function=function, band=band))
+}
 
 
 @pytest_asyncio.fixture
 async def seeded_users(session) -> dict[str, UUID]:
-    """The stable seed users the dataset refers to, keyed by email local-part."""
-    for uid, email, name, role, department in SEED_USERS:
-        session.add(User(id=uid, email=email, display_name=name, role=role, department=department))
+    """The stable seed users the dataset refers to, keyed by email local-part.
+
+    Jobs and hats come from the seed's own constants rather than being invented here.
+    Answering is decided by the job now, so a copy of the seed that left them out
+    would produce people who cannot answer anything, and this fixture exists precisely
+    to stand in for the seeded database.
+    """
+    hats = dict(SEED_HATS)
+    for uid, email, name, function, band, microsoft_id in SEED_USERS:
+        session.add(
+            User(
+                id=uid,
+                email=email,
+                display_name=name,
+                function=function,
+                band=band,
+                microsoft_id=microsoft_id,
+                hat_rows=[UserHat(hat=hat) for hat in hats.get(uid, ())],
+            )
+        )
     await session.flush()
     return {row[1].split("@", 1)[0]: row[0] for row in SEED_USERS}
 
@@ -110,8 +134,8 @@ async def test_replaying_a_recorded_run_reproduces_its_answers(session, seeded_u
     # not change what the engine records, which is the whole of what this asserts.
     others = [
         email.split("@", 1)[0]
-        for _, email, _, role, _ in SEED_USERS
-        if role is UserRole.respondent and email.split("@", 1)[0] != run["respondent"]
+        for _, email, _, _, _, _ in SEED_USERS
+        if email.split("@", 1)[0] not in AUTHOR_KEYS and email.split("@", 1)[0] != run["respondent"]
     ]
     respondent = await session.get(User, seeded_users[others[0]])
 

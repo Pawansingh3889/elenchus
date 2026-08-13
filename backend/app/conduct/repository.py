@@ -87,19 +87,23 @@ class RunRepository:
 
     async def template_gate(
         self, template_id: UUID
-    ) -> tuple[TemplateStatus, SurveyAudience, UUID] | None:
-        """The three facts conducting needs about a survey before it will start a run:
-        whether it is still open, who it is for, and who owns it. None if no such survey.
+    ) -> tuple[TemplateStatus, SurveyAudience, UUID, UUID | None] | None:
+        """The four facts conducting needs about a survey before it will start a run:
+        whether it is still open, who it is for, which one person if it names one, and who
+        owns it. None if no such survey.
 
-        One query returning three columns rather than three calls or a whole template.
+        One query returning four columns rather than four calls or a whole template.
         Conduct has no business holding an author's aggregate, and starting a run should
         not drag the questions across to read a status and an audience.
         """
         stmt = select(
-            SurveyTemplate.status, SurveyTemplate.audience, SurveyTemplate.created_by
+            SurveyTemplate.status,
+            SurveyTemplate.audience,
+            SurveyTemplate.created_by,
+            SurveyTemplate.audience_user_id,
         ).where(SurveyTemplate.id == template_id)
         row = (await self.session.execute(stmt)).first()
-        return (row[0], row[1], row[2]) if row else None
+        return (row[0], row[1], row[2], row[3]) if row else None
 
     async def template_status(self, template_id: UUID) -> TemplateStatus | None:
         """The template's status, or None if there is no such template.

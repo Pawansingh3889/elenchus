@@ -91,15 +91,17 @@ class ConductEngine:
         gate = await self.repo.template_gate(template_id)
         if gate is None:
             raise NotFoundError("Survey not found.")
-        status, audience, created_by = gate
+        status, audience, created_by, target = gate
         if status is TemplateStatus.closed:
             raise ConflictError("This survey is closed and is no longer taking answers.")
 
         # Who may answer, asked here rather than at the door. The route used to require
-        # the caller be a respondent, which was never the real question and became wrong
-        # the moment a survey could be aimed at a department, because the people in that
-        # department are creators.
-        decision = may_answer(respondent, audience, created_by, is_admin_by_config(respondent))
+        # the caller be a respondent, which was never the real question: the people in the
+        # senior groups sign in with Teams and hold author accounts, so a survey aimed at
+        # supervisors would have been refused to every supervisor it was written for.
+        decision = may_answer(
+            respondent, audience, created_by, is_admin_by_config(respondent), target=target
+        )
         if not decision:
             logger.info(
                 "run refused: template=%s user=%s reason=%s",
