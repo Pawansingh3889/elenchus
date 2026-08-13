@@ -12,6 +12,7 @@ import { publishBlockers } from "@/lib/publishBlockers";
 import { publishQuip } from "@/lib/publishQuip";
 import { useDraftQuestions } from "@/lib/useDraftQuestions";
 import {
+  useAudienceReach,
   useCurrentUser,
   useDeleteTemplate,
   usePublishTemplate,
@@ -53,6 +54,10 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
   const [setting, setSetting] = useState("");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [confirmingPublish, setConfirmingPublish] = useState(false);
+  // Fetched when the dialog opens and not before: the number belongs to the moment of
+  // publishing, and it is live, so a count fetched with the page could be minutes old
+  // by the time anyone reads it. A person-aimed survey needs no count; it is one.
+  const { data: reach } = useAudienceReach(confirmingPublish && audience !== "person");
   const [instruction, setInstruction] = useState("");
   // Seed the Refine panel with the note from the generate that opened this draft…
   const [notes, setNotes] = useState<string[]>(() => {
@@ -208,6 +213,14 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
               at Finance. Named, not implied: "Managers" and one person's name are both
               things you can check at a glance and neither is visible anywhere else here. */}
           <p>{msg.audience.forWhom(audienceLabel(msg.audience, audience, personName))}</p>
+          {/* The denominator, at the moment it starts to matter. Live by decision, so
+              this is "right now" and says so: the count follows the group as people
+              join and leave, and the number the results page divides by later may
+              legitimately differ. Absent while loading rather than a spinner; the
+              sentence above already says who it is for. */}
+          {audience !== "person" && reach ? (
+            <p>{msg.audience.reachNow(reach[audience])}</p>
+          ) : null}
           <p>{msg.builder.publishShape(questions.length, probing)}</p>
           <p>{republishing ? msg.builder.publishAgain : msg.builder.publishFreezes}</p>
           {/* The same warning the prompt gives, repeated at the irreversible step. An

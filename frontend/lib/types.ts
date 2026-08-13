@@ -53,6 +53,94 @@ export interface Person {
   role: UserRole;
   department: CreatorDepartment | null;
   groups: RespondentGroup[];
+  /** Whether this account carries an Entra object id, not the id itself. An author
+   *  without one may build surveys today and cannot sign in the day `role` is derived
+   *  from that id instead of stored, so the directory marks it. */
+  has_microsoft_id: boolean;
+}
+
+/** The caller, as themselves. `is_admin` is the field a browser could not work out:
+ *  half of that rule is an email allowlist that lives in server settings. */
+export interface Me {
+  id: string;
+  display_name: string;
+  role: UserRole;
+  department: CreatorDepartment | null;
+  is_admin: boolean;
+}
+
+/** What an administrator sets on an account. The server holds the rules about which
+ *  combinations are allowed; the form only has to send all of them, because the update
+ *  is a full replacement rather than a patch. */
+export interface AccountWrite {
+  display_name: string;
+  role: UserRole;
+  microsoft_id: string | null;
+  department: CreatorDepartment | null;
+  groups: RespondentGroup[];
+}
+
+/** Creating adds the address. There is no way to change one afterwards: `is_admin`
+ *  matches its allowlist on the email, so editing it would be a way to hand somebody
+ *  administration through a field that looks like a typo correction. */
+export type AccountCreate = AccountWrite & { email: string };
+
+export interface Account {
+  id: string;
+  email: string;
+  display_name: string;
+  role: UserRole;
+  department: CreatorDepartment | null;
+  microsoft_id: string | null;
+  created_by: string | null;
+  groups: RespondentGroup[];
+}
+
+/** How many people each audience is, right now. Live by decision: the count follows the
+ *  group as people join and leave. `person` is absent, not zero; its reach is one by
+ *  definition and the screen already names the person. */
+export type AudienceReach = Record<Exclude<SurveyAudience, "person">, number>;
+
+/** The fields an administrator controls, as one audit row records them. */
+export interface AccountSnapshot {
+  display_name: string;
+  role: UserRole;
+  department: CreatorDepartment | null;
+  microsoft_id: string | null;
+  groups: RespondentGroup[];
+}
+
+/** One audit row. `changed_by_name` is null when the editor's account is gone; the row
+ *  outlives them on purpose. */
+export interface AccountChangeEntry {
+  id: string;
+  changed_at: string;
+  changed_by: string | null;
+  changed_by_name: string | null;
+  kind: "created" | "updated";
+  before: AccountSnapshot | null;
+  after: AccountSnapshot;
+}
+
+/** One open survey this edit would move the person in or out of. */
+export interface SurveyImpact {
+  template_id: string;
+  title: string;
+  audience: SurveyAudience;
+  now_in: boolean;
+  reach_before: number;
+  reach_after: number;
+}
+
+/** What saving an edit would change, computed server-side before anything is saved. */
+export interface AccountImpact {
+  groups_added: RespondentGroup[];
+  groups_removed: RespondentGroup[];
+  role_before: UserRole;
+  role_after: UserRole;
+  department_before: CreatorDepartment | null;
+  department_after: CreatorDepartment | null;
+  surveys: SurveyImpact[];
 }
 
 export interface User {

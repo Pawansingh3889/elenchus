@@ -315,6 +315,45 @@ select {
   padding: 5px 8px;
 }
 
+/* The development sign-in, shown in place of the picker while nobody is selected.
+   Same surface treatment as the select beside it, because it stands exactly where that
+   control stands and swapping between them should not move the bar around. */
+.topbar-signin {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.topbar-signin input,
+.topbar-signin button {
+  background: var(--overlay-weak);
+  color: var(--on-slab);
+  border: 1px solid var(--overlay-line);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: var(--text-sm);
+}
+.topbar-signin input::placeholder {
+  color: var(--on-slab);
+  opacity: 0.6;
+}
+.topbar-signin button {
+  cursor: pointer;
+}
+.topbar-signin button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+/* On the slab rather than on the page, so the error token used everywhere else would be
+   dark text on a dark bar. This is the one place a refusal is read against it. */
+.topbar-signin-error {
+  font-size: var(--text-xs);
+  color: var(--on-slab);
+  background: var(--overlay-weak);
+  border-radius: 6px;
+  padding: 2px 6px;
+}
+
 .app-main {
   max-width: 1120px;
   margin: 0 auto;

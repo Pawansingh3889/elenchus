@@ -323,6 +323,56 @@ async def test_one_administrator_may_still_demote_another(session, admin):
     assert changed.department is CreatorDepartment.finance
 
 
+# --- signing in at all -------------------------------------------------------------
+
+
+async def test_an_address_finds_the_account_whatever_its_case(session, admin):
+    """The dev shim's whole sign-in, and the reason it exists.
+
+    Listing users requires a caller, a caller is an id, and the only source of an id was
+    that list. A browser with empty storage could never break in, so every page's advice
+    to "pick a user in the top bar" was advice about an empty dropdown.
+    """
+    await UserService(session).create_account(_floor(email="rosa@plant.dev"), admin)
+
+    found = await UserRepository(session).get_by_email("rosa@plant.dev")
+
+    assert found is not None
+    assert found.display_name == "Rosa"
+
+
+async def test_an_unknown_address_finds_nobody(session):
+    assert await UserRepository(session).get_by_email("nobody@plant.dev") is None
+
+
+def test_identify_is_not_mounted_in_production():
+    """The mount is the whole of this endpoint's protection, so it is worth a test.
+
+    `identify` is unauthenticated of necessity: requiring a caller is the deadlock it
+    undoes. Knowing an address is therefore enough to act as somebody, which is tolerable
+    on a development box and not anywhere else. An endpoint that is never registered
+    cannot be reached by a bug in whatever guards it, so the assertion is about the route
+    table rather than about a rule.
+    """
+    import app.main
+
+    # The generated schema rather than `app.routes`: an included router appears there as
+    # a wrapper with no path of its own, so walking that list finds only the handful of
+    # routes declared on the app itself. The schema is what is actually served.
+    paths = app.main.app.openapi()["paths"]
+    assert app.main.get_settings().app_env != "prod", "the suite must run as a dev box"
+    assert "/api/v1/dev/identify" in paths, (
+        "the suite runs with app_env=dev, so identify should be mounted here; if this "
+        "fails the environment branch has moved and the frontend cannot sign in"
+    )
+    # The picker sits behind the same branch, and the pair moving together is the point.
+    assert "/api/v1/users" in paths
+    # These are not behind it, and must not drift there: without them a deployment has no
+    # way to create an account and no way to know whether it is talking to an admin.
+    assert "/api/v1/admin/users" in paths
+    assert "/api/v1/me" in paths
+
+
 # --- what the screens read ---------------------------------------------------------
 
 
@@ -367,6 +417,37 @@ def test_the_directory_marks_an_author_who_could_not_sign_in(session):
 
     assert PersonRead.of(author_without).has_microsoft_id is False
     assert PersonRead.of(author_with).has_microsoft_id is True
+
+
+# --- reach, the number every screen must agree on ----------------------------------
+
+
+async def test_reach_counts_by_the_answering_rule(session, admin):
+    """One person per case, then the counts the rule implies and no others.
+
+    Reach is live by decision, so the only thing holding every denominator honest is
+    that this method asks `in_audience` rather than counting rows some other way. The
+    admin fixture is an author in no group: an account, and in no audience at all.
+    """
+    svc = UserService(session)
+    await svc.create_account(_floor(email="rosa@plant.dev", groups=[RespondentGroup.qa]), admin)
+    await svc.create_account(
+        _floor(email="ravi@plant.dev", groups=[RespondentGroup.qa, RespondentGroup.operatives]),
+        admin,
+    )
+    await svc.create_account(
+        _creator(email="ava@plant.dev", groups=[RespondentGroup.supervisors]), admin
+    )
+
+    reach = await svc.reach_by_audience()
+
+    assert reach[SurveyAudience.qa] == 2
+    assert reach[SurveyAudience.operatives] == 1
+    assert reach[SurveyAudience.supervisors] == 1
+    # Everyone = anyone in any group. The admin and the author account itself are not
+    # people a survey can reach, and counting them would pad every denominator.
+    assert reach[SurveyAudience.everyone] == 3
+    assert SurveyAudience.person not in reach
 
 
 # --- the audit log -----------------------------------------------------------------

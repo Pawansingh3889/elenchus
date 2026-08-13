@@ -57,6 +57,16 @@ class PersonRead(BaseModel):
         )
 
 
+class IdentifyRequest(BaseModel):
+    """An address, to trade for the id that stands in for a session.
+
+    Scaffolding for the development shim and should not outlive it, like the user list
+    it exists beside.
+    """
+
+    email: str = Field(max_length=320)
+
+
 class MeRead(BaseModel):
     """The caller, as the caller. Chiefly: may they administer anything.
 

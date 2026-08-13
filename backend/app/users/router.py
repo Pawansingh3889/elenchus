@@ -11,6 +11,7 @@ which means the list can no longer be the way someone gets their first id. And
 the endpoint does not exist rather than merely being guarded.
 """
 
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
@@ -20,6 +21,8 @@ from starlette.status import HTTP_201_CREATED
 from app.access import is_admin_by_config
 from app.auth.dependencies import get_current_user, require_admin, require_author
 from app.db.session import get_session
+from app.errors import NotFoundError
+from app.templates.enums import SurveyAudience
 from app.users.models import User
 from app.users.repository import UserRepository
 from app.users.schemas import (
@@ -28,11 +31,14 @@ from app.users.schemas import (
     AccountImpact,
     AccountRead,
     AccountUpdate,
+    IdentifyRequest,
     MeRead,
     PersonRead,
     UserRead,
 )
 from app.users.service import UserService
+
+logger = logging.getLogger("app.users")
 
 router = APIRouter(prefix="/api/v1/users", tags=["users"])
 
@@ -43,6 +49,9 @@ router = APIRouter(prefix="/api/v1/users", tags=["users"])
 directory_router = APIRouter(prefix="/api/v1/people", tags=["people"])
 me_router = APIRouter(prefix="/api/v1/me", tags=["me"])
 admin_router = APIRouter(prefix="/api/v1/admin/users", tags=["admin"])
+# Mounted beside the picker and behind the same environment branch, because it has the
+# same lifetime: both are the development shim and both go when a real login lands.
+dev_router = APIRouter(prefix="/api/v1/dev", tags=["dev"])
 
 
 @router.get("", response_model=list[UserRead])
@@ -71,6 +80,65 @@ async def list_people(
     """
     users = await UserRepository(session).list_all()
     return [PersonRead.of(u) for u in users]
+
+
+@dev_router.post("/identify", response_model=UserRead)
+async def identify(
+    data: IdentifyRequest,
+    session: AsyncSession = Depends(get_session),
+) -> UserRead:
+    """Trade an address for the id that the header shim uses as a session.
+
+    This exists because the picker above cannot bootstrap. Listing users requires a
+    caller, and under this shim a caller is an id, and the only place to get an id was
+    that list: a browser with empty storage could never break in, and every page's advice
+    to "pick a user in the top bar" was advice about an empty dropdown.
+
+    Be clear about what it grants, because it is not nothing. Knowing somebody's address
+    is now enough to act as them. That is a smaller surface than the alternative, which
+    was handing out every id at once, and it is still the whole of the authentication
+    story until a real identity provider replaces `get_current_user`. It is unauthenticated
+    of necessity: requiring a caller is exactly the deadlock being undone.
+
+    So the mount is the control. ``app.main`` registers this only outside production, on
+    the same branch as the picker, and an endpoint that is not registered cannot be
+    reached by a bug in whatever guards it.
+
+    An unknown address answers 404 and says so. That does leak which addresses exist, and
+    it is the right trade here: a correct guess already grants far more than the knowledge
+    that a guess was correct, so withholding it buys nothing and costs whoever is typing
+    their own address a useful error.
+    """
+    email = data.email.strip().casefold()
+    user = await UserRepository(session).get_by_email(email)
+    if user is None:
+        raise NotFoundError(f"No account for {email}.")
+    # Logged because this is the whole of signing in: a dev box being probed should leave
+    # a trail, and "who acted as whom" is otherwise unanswerable after the fact.
+    logger.info("dev identify: %s -> user=%s", email, user.id)
+    return UserRead.model_validate(user)
+
+
+@directory_router.get("/reach", response_model=dict[SurveyAudience, int])
+async def audience_reach(
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_author),
+) -> dict[SurveyAudience, int]:
+    """How many people each audience is, right now, for the screens that aim a survey.
+
+    The publish confirmation reads this so an author sees "4 people" beside the group
+    they chose, before the choice freezes. Live like every other reach number, which is
+    the recorded decision: the count follows the group as people join and leave, so the
+    number shown at publish is the truth of that moment rather than a promise.
+
+    Author-gated like the directory beside it, and never called from the respondent
+    pages: break-time is a burst of respondents, and this endpoint is not on the path
+    they pay for.
+
+    `person` is absent, not zero: its reach is one by definition and the dialog already
+    names the person.
+    """
+    return await UserService(session).reach_by_audience()
 
 
 @me_router.get("", response_model=MeRead)

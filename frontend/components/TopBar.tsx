@@ -1,11 +1,60 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 
 import { LOCALES, isLocale, type Locale } from "@/lib/i18n";
 import { useDocumentLanguage, useT } from "@/lib/i18n/useT";
-import { useUsers } from "@/lib/queries";
+import { useIdentify, useUsers } from "@/lib/queries";
 import { useLocaleStore, useUserStore } from "@/lib/store";
+
+/**
+ * The way into a browser that has never been here before.
+ *
+ * Deliberately an address rather than a list of who exists. The list is the thing that
+ * needs a caller, and handing it out unauthenticated would mean handing out every id,
+ * which under this shim is every credential.
+ *
+ * Scaffolding, and it should go when a real identity provider does. Nothing else on this
+ * page will need changing when it does: only how the id is obtained changes.
+ */
+function SignIn() {
+  const { topbar } = useT();
+  const [email, setEmail] = useState("");
+  const identify = useIdentify();
+
+  return (
+    <form
+      className="topbar-signin"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (email.trim()) identify.mutate(email.trim());
+      }}
+    >
+      <label className="topbar-user-label" htmlFor="signin-email">
+        {topbar.signInLabel}
+      </label>
+      <input
+        id="signin-email"
+        type="email"
+        value={email}
+        placeholder={topbar.signInPlaceholder}
+        onChange={(e) => setEmail(e.target.value)}
+        // The address is not a secret and the browser remembering it saves retyping it
+        // on every fresh profile, which is the situation this whole control exists for.
+        autoComplete="email"
+      />
+      <button type="submit" disabled={identify.isPending}>
+        {identify.isPending ? topbar.signingIn : topbar.signIn}
+      </button>
+      {/* The server's own sentence, which for the case that matters names the address
+          that was not found. */}
+      {identify.error ? (
+        <span className="topbar-signin-error">{identify.error.message}</span>
+      ) : null}
+    </form>
+  );
+}
 
 export function TopBar() {
   const { data: users } = useUsers();
@@ -49,18 +98,28 @@ export function TopBar() {
         </nav>
       </div>
       <div className="topbar-user">
-        <span className="topbar-user-label">{topbar.actingAs}</span>
-        <select
-          value={currentUserId ?? ""}
-          onChange={(e) => setCurrentUserId(e.target.value || null)}
-        >
-          <option value="">{topbar.selectUser}</option>
-          {users?.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.display_name} · {u.role}
-            </option>
-          ))}
-        </select>
+        {/* Nobody selected means the picker below is not merely empty, it is unfillable:
+            listing users needs a caller, a caller is an id, and this dropdown was the
+            only place to get one. So the first thing shown is a way in, not a dropdown
+            with one disabled placeholder in it and every page telling you to use it. */}
+        {currentUserId ? (
+          <>
+            <span className="topbar-user-label">{topbar.actingAs}</span>
+            <select
+              value={currentUserId}
+              onChange={(e) => setCurrentUserId(e.target.value || null)}
+            >
+              <option value="">{topbar.selectUser}</option>
+              {users?.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.display_name} · {u.role}
+                </option>
+              ))}
+            </select>
+          </>
+        ) : (
+          <SignIn />
+        )}
         <select
           aria-label={topbar.language}
           value={locale}
