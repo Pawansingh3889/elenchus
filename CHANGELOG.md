@@ -5,6 +5,27 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-08-13. The recap gets a fixed short shape
+
+Asked for directly: a survey recap the author can trust to read the same way every
+time, short enough to take in whole. One headline sentence, at most three findings with
+their counts attached from the report, and one caveat line.
+
+- **Findings cap drops from six to three**, and the writer is told the ranking is the
+  job: with three slots, a finding that restates one bar chart is a wasted third.
+- **Quotes leave the survey recap.** The per-run summary keeps its verbatim quotes and
+  their grounding gate; the report's question cards still carry every answer in full.
+  A side effect worth naming: the who-said-what roster no longer travels to the
+  provider at all on this path.
+- **The caveat is the engine's, never the model's.** Computed from the report and
+  stored with the recap: who answered of how many, how many answered an earlier
+  version, which question was mostly declined. The one line that qualifies the
+  findings cannot itself be a model's claim.
+- **Old recaps read as outdated rather than mis-rendering.** The prompt version joins
+  the reuse condition, so a document written under the old shape invites a fresh recap
+  instead of being served into a page that renders today's. Prompts move to
+  `summarise_survey_v2` and `verify_survey_summary_v2`.
+
 ## 2026-08-13. One job per person, and the org chart becomes the access model
 
 The plant's own hierarchy said the old model was wrong: the membership table happily

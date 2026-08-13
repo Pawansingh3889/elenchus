@@ -431,18 +431,15 @@ export interface SurveyFinding {
   average: number | null;
 }
 
-export interface SurveyQuote {
-  question: string;
-  respondent: string;
-  quote: string;
-}
-
-/** The recap of a whole survey. `runs_included` is what it was written from, shown on
+/** The recap of a whole survey: a fixed short shape, one headline, at most three
+ *  findings, and a caveat line. `runs_included` is what it was written from, shown on
  *  the page because a recap is only true of the responses it read. */
 export interface SurveySummary {
   headline: string;
   findings: SurveyFinding[];
-  notable_quotes: SurveyQuote[];
+  /** The evidence line, computed server-side from the report (who answered, earlier
+   *  versions, mostly-declined questions). Engine numbers, never model prose. */
+  caveat: string;
   version: number;
   runs_included: number;
   generated_at: string;

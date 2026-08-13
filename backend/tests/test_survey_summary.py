@@ -1,9 +1,9 @@
 """The author-facing recap of a whole survey.
 
 The per-run summary's tests cover the gates it shares. What is tested here is what is
-different: that the model never supplies a number, that a quote has to belong to the
-person it names, and that a cache describing a moving set of responses does not go on
-being served after they move.
+different: that the model never supplies a number, that the shape is fixed at a
+headline, three findings and an engine-written caveat, and that a cache describing a
+moving set of responses does not go on being served after they move.
 """
 
 import pytest
@@ -26,13 +26,6 @@ def _recap(**overrides) -> ToolTurn:
         "findings": [
             {"statement": "Most respondents named the same machine", "question_position": 0},
             {"statement": "Almost nobody reported the stoppage", "question_position": 1},
-        ],
-        "notable_quotes": [
-            {
-                "question": "Which machine stops most often?",
-                "respondent": "Test Respondent",
-                "quote": _QUOTE,
-            }
         ],
     }
     payload.update(overrides)
@@ -123,46 +116,6 @@ async def test_a_finding_carrying_a_figure_is_refused(session, author, responden
     # Rejected and redrafted rather than stored: the retry is the existing schema nudge.
     assert "figures" in llm.messages_seen[1][-1]["content"]
     assert all(not any(ch.isdigit() for ch in f.statement) for f in recap.findings)
-
-
-async def test_a_quote_put_in_the_wrong_mouth_is_dropped(session, author, respondent):
-    """Stricter than the per-run gate, and deliberately. There the run fixes whose words
-    they are; here the model supplies the name, so a real quote can be attributed to the
-    wrong colleague, which is worse than an invented one because it is evidence."""
-    template = await _surveyed(session, author, respondent)
-    misattributed = _recap(
-        notable_quotes=[
-            {
-                "question": "Which machine stops most often?",
-                "respondent": "Someone Else",
-                "quote": _QUOTE,
-            }
-        ]
-    )
-    llm = FakeLLM(misattributed, _faithful())
-
-    recap = await SurveySummaryService(session, llm=llm).summarise(template.id, author)
-
-    assert recap.notable_quotes == []
-
-
-async def test_an_invented_quote_is_dropped_but_the_recap_survives(session, author, respondent):
-    template = await _surveyed(session, author, respondent)
-    invented = _recap(
-        notable_quotes=[
-            {
-                "question": "Which machine stops most often?",
-                "respondent": "Test Respondent",
-                "quote": "the whole plant grinds to a halt every morning",
-            }
-        ]
-    )
-    llm = FakeLLM(invented, _faithful())
-
-    recap = await SurveySummaryService(session, llm=llm).summarise(template.id, author)
-
-    assert recap.notable_quotes == []
-    assert recap.headline  # the rest of it stands
 
 
 async def test_a_finding_pointed_at_no_such_question_keeps_its_words(session, author, respondent):
@@ -284,11 +237,11 @@ async def test_the_recap_carries_what_wrote_it(session, author, respondent):
     written = await SurveySummaryService(session, llm=llm).summarise(template.id, author)
     read_back = await SurveySummaryService(session, llm=FakeLLM()).stored(template.id, author)
 
-    assert written.prompt_version == "summarise_survey_v1"
-    assert written.verify_prompt_version == "verify_survey_summary_v1"
+    assert written.prompt_version == "summarise_survey_v2"
+    assert written.verify_prompt_version == "verify_survey_summary_v2"
     assert read_back.recap is not None
-    assert read_back.recap.prompt_version == "summarise_survey_v1"
-    assert read_back.recap.verify_prompt_version == "verify_survey_summary_v1"
+    assert read_back.recap.prompt_version == "summarise_survey_v2"
+    assert read_back.recap.verify_prompt_version == "verify_survey_summary_v2"
 
 
 async def test_reading_a_recap_of_someone_elses_survey_is_a_404(
@@ -384,85 +337,101 @@ async def test_an_out_of_range_index_from_the_checker_drops_nothing(session, aut
     assert len(recap.findings) == 2
 
 
-async def test_a_stored_recap_that_names_people_is_not_served(session, author, respondent):
-    """Quotes are attributed to the survey's own numbering so an author reads a complaint
-    against Respondent 3 rather than against a colleague. Recaps written before that
-    decision are still in the column, and the only thing that expires one is a change in
-    the response count, so without this check the names are served for as long as nobody
-    else answers."""
-    template = await _surveyed(session, author, respondent)
-    await SurveySummaryService(session, llm=FakeLLM(_recap(), _faithful())).summarise(
-        template.id, author
-    )
-    await session.refresh(template)
-    # Exactly what the stored documents from before the change look like.
-    template.summary = {
-        **template.summary,
-        "notable_quotes": [
-            {
-                "question": "Which machine stops most often?",
-                "respondent": "Ken Respondent",
-                "quote": _QUOTE,
-            }
-        ],
-    }
-    await session.commit()
-
-    status = await SurveySummaryService(session, llm=FakeLLM()).stored(template.id, author)
-
-    assert status.recap is None
-    assert status.absence == "outdated"
-
-
-async def test_a_recap_attributed_to_numbers_is_still_served(session, author, respondent):
-    """The other half of the check: the ordinary case must not be caught by it."""
-    template = await _surveyed(session, author, respondent)
-    numbered = _recap(
-        notable_quotes=[
-            {
-                "question": "Which machine stops most often?",
-                "respondent": "Respondent 1",
-                "quote": _QUOTE,
-            }
-        ]
-    )
-    await SurveySummaryService(session, llm=FakeLLM(numbered, _faithful())).summarise(
-        template.id, author
-    )
-
-    status = await SurveySummaryService(session, llm=FakeLLM()).stored(template.id, author)
-
-    assert status.absence is None
-    assert status.recap is not None
-    assert [q.respondent for q in status.recap.notable_quotes] == ["Respondent 1"]
-
-
-async def test_one_quote_past_the_cap_trims_rather_than_losing_the_recap(
-    session, author, respondent
-):
-    """A live run lost a sound recap twice because the model returned seven quotes
-    against a limit of six. The author was told the assistant was unavailable while
-    nothing was unavailable, and the recap was one quote from being served."""
-    template = await _surveyed(session, author, respondent)
-    quote = {
-        "question": "Which machine stops most often?",
-        "respondent": "Respondent 1",
-        "quote": _QUOTE,
-    }
-    llm = FakeLLM(_recap(notable_quotes=[quote] * 7), _faithful())
-
-    recap = await SurveySummaryService(session, llm=llm).summarise(template.id, author)
-
-    # Trimmed to the cap and served, rather than refused and retried into an error.
-    assert len(recap.notable_quotes) == 6
-    assert llm.calls == 2  # no schema retry was needed
-
-
-async def test_findings_past_the_cap_are_trimmed_too(session, author, respondent):
+async def test_findings_past_the_cap_are_trimmed_rather_than_refused(session, author, respondent):
+    """A live run once lost a sound recap twice because the model returned one item
+    more than a cap allowed, and the author was told the assistant was unavailable
+    while nothing was. Trim the tail, serve the rest."""
     template = await _surveyed(session, author, respondent)
     finding = {"statement": "Most respondents named the same machine", "question_position": 0}
     llm = FakeLLM(_recap(findings=[finding] * 8), _faithful())
 
     recap = await SurveySummaryService(session, llm=llm).summarise(template.id, author)
 
-    assert len(recap.findings) == 6
+    assert len(recap.findings) == 3
+    assert llm.calls == 2  # no schema retry was needed
+
+
+async def test_the_caveat_is_the_engines_numbers(session, author, respondent):
+    """The line that qualifies the findings is computed, never written: identical
+    shape every recap, and nothing in it a model could get wrong. Reach is 2 here
+    because the author and the respondent both hold jobs and the survey is aimed at
+    everyone."""
+    template = await _surveyed(session, author, respondent)
+    llm = FakeLLM(_recap(), _faithful())
+
+    recap = await SurveySummaryService(session, llm=llm).summarise(template.id, author)
+
+    assert recap.caveat == "1 of 2 answered."
+    stored = await SurveySummaryService(session, llm=FakeLLM()).stored(template.id, author)
+    assert stored.recap is not None
+    assert stored.recap.caveat == "1 of 2 answered."
+
+
+def test_the_caveat_names_earlier_versions_and_declined_questions():
+    """The two qualifiers, exercised directly: each appears only when it is true, so
+    the ordinary recap stays one clause long."""
+    from uuid import uuid4
+
+    from app.runs.schemas import QuestionReport, SurveyReport
+    from app.runs.survey_summary import _caveat
+
+    def question(position: int, answered: int, declined: int) -> QuestionReport:
+        return QuestionReport(
+            id=uuid4(),
+            position=position,
+            text=f"Q{position}",
+            answer_type="short_text",
+            answered=answered,
+            declined=declined,
+            counts=[],
+            average=None,
+            low=None,
+            high=None,
+            verbatim=[],
+            follow_ups=[],
+            probed=0,
+        )
+
+    def report(**kw) -> SurveyReport:
+        base = dict(
+            template_id=uuid4(),
+            title="T",
+            version=2,
+            runs_total=3,
+            runs_completed=3,
+            reach=8,
+            people_started=4,
+            people_completed=3,
+            runs_on_earlier_versions=0,
+            questions=[],
+        )
+        return SurveyReport(**{**base, **kw})
+
+    assert _caveat(report()) == "3 of 8 answered."
+    assert (
+        _caveat(report(runs_on_earlier_versions=2))
+        == "3 of 8 answered; 2 answered an earlier version, not counted here."
+    )
+    assert (
+        _caveat(report(questions=[question(0, 3, 0), question(2, 1, 2)]))
+        == "3 of 8 answered; question 3 was mostly declined."
+    )
+
+
+async def test_a_recap_written_under_an_older_shape_reads_as_outdated(session, author, respondent):
+    """The stored document is the cache and its only natural expiry is the response
+    count, so a recap written under the old shape (quotes, six findings, no caveat)
+    would otherwise be served into a page that renders today's for as long as nobody
+    else answered. The prompt version is part of the reuse condition instead."""
+    template = await _surveyed(session, author, respondent)
+    await SurveySummaryService(session, llm=FakeLLM(_recap(), _faithful())).summarise(
+        template.id, author
+    )
+    await session.refresh(template)
+    template.summary = {**template.summary, "prompt_version": "summarise_survey_v1"}
+    await session.commit()
+
+    status = await SurveySummaryService(session, llm=FakeLLM()).stored(template.id, author)
+
+    assert status.recap is None
+    assert status.absence == "outdated"

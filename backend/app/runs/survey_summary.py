@@ -22,10 +22,13 @@ arriving. A recap generated from eight responses and served after twenty have la
 not stale, it is wrong, and the prose gives no sign of it. So the stored document carries
 the version and completed-run count it was made from, and anything else regenerates.
 
-**A quote has to say who said it.** In one run the respondent is not in question. Across
-a survey, "we still count stock on paper" means something different from one person and
-from six, so a quote carries the question it answered and the person who gave it, and is
-dropped unless it is a verbatim span of what that person actually said.
+**The shape is fixed, and short.** One headline, at most three findings, and a caveat
+line, chosen so every recap reads the same way and fits on a screen. The caveat is
+computed from the report rather than written by the model (who answered, who answered
+an earlier version, what was mostly declined), because the one line that qualifies the
+evidence must itself be beyond question. Quotes were dropped from this recap when the
+shape was fixed: the per-run summary keeps its verbatim quotes, and the report's own
+question cards carry every answer in full, so nothing became unreadable.
 """
 
 import json
@@ -46,20 +49,17 @@ from app.llm.client import LLMError, LLMProtocol
 from app.llm.decoding import decode_stringified
 from app.llm.factory import get_llm
 from app.llm.prompts import load_prompt
-from app.runs.enums import AnswerKind, RunStatus
-from app.runs.repository import ResultsRepository
 from app.runs.schemas import SurveyReport
-from app.runs.service import ResultsService, flatten_answer, respondent_label
+from app.runs.service import ResultsService
 from app.templates.models import SurveyTemplate
 from app.templates.repository import TemplateRepository
 from app.users.models import User
 
 logger = logging.getLogger("app.runs.survey_summary")
 
-MAX_FINDINGS = 6
-MAX_QUOTES = 6
-PROMPT_VERSION = "summarise_survey_v1"
-VERIFY_PROMPT_VERSION = "verify_survey_summary_v1"
+MAX_FINDINGS = 3
+PROMPT_VERSION = "summarise_survey_v2"
+VERIFY_PROMPT_VERSION = "verify_survey_summary_v2"
 
 # A statement is the pattern in words. Digits in it are a number the model wrote, and
 # every number on this page is supposed to come from the report instead.
@@ -95,20 +95,6 @@ class Finding(BaseModel):
         return statement
 
 
-class SurveyQuote(BaseModel):
-    question: str = Field(min_length=1)
-    respondent: str = Field(min_length=1)
-    quote: str = Field(min_length=1)
-
-    @field_validator("question", "respondent", "quote")
-    @classmethod
-    def _has_content(cls, value: str) -> str:
-        text = value.strip()
-        if not text:
-            raise ValueError("cannot be blank")
-        return text
-
-
 class SurveySummaryContent(BaseModel):
     """What the model returns. Only the headline is required, for the same reason the
     run summary requires only its own: a survey answered twice by two people who ticked
@@ -116,7 +102,6 @@ class SurveySummaryContent(BaseModel):
 
     headline: str = Field(min_length=1, max_length=300)
     findings: list[Finding] = Field(default_factory=list, max_length=MAX_FINDINGS)
-    notable_quotes: list[SurveyQuote] = Field(default_factory=list, max_length=MAX_QUOTES)
 
     @field_validator("headline")
     @classmethod
@@ -139,7 +124,10 @@ class FindingRead(Finding):
 class SurveySummaryRead(BaseModel):
     headline: str
     findings: list[FindingRead]
-    notable_quotes: list[SurveyQuote]
+    # The evidence line, computed from the report at generation time and stored with
+    # the recap. Engine numbers only: the one line that qualifies everything above it
+    # must not itself be a model's claim.
+    caveat: str
     # What it was generated from, so the page can say so rather than implying the recap
     # covers whatever the report happens to show today.
     version: int
@@ -177,8 +165,8 @@ class SurveyVerdict(BaseModel):
     """The checker's verdict, shaped so a wrong finding costs one finding.
 
     The run summary's verdict is all-or-nothing, and that is right there: a run summary
-    is short and its claims stand together. A recap is six independent findings, and an
-    all-or-nothing verdict means one bad one throws away five good ones.
+    is short and its claims stand together. A recap is independent findings, and an
+    all-or-nothing verdict means one bad one throws away the good ones.
 
     It also means a *mistaken* checker throws away everything, which is not theoretical.
     A live run refused a recap because "the tally for Q9 shows 7 said yes and 1 said no,
@@ -187,9 +175,9 @@ class SurveyVerdict(BaseModel):
     whose false positives cost one line is a gate that survives contact.
 
     So the checker names which findings it will not stand behind, and those are dropped
-    the way an unsupported quote is dropped. The headline is separate and is all or
-    nothing: it is the one line an author reads if they read nothing else, and a recap
-    whose headline is wrong has nothing worth keeping underneath it.
+    the way an unsupported quote used to be dropped. The headline is separate and is all
+    or nothing: it is the one line an author reads if they read nothing else, and a
+    recap whose headline is wrong has nothing worth keeping underneath it.
     """
 
     headline_supported: bool = True
@@ -224,7 +212,6 @@ class SurveySummaryService:
         self._llm = llm
         self._verifier = verifier
         self.results = ResultsService(session)
-        self.repo = ResultsRepository(session)
         self.templates = TemplateRepository(session)
 
     @property
@@ -267,7 +254,7 @@ class SurveySummaryService:
         self, template_id: UUID, author: User, refresh: bool = False
     ) -> SurveySummaryRead:
         # report() decides who may read the numbers, and that boundary now includes a
-        # department colleague. Summarising is not reading: it writes a recap onto the
+        # function colleague. Summarising is not reading: it writes a recap onto the
         # survey and spends money on a model call to do it, so it asks the narrower
         # question as well. Inheriting the read boundary alone would have let a colleague
         # attach a summary to somebody else's survey.
@@ -286,13 +273,9 @@ class SurveySummaryService:
         if stored is not None and not refresh:
             return stored
 
-        version = await self.templates.latest_version(template_id)
-        if version is None:  # pragma: no cover - report() would have raised first
-            raise ConflictError("This survey has no published version to summarise.")
-        quotable = await self._quotable(template_id, version.id)
         with ledger.measuring(None) as spend:
-            content = await self._generate(report, quotable, reviewer_notes=None)
-            verdict = await self._verify(report, quotable, content)
+            content = await self._generate(report, reviewer_notes=None)
+            verdict = await self._verify(report, content)
             if not verdict.clean:
                 notes = "; ".join(verdict.problems)
                 logger.warning(
@@ -302,10 +285,9 @@ class SurveySummaryService:
                 )
                 content = await self._generate(
                     report,
-                    quotable,
                     reviewer_notes=f"a reviewer compared it against the results and found: {notes}",
                 )
-                verdict = await self._verify(report, quotable, content)
+                verdict = await self._verify(report, content)
         logger.info(
             "survey recap generated: template=%s calls=%s tokens=%s",
             template_id,
@@ -338,11 +320,11 @@ class SurveySummaryService:
             {i for i in verdict.unsupported_findings if 0 <= i < len(content.findings)}
         )
         if dropped:
-            # Dropped, not refused, on the rule the quote gate already uses: the rest is
-            # usually sound, `findings` has no floor, so losing one costs the author a
-            # line while keeping an unsupported one costs them a decision. An index that
-            # names no finding is ignored rather than trusted, so a checker counting badly
-            # cannot take a real finding with it by landing on the wrong one.
+            # Dropped, not refused: the rest is usually sound, `findings` has no floor,
+            # so losing one costs the author a line while keeping an unsupported one
+            # costs them a decision. An index that names no finding is ignored rather
+            # than trusted, so a checker counting badly cannot take a real finding with
+            # it by landing on the wrong one.
             logger.warning(
                 "dropped unsupported findings: template=%s indices=%r problems=%r",
                 template_id,
@@ -356,6 +338,10 @@ class SurveySummaryService:
 
         document = {
             **content.model_dump(),
+            # Computed here and stored with the recap: the numbers it states cannot
+            # move while the recap is servable, because reuse is conditional on the
+            # same version and completed-run count.
+            "caveat": _caveat(report),
             "version": report.version,
             "runs_included": report.runs_completed,
             "prompt_version": PROMPT_VERSION,
@@ -377,6 +363,11 @@ class SurveySummaryService:
         describes a moving set of responses, so reuse is conditional on the version and
         the completed-run count both being what they were. Anything else and the numbers
         beside the prose would have moved out from under it.
+
+        The prompt version is part of the condition. A recap written under an older
+        shape (longer, with quotes, without the caveat line) would otherwise be served
+        into a page that renders today's, for as long as nobody else answered; treating
+        it as outdated invites a fresh one instead of mis-rendering an old one.
         """
         stored = template.summary
         if not isinstance(stored, dict):
@@ -385,64 +376,21 @@ class SurveySummaryService:
             return None
         if stored.get("runs_included") != report.runs_completed:
             return None
+        if stored.get("prompt_version") != PROMPT_VERSION:
+            logger.info(
+                "stored recap predates %s, treating as outdated: %s", PROMPT_VERSION, template.id
+            )
+            return None
         try:
             content = SurveySummaryContent.model_validate(stored)
         except PydanticValidationError:
             logger.warning("stored recap no longer validates, regenerating: %s", template.id)
             return None
-        if not all(_is_pseudonym(q.respondent) for q in content.notable_quotes):
-            # Written before quotes were attributed to the survey's own numbering, so it
-            # names colleagues beside what they said about their employer. The document
-            # is the cache, and this cache has no expiry other than the response count,
-            # so without this check a recap from before that decision is served for as
-            # long as nobody else answers. Withheld rather than edited: dropping the
-            # names would leave quotes attributed to nobody, and the author is better
-            # served by a current recap than by a redacted old one.
-            logger.warning("stored recap names respondents, regenerating: %s", template.id)
-            return None
         return _with_numbers(content, report, stored)
-
-    async def _quotable(self, template_id: UUID, version_id: UUID) -> list[dict[str, str]]:
-        """Every answer a quote could legitimately come from, with who gave it.
-
-        Read from the runs rather than the report, because the report's verbatim list has
-        already dropped the attribution, and a quote with no name is the one thing this
-        summary must not produce.
-
-        Scoped to completed runs on the version the report counted, so the words and the
-        numbers describe the same set of people. A quote from someone whose answers are
-        excluded from every tally would be evidence for a finding the counts contradict.
-
-        Whose words they are is carried as the survey's own pseudonym, not the person's
-        name. The attribution mechanism is unchanged and needs no name to work: it needs
-        one stable key per person, which is what the number gives it. What changes is that
-        the provider is no longer sent a roster of who works here alongside what each of
-        them said about their employer, and the recap the author reads attributes a
-        complaint to Respondent 3 rather than naming a colleague.
-        """
-        numbers = await self.repo.respondent_numbers(template_id)
-        out: list[dict[str, str]] = []
-        for run, version, _ in await self.repo.list_for_template(template_id):
-            if version.id != version_id or run.status is not RunStatus.completed:
-                continue
-            for answer in run.answers:
-                text = flatten_answer(answer.value)
-                if "unanswerable" in answer.value or not text.strip():
-                    continue
-                out.append(
-                    {
-                        "respondent": respondent_label(numbers[run.respondent_id]),
-                        "question": answer.question_text,
-                        "answer": text,
-                        "kind": answer.kind.value,
-                    }
-                )
-        return out
 
     async def _generate(
         self,
         report: SurveyReport,
-        quotable: list[dict[str, str]],
         reviewer_notes: str | None,
     ) -> SurveySummaryContent:
         """One draft, with its own schema retry, on the pattern the run summary settled:
@@ -450,7 +398,7 @@ class SurveySummaryService:
         not born having already spent its nudge."""
         rejected: str | None = None
         for _ in range(2):
-            messages = [{"role": "user", "content": _brief(report, quotable)}]
+            messages = [{"role": "user", "content": _brief(report)}]
             feedback = "; ".join(filter(None, (reviewer_notes, rejected)))
             if feedback:
                 messages.append(
@@ -465,10 +413,9 @@ class SurveySummaryService:
                     system=load_prompt(PROMPT_VERSION),
                     messages=messages,
                     tools=[_TOOL],
-                    max_tokens=2048,
+                    max_tokens=1024,
                 )
             raw = _decode_stringified_fields(turn.tool_input)
-            raw = _without_invented_quotes(raw, quotable)
             raw = _without_unknown_questions(raw, report)
             raw = _within_caps(raw)
             try:
@@ -486,7 +433,6 @@ class SurveySummaryService:
     async def _verify(
         self,
         report: SurveyReport,
-        quotable: list[dict[str, str]],
         content: SurveySummaryContent,
     ) -> SurveyVerdict:
         """Fresh context, like the run checker: the results and the candidate, and
@@ -498,7 +444,7 @@ class SurveySummaryService:
                     {
                         "role": "user",
                         "content": (
-                            f"{_brief(report, quotable)}\n\nCandidate recap:\n"
+                            f"{_brief(report)}\n\nCandidate recap:\n"
                             f"{json.dumps(content.model_dump(), ensure_ascii=False, indent=2)}"
                         ),
                     }
@@ -520,73 +466,51 @@ class SurveySummaryService:
 # ------------------------------------------------------------------------- helpers
 
 
+def _caveat(report: SurveyReport) -> str:
+    """The evidence line, from the report and nowhere else.
+
+    One sentence, identical shape every recap: coverage first, then what a reader
+    should hold the findings against. Computed rather than model-written by decision:
+    the caveat is the line that qualifies everything above it, so it must be beyond
+    question, and every part of it is a fact the database already holds.
+    """
+    parts = [f"{report.people_completed} of {report.reach} answered"]
+    if report.runs_on_earlier_versions:
+        parts.append(
+            f"{report.runs_on_earlier_versions} answered an earlier version, not counted here"
+        )
+    mostly_declined = [q for q in report.questions if q.declined > q.answered]
+    if mostly_declined:
+        worst = max(mostly_declined, key=lambda q: q.declined)
+        parts.append(f"question {worst.position + 1} was mostly declined")
+    return "; ".join(parts) + "."
+
+
 def _decode_stringified_fields(raw: dict[str, Any]) -> dict[str, Any]:
-    """Undo one JSON-encoding of the list fields, the small-model slip the generation
+    """Undo one JSON-encoding of the list field, the small-model slip the generation
     path already handles. A right answer wrapped in a string is a serialization
     artifact, not a content problem, and burning the retry on it helps nobody."""
     out = dict(raw)
-    for key in ("findings", "notable_quotes"):
-        if key in out:
-            out[key] = decode_stringified(out[key], list)
+    if "findings" in out:
+        out["findings"] = decode_stringified(out["findings"], list)
     return out
 
 
-def _normalised(text: str) -> str:
-    return " ".join(text.split()).casefold()
-
-
 def _within_caps(raw: dict[str, Any]) -> dict[str, Any]:
-    """Trim an over-long list to its cap instead of losing the recap over it.
+    """Trim an over-long findings list to its cap instead of losing the recap over it.
 
-    A live run threw away a sound recap twice because the model returned seven quotes
-    against a limit of six, so the author was told the assistant was unavailable when
-    nothing was unavailable and the recap was one quote from being served.
-
-    Dropping rather than refusing is the rule this file already follows for a quote that
-    cannot be traced to the person it names and for a finding the checker will not stand
-    behind. A quote past the cap is a weaker fault than either: nothing about it is
-    wrong, there is simply one more than the page shows. Trimmed before validation, for
-    the reason the other gates are: the validated model is never mutated.
-
-    Only the tail is cut, so the model's own ordering decides what survives, which is
-    the same order the page would have shown.
+    A live run threw away a sound recap twice because the model returned one item more
+    than a cap allowed, so the author was told the assistant was unavailable when
+    nothing was unavailable. Dropping rather than refusing is the rule this file
+    already follows for a finding the checker will not stand behind; an item past the
+    cap is a weaker fault than that. Only the tail is cut, so the model's own ordering
+    decides what survives, which is the same order the page would have shown.
     """
-    for field, cap in (("findings", MAX_FINDINGS), ("notable_quotes", MAX_QUOTES)):
-        items = raw.get(field)
-        if isinstance(items, list) and len(items) > cap:
-            logger.warning("recap %s over cap, trimming %d to %d", field, len(items), cap)
-            raw = {**raw, field: items[:cap]}
+    items = raw.get("findings")
+    if isinstance(items, list) and len(items) > MAX_FINDINGS:
+        logger.warning("recap findings over cap, trimming %d to %d", len(items), MAX_FINDINGS)
+        raw = {**raw, "findings": items[:MAX_FINDINGS]}
     return raw
-
-
-def _without_invented_quotes(raw: dict[str, Any], quotable: list[dict[str, str]]) -> dict[str, Any]:
-    """Drop any quote that is not a verbatim span of what that named person said.
-
-    Stricter than the per-run gate on purpose. There, the run fixes whose words they are;
-    here the model supplies the name too, so a quote can be real and attributed to the
-    wrong person, which is worse than an invented one: it is evidence, and it points at a
-    colleague. Matched against that respondent's answers alone.
-    """
-    quotes = raw.get("notable_quotes")
-    if not isinstance(quotes, list) or not quotes:
-        return raw
-    by_person: dict[str, str] = {}
-    for row in quotable:
-        key = _normalised(row["respondent"])
-        by_person[key] = f"{by_person.get(key, '')}   {_normalised(row['answer'])}"
-
-    kept: list[Any] = []
-    for quote in quotes:
-        if not isinstance(quote, dict):
-            continue
-        text = quote.get("quote")
-        who = quote.get("respondent")
-        said = by_person.get(_normalised(str(who))) if isinstance(who, str) else None
-        if isinstance(text, str) and said and _normalised(text) and _normalised(text) in said:
-            kept.append(quote)
-        else:
-            logger.warning("dropped an unsupported quote: respondent=%r quote=%r", who, text)
-    return {**raw, "notable_quotes": kept}
 
 
 def _without_unknown_questions(raw: dict[str, Any], report: SurveyReport) -> dict[str, Any]:
@@ -635,7 +559,9 @@ def _with_numbers(
     return SurveySummaryRead(
         headline=content.headline,
         findings=findings,
-        notable_quotes=content.notable_quotes,
+        # Required, not defaulted: every document written under PROMPT_VERSION carries
+        # one, and `_reusable` refuses older documents before they reach here.
+        caveat=str(document["caveat"]),
         version=int(document["version"]),
         runs_included=int(document["runs_included"]),
         generated_at=str(document["generated_at"]),
@@ -652,21 +578,15 @@ def _optional_str(value: Any) -> str | None:
     return value if isinstance(value, str) and value else None
 
 
-# The shape `respondent_label` produces. Matched rather than compared against the live
-# numbering because a stored recap outlives the runs it described: a withdrawal renumbers
-# everyone after it, so "is this one of today's labels" would reject sound recaps. The
-# question here is only whether it is a pseudonym at all or somebody's name.
-_PSEUDONYM = re.compile(r"^Respondent \d+$")
-
-
-def _is_pseudonym(who: str) -> bool:
-    return bool(_PSEUDONYM.match(who.strip()))
-
-
-def _brief(report: SurveyReport, quotable: list[dict[str, str]]) -> str:
+def _brief(report: SurveyReport) -> str:
     """What the writer and the checker both see. One extract, for the reason the run
     summary keeps one: a checker judging against more would fail sound recaps, and one
-    judging against less would pass unsupported ones."""
+    judging against less would pass unsupported ones.
+
+    Verbatim answers appear under their questions, unattributed. The recap carries no
+    quotes any more, so nothing here needs to say who said what, and the roster of who
+    works here no longer travels to the provider at all.
+    """
     lines = [
         f"Survey: {report.title}",
         f"Responses: {report.runs_completed} completed of {report.people_started} started, "
@@ -688,13 +608,4 @@ def _brief(report: SurveyReport, quotable: list[dict[str, str]]) -> str:
             lines.append(f"  answer: {text}")
         for text in question.follow_ups:
             lines.append(f"  follow-up answer: {text}")
-
-    lines.append("")
-    lines.append(
-        "WHO SAID WHAT. Quote only from here, word for word, and attribute to the name "
-        "shown. A quote that is not a verbatim span of that person's answer is dropped."
-    )
-    for row in quotable:
-        marker = " (follow-up)" if row["kind"] == AnswerKind.follow_up.value else ""
-        lines.append(f"  {row['respondent']} on \"{row['question']}\"{marker}: {row['answer']}")
     return "\n".join(lines)
