@@ -5,6 +5,27 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-08-13. A refine no longer discards what the model was never shown
+
+Found by a live end-to-end run rather than by the suite: the first refine of the
+traceability survey came back with its setting deleted, and kept its audience only
+because the description happened to mention the QA team. The refine brief deliberately
+omits both fields, but the tool schema still carries them, so the model returned
+guesses and `update_draft` wrote them through: the show_when loss again, one shelf over.
+
+- **`refine_draft` restores `audience`, `audience_user_id` and `setting` from the
+  stored draft** after the model answers, the same ruling `generate_draft` already
+  makes for the author's audience. A wrong guess can also no longer trip the
+  published-audience guard, which used to fail the whole refine as a 409.
+- **`_describe` now names its deliberate exceptions** and why their remedy is carry-over
+  rather than description: they are the author's decisions, not prose to revise, so
+  showing them to the model would only invite it to change them.
+- **`update_of` in the test builders carries `setting` and `audience_user_id`**, so a
+  test changing one thing cannot quietly clear another: the same mistake the app-side
+  builder made once, waiting in the test helper.
+- Four tests pin it: the setting kept, the audience kept against a guess, a person
+  target kept as a pair, and a refine of a published survey surviving a wrong guess.
+
 ## 2026-08-13. Reach stays live, and gets witnesses instead of a freeze
 
 A survey's denominator follows its group: somebody hired Tuesday is asked Monday's

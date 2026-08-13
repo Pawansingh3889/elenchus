@@ -335,6 +335,75 @@ async def test_refine_keeps_a_condition_the_model_returns(session, author):
     assert kept == {"question": 0, "op": "is", "value": "Manager"}
 
 
+async def test_a_refine_keeps_the_setting_the_model_was_never_shown(session, author):
+    """The brief deliberately omits the setting, so the model cannot echo it back and
+    the schema defaults it to None. Found live: one refine of a traceability survey
+    deleted its setting, and with it the workplace context the interviewer conducts
+    under. The fix restores it from the stored draft, the show_when lesson with the
+    opposite remedy: this field is not the model's to revise."""
+    with_setting = {**_VALID, "setting": "Chilled fish plant, goods-in to dispatch."}
+    original, _ = await GenerationService(session, llm=FakeLLM(with_setting)).generate_draft(
+        "traceability", author
+    )
+    assert original.setting == "Chilled fish plant, goods-in to dispatch."
+
+    fake = FakeLLM(_VALID)  # a revision that says nothing about the setting
+    updated, _ = await GenerationService(session, llm=fake).refine_draft(
+        original.id, "tidy the wording", author
+    )
+    assert updated.setting == "Chilled fish plant, goods-in to dispatch."
+
+
+async def test_a_refine_keeps_the_audience_rather_than_trusting_the_models_guess(session, author):
+    """The tool schema carries `audience` but the brief never states it, so whatever
+    comes back is a guess. On a draft that guess was written straight through, silently
+    changing who may answer: the exact bug TemplateUpdate's docstring records for the
+    builder, reintroduced through the refine."""
+    original, _ = await GenerationService(session, llm=FakeLLM(_VALID)).generate_draft(
+        "onboarding", author, SurveyAudience.supervisors
+    )
+
+    guessed = FakeLLM({**_VALID, "audience": "everyone"})
+    updated, _ = await GenerationService(session, llm=guessed).refine_draft(
+        original.id, "make it shorter", author
+    )
+    assert updated.audience is SurveyAudience.supervisors
+
+
+async def test_a_refine_keeps_the_person_a_survey_is_aimed_at(session, author, respondent):
+    """`person` only means anything as the pair with `audience_user_id`, and the model
+    can never know the UUID, so a refine that trusted it back would either retarget the
+    survey or fail the pair validation. Both halves come from the stored draft."""
+    original, _ = await GenerationService(session, llm=FakeLLM(_VALID)).generate_draft(
+        "first weeks", author, SurveyAudience.person, respondent.id
+    )
+
+    updated, _ = await GenerationService(session, llm=FakeLLM(_VALID)).refine_draft(
+        original.id, "add a question about the buddy scheme", author
+    )
+    assert updated.audience is SurveyAudience.person
+    assert updated.audience_user_id == respondent.id
+
+
+async def test_a_refine_of_a_published_survey_survives_the_models_audience_guess(session, author):
+    """update_draft rightly refuses to move a published survey's audience. Before the
+    carry-over that guard was reachable by the model's guess, so whether a refine of a
+    published survey worked at all depended on the model happening to echo the right
+    audience back; one live refine survived only because the description mentioned the
+    QA team."""
+    original, _ = await GenerationService(session, llm=FakeLLM(_VALID)).generate_draft(
+        "onboarding", author, SurveyAudience.qa
+    )
+    await TemplateService(session).publish(original.id, author)
+
+    guessed = FakeLLM({**_VALID, "audience": "operatives"})
+    updated, _ = await GenerationService(session, llm=guessed).refine_draft(
+        original.id, "make it shorter", author
+    )
+    assert updated.audience is SurveyAudience.qa
+    assert updated.status is TemplateStatus.published
+
+
 async def test_refine_re_validates_so_a_bad_change_fails_loudly(session, author):
     original, _ = await GenerationService(session, llm=FakeLLM(_VALID)).generate_draft("x", author)
 

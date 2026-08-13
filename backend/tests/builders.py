@@ -21,7 +21,12 @@ def update_of(template: SurveyTemplate, **changes: Any) -> TemplateUpdate:
     body: dict[str, Any] = {
         "title": template.title,
         "description": template.description,
+        # The whole pair, and the setting with them: update replaces what it does not
+        # restate, so a builder that skipped these would clear them in every test that
+        # meant to change something else.
         "audience": template.audience,
+        "audience_user_id": template.audience_user_id,
+        "setting": template.setting,
         "questions": [
             QuestionInput(
                 text=q.text,
