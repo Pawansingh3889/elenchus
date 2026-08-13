@@ -76,6 +76,16 @@ SEED_USERS: list[tuple[UUID, str, str, UserRole, CreatorDepartment | None, str |
         "entra-tomas",
     ),
     (
+        UUID("00000000-0000-0000-0000-0000000000a6"),
+        "quinn@elenchus.dev",
+        "Quinn Author",
+        UserRole.author,
+        # The office-side Quality team, distinct from the qa group on the floor. Quinn
+        # holds both below, which is the both-at-once case the two vocabularies allow.
+        CreatorDepartment.quality,
+        "entra-quinn",
+    ),
+    (
         UUID("00000000-0000-0000-0000-0000000000b1"),
         "rosa@elenchus.dev",
         "Rosa Respondent",
@@ -99,6 +109,26 @@ SEED_USERS: list[tuple[UUID, str, str, UserRole, CreatorDepartment | None, str |
         None,
         None,
     ),
+    # c-block ids, not the next b ones: b4 through b8 are already occupied in databases
+    # seeded before 10 Aug, by respondent rows an older generation of this list created
+    # and later dropped. Reusing an id does not fail; it silently decorates whoever holds
+    # it, which is exactly what the email check in seed() now refuses.
+    (
+        UUID("00000000-0000-0000-0000-0000000000c1"),
+        "rina@elenchus.dev",
+        "Rina Respondent",
+        UserRole.respondent,
+        None,
+        None,
+    ),
+    (
+        UUID("00000000-0000-0000-0000-0000000000c2"),
+        "rohan@elenchus.dev",
+        "Rohan Respondent",
+        UserRole.respondent,
+        None,
+        None,
+    ),
 ]
 
 
@@ -114,6 +144,10 @@ SEED_GROUPS: list[tuple[UUID, tuple[RespondentGroup, ...]]] = [
     (UUID("00000000-0000-0000-0000-0000000000a2"), (RespondentGroup.managers,)),
     (UUID("00000000-0000-0000-0000-0000000000a4"), (RespondentGroup.managers,)),
     (UUID("00000000-0000-0000-0000-0000000000a5"), (RespondentGroup.qa,)),
+    # Quinn works in the Quality department and spot-checks on the line: the office
+    # vocabulary and the floor vocabulary answering their different questions about one
+    # person, which is why they are two vocabularies.
+    (UUID("00000000-0000-0000-0000-0000000000a6"), (RespondentGroup.qa,)),
     (UUID("00000000-0000-0000-0000-0000000000b1"), (RespondentGroup.operatives,)),
     # In two groups, because that is the thing a join table buys and a column could not:
     # a line leader who also covers QA is really in both.
@@ -122,6 +156,13 @@ SEED_GROUPS: list[tuple[UUID, tuple[RespondentGroup, ...]]] = [
         (RespondentGroup.line_leaders, RespondentGroup.qa),
     ),
     (UUID("00000000-0000-0000-0000-0000000000b3"), (RespondentGroup.operatives,)),
+    (UUID("00000000-0000-0000-0000-0000000000c1"), (RespondentGroup.shift_managers,)),
+    # A shift manager who also leads a line, so the new group demonstrates the overlap
+    # the membership table exists for from the day it lands.
+    (
+        UUID("00000000-0000-0000-0000-0000000000c2"),
+        (RespondentGroup.shift_managers, RespondentGroup.line_leaders),
+    ),
 ]
 
 

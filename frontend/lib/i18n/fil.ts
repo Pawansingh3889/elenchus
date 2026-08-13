@@ -33,6 +33,7 @@ export const fil: Messages = {
     finance: "Pananalapi",
     technical: "Teknikal",
     management: "Pamunuan",
+    quality: "Kalidad",
     it: "IT",
   },
   people: {
@@ -54,6 +55,7 @@ export const fil: Messages = {
     operatives: "Mga operatiba",
     lineLeaders: "Mga line leader",
     supervisors: "Mga superbisor",
+    shiftManagers: "Mga shift manager",
     managers: "Mga manedyer",
     qa: "QA",
     person: "Isang tao",

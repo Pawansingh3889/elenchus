@@ -19,6 +19,7 @@ _AUDIENCE_GROUP: dict[SurveyAudience, RespondentGroup] = {
     SurveyAudience.operatives: RespondentGroup.operatives,
     SurveyAudience.line_leaders: RespondentGroup.line_leaders,
     SurveyAudience.supervisors: RespondentGroup.supervisors,
+    SurveyAudience.shift_managers: RespondentGroup.shift_managers,
     SurveyAudience.managers: RespondentGroup.managers,
     SurveyAudience.qa: RespondentGroup.qa,
 }

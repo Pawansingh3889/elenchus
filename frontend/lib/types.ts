@@ -22,17 +22,25 @@ export type SurveyAudience =
   | "operatives"
   | "line_leaders"
   | "supervisors"
+  | "shift_managers"
   | "managers"
   | "qa"
   | "person";
 export type UserRole = "author" | "respondent";
 /** Which office team an author belongs to. Also grants admin, for `it`. */
-export type CreatorDepartment = "hr" | "finance" | "technical" | "management" | "it";
+export type CreatorDepartment =
+  | "hr"
+  | "finance"
+  | "technical"
+  | "management"
+  | "quality"
+  | "it";
 /** What somebody does on the plant floor. Overlapping, so a person has a list. */
 export type RespondentGroup =
   | "operatives"
   | "line_leaders"
   | "supervisors"
+  | "shift_managers"
   | "managers"
   | "qa";
 

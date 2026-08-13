@@ -33,6 +33,7 @@ export const lv: Messages = {
     finance: "Finanses",
     technical: "Tehniskā daļa",
     management: "Vadība",
+    quality: "Kvalitāte",
     it: "IT",
   },
   people: {
@@ -54,6 +55,7 @@ export const lv: Messages = {
     operatives: "Operatori",
     lineLeaders: "Līnijas vadītāji",
     supervisors: "Maiņas vadītāji",
+    shiftManagers: "Maiņu vadītāji",
     managers: "Vadītāji",
     qa: "Kvalitātes kontrole",
     person: "Viena persona",

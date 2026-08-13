@@ -41,6 +41,7 @@ export const en = {
     finance: "Finance",
     technical: "Technical",
     management: "Management",
+    quality: "Quality",
     it: "IT",
   },
   people: {
@@ -62,6 +63,7 @@ export const en = {
     operatives: "Operatives",
     lineLeaders: "Line leaders",
     supervisors: "Supervisors",
+    shiftManagers: "Shift managers",
     managers: "Managers",
     qa: "QA",
     person: "One person",

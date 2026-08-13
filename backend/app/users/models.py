@@ -34,6 +34,11 @@ class CreatorDepartment(str, enum.Enum):
     finance = "finance"
     technical = "technical"
     management = "management"
+    # Office-side Quality and compliance: the people who write the hygiene surveys.
+    # Distinct from the `qa` group below on purpose, and the distinction is the same one
+    # the two enums exist for: this says which office team reads your surveys, that says
+    # what you do on the line, and one person can hold both.
+    quality = "quality"
     it = "it"
 
 
@@ -54,6 +59,10 @@ class RespondentGroup(str, enum.Enum):
     operatives = "operatives"
     line_leaders = "line_leaders"
     supervisors = "supervisors"
+    # Runs a shift, between the line leaders and the managers. Added beside `managers`
+    # rather than folded into it: the earlier remap made `managers` carry the old office
+    # teams' surveys, and a shift manager on the floor is not who those were for.
+    shift_managers = "shift_managers"
     managers = "managers"
     qa = "qa"
 

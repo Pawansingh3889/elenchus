@@ -11,7 +11,7 @@ class SurveyAudience(str, enum.Enum):
     and belongs in an all-staff survey, while a service or administration account does
     not, and membership is the line between them.
 
-    The five in the middle each name a `RespondentGroup`. Who may answer one is decided by
+    The six in the middle each name a `RespondentGroup`. Who may answer one is decided by
     membership of that group and never by `role`, because the people in the senior groups
     hold author accounts.
 
@@ -34,6 +34,7 @@ class SurveyAudience(str, enum.Enum):
     operatives = "operatives"
     line_leaders = "line_leaders"
     supervisors = "supervisors"
+    shift_managers = "shift_managers"
     managers = "managers"
     qa = "qa"
     person = "person"

@@ -75,6 +75,7 @@ export default function Home() {
     "operatives",
     "line_leaders",
     "supervisors",
+    "shift_managers",
     "managers",
     "qa",
     "person",

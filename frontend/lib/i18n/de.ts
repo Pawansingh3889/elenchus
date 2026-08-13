@@ -34,6 +34,7 @@ export const de: Messages = {
     finance: "Finanzen",
     technical: "Technik",
     management: "Leitung",
+    quality: "Qualität",
     it: "IT",
   },
   people: {
@@ -55,6 +56,7 @@ export const de: Messages = {
     operatives: "Produktionskräfte",
     lineLeaders: "Linienführung",
     supervisors: "Schichtleitung",
+    shiftManagers: "Schichtmanager",
     managers: "Führungskräfte",
     qa: "Qualitätssicherung",
     person: "Eine Person",

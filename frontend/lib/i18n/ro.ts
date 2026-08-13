@@ -33,6 +33,7 @@ export const ro: Messages = {
     finance: "Financiar",
     technical: "Tehnic",
     management: "Conducere",
+    quality: "Calitate",
     it: "IT",
   },
   people: {
@@ -54,6 +55,7 @@ export const ro: Messages = {
     operatives: "Operatori",
     lineLeaders: "Șefi de linie",
     supervisors: "Supervizori",
+    shiftManagers: "Șefi de tură",
     managers: "Manageri",
     qa: "Control calitate",
     person: "O singură persoană",

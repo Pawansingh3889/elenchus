@@ -28,6 +28,8 @@ export function audienceLabel(
       return aud.lineLeaders;
     case "supervisors":
       return aud.supervisors;
+    case "shift_managers":
+      return aud.shiftManagers;
     case "managers":
       return aud.managers;
     case "qa":
@@ -54,6 +56,8 @@ export function departmentLabel(dept: Messages["department"], value: CreatorDepa
       return dept.technical;
     case "management":
       return dept.management;
+    case "quality":
+      return dept.quality;
     case "it":
       return dept.it;
   }
