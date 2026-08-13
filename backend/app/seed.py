@@ -128,7 +128,8 @@ SEED_GROUPS: list[tuple[UUID, tuple[RespondentGroup, ...]]] = [
 async def seed() -> None:
     async with SessionFactory() as session:
         for uid, email, name, role, department, microsoft_id in SEED_USERS:
-            if await session.get(User, uid) is None:
+            existing = await session.get(User, uid)
+            if existing is None:
                 session.add(
                     User(
                         id=uid,
@@ -138,6 +139,17 @@ async def seed() -> None:
                         department=department,
                         microsoft_id=microsoft_id,
                     )
+                )
+            elif existing.email != email:
+                # The id is taken by somebody else. Refusing beats the alternative,
+                # which actually happened: an id reused from a retired generation of
+                # this list silently skipped the insert and then handed the impostor
+                # every group membership below, and the only symptom was two strangers
+                # gaining a group. Ids are forever; pick a fresh one.
+                raise RuntimeError(
+                    f"seed id {uid} belongs to {existing.email}, not {email}; "
+                    "this id was used by an earlier seed generation, so give the new "
+                    "user a fresh one"
                 )
         await session.commit()
         memberships = 0

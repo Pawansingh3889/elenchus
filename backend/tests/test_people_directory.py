@@ -101,3 +101,21 @@ def test_no_two_people_share_a_microsoft_id():
 
     ids = [m for *_, m in SEED_USERS if m is not None]
     assert len(ids) == len(set(ids))
+
+
+def test_the_seed_only_decorates_its_own_users():
+    """Every membership the seed grants must name a user the seed itself defines.
+
+    The failure this pins happened: two ids were reused from a retired generation of
+    SEED_USERS, still present in databases seeded before 10 Aug. The user insert
+    silently skipped, the membership loop then attached the new group to whoever held
+    the ids, and two bystanders quietly joined shift_managers. `seed()` now refuses an
+    id whose email disagrees; this catches the same mistake before a database is
+    involved at all.
+    """
+    from app.seed import SEED_GROUPS, SEED_USERS
+
+    user_ids = [uid for uid, *_ in SEED_USERS]
+    assert len(user_ids) == len(set(user_ids)), "two seed users share an id"
+    unknown = {uid for uid, _ in SEED_GROUPS} - set(user_ids)
+    assert not unknown, f"SEED_GROUPS decorates ids the seed does not define: {unknown}"
