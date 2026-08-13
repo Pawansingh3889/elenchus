@@ -6,7 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.config import get_settings
 
-engine = create_async_engine(get_settings().database_url, pool_pre_ping=True)
+engine = create_async_engine(
+    get_settings().database_url,
+    pool_pre_ping=True,
+    # See the pool fields in config.py: break-time is a burst of concurrent respondents,
+    # each holding a connection across an LLM call, and the defaults queued half of them.
+    pool_size=get_settings().db_pool_size,
+    max_overflow=get_settings().db_pool_max_overflow,
+)
 SessionFactory = async_sessionmaker(engine, expire_on_commit=False)
 
 

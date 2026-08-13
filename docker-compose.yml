@@ -26,6 +26,11 @@ services:
       # never granted: the setting would appear to work on the host, where the backend
       # is started with --env-file, and do nothing at all in the stack.
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+      # Break-time is a burst: a shift answers at once, each conversation holding a
+      # connection across its LLM call. Defaults in config.py are sized for it; these
+      # are forwarded so an operator's override actually reaches the container.
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
+      DB_POOL_MAX_OVERFLOW: ${DB_POOL_MAX_OVERFLOW:-30}
       # The OpenAI-compatible LLM tiers, tried in order (see .env.example). Passed
       # through explicitly: without these the container never sees the settings and the
       # chain silently can't engage.

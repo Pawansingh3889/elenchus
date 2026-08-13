@@ -74,6 +74,9 @@ services:
       # Empty by default, so a deployment that says nothing has no administrators rather
       # than an accidental one. Granting it is a deliberate line in the environment.
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+      # Sized for the break-time burst; see config.py. Forwarded so overrides land.
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
+      DB_POOL_MAX_OVERFLOW: ${DB_POOL_MAX_OVERFLOW:-30}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LLM_TIER1_ENABLED: ${LLM_TIER1_ENABLED:-true}
       LLM_TIER1_BASE_URL: ${LLM_TIER1_BASE_URL:-https://api.openai.com/v1}
