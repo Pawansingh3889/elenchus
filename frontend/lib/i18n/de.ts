@@ -130,6 +130,8 @@ export const de: Messages = {
     ofPeople: (done: number, of: number) => `${done} von ${of} beantwortet`,
     runsFromPeople: (runs: number, people: number) => `${runs} Durchläufe von ${people} Personen`,
     bandTitle: (n: number) => `Über ${n} offene Umfrage${n === 1 ? "" : "n"}`,
+    statusCounts: (drafts: number, published: number, closed: number) =>
+      `${drafts} ${drafts === 1 ? "Entwurf" : "Entwürfe"} · ${published} veröffentlicht · ${closed} geschlossen`,
     bandAria: (a: number, p: number, n: number) => `${a}% beantwortet, ${p}% angefangen, ${n}% noch nicht begonnen`,
     segAnswered: "beantwortet",
     segPartWay: "angefangen",

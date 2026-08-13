@@ -129,6 +129,8 @@ export const lt: Messages = {
     ofPeople: (done: number, of: number) => `atsakė ${done} iš ${of}`,
     runsFromPeople: (runs: number, people: number) => `${runs} atsakymai iš ${people} žmonių`,
     bandTitle: (n: number) => `${n} atvirose apklausose`,
+    statusCounts: (drafts: number, published: number, closed: number) =>
+      `Juodraščių: ${drafts} · paskelbta: ${published} · uždaryta: ${closed}`,
     bandAria: (a: number, p: number, n: number) => `${a}% atsakė, ${p}% pradėjo, ${n}% nepradėjo`,
     segAnswered: "atsakė",
     segPartWay: "pradėjo",

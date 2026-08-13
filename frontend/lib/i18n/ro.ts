@@ -129,6 +129,8 @@ export const ro: Messages = {
     ofPeople: (done: number, of: number) => `${done} din ${of} au răspuns`,
     runsFromPeople: (runs: number, people: number) => `${runs} răspunsuri de la ${people} persoane`,
     bandTitle: (n: number) => `În ${n} chestionar${n === 1 ? "" : "e"} deschis${n === 1 ? "" : "e"}`,
+    statusCounts: (drafts: number, published: number, closed: number) =>
+      `${drafts} ciorn${drafts === 1 ? "ă" : "e"} · ${published} publicat${published === 1 ? "" : "e"} · ${closed} închis${closed === 1 ? "" : "e"}`,
     bandAria: (a: number, p: number, n: number) => `${a}% au răspuns, ${p}% la jumătate, ${n}% neîncepute`,
     segAnswered: "au răspuns",
     segPartWay: "la jumătate",

@@ -129,6 +129,8 @@ export const pl: Messages = {
     ofPeople: (done: number, of: number) => `${done} z ${of} odpowiedziało`,
     runsFromPeople: (runs: number, people: number) => `${runs} odpowiedzi od ${people} osób`,
     bandTitle: (n: number) => `W ${n} otwartych ankietach`,
+    statusCounts: (drafts: number, published: number, closed: number) =>
+      `Szkice: ${drafts} · opublikowane: ${published} · zamknięte: ${closed}`,
     bandAria: (a: number, p: number, n: number) => `${a}% odpowiedziało, ${p}% w trakcie, ${n}% nie zaczęło`,
     segAnswered: "odpowiedziało",
     segPartWay: "w trakcie",
