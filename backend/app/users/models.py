@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import DateTime, ForeignKey, String, func
 from sqlalchemy import Enum as SAEnum
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -83,6 +84,18 @@ class User(Base):
         SAEnum(CreatorDepartment, name="creator_department"), default=None
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # The administrator who made this account on the admin screen. Null for everyone the
+    # screen did not create: the seeded accounts predate it, and the accounts a real Entra
+    # sign-in will provision arrive from outside the app entirely. So this answers "who let
+    # this person in", and a null is "nobody here did" rather than a missing value.
+    #
+    # Self-referential and deliberately not a relationship. Every reader wants a name to
+    # print beside a row it already holds, and a relationship here would load a second User
+    # per row down the same lazy path that raises MissingGreenlet inside the access rules,
+    # which is the reason `memberships` below is `selectin`.
+    created_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), default=None
+    )
 
     # `selectin` rather than lazy loading, and that is load-bearing rather than a tuning
     # choice. The access rules are pure functions of what they are handed, so the groups
@@ -116,6 +129,33 @@ class User(Base):
         of truth and no way for the two to disagree.
         """
         return frozenset(m.group for m in self.memberships)
+
+
+class AccountChange(Base):
+    """One admin edit to one account, written in the same transaction as the edit.
+
+    Append-only, and the reason it exists is the live-reach decision: who a survey is for
+    is whoever is in the group today, so denominators move when membership does, and this
+    is the record that says who moved them. Deliberately no relationship back to User in
+    either direction; the history is fetched by the one endpoint that wants it, not
+    carried around on every person the directory loads.
+    """
+
+    __tablename__ = "account_changes"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    # SET NULL, both of them: an audit row that vanishes with its subject is not audit.
+    user_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), default=None
+    )
+    changed_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), default=None
+    )
+    changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # {kind: created|updated, before: {...}|null, after: {...}}. The snapshots hold the
+    # fields an administrator controls, as the strings the enums store, so a row is
+    # readable in psql without the application to decode it.
+    change: Mapped[dict[str, Any]] = mapped_column(JSONB)
 
 
 class UserGroupMembership(Base):

@@ -20,6 +20,7 @@ from app.errors import register_error_handlers
 from app.runs.router import dashboard_router
 from app.runs.router import router as results_router
 from app.templates.router import router as templates_router
+from app.users.router import admin_router, me_router
 from app.users.router import directory_router as people_router
 from app.users.router import router as users_router
 
@@ -80,6 +81,13 @@ if get_settings().app_env != "prod":
 # for the auth shim, and a deployment that dropped it would leave every reach number
 # on the dashboard unexplainable.
 app.include_router(people_router)
+# Also unconditional, and for a sharper reason than the directory above it. These are the
+# only way to create an account or change what somebody is, so a deployment without them
+# is a deployment where the seed script is still the answer to who may build surveys.
+# They carry their own gate rather than an environment branch: `require_admin` on every
+# route, which is a rule about the caller and holds the same in every environment.
+app.include_router(me_router)
+app.include_router(admin_router)
 app.include_router(templates_router)
 app.include_router(results_router)
 app.include_router(dashboard_router)
