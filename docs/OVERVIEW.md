@@ -12,10 +12,15 @@ Elenchus replaces boring online forms with a friendly chat: instead of filling i
 on a questionnaire, respondents answer questions by texting back and forth with an AI —
 like messaging a polite interviewer — while the software keeps the AI firmly on rails.
 
-## Why there are two roles — Author and Respondent
+## Authors and respondents, and where the line comes from
 
 Think of a teacher and a student taking a quiz: someone has to *make* the quiz, and
-someone has to *take* it. Same idea here.
+someone has to *take* it. Same idea here, with one twist worth knowing: author and
+respondent are not labels stored on an account. Everyone holds exactly one job (a
+function like production or HR, crossed with a band like operative or manager), and who
+may build surveys is derived from it: manager band and up authors, everyone with a job
+answers, and the same person is routinely both. The full rules, and the reasoning behind
+them, are in [ACCESS_AND_RESULTS.md](ACCESS_AND_RESULTS.md).
 
 ### The Author — the person who creates the survey
 
@@ -44,9 +49,11 @@ time, in a warm, natural way.
   then returns to the survey.
 - They can quit halfway and come back later — nothing is lost.
 
-Afterwards, the author opens a **Results** page and sees every answer neatly
-organized, plus the full conversation behind each one — so they know not just *what*
-someone answered, but *how* they said it.
+Afterwards, the author opens the survey's **Results** page: the headline numbers first,
+a card per question below, the whole page sliceable by any closed answer, and the full
+conversation behind each response, so they know not just *what* someone answered, but
+*how* they said it. Answers wear pseudonyms rather than names, and a respondent can
+withdraw their response afterwards.
 
 > Want to try both roles yourself? The [README's walkthrough](../README.md#walk-through-it)
 > takes you from building a survey as Ava (an author) to answering it as Rosa
@@ -71,8 +78,8 @@ Technically, every AI output the system acts on comes back through a
 schema-constrained tool call and is validated before use — the AI can only *propose*
 an action; the engine decides whether it happens. The exact instructions the AI is
 given are versioned files checked into the project
-([conduct_v7.md](../backend/app/llm/prompts/conduct_v7.md) for the conversation,
-[generate_template_v3.md](../backend/app/llm/prompts/generate_template_v3.md) for
+([conduct_v8.md](../backend/app/llm/prompts/conduct_v8.md) for the conversation,
+[generate_template_v4.md](../backend/app/llm/prompts/generate_template_v4.md) for
 drafting) — so "what we told the AI" is always reviewable, like any other code.
 
 ## The rules that stop bad answers reaching the database
@@ -114,9 +121,10 @@ push, so an answer a real model gave stays a test forever.
 ## Resilience: a chain of AI providers
 
 The app is configured with an ordered chain of AI providers, up to four of them: OpenAI
-first, then Groq, then OpenRouter, then a model running on your own machine. If one is
-unavailable, the next takes over automatically, and every tier lives under **exactly the
-same rules**: same validation gate, same budgets, same refusal to save junk. An outage
+first, then Groq, then OpenRouter, with a fourth slot free for anything else that speaks
+the same API. If one is unavailable, the next takes over automatically, and every tier
+lives under **exactly the same rules**: same validation gate, same budgets, same refusal
+to save junk. An outage
 pauses nothing and weakens nothing. Turning a tier on is four lines in a config file.
 See the `LLM_TIER*_*` settings in [.env.example](../.env.example), and the
 [changelog](../CHANGELOG.md) for the live run where every single turn failed over and
@@ -139,13 +147,18 @@ of these — the chat can be embedded where the respondents already are.
 
 ## Who uses it (in this trial build)
 
-| Role | What they do |
+Nobody has a stored role; each right below derives from the person's job.
+
+| Who | What they do |
 |------|--------------|
-| **Author** | Build/draft templates, publish versions, read the responses |
-| **Respondent** | Complete a published survey through the chat runner |
+| **Manager band and up** | Build/draft surveys, publish versions, read the results, in any function |
+| **Anyone with a job** | Complete a published survey aimed at them through the chat runner |
+| **The executive function** | Reads every survey and its results, edits none |
+| **IT (or the email allowlist)** | Administers accounts on the People screen |
 
 (Dev auth is deliberately thin: each request identifies its caller with an
-`X-User-Id` header; a real deployment swaps that for a proper identity provider.)
+`X-User-Id` header, obtained by typing a seeded email address in the top bar; a real
+deployment swaps that for a proper identity provider.)
 
 ## A typical end-to-end flow
 
@@ -155,8 +168,8 @@ of these — the chat can be embedded where the respondents already are.
    answer and records the transcript.
 3. The author edits the survey and **publishes version 2** — anyone mid-way through
    v1 is unaffected.
-4. The author opens **Responses** and reads the structured answers plus the full
-   transcript for each run.
+4. The author opens **Results** and reads the report, the structured answers and the
+   full transcript for each run.
 
 ## Where to go next
 
@@ -164,6 +177,8 @@ of these — the chat can be embedded where the respondents already are.
   seeded demo users, the walkthrough).
 - **See how we keep the AI honest** → [CHECKS.md](CHECKS.md) (what every gate is
   asking, and the misbehaviour that earned it).
+- **Who can see what, and what an answer is worth** → [ACCESS_AND_RESULTS.md](ACCESS_AND_RESULTS.md)
+  (the job model, the audiences, and the gates that stop an invented answer).
 - **How it all got built** → [CHANGELOG.md](../CHANGELOG.md) (the project's history,
   day by day, from the first commit).
 - **The original brief** → [trial-brief/](../trial-brief/README.md)
