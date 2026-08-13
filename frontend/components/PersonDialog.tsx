@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { audienceLabel, departmentLabel } from "@/lib/audience";
+import { bandLabel, functionLabel, hatLabel, jobLabel } from "@/lib/audience";
 import type { Messages } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/useT";
 import {
@@ -26,28 +26,26 @@ import type {
   AccountChangeEntry,
   AccountImpact,
   AccountWrite,
-  CreatorDepartment,
+  Band,
+  Hat,
+  JobFunction,
   Person,
-  RespondentGroup,
-  UserRole,
 } from "@/lib/types";
 
-const DEPARTMENTS: CreatorDepartment[] = [
+const FUNCTIONS: JobFunction[] = [
+  "production",
+  "quality",
+  "health_safety",
+  "technical",
+  "planning",
   "hr",
   "finance",
-  "technical",
-  "management",
-  "quality",
+  "supply_chain",
   "it",
+  "executive",
 ];
-const GROUPS: RespondentGroup[] = [
-  "operatives",
-  "line_leaders",
-  "supervisors",
-  "shift_managers",
-  "managers",
-  "qa",
-];
+const BANDS: Band[] = ["operative", "line_leader", "supervisor", "manager", "head", "director"];
+const HATS: Hat[] = ["health_safety"];
 
 /** Shared by every field, and lifted from SelectTrigger so a text box and a dropdown are
  *  the same object on the page. Only classes that already compile: an invented utility is
@@ -70,16 +68,14 @@ interface Props {
  * the server takes every field each time, so an edit is a create with the boxes already
  * filled. Only the email differs, and only because it cannot be changed afterwards.
  *
- * The rules about which combinations are allowed are deliberately NOT duplicated here.
- * `role`, `department` and `groups` constrain each other in ways that matter for access
- * (a respondent holding a department would be read as a colleague, and colleagues read
- * raw answers), and a second copy of that logic in a browser is a copy that drifts from
- * the one the database is actually protected by. So the form submits, and the server's
- * sentence is what the author reads. What the form does do is make the valid shape the
- * easy one to reach: choosing an account type shows the field that type needs.
+ * The form states the job (function and band, both required) and any hats; what the
+ * account may do derives from that on the server. The rules about which combinations
+ * are refused are deliberately NOT duplicated here: a second copy of them in a browser
+ * is a copy that drifts from the one the database is actually protected by. So the
+ * form submits, and the server's sentence is what the administrator reads.
  */
 export function PersonDialog({ person, onClose }: Props) {
-  const { admin: t, common, audience: aud, department: dep, people } = useT();
+  const { admin: t, common, jobFunction: fn, band: bandT, hat: hatT } = useT();
   const locale = useLocaleStore((s) => s.locale);
   const create = useCreateAccount();
   const replace = useReplaceAccount();
@@ -88,17 +84,15 @@ export function PersonDialog({ person, onClose }: Props) {
 
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState(person?.display_name ?? "");
-  const [role, setRole] = useState<UserRole>(person?.role ?? "respondent");
-  const [department, setDepartment] = useState<CreatorDepartment | null>(
-    person?.department ?? null,
-  );
-  const [groups, setGroups] = useState<RespondentGroup[]>(person?.groups ?? []);
+  const [jobFunction, setJobFunction] = useState<JobFunction>(person?.function ?? "production");
+  const [band, setBand] = useState<Band>(person?.band ?? "operative");
+  const [hats, setHats] = useState<Hat[]>(person?.hats ?? []);
   // The id itself is never sent to the browser, only whether one is set, so an edit
   // starts blank and a blank submit clears it. Said plainly under the field rather than
   // left for somebody to discover by saving.
   const [microsoftId, setMicrosoftId] = useState("");
   // The guardrail step. Saving an edit asks the server what would change first; when
-  // open surveys are affected or the account type flips, the answer is shown and Save
+  // open surveys are affected or authorship flips, the answer is shown and Save
   // becomes a decision rather than a reflex. The form is hidden meanwhile, which is
   // what lets `buildBody()` be called again on confirm and mean the same edit.
   const [impact, setImpact] = useState<AccountImpact | null>(null);
@@ -106,24 +100,21 @@ export function PersonDialog({ person, onClose }: Props) {
   const pending = create.isPending || replace.isPending || preview.isPending;
   const error = create.error ?? replace.error ?? preview.error;
 
-  function toggleGroup(group: RespondentGroup) {
-    setGroups((current) =>
-      current.includes(group) ? current.filter((g) => g !== group) : [...current, group],
+  function toggleHat(hat: Hat) {
+    setHats((current) =>
+      current.includes(hat) ? current.filter((h) => h !== hat) : [...current, hat],
     );
   }
 
   function buildBody(): AccountWrite {
     return {
       display_name: displayName,
-      role,
+      function: jobFunction,
+      band,
       // An empty box is an absent id, not an empty one. The server folds this too; doing
       // it here as well keeps the request honest about what it is asking for.
       microsoft_id: microsoftId.trim() || null,
-      // Carried only for the type that has one. Leaving a stale department on an account
-      // switched to respondent is exactly the state the server refuses, and sending it
-      // would turn a tidy form into a confusing 422.
-      department: role === "author" ? department : null,
-      groups,
+      hats,
     };
   }
 
@@ -137,8 +128,8 @@ export function PersonDialog({ person, onClose }: Props) {
   function submit() {
     // Creates save directly: the preview compares against an account as it stands, and
     // a new person stands nowhere yet. Edits ask first, and only interrupt when the
-    // answer would surprise: reach moving on an open survey, or the account type
-    // changing what this person can do.
+    // answer would surprise: reach moving on an open survey, or authorship flipping,
+    // which the server derives because band order is its fact.
     if (!person) {
       save();
       return;
@@ -147,7 +138,7 @@ export function PersonDialog({ person, onClose }: Props) {
       { id: person.id, data: buildBody() },
       {
         onSuccess: (result) => {
-          if (result.surveys.length > 0 || result.role_before !== result.role_after) {
+          if (result.surveys.length > 0 || result.may_author_before !== result.may_author_after) {
             setImpact(result);
           } else {
             save();
@@ -200,59 +191,50 @@ export function PersonDialog({ person, onClose }: Props) {
             />
           </label>
 
-          <fieldset className="flex flex-col gap-1">
-            <legend className="text-sm font-medium text-ink">{t.roleLabel}</legend>
-            {(["respondent", "author"] as UserRole[]).map((option) => (
-              <label key={option} className="flex items-start gap-2 text-sm text-ink">
-                <input
-                  type="radio"
-                  name="role"
-                  className="mt-1"
-                  checked={role === option}
-                  onChange={() => setRole(option)}
-                />
-                <span>
-                  {option === "author" ? people.roleAuthor : people.roleRespondent}
-                  <span className="block text-xs text-muted">
-                    {option === "author" ? t.roleAuthorHint : t.roleRespondentHint}
-                  </span>
-                </span>
-              </label>
-            ))}
-          </fieldset>
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-ink">{t.functionLabel}</span>
+            <select
+              className={FIELD}
+              value={jobFunction}
+              onChange={(e) => setJobFunction(e.target.value as JobFunction)}
+            >
+              {FUNCTIONS.map((f) => (
+                <option key={f} value={f}>
+                  {functionLabel(fn, f)}
+                </option>
+              ))}
+            </select>
+            <span className="text-xs text-muted">{t.functionHint}</span>
+          </label>
 
-          {role === "author" ? (
-            <label className="flex flex-col gap-1">
-              <span className="text-sm font-medium text-ink">{t.departmentLabel}</span>
-              <select
-                className={FIELD}
-                value={department ?? ""}
-                onChange={(e) =>
-                  setDepartment((e.target.value || null) as CreatorDepartment | null)
-                }
-              >
-                <option value="">{t.departmentNone}</option>
-                {DEPARTMENTS.map((d) => (
-                  <option key={d} value={d}>
-                    {departmentLabel(dep, d)}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-ink">{t.bandLabel}</span>
+            <select
+              className={FIELD}
+              value={band}
+              onChange={(e) => setBand(e.target.value as Band)}
+            >
+              {BANDS.map((b) => (
+                <option key={b} value={b}>
+                  {bandLabel(bandT, b)}
+                </option>
+              ))}
+            </select>
+            <span className="text-xs text-muted">{t.bandHint}</span>
+          </label>
 
           <fieldset className="flex flex-col gap-1">
-            <legend className="text-sm font-medium text-ink">{t.groupsLabel}</legend>
-            <span className="text-xs text-muted">{t.groupsHint}</span>
+            <legend className="text-sm font-medium text-ink">{t.hatsLabel}</legend>
+            <span className="text-xs text-muted">{t.hatsHint}</span>
             <div className="flex flex-wrap gap-3 pt-1">
-              {GROUPS.map((group) => (
-                <label key={group} className="flex items-center gap-2 text-sm text-ink">
+              {HATS.map((hat) => (
+                <label key={hat} className="flex items-center gap-2 text-sm text-ink">
                   <input
                     type="checkbox"
-                    checked={groups.includes(group)}
-                    onChange={() => toggleGroup(group)}
+                    checked={hats.includes(hat)}
+                    onChange={() => toggleHat(hat)}
                   />
-                  {audienceLabel(aud, group)}
+                  {hatLabel(hatT, hat)}
                 </label>
               ))}
             </div>
@@ -281,7 +263,7 @@ export function PersonDialog({ person, onClose }: Props) {
                     {" · "}
                     {entry.changed_by_name ?? t.historySomeone}
                     {": "}
-                    {changeSummary(entry, t, aud, people)}
+                    {changeSummary(entry, t, fn, bandT)}
                   </li>
                 ))}
               </ul>
@@ -304,34 +286,52 @@ export function PersonDialog({ person, onClose }: Props) {
   );
 }
 
-/** One audit row as a sentence fragment: what changed, in the reader's language. */
+/** A snapshot's list-valued key, tolerant of rows from before the job model: new rows
+ *  say `hats`, old rows say `groups`, and the log serves both as written. */
+function names(snapshot: Record<string, unknown>, key: string): string[] {
+  const value = snapshot[key];
+  return Array.isArray(value) ? value.map((v) => String(v).replaceAll("_", " ")) : [];
+}
+
+/** One audit row as a sentence fragment: what changed, in the reader's language where
+ *  the vocabulary still exists, and as the stored words for rows that predate it. */
 function changeSummary(
   entry: AccountChangeEntry,
   t: Messages["admin"],
-  aud: Messages["audience"],
-  people: Messages["people"],
+  fn: Messages["jobFunction"],
+  bandT: Messages["band"],
 ): string {
   if (entry.kind === "created" || entry.before === null) return t.historyCreated;
   const { before, after } = entry;
   const parts: string[] = [];
-  const added = after.groups.filter((g) => !before.groups.includes(g));
-  const removed = before.groups.filter((g) => !after.groups.includes(g));
-  if (added.length) parts.push(t.historyAdded(added.map((g) => audienceLabel(aud, g)).join(", ")));
-  if (removed.length) {
-    parts.push(t.historyRemoved(removed.map((g) => audienceLabel(aud, g)).join(", ")));
+  for (const key of ["hats", "groups"]) {
+    const was = names(before, key);
+    const now = names(after, key);
+    const added = now.filter((v) => !was.includes(v));
+    const removed = was.filter((v) => !now.includes(v));
+    if (added.length) parts.push(t.historyAdded(added.join(", ")));
+    if (removed.length) parts.push(t.historyRemoved(removed.join(", ")));
   }
-  if (before.role !== after.role) {
-    parts.push(t.historyRole(after.role === "author" ? people.roleAuthor : people.roleRespondent));
+  if (before.function !== after.function || before.band !== after.band) {
+    const f = after.function as JobFunction | null;
+    const b = after.band as Band | null;
+    parts.push(
+      t.historyJob(
+        f && b ? `${functionLabel(fn, f)} · ${bandLabel(bandT, b)}` : String(after.function),
+      ),
+    );
+  }
+  // Legacy rows: a role change was the account type moving, still worth a word.
+  if (before.role !== after.role && after.role !== undefined) {
+    parts.push(t.historyJob(String(after.role)));
   }
   if (
+    parts.length === 0 ||
     before.display_name !== after.display_name ||
-    before.department !== after.department ||
     before.microsoft_id !== after.microsoft_id
   ) {
     parts.push(t.historyOther);
   }
-  // A row exists because something differed, so parts cannot be empty; joined rather
-  // than listed so the line stays a line.
   return parts.join(", ");
 }
 
@@ -347,19 +347,27 @@ function ImpactPanel({
   onBack: () => void;
   onConfirm: () => void;
 }) {
-  const { admin: t, common } = useT();
+  const { admin: t, common, jobFunction: fn, band: bandT } = useT();
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm font-medium text-ink">{t.previewTitle}</p>
-      {impact.role_before !== impact.role_after ? (
+      <p className="text-sm text-muted">
+        {jobLabel(fn, bandT, impact.function_before, impact.band_before, "-")}
+        {" → "}
+        {jobLabel(fn, bandT, impact.function_after, impact.band_after, "-")}
+      </p>
+      {impact.may_author_before !== impact.may_author_after ? (
         <p className="text-sm text-warn-text">
-          {impact.role_after === "author" ? t.previewNowAuthor : t.previewNowRespondent}
+          {impact.may_author_after ? t.previewNowAuthor : t.previewNowRespondent}
         </p>
       ) : null}
       {impact.surveys.length ? (
         <ul className="flex flex-col gap-2">
           {impact.surveys.map((survey) => (
-            <li key={survey.template_id} className="rounded-lg border border-warn-border bg-warn-fill p-3">
+            <li
+              key={survey.template_id}
+              className="rounded-lg border border-warn-border bg-warn-fill p-3"
+            >
               <p className="text-sm font-medium text-warn-text">{survey.title}</p>
               <p className="text-xs text-warn-text">
                 {t.previewReach(survey.reach_before, survey.reach_after)}

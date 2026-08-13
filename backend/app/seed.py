@@ -1,20 +1,22 @@
-"""Idempotent dev seed: creators across every department, respondents, and the samples.
+"""Idempotent dev seed: one plant in miniature, every ladder represented.
 
 Run with ``python -m app.seed``. Safe to run repeatedly (keyed on id).
 
-There is one creator per department rather than two unattached authors, because the
-access rules are the interesting thing to look at now and they are invisible with a
-single department: Ava in HR and Fatima in Finance seeing different lists is the whole
-feature, and it cannot be demonstrated by a database that has only one team in it.
+Each person holds one job, which is the whole point of the job model: the seed used to
+record a line leader who was also QA, and the org chart says that job does not exist.
+The cast covers what the access rules need to be visible: a shift manager who authors
+(Ava), the office functions (Arjun, Fatima), an executive who reads everything without
+owning anything (Adaeze), the quality ladder top to bottom (Tomas, Quinn, Noor), a
+supervisor carrying the H&S hat (Rohan), and a dedicated H&S manager (Hana).
 
 Nobody here is in IT, and so nobody here is an administrator. That is deliberate: IT
-membership now grants admin, and a committed seed that shipped an administrator would
-hand one to every checkout. Admin locally is still ADMIN_EMAILS, or moving one of these
+membership grants admin, and a committed seed that shipped an administrator would hand
+one to every checkout. Admin locally is still ADMIN_EMAILS, or moving one of these
 accounts into IT yourself.
 
-Everyone on the floor is in at least one group, including the senior people who hold
-author accounts. That is the case worth being able to see: a survey aimed at supervisors
-has to reach Ava, who signs in as a creator and is a supervisor on the line.
+Display names still carry the retired author/respondent wording ("Rina Respondent").
+Ids are forever and names are cosmetic, so the names stay while the rights derive from
+the band: Rina is a shift manager and may author, whatever her surname says.
 """
 
 import asyncio
@@ -22,153 +24,150 @@ from uuid import UUID
 
 from app.db.session import SessionFactory
 from app.sample_data.loader import load_sample_data
-from app.users.models import CreatorDepartment, RespondentGroup, User, UserGroupMembership, UserRole
+from app.users.models import Band, Function, Hat, User, UserHat
 
-# The last field is a stand-in Entra object id. Authors have one because creators sign
-# in with Microsoft; the floor has none and arrives by link instead. Nothing reads it
-# yet, and test_seed_identity holds it consistent with `role`, so the day sign-in does
-# read it the two already agree.
-SEED_USERS: list[tuple[UUID, str, str, UserRole, CreatorDepartment | None, str | None]] = [
+# (id, email, name, function, band, Entra object id). The id is a stand-in for the
+# Microsoft login the authoring bands will hold; it decides nothing, and Rina is the
+# deliberate counter-example: manager band, no Entra id, which the directory badges as
+# somebody who authors today and cannot sign in when the header shim goes.
+SEED_USERS: list[tuple[UUID, str, str, Function, Band, str | None]] = [
     (
         UUID("00000000-0000-0000-0000-0000000000a1"),
         "ava@elenchus.dev",
         "Ava Author",
-        UserRole.author,
-        # Management, matching the migration's remap of the old Operations department:
-        # the walkthroughs and demo script all run as Ava, so she is the one whose
-        # department has to be the ordinary case.
-        CreatorDepartment.management,
+        # A shift manager: the case the band model exists for. The walkthroughs and demo
+        # script all run as Ava, and she authors from the floor, not from an office.
+        Function.production,
+        Band.manager,
         "entra-ava",
     ),
     (
         UUID("00000000-0000-0000-0000-0000000000a2"),
         "arjun@elenchus.dev",
         "Arjun Author",
-        UserRole.author,
-        CreatorDepartment.hr,
+        Function.hr,
+        Band.manager,
         "entra-arjun",
     ),
     (
         UUID("00000000-0000-0000-0000-0000000000a3"),
         "fatima@elenchus.dev",
         "Fatima Author",
-        UserRole.author,
-        CreatorDepartment.finance,
+        Function.finance,
+        Band.manager,
         "entra-fatima",
     ),
     (
         UUID("00000000-0000-0000-0000-0000000000a4"),
         "adaeze@elenchus.dev",
         "Adaeze Author",
-        UserRole.author,
-        # Management rather than IT, though this was the administration account before.
-        # IT now grants admin, and a seeded administrator is a seeded way in: move this
-        # account to IT yourself if that is what you want locally.
-        CreatorDepartment.management,
+        # The factory manager: executive reads every survey and edits none of them,
+        # which needs one seeded account to be seen from. Not IT, so still not admin.
+        Function.executive,
+        Band.head,
         "entra-adaeze",
     ),
     (
         UUID("00000000-0000-0000-0000-0000000000a5"),
         "tomas@elenchus.dev",
         "Tomas Author",
-        UserRole.author,
-        CreatorDepartment.technical,
+        # Head QA on the floor, straight from the org picture.
+        Function.quality,
+        Band.head,
         "entra-tomas",
     ),
     (
         UUID("00000000-0000-0000-0000-0000000000a6"),
         "quinn@elenchus.dev",
         "Quinn Author",
-        UserRole.author,
-        # The office-side Quality team, distinct from the qa group on the floor. Quinn
-        # holds both below, which is the both-at-once case the two vocabularies allow.
-        CreatorDepartment.quality,
+        Function.quality,
+        Band.manager,
         "entra-quinn",
     ),
     (
         UUID("00000000-0000-0000-0000-0000000000b1"),
         "rosa@elenchus.dev",
         "Rosa Respondent",
-        UserRole.respondent,
-        None,
+        Function.production,
+        Band.operative,
         None,
     ),
     (
         UUID("00000000-0000-0000-0000-0000000000b2"),
         "ravi@elenchus.dev",
         "Ravi Respondent",
-        UserRole.respondent,
-        None,
+        # A line leader, and only that. The retired membership table recorded Ravi as
+        # line leader and QA at once, which is the impossible job that led to the job
+        # model; keep him single-jobbed so the fix stays demonstrated.
+        Function.production,
+        Band.line_leader,
         None,
     ),
     (
         UUID("00000000-0000-0000-0000-0000000000b3"),
         "remy@elenchus.dev",
         "Remy Respondent",
-        UserRole.respondent,
-        None,
+        Function.production,
+        Band.operative,
         None,
     ),
     # c-block ids, not the next b ones: b4 through b8 are already occupied in databases
     # seeded before 10 Aug, by respondent rows an older generation of this list created
     # and later dropped. Reusing an id does not fail; it silently decorates whoever holds
-    # it, which is exactly what the email check in seed() now refuses.
+    # it, which is exactly what the email check in seed() refuses.
     (
         UUID("00000000-0000-0000-0000-0000000000c1"),
         "rina@elenchus.dev",
         "Rina Respondent",
-        UserRole.respondent,
-        None,
+        # A shift manager, so manager band: she authors, reads production colleagues'
+        # results, and deliberately has no Entra id (see the note above SEED_USERS).
+        Function.production,
+        Band.manager,
         None,
     ),
     (
         UUID("00000000-0000-0000-0000-0000000000c2"),
         "rohan@elenchus.dev",
         "Rohan Respondent",
-        UserRole.respondent,
+        # A supervisor with additional H&S responsibility: the case hats exist for.
+        # The job stays production; the duty is in SEED_HATS below.
+        Function.production,
+        Band.supervisor,
         None,
+    ),
+    (
+        UUID("00000000-0000-0000-0000-0000000000c3"),
+        "hana@elenchus.dev",
+        "Hana Author",
+        # The H&S manager on the floor: the dedicated half of the health_safety
+        # audience, beside Rohan's hatted half.
+        Function.health_safety,
+        Band.manager,
+        "entra-hana",
+    ),
+    (
+        UUID("00000000-0000-0000-0000-0000000000c4"),
+        "noor@elenchus.dev",
+        "Noor Respondent",
+        # QA on the ground: the quality ladder's operative rung, so a survey aimed at
+        # `qa` visibly spans floor to head.
+        Function.quality,
+        Band.operative,
         None,
     ),
 ]
 
 
-# Who is on the floor, and as what. Ava is a supervisor as well as an author, which is
-# the case the whole membership model exists for: her Teams login makes her a creator by
-# `role`, and a survey aimed at supervisors is written for her all the same.
-#
-# Managers has members on purpose. The migration remaps every survey that used to name an
-# office team onto `managers`, and landing those on an empty group would leave a shelf of
-# surveys nobody can answer and a dashboard reporting a reach of zero for all of them.
-SEED_GROUPS: list[tuple[UUID, tuple[RespondentGroup, ...]]] = [
-    (UUID("00000000-0000-0000-0000-0000000000a1"), (RespondentGroup.supervisors,)),
-    (UUID("00000000-0000-0000-0000-0000000000a2"), (RespondentGroup.managers,)),
-    (UUID("00000000-0000-0000-0000-0000000000a4"), (RespondentGroup.managers,)),
-    (UUID("00000000-0000-0000-0000-0000000000a5"), (RespondentGroup.qa,)),
-    # Quinn works in the Quality department and spot-checks on the line: the office
-    # vocabulary and the floor vocabulary answering their different questions about one
-    # person, which is why they are two vocabularies.
-    (UUID("00000000-0000-0000-0000-0000000000a6"), (RespondentGroup.qa,)),
-    (UUID("00000000-0000-0000-0000-0000000000b1"), (RespondentGroup.operatives,)),
-    # In two groups, because that is the thing a join table buys and a column could not:
-    # a line leader who also covers QA is really in both.
-    (
-        UUID("00000000-0000-0000-0000-0000000000b2"),
-        (RespondentGroup.line_leaders, RespondentGroup.qa),
-    ),
-    (UUID("00000000-0000-0000-0000-0000000000b3"), (RespondentGroup.operatives,)),
-    (UUID("00000000-0000-0000-0000-0000000000c1"), (RespondentGroup.shift_managers,)),
-    # A shift manager who also leads a line, so the new group demonstrates the overlap
-    # the membership table exists for from the day it lands.
-    (
-        UUID("00000000-0000-0000-0000-0000000000c2"),
-        (RespondentGroup.shift_managers, RespondentGroup.line_leaders),
-    ),
+# Cross-cutting responsibilities on top of the job. Small on purpose: a hat grants
+# being asked (the health_safety audience) and nothing else.
+SEED_HATS: list[tuple[UUID, tuple[Hat, ...]]] = [
+    (UUID("00000000-0000-0000-0000-0000000000c2"), (Hat.health_safety,)),
 ]
 
 
 async def seed() -> None:
     async with SessionFactory() as session:
-        for uid, email, name, role, department, microsoft_id in SEED_USERS:
+        for uid, email, name, function, band, microsoft_id in SEED_USERS:
             existing = await session.get(User, uid)
             if existing is None:
                 session.add(
@@ -176,8 +175,8 @@ async def seed() -> None:
                         id=uid,
                         email=email,
                         display_name=name,
-                        role=role,
-                        department=department,
+                        function=function,
+                        band=band,
                         microsoft_id=microsoft_id,
                     )
                 )
@@ -193,18 +192,18 @@ async def seed() -> None:
                     "user a fresh one"
                 )
         await session.commit()
-        memberships = 0
-        for uid, groups in SEED_GROUPS:
-            for group in groups:
+        hats = 0
+        for uid, wanted in SEED_HATS:
+            for hat in wanted:
                 # Keyed on the pair, so re-running adds nothing and the seed stays safe to
                 # run over a database somebody has already been using.
-                if await session.get(UserGroupMembership, (uid, group)) is None:
-                    session.add(UserGroupMembership(user_id=uid, group=group))
-                    memberships += 1
+                if await session.get(UserHat, (uid, hat)) is None:
+                    session.add(UserHat(user_id=uid, hat=hat))
+                    hats += 1
         await session.commit()
         surveys_added, runs_added = await load_sample_data(session)
     print(
-        f"Seeded {len(SEED_USERS)} users and {memberships} new group memberships; "
+        f"Seeded {len(SEED_USERS)} users and {hats} new hats; "
         f"loaded {surveys_added} sample surveys and {runs_added} runs (idempotent)."
     )
 

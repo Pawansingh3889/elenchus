@@ -69,7 +69,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
     useDraftNoteStore.getState().clearPendingNote(id);
   }, [id]);
 
-  const isRespondent = currentUser?.role === "respondent";
+  const isRespondent = currentUser ? !currentUser.may_author : false;
   useEffect(() => {
     if (isRespondent) router.replace("/respond");
   }, [isRespondent, router]);

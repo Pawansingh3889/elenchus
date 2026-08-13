@@ -28,7 +28,6 @@ from app.runs.models import RunMessage, SurveyRun
 from app.templates.enums import AnswerType, FollowUpPolicy, SurveyAudience
 from app.templates.schemas import QuestionInput, TemplateCreate
 from app.templates.service import TemplateService
-from app.users.models import RespondentGroup, UserGroupMembership
 from tests.builders import update_of
 from tests.fakes import FakeLLM
 from tests.fakes import follow_up as _follow_up
@@ -37,20 +36,22 @@ from tests.fakes import record as _record
 from tests.fakes import reply as _reply
 
 
-async def test_an_author_account_in_the_group_may_answer(session, author, respondent):
+async def test_an_authoring_band_in_the_audience_may_answer(
+    session, author, other_author, respondent
+):
     """The bug this names, and the reason the role gate went.
 
-    A supervisor signs in with Teams and therefore holds an author account. The survey
-    aimed at supervisors counted them in its reach and the route refused them at the
-    door with "Only respondents can take surveys", so "1 of 2 answered" was a number
-    nobody could ever move. Membership decides now, and `role` is not consulted.
+    A manager signs in with Teams and builds surveys, and is still one of the people a
+    survey aimed at managers was written for. The old route refused them at the door
+    with "Only respondents can take surveys", so "1 of 2 answered" was a number nobody
+    could ever move. The job decides now: the finance manager here is not the survey's
+    owner and is admitted purely by band.
     """
-    author.memberships = [UserGroupMembership(group=RespondentGroup.supervisors)]
     svc = TemplateService(session)
     template = await svc.create_draft(
         TemplateCreate(
             title="Handover check",
-            audience=SurveyAudience.supervisors,
+            audience=SurveyAudience.managers,
             questions=[
                 QuestionInput(text="How did handover go?", answer_type=AnswerType.short_text)
             ],
@@ -59,11 +60,11 @@ async def test_an_author_account_in_the_group_may_answer(session, author, respon
     )
     await svc.publish(template.id, author)
 
-    run = await ConductEngine(session, llm=FakeLLM()).start_run(template.id, author)
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(template.id, other_author)
     assert run.id is not None
 
-    # And the rule still bites: somebody in no group is refused, whatever their role.
-    respondent.memberships = []
+    # And the rule still bites: an operative is not in the managers audience, however
+    # real their job is.
     with pytest.raises(ForbiddenError):
         await ConductEngine(session, llm=FakeLLM()).start_run(template.id, respondent)
 

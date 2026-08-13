@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { audienceLabel, departmentLabel } from "@/lib/audience";
+import { hatLabel, jobLabel } from "@/lib/audience";
 import { useT } from "@/lib/i18n/useT";
 import { useCurrentUser, useMe, usePeople } from "@/lib/queries";
 import { useUserStore } from "@/lib/store";
@@ -42,7 +42,7 @@ import type { Person } from "@/lib/types";
  * a respondent who reaches this page with a crafted request is refused by the server.
  */
 export default function People() {
-  const { people, audience: aud, department, home, admin: t } = useT();
+  const { people, jobFunction: fn, band, hat, home, admin: t } = useT();
   const currentUserId = useUserStore((s) => s.currentUserId);
   const currentUser = useCurrentUser();
   const { data: rows, isLoading, error } = usePeople();
@@ -53,9 +53,9 @@ export default function People() {
   // and edit at once.
   const [editing, setEditing] = useState<Person | null | undefined>(undefined);
 
-  // Author-only on the server too. Sending a respondent away rather than rendering the
-  // 403 they would otherwise collect on arrival.
-  const isRespondent = currentUser?.role === "respondent";
+  // Author-only on the server too. Sending a non-authoring caller away rather than
+  // rendering the 403 they would otherwise collect on arrival.
+  const isRespondent = currentUser ? !currentUser.may_author : false;
   useEffect(() => {
     if (isRespondent) router.replace("/respond");
   }, [isRespondent, router]);
@@ -86,9 +86,8 @@ export default function People() {
             <TableHeader>
               <TableRow>
                 <TableHead>{people.colName}</TableHead>
-                <TableHead>{people.colRole}</TableHead>
-                <TableHead>{people.colDepartment}</TableHead>
-                <TableHead>{people.colGroups}</TableHead>
+                <TableHead>{people.colJob}</TableHead>
+                <TableHead>{people.colHats}</TableHead>
                 {me?.is_admin ? <TableHead>{t.colActions}</TableHead> : null}
               </TableRow>
             </TableHeader>
@@ -97,34 +96,40 @@ export default function People() {
                 <TableRow key={person.id}>
                   <TableCell className="font-medium text-ink">{person.display_name}</TableCell>
                   <TableCell className="text-muted">
-                    {person.role === "author" ? people.roleAuthor : people.roleRespondent}
-                    {/* `role` is stored as sent, so it can drift from the Entra id that
-                        is meant to decide it. An author with no id builds surveys today
-                        and cannot sign in the day that derivation is switched on, which
-                        is invisible everywhere else. */}
-                    {person.role === "author" && !person.has_microsoft_id ? (
-                      <Badge variant="warn" className="ms-2" title={t.noEntraIdWhy}>
-                        {t.noEntraId}
-                      </Badge>
-                    ) : null}
-                  </TableCell>
-                  <TableCell className="text-muted">
-                    {person.department ? departmentLabel(department, person.department) : "-"}
+                    {person.function && person.band ? (
+                      <>
+                        {jobLabel(fn, band, person.function, person.band, "-")}
+                        {/* Derived on the server: the band decides authoring, and the
+                            page just says so beside the job. */}
+                        {person.may_author ? (
+                          <Badge className="ms-2">{people.buildsSurveys}</Badge>
+                        ) : null}
+                        {/* Somebody at an authoring band with no Entra id builds
+                            surveys today and has no way to sign in when the header
+                            shim is replaced, which is invisible everywhere else. */}
+                        {person.may_author && !person.has_microsoft_id ? (
+                          <Badge variant="warn" className="ms-2" title={t.noEntraIdWhy}>
+                            {t.noEntraId}
+                          </Badge>
+                        ) : null}
+                      </>
+                    ) : (
+                      // A real state worth seeing rather than a blank cell: an account
+                      // with no job can be asked nothing at all, not even a survey
+                      // aimed at everyone. Right for a service account, a mistake for
+                      // a person, and this line is how the mistake gets seen.
+                      <span className="text-sm text-warn-text">{people.noJob}</span>
+                    )}
                   </TableCell>
                   <TableCell>
-                    {person.groups.length ? (
+                    {person.hats.length ? (
                       <span className="flex flex-wrap gap-1">
-                        {/* Named through the same helper the picker and the publish
-                            dialog use, so a group is called one thing everywhere. */}
-                        {person.groups.map((g) => (
-                          <Badge key={g}>{audienceLabel(aud, g)}</Badge>
+                        {person.hats.map((h) => (
+                          <Badge key={h}>{hatLabel(hat, h)}</Badge>
                         ))}
                       </span>
                     ) : (
-                      // A real state worth seeing rather than a blank cell: somebody in
-                      // no group can be asked nothing at all, not even a survey aimed at
-                      // everyone, and that is usually a mistake somebody should fix.
-                      <span className="text-sm text-warn-text">{people.noGroups}</span>
+                      <span className="text-muted">-</span>
                     )}
                   </TableCell>
                   {me?.is_admin ? (

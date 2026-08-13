@@ -45,8 +45,8 @@ export default function Home() {
   const [audienceUserId, setAudienceUserId] = useState<string>("");
   const setPendingNote = useDraftNoteStore((s) => s.setPendingNote);
 
-  const isAuthor = currentUser?.role === "author";
-  const isRespondent = currentUser?.role === "respondent";
+  const isAuthor = currentUser?.may_author === true;
+  const isRespondent = currentUser ? !currentUser.may_author : false;
   const needsYou = rows ? groupForDashboard(rows).needsYou.length : 0;
 
   // A person must actually be chosen before the pair is valid. The server refuses

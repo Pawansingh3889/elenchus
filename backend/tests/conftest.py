@@ -26,7 +26,7 @@ from app.templates import models as _templates  # noqa: F401
 from app.templates.enums import AnswerType, FollowUpPolicy
 from app.templates.schemas import QuestionInput, TemplateCreate
 from app.templates.service import TemplateService
-from app.users.models import RespondentGroup, User, UserGroupMembership, UserRole
+from app.users.models import Band, Function, User
 
 ADMIN_URL = "postgresql+asyncpg://elenchus:elenchus@localhost:5432/elenchus"
 TEST_URL = "postgresql+asyncpg://elenchus:elenchus@localhost:5432/elenchus_test"
@@ -146,7 +146,17 @@ async def session(engine):
 
 @pytest_asyncio.fixture
 async def author(session):
-    user = User(email="author@test.dev", display_name="Test Author", role=UserRole.author)
+    """Someone who may build surveys: manager band, in an office function (HR).
+
+    HR rather than production so the colleague tests stay sharp: this author's
+    function-mates are other office managers, not the floor they survey.
+    """
+    user = User(
+        email="author@test.dev",
+        display_name="Test Author",
+        function=Function.hr,
+        band=Band.manager,
+    )
     session.add(user)
     await session.flush()
     return user
@@ -154,8 +164,14 @@ async def author(session):
 
 @pytest_asyncio.fixture
 async def other_author(session):
-    """A second author, for proving one author cannot reach another's work."""
-    user = User(email="other@test.dev", display_name="Other Author", role=UserRole.author)
+    """A second author in a different function, for proving one author cannot reach
+    another's work: finance and HR do not share, by the silo decision."""
+    user = User(
+        email="other@test.dev",
+        display_name="Other Author",
+        function=Function.finance,
+        band=Band.manager,
+    )
     session.add(user)
     await session.flush()
     return user
@@ -163,18 +179,18 @@ async def other_author(session):
 
 @pytest_asyncio.fixture
 async def respondent(session):
-    """Someone who answers surveys, and who is therefore on the floor.
+    """Someone who answers surveys, and who therefore holds a job on the floor.
 
-    In a group on purpose. Membership is what grants the right to answer now, so a
-    respondent in no group cannot answer anything, including a survey aimed at everyone.
-    That is the rule working rather than a fixture detail: an account belonging to nobody
-    on the plant is not part of any audience.
+    The job is what grants the right to answer now, so an account with no job cannot
+    answer anything, including a survey aimed at everyone. That is the rule working
+    rather than a fixture detail: an account belonging to nobody on any ladder is not
+    part of any audience.
     """
     user = User(
         email="respondent@test.dev",
         display_name="Test Respondent",
-        role=UserRole.respondent,
-        memberships=[UserGroupMembership(group=RespondentGroup.operatives)],
+        function=Function.production,
+        band=Band.operative,
     )
     session.add(user)
     await session.flush()
@@ -183,8 +199,8 @@ async def respondent(session):
 
 @pytest_asyncio.fixture
 async def ungrouped_respondent(session):
-    """Someone with an account and no place on the floor, for the refusal path."""
-    user = User(email="ungrouped@test.dev", display_name="Ungrouped", role=UserRole.respondent)
+    """Someone with an account and no job on any ladder, for the refusal path."""
+    user = User(email="ungrouped@test.dev", display_name="Ungrouped")
     session.add(user)
     await session.flush()
     return user
@@ -243,14 +259,14 @@ async def published(session, author):
 async def other_respondent(session):
     """A second respondent, for proving one cannot resume another's run.
 
-    In a different group from the first, so that a test which needs two people who are
-    both on the floor gets them, and a test about group boundaries has one to hand.
+    On a different rung from the first, so that a test which needs two people who are
+    both on the floor gets them, and a test about audience boundaries has one to hand.
     """
     user = User(
         email="second@test.dev",
         display_name="Second Respondent",
-        role=UserRole.respondent,
-        memberships=[UserGroupMembership(group=RespondentGroup.line_leaders)],
+        function=Function.production,
+        band=Band.line_leader,
     )
     session.add(user)
     await session.flush()

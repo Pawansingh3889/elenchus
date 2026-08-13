@@ -1,21 +1,41 @@
 """User request and response schemas."""
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.access import may_author
 from app.templates.enums import SurveyAudience
-from app.users.models import CreatorDepartment, RespondentGroup, User, UserRole
+from app.users.models import Band, Function, Hat, User
 
 
 class UserRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    """One user as the development picker and `/dev/identify` return them.
+
+    Scaffolding for the header shim, like the endpoints it backs. Carries the job and
+    the derived `may_author` so the picker can group people without re-deriving band
+    order client-side.
+    """
 
     id: UUID
     email: str
     display_name: str
-    role: UserRole
+    function: Function | None
+    band: Band | None
+    may_author: bool
+
+    @classmethod
+    def of(cls, user: User) -> "UserRead":
+        return cls(
+            id=user.id,
+            email=user.email,
+            display_name=user.display_name,
+            function=user.function,
+            band=user.band,
+            may_author=may_author(user),
+        )
 
 
 class PersonRead(BaseModel):
@@ -27,19 +47,20 @@ class PersonRead(BaseModel):
     Two schemas because they answer to two different lifetimes.
 
     No email. The question this page exists to answer is "who are the two people that
-    survey reached", and a name, a department and a set of groups answer it. An address
-    is contactable personal data that nothing on the page needs.
+    survey reached", and a name and a job answer it. An address is contactable personal
+    data that nothing on the page needs.
     """
 
     id: UUID
     display_name: str
-    role: UserRole
-    department: CreatorDepartment | None
-    groups: list[RespondentGroup]
-    # Whether this account carries an Entra object id, not the id itself. The screen uses
-    # it to mark an author who has none, because such an account can build surveys today
-    # and cannot sign in the day `role` is derived from that id instead of stored. A
-    # boolean rather than the value because the page only ever asks "is one set".
+    function: Function | None
+    band: Band | None
+    hats: list[Hat]
+    may_author: bool
+    # Whether this account carries an Entra object id, not the id itself. The screen
+    # uses it to mark someone at authoring band who has none: they build surveys today
+    # and have no way to sign in the day the header shim is replaced by a real login.
+    # A boolean rather than the value because the page only ever asks "is one set".
     has_microsoft_id: bool
 
     @classmethod
@@ -47,13 +68,14 @@ class PersonRead(BaseModel):
         return cls(
             id=user.id,
             display_name=user.display_name,
-            role=user.role,
-            department=user.department,
+            function=user.function,
+            band=user.band,
+            may_author=may_author(user),
             has_microsoft_id=user.microsoft_id is not None,
-            # Sorted, because `User.groups` is a set and sets have no order. Without this
+            # Sorted, because `User.hats` is a set and sets have no order. Without this
             # a person's badges could shuffle between refreshes for no reason a reader
             # could see, which reads as the data changing when nothing has.
-            groups=sorted(user.groups, key=lambda g: g.value),
+            hats=sorted(user.hats, key=lambda h: h.value),
         )
 
 
@@ -68,19 +90,21 @@ class IdentifyRequest(BaseModel):
 
 
 class MeRead(BaseModel):
-    """The caller, as the caller. Chiefly: may they administer anything.
+    """The caller, as the caller. Chiefly: what surfaces are theirs to see.
 
     A separate endpoint rather than a field on the user list, because the frontend
     currently works out who it is by scanning `/api/v1/users`, and that router is not
-    mounted outside development at all. Admin cannot be derived client-side either: half
-    of `is_admin` is an email allowlist that lives in server settings and is deliberately
-    not shipped to a browser.
+    mounted outside development at all. Neither derived flag can be computed
+    client-side: band order is the server's fact, and half of `is_admin` is an email
+    allowlist that lives in server settings and is deliberately not shipped to a
+    browser.
     """
 
     id: UUID
     display_name: str
-    role: UserRole
-    department: CreatorDepartment | None
+    function: Function | None
+    band: Band | None
+    may_author: bool
     is_admin: bool
 
 
@@ -92,13 +116,11 @@ class AccountWrite(BaseModel):
     of refusing at this boundary is that the mistake is visible while somebody is still
     looking at the form that made it.
 
-    `role` is taken from the request and stored as sent. That was chosen knowingly and it
-    is worth naming the cost, because `app/users/models.py` records the opposite intent:
-    an Entra object id is meant to *decide* `role` once real sign-in exists. So an author
-    created here with no `microsoft_id` is somebody who may build surveys today and will
-    silently stop being able to the day that derivation is switched on. The field is
-    settable here so the two can be kept in step by whoever is filling the form, and the
-    people directory marks the accounts where they are not.
+    The job is required, both halves. This screen creates people, and a person holds a
+    job; the null-job state exists in the schema for service accounts, which nobody
+    makes on a form. There is no role field to get wrong any more: whether somebody may
+    author follows from the band, and whether they administer follows from the function,
+    so the form states facts about the job and the rights derive.
     """
 
     # No `min_length` on the name, and none on the email in `AccountCreate` either. The
@@ -108,10 +130,10 @@ class AccountWrite(BaseModel):
     # string rather than a person. The checks live in the model validator instead, where
     # the sentence stands on its own and the client renders it unprefixed.
     display_name: str = Field(max_length=200)
-    role: UserRole
+    function: Function
+    band: Band
     microsoft_id: str | None = Field(default=None, max_length=64)
-    department: CreatorDepartment | None = None
-    groups: list[RespondentGroup] = Field(default_factory=list)
+    hats: list[Hat] = Field(default_factory=list)
 
     @field_validator("display_name")
     @classmethod
@@ -139,39 +161,20 @@ class AccountWrite(BaseModel):
             # empty cell in every list the person appears in.
             raise ValueError("A name is required.")
 
-        if len(set(self.groups)) != len(self.groups):
-            # The membership primary key is (user_id, group), so a repeat is otherwise an
+        if len(set(self.hats)) != len(self.hats):
+            # The hats primary key is (user_id, hat), so a repeat is otherwise an
             # IntegrityError at flush: the same refusal, several layers too late to say
             # which field caused it.
-            raise ValueError("The same group is listed twice.")
+            raise ValueError("The same responsibility is listed twice.")
 
-        if self.role is UserRole.author:
-            if self.department is None:
-                # CLAUDE.md: a creator without a department is a misconfiguration rather
-                # than a state. It decides who their colleagues are and, for `it`, whether
-                # they administer the system.
-                raise ValueError(
-                    "An author needs a department: it decides who their colleagues are."
-                )
-        else:
-            if self.department is not None:
-                # The load-bearing one. `_colleague` in app/access/rules.py makes anyone
-                # sharing a department a colleague, and `may_read_rows` hands a colleague
-                # every individual answer. A respondent given a department would quietly
-                # gain the raw answers to every survey that department wrote, which is the
-                # exact opposite of what the pseudonymity elsewhere promises them.
-                raise ValueError(
-                    "Only an author has a department. Giving one to somebody who answers "
-                    "surveys would let them read their department's answers."
-                )
-            if not self.groups:
-                # Somebody in no group can be asked nothing at all, not even a survey
-                # aimed at everyone: `may_answer` refuses an empty `user.groups` on the
-                # everyone branch. An account like that is a person nobody can survey.
-                raise ValueError(
-                    "Somebody who answers surveys needs at least one group, or no survey "
-                    "can reach them."
-                )
+        if self.function is Function.health_safety and Hat.health_safety in self.hats:
+            # Not dangerous, just meaningless: the hat exists for people whose job is
+            # elsewhere, and the H&S audience already includes the whole H&S function.
+            # Refused so the directory never shows a badge that restates the job title.
+            raise ValueError(
+                "Health and safety is already this person's function; the responsibility "
+                "hat is for people whose job is elsewhere."
+            )
         return self
 
 
@@ -231,19 +234,19 @@ class AccountSnapshot(BaseModel):
     """
 
     display_name: str
-    role: UserRole
-    department: CreatorDepartment | None
+    function: Function | None
+    band: Band | None
     microsoft_id: str | None
-    groups: list[RespondentGroup]
+    hats: list[Hat]
 
     @classmethod
     def of(cls, user: User) -> "AccountSnapshot":
         return cls(
             display_name=user.display_name,
-            role=user.role,
-            department=user.department,
+            function=user.function,
+            band=user.band,
             microsoft_id=user.microsoft_id,
-            groups=sorted(user.groups, key=lambda g: g.value),
+            hats=sorted(user.hats, key=lambda h: h.value),
         )
 
 
@@ -253,6 +256,12 @@ class AccountChangeRead(BaseModel):
     `changed_by_name` rather than an id the client would have to resolve, and nullable
     because edits must outlive their editor: a null renders as "an administrator", which
     is true, rather than the row disappearing, which would be an audit trail with holes.
+
+    `before`/`after` are served as the plain JSON the row stores, not re-validated into
+    today's snapshot schema. The table is append-only and outlives vocabularies: rows
+    written before the job model say `role`, `department` and `groups`, and an audit
+    trail that 500s on its own history, or silently rewrites it, is not an audit trail.
+    The screen renders whatever keys a row carries.
     """
 
     id: UUID
@@ -260,8 +269,8 @@ class AccountChangeRead(BaseModel):
     changed_by: UUID | None
     changed_by_name: str | None
     kind: str
-    before: AccountSnapshot | None
-    after: AccountSnapshot
+    before: dict[str, Any] | None
+    after: dict[str, Any]
 
 
 class SurveyImpact(BaseModel):
@@ -285,18 +294,23 @@ class SurveyImpact(BaseModel):
 class AccountImpact(BaseModel):
     """What saving this edit would change, computed before anything is saved.
 
-    The guardrail for live reach: membership edits move every open survey's denominator
-    the moment they land, so the moment before is when the mover should see it. Warn and
-    proceed rather than block, by decision: people genuinely leave teams, and a survey's
+    The guardrail for live reach: a job edit moves every open survey's denominator the
+    moment it lands, so the moment before is when the mover should see it. Warn and
+    proceed rather than block, by decision: people genuinely change jobs, and a survey's
     reach dropping is then the truth, not a mistake to prevent.
     """
 
-    groups_added: list[RespondentGroup]
-    groups_removed: list[RespondentGroup]
-    role_before: UserRole
-    role_after: UserRole
-    department_before: CreatorDepartment | None
-    department_after: CreatorDepartment | None
+    function_before: Function | None
+    function_after: Function
+    band_before: Band | None
+    band_after: Band
+    # Whether the edit changes who they are to the app, derived server-side: band order
+    # is the server's fact, and a client comparing band names would be a second copy of
+    # the authoring rule waiting to drift.
+    may_author_before: bool
+    may_author_after: bool
+    hats_added: list[Hat]
+    hats_removed: list[Hat]
     surveys: list[SurveyImpact]
 
 
@@ -309,16 +323,14 @@ class AccountRead(BaseModel):
     what was stored, folded case and all, is how they see it landed as intended.
     """
 
-    model_config = ConfigDict(from_attributes=True)
-
     id: UUID
     email: str
     display_name: str
-    role: UserRole
-    department: CreatorDepartment | None
+    function: Function | None
+    band: Band | None
     microsoft_id: str | None
     created_by: UUID | None
-    groups: list[RespondentGroup]
+    hats: list[Hat]
 
     @classmethod
     def of(cls, user: User) -> "AccountRead":
@@ -326,9 +338,9 @@ class AccountRead(BaseModel):
             id=user.id,
             email=user.email,
             display_name=user.display_name,
-            role=user.role,
-            department=user.department,
+            function=user.function,
+            band=user.band,
             microsoft_id=user.microsoft_id,
             created_by=user.created_by,
-            groups=sorted(user.groups, key=lambda g: g.value),
+            hats=sorted(user.hats, key=lambda h: h.value),
         )

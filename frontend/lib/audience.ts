@@ -1,14 +1,14 @@
 import type { Messages } from "./i18n/en";
-import type { CreatorDepartment, SurveyAudience } from "./types";
+import type { Band, Hat, JobFunction, SurveyAudience } from "./types";
 
 /**
  * What to call an audience, in one place.
  *
  * The picker on the landing page and the publish confirmation both have to name who a
- * survey is for, and two copies of the mapping is two places for a new group to be
+ * survey is for, and two copies of the mapping is two places for a new audience to be
  * half-added. An exhaustive `switch` over the union is what makes that a compile error
  * rather than a silent gap: add a value to `SurveyAudience` and this stops type-checking,
- * which is the frontend's version of the backend's `_AUDIENCE_GROUP` completeness test.
+ * which is the frontend's version of the backend's audience completeness test.
  *
  * `personName` is the display name when the survey names somebody. It falls back to the
  * generic "one person" rather than rendering an id or an empty string, because the user
@@ -34,31 +34,82 @@ export function audienceLabel(
       return aud.managers;
     case "qa":
       return aud.qa;
+    case "health_safety":
+      return aud.healthSafety;
     case "person":
       return personName || aud.person;
   }
 }
 
 /**
- * What to call a department. Same exhaustive-switch trick as above, for the same reason.
+ * What to call a function. Same exhaustive-switch trick as above, for the same reason.
  *
- * Departments and groups are deliberately separate vocabularies answering separate
- * questions, so they get separate functions rather than one that takes a union of both
- * and cannot say which it was handed.
+ * Functions, bands and audiences are deliberately separate vocabularies answering
+ * separate questions, so they get separate label helpers rather than one that takes a
+ * union of all three and cannot say which it was handed.
  */
-export function departmentLabel(dept: Messages["department"], value: CreatorDepartment): string {
+export function functionLabel(fn: Messages["jobFunction"], value: JobFunction): string {
   switch (value) {
-    case "hr":
-      return dept.hr;
-    case "finance":
-      return dept.finance;
-    case "technical":
-      return dept.technical;
-    case "management":
-      return dept.management;
+    case "production":
+      return fn.production;
     case "quality":
-      return dept.quality;
+      return fn.quality;
+    case "health_safety":
+      return fn.healthSafety;
+    case "technical":
+      return fn.technical;
+    case "planning":
+      return fn.planning;
+    case "hr":
+      return fn.hr;
+    case "finance":
+      return fn.finance;
+    case "supply_chain":
+      return fn.supplyChain;
     case "it":
-      return dept.it;
+      return fn.it;
+    case "executive":
+      return fn.executive;
   }
+}
+
+/** What to call a band. The floor's own words, so `line_leader` and friends read as
+ *  job titles rather than access tiers. */
+export function bandLabel(band: Messages["band"], value: Band): string {
+  switch (value) {
+    case "operative":
+      return band.operative;
+    case "line_leader":
+      return band.lineLeader;
+    case "supervisor":
+      return band.supervisor;
+    case "manager":
+      return band.manager;
+    case "head":
+      return band.head;
+    case "director":
+      return band.director;
+  }
+}
+
+/** What to call a hat: the responsibility itself, not the H&S function's name, so a
+ *  supervisor's badge reads as a duty carried rather than a second job. */
+export function hatLabel(hat: Messages["hat"], value: Hat): string {
+  switch (value) {
+    case "health_safety":
+      return hat.healthSafety;
+  }
+}
+
+/** One person's job as a single line: "Production · Shift manager", or the service
+ *  account fallback when there is no job to name. */
+export function jobLabel(
+  fn: Messages["jobFunction"],
+  band: Messages["band"],
+  functionValue: JobFunction | null,
+  bandValue: Band | null,
+  noJob: string,
+): string {
+  if (functionValue === null || bandValue === null) return noJob;
+  return `${functionLabel(fn, functionValue)} · ${bandLabel(band, bandValue)}`;
 }

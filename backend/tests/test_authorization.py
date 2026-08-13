@@ -11,7 +11,7 @@ from app.auth.dependencies import get_current_user, require_author
 from app.conduct.engine import ConductEngine
 from app.errors import ForbiddenError, NotFoundError
 from app.runs.service import ResultsService
-from app.templates.enums import AnswerType, TemplateStatus
+from app.templates.enums import AnswerType, SurveyAudience, TemplateStatus
 from app.templates.schemas import QuestionInput, TemplateCreate
 from app.templates.service import TemplateService
 from tests.builders import update_of
@@ -36,14 +36,46 @@ async def test_an_author_only_lists_their_own_templates(session, author, other_a
 
 @pytest.mark.parametrize("action", ["get", "update", "delete", "publish"])
 async def test_another_authors_template_reads_as_absent(session, author, other_author, action):
-    """Not found rather than forbidden, so the API can't be used to enumerate ids."""
+    """Not found rather than forbidden, so the API can't be used to enumerate ids.
+
+    Aimed at operatives, which the finance manager is not: a survey whose audience the
+    caller is outside of does not exist for them. An `everyone` survey is a different
+    case since the job model, tested separately below, because a finance manager holds
+    a job and may answer it, so it is visible to them and merely not editable.
+    """
     svc = TemplateService(session)
-    mine = await svc.create_draft(TemplateCreate(title="Mine", questions=[_q("a")]), author)
+    mine = await svc.create_draft(
+        TemplateCreate(title="Mine", audience=SurveyAudience.operatives, questions=[_q("a")]),
+        author,
+    )
 
     with pytest.raises(NotFoundError):
         if action == "get":
             await svc.get_draft(mine.id, other_author)
         elif action == "update":
+            await svc.update_draft(
+                mine.id, update_of(mine, title="Hijacked", questions=[_q("x")]), other_author
+            )
+        elif action == "delete":
+            await svc.delete_draft(mine.id, other_author)
+        else:
+            await svc.publish(mine.id, other_author)
+
+
+@pytest.mark.parametrize("action", ["update", "delete", "publish"])
+async def test_a_visible_survey_is_still_not_editable_by_a_stranger(
+    session, author, other_author, action
+):
+    """The two-step refusal the job model introduced. An `everyone` survey is visible to
+    every jobbed person because they may answer it, so hiding it from the finance
+    manager would be lying; what they get on a mutation is a plain forbidden, because
+    visibility has never implied the write path."""
+    svc = TemplateService(session)
+    mine = await svc.create_draft(TemplateCreate(title="Mine", questions=[_q("a")]), author)
+    assert (await svc.get_draft(mine.id, other_author)).id == mine.id
+
+    with pytest.raises(ForbiddenError):
+        if action == "update":
             await svc.update_draft(
                 mine.id, update_of(mine, title="Hijacked", questions=[_q("x")]), other_author
             )
@@ -80,21 +112,28 @@ async def test_only_authors_can_build(author, respondent):
 async def test_the_published_list_is_what_the_reader_may_actually_start(
     session, author, respondent, other_author
 ):
-    """This used to assert published surveys were visible to everyone, which was true
-    when every survey was aimed at the whole respondent pool and is the assumption
-    audiences exist to replace. A survey aimed at respondents still reaches every
-    respondent, so the old behaviour is intact where it was ever meant to apply. What has
-    changed is that the list is now an answer to "what may *you* start", not a catalogue:
-    another author, who cannot answer it, is not shown it either."""
+    """The list is an answer to "what may *you* start", not a catalogue.
+
+    An `everyone` survey reaches everyone with a job now, office managers included, so
+    the finance manager is shown it: under the membership model an office account in no
+    group was in no audience at all, and that exclusion was always a bit false. The
+    boundary still exists where it was aimed: a survey for operatives is not offered to
+    the finance manager.
+    """
     svc = TemplateService(session)
     mine = await svc.create_draft(TemplateCreate(title="Open", questions=[_q("a")]), author)
     await svc.publish(mine.id, author)
+    floor = await svc.create_draft(
+        TemplateCreate(title="Floor only", audience=SurveyAudience.operatives, questions=[_q("b")]),
+        author,
+    )
+    await svc.publish(floor.id, author)
 
     listed = await svc.list_published(respondent)
-    assert [t.title for t, _, _, _ in listed] == ["Open"]
+    assert sorted(t.title for t, _, _, _ in listed) == ["Floor only", "Open"]
     assert all(t.status is TemplateStatus.published for t, _, _, _ in listed)
 
-    assert await svc.list_published(other_author) == []
+    assert [t.title for t, _, _, _ in await svc.list_published(other_author)] == ["Open"]
 
 
 # --- the dev-auth user list, which must not outlive the dev auth -----------------

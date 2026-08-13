@@ -14,7 +14,8 @@ export type AnswerType =
 export type FollowUpPolicy = "never" | "when_unclear" | "always_once";
 
 export type TemplateStatus = "draft" | "published" | "closed" | "archived";
-/** Who a survey is for: everyone on the floor, one plant group, or one named person.
+/** Who a survey is for: everyone with a job, one slice of the org chart, or one named
+ *  person. Membership is derived server-side from each person's job, never stored.
  *  `person` carries its target in `audience_user_id`; the two only mean anything
  *  together, and the API refuses either half on its own. */
 export type SurveyAudience =
@@ -25,59 +26,72 @@ export type SurveyAudience =
   | "shift_managers"
   | "managers"
   | "qa"
+  | "health_safety"
   | "person";
-export type UserRole = "author" | "respondent";
-/** Which office team an author belongs to. Also grants admin, for `it`. */
-export type CreatorDepartment =
+/** Which ladder somebody is on. `JobFunction` rather than `Function`, which is a
+ *  global type in TypeScript and shadowing it invites quiet breakage. `it` also
+ *  grants admin. */
+export type JobFunction =
+  | "production"
+  | "quality"
+  | "health_safety"
+  | "technical"
+  | "planning"
   | "hr"
   | "finance"
-  | "technical"
-  | "management"
-  | "quality"
-  | "it";
-/** What somebody does on the plant floor. Overlapping, so a person has a list. */
-export type RespondentGroup =
-  | "operatives"
-  | "line_leaders"
-  | "supervisors"
-  | "shift_managers"
-  | "managers"
-  | "qa";
+  | "supply_chain"
+  | "it"
+  | "executive";
+/** How high on the ladder. Ordered on the server; manager and up may author. The
+ *  order is deliberately not re-derived here: `may_author` arrives computed. */
+export type Band =
+  | "operative"
+  | "line_leader"
+  | "supervisor"
+  | "manager"
+  | "head"
+  | "director";
+/** A cross-cutting responsibility on top of the job. */
+export type Hat = "health_safety";
 
-/** One person as the directory shows them. Deliberately no email: a name, a
- *  department and a set of groups answer "who is in this audience", and an address
- *  is contactable data the page has no use for. */
+/** One person as the directory shows them. Deliberately no email: a name and a job
+ *  answer "who is in this audience", and an address is contactable data the page has
+ *  no use for. A null job is a service account: in no audience at all. */
 export interface Person {
   id: string;
   display_name: string;
-  role: UserRole;
-  department: CreatorDepartment | null;
-  groups: RespondentGroup[];
-  /** Whether this account carries an Entra object id, not the id itself. An author
-   *  without one may build surveys today and cannot sign in the day `role` is derived
-   *  from that id instead of stored, so the directory marks it. */
+  function: JobFunction | null;
+  band: Band | null;
+  hats: Hat[];
+  /** Derived server-side from the band, so the page never re-invents the cutoff. */
+  may_author: boolean;
+  /** Whether this account carries an Entra object id, not the id itself. Somebody at
+   *  an authoring band without one builds surveys today and has no way to sign in
+   *  when the header shim is replaced, so the directory marks it. */
   has_microsoft_id: boolean;
 }
 
-/** The caller, as themselves. `is_admin` is the field a browser could not work out:
- *  half of that rule is an email allowlist that lives in server settings. */
+/** The caller, as themselves. Both derived flags are the server's to compute:
+ *  `may_author` turns on band order, and half of `is_admin` is an email allowlist
+ *  that lives in server settings. */
 export interface Me {
   id: string;
   display_name: string;
-  role: UserRole;
-  department: CreatorDepartment | null;
+  function: JobFunction | null;
+  band: Band | null;
+  may_author: boolean;
   is_admin: boolean;
 }
 
-/** What an administrator sets on an account. The server holds the rules about which
- *  combinations are allowed; the form only has to send all of them, because the update
- *  is a full replacement rather than a patch. */
+/** What an administrator sets on an account: the job, both halves required, plus any
+ *  hats. There is no role field; what the account may do derives from these. The
+ *  update is a full replacement rather than a patch, so the form sends everything. */
 export interface AccountWrite {
   display_name: string;
-  role: UserRole;
+  function: JobFunction;
+  band: Band;
   microsoft_id: string | null;
-  department: CreatorDepartment | null;
-  groups: RespondentGroup[];
+  hats: Hat[];
 }
 
 /** Creating adds the address. There is no way to change one afterwards: `is_admin`
@@ -89,37 +103,31 @@ export interface Account {
   id: string;
   email: string;
   display_name: string;
-  role: UserRole;
-  department: CreatorDepartment | null;
+  function: JobFunction | null;
+  band: Band | null;
   microsoft_id: string | null;
   created_by: string | null;
-  groups: RespondentGroup[];
+  hats: Hat[];
 }
 
-/** How many people each audience is, right now. Live by decision: the count follows the
- *  group as people join and leave. `person` is absent, not zero; its reach is one by
+/** How many people each audience is, right now. Live by decision: the count follows
+ *  the org chart as jobs change. `person` is absent, not zero; its reach is one by
  *  definition and the screen already names the person. */
 export type AudienceReach = Record<Exclude<SurveyAudience, "person">, number>;
 
-/** The fields an administrator controls, as one audit row records them. */
-export interface AccountSnapshot {
-  display_name: string;
-  role: UserRole;
-  department: CreatorDepartment | null;
-  microsoft_id: string | null;
-  groups: RespondentGroup[];
-}
-
 /** One audit row. `changed_by_name` is null when the editor's account is gone; the row
- *  outlives them on purpose. */
+ *  outlives them on purpose. `before`/`after` arrive as the plain JSON the row stores:
+ *  the log is append-only and outlives vocabularies, so rows written before the job
+ *  model say `role`, `department` and `groups`, and the screen renders whichever keys
+ *  a row carries rather than the server rewriting history into today's shape. */
 export interface AccountChangeEntry {
   id: string;
   changed_at: string;
   changed_by: string | null;
   changed_by_name: string | null;
   kind: "created" | "updated";
-  before: AccountSnapshot | null;
-  after: AccountSnapshot;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown>;
 }
 
 /** One open survey this edit would move the person in or out of. */
@@ -134,12 +142,16 @@ export interface SurveyImpact {
 
 /** What saving an edit would change, computed server-side before anything is saved. */
 export interface AccountImpact {
-  groups_added: RespondentGroup[];
-  groups_removed: RespondentGroup[];
-  role_before: UserRole;
-  role_after: UserRole;
-  department_before: CreatorDepartment | null;
-  department_after: CreatorDepartment | null;
+  function_before: JobFunction | null;
+  function_after: JobFunction;
+  band_before: Band | null;
+  band_after: Band;
+  /** Whether the edit changes who they are to the app, derived where band order
+   *  lives. The dialog warns on a flip in either direction. */
+  may_author_before: boolean;
+  may_author_after: boolean;
+  hats_added: Hat[];
+  hats_removed: Hat[];
   surveys: SurveyImpact[];
 }
 
@@ -147,7 +159,9 @@ export interface User {
   id: string;
   email: string;
   display_name: string;
-  role: UserRole;
+  function: JobFunction | null;
+  band: Band | null;
+  may_author: boolean;
 }
 
 export type ShowWhenOp = "is" | "is_not";

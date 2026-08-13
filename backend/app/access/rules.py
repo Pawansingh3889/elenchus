@@ -8,20 +8,23 @@ from typing import Final
 from uuid import UUID
 
 from app.templates.enums import SurveyAudience
-from app.users.models import CreatorDepartment, RespondentGroup, User
+from app.users.models import BAND_RANK, Band, Function, Hat, User
 
 logger = logging.getLogger("app.access")
 
-# Which group may answer a survey aimed at each audience. `everyone` and `person` are
-# absent on purpose: neither is a group, and mapping them to one would invent a group
-# called "everyone" and a group of one.
-_AUDIENCE_GROUP: dict[SurveyAudience, RespondentGroup] = {
-    SurveyAudience.operatives: RespondentGroup.operatives,
-    SurveyAudience.line_leaders: RespondentGroup.line_leaders,
-    SurveyAudience.supervisors: RespondentGroup.supervisors,
-    SurveyAudience.shift_managers: RespondentGroup.shift_managers,
-    SurveyAudience.managers: RespondentGroup.managers,
-    SurveyAudience.qa: RespondentGroup.qa,
+# The bands that may build surveys and read colleagues' results: manager and up. One
+# constant, read through `may_author`, so "who is senior enough" is a single fact and
+# not a comparison re-typed at every gate.
+_AUTHORING_RANK: Final[int] = BAND_RANK[Band.manager]
+
+# The production ladder, band by band. Each of these audiences is one band of one
+# function because that is how the floor is addressed: a survey for line leaders is not
+# for the operatives beside them or the supervisors above them.
+_PRODUCTION_BAND: dict[SurveyAudience, Band] = {
+    SurveyAudience.operatives: Band.operative,
+    SurveyAudience.line_leaders: Band.line_leader,
+    SurveyAudience.supervisors: Band.supervisor,
+    SurveyAudience.shift_managers: Band.manager,
 }
 
 
@@ -42,12 +45,24 @@ class AccessDecision:
         return self.allowed
 
 
-def is_admin(user: User, admin_emails: frozenset[str]) -> bool:
-    """Whether this user is an administrator: by IT department, or by email allowlist.
+def may_author(user: User) -> bool:
+    """Whether this person may build surveys: manager band and up, any function.
 
-    The department route was asked for directly and reverses the earlier rule that admin
+    Derived from the job rather than stored, which is what deleted the `role` column.
+    The old stored role could disagree with the org chart (an "author" respondent, a
+    shift manager refused authoring), and the Entra id was meant to decide it even
+    though line leaders hold ERP logins without being survey authors. The band answers
+    the question the role column was guessing at.
+    """
+    return user.band is not None and BAND_RANK[user.band] >= _AUTHORING_RANK
+
+
+def is_admin(user: User, admin_emails: frozenset[str]) -> bool:
+    """Whether this user is an administrator: by IT function, or by email allowlist.
+
+    The function route was asked for directly and reverses the earlier rule that admin
     never comes from a column. It is worth being clear-eyed about what that costs: a
-    `UPDATE users SET department = 'it'` is now a grant of administration, where before
+    `UPDATE users SET function = 'it'` is now a grant of administration, where before
     the database could not confer it at all. The allowlist is kept alongside rather than
     replaced, so an administrator who does not work in IT is still expressible.
 
@@ -58,8 +73,8 @@ def is_admin(user: User, admin_emails: frozenset[str]) -> bool:
     Logged when it grants, and logged differently per route. Both are easy to change and
     hard to audit afterwards, so which one let a caller through lives in the log.
     """
-    if user.department is CreatorDepartment.it:
-        logger.info("admin granted by department: user=%s", user.id)
+    if user.function is Function.it:
+        logger.info("admin granted by function: user=%s", user.id)
         return True
     granted = user.email.casefold() in {e.casefold() for e in admin_emails}
     if granted:
@@ -83,18 +98,39 @@ def _owns(user: User, created_by: UUID) -> bool:
     return created_by == user.id
 
 
-def _colleague(user: User, creator_department: CreatorDepartment | None) -> bool:
-    """Whether this user is in the same department as whoever made the survey.
+def _colleague(user: User, creator_function: Function | None) -> bool:
+    """Whether this user shares a function with whoever made the survey, at a band that
+    may read it.
 
-    Both sides must actually have a department. `None is None` would otherwise make every
-    person without one a colleague of every other, which is the whole respondent pool
-    reading each other's surveys.
+    Both sides must actually have a function: `None is None` would otherwise make every
+    person without one a colleague of every other. The band check is the line that was
+    easy to miss when functions replaced office departments: functions contain the
+    floor, so "same function" alone would make every production operative a colleague
+    of the shift manager surveying them, and `may_read_rows` hands a colleague every
+    individual answer. Sharing is symmetric among the authoring bands of one function
+    and stops there.
     """
     return (
-        user.department is not None
-        and creator_department is not None
-        and user.department is creator_department
+        user.function is not None
+        and creator_function is not None
+        and user.function is creator_function
+        and may_author(user)
     )
+
+
+def reads_all_surveys(user: User) -> bool:
+    """Whether this user reads everything: the executive function, at authoring band.
+
+    Site leadership oversight, decided deliberately: the factory manager and the
+    production director read every survey and its results, and edit none of them
+    (`may_edit` has no executive branch). Read access only, so answers stay behind the
+    same pseudonyms they wear for everyone else.
+
+    Public because the list pages scope their *queries* to the surveys the caller could
+    pass `may_list`, and an executive's scope is all of them: the query widening has to
+    ask the same predicate the rule does, or the two drift.
+    """
+    return user.function is Function.executive and may_author(user)
 
 
 def may_list(
@@ -104,7 +140,7 @@ def may_list(
     admin: bool,
     *,
     target: UUID | None = None,
-    creator_department: CreatorDepartment | None = None,
+    creator_function: Function | None = None,
 ) -> AccessDecision:
     """Whether this survey appears in this user's lists at all.
 
@@ -112,7 +148,7 @@ def may_list(
     something before a single answer is given, so a survey nobody may answer is also a
     survey nobody may see the name of.
 
-    A department colleague sees it too, so that work does not stop when the author who
+    A function colleague sees it too, so that work does not stop when the author who
     made it is on leave. What that costs is worth naming: answers are then read by people
     the respondent never dealt with, which is a wider audience for their words than the
     pseudonymity elsewhere in this system might suggest to them.
@@ -121,11 +157,46 @@ def may_list(
         return AccessDecision(True, "author of this survey")
     if admin:
         return AccessDecision(True, "admin")
-    if _colleague(user, creator_department):
-        return AccessDecision(True, f"colleague in {user.department.value}")  # type: ignore[union-attr]
+    if reads_all_surveys(user):
+        return AccessDecision(True, "site leadership")
+    if _colleague(user, creator_function):
+        return AccessDecision(True, f"colleague in {user.function.value}")  # type: ignore[union-attr]
     if audience is None:
         return AccessDecision(False, "survey has no audience, so only its author can see it")
     return may_answer(user, audience, created_by, admin, target=target)
+
+
+def _in_derived_audience(user: User, audience: SurveyAudience) -> AccessDecision:
+    """Whether this job (and its hats) is inside one of the derived audiences.
+
+    The membership half of `may_answer`, with no escape hatches: pure org chart. Every
+    audience except `everyone` and `person` is decided here, from the job alone, which
+    is the whole design: there are no membership rows to be out of date.
+    """
+    if audience in _PRODUCTION_BAND:
+        wanted = _PRODUCTION_BAND[audience]
+        if user.function is Function.production and user.band is wanted:
+            return AccessDecision(True, f"production {wanted.value}")
+        return AccessDecision(False, f"this survey is for the production {wanted.value} band")
+
+    if audience is SurveyAudience.qa:
+        if user.function is Function.quality:
+            return AccessDecision(True, "in the quality function")
+        return AccessDecision(False, "this survey is for the quality team")
+
+    if audience is SurveyAudience.health_safety:
+        if user.function is Function.health_safety:
+            return AccessDecision(True, "in the health and safety function")
+        if Hat.health_safety in user.hats:
+            return AccessDecision(True, "carries the health and safety responsibility")
+        return AccessDecision(False, "this survey is for people with health and safety duties")
+
+    if audience is SurveyAudience.managers:
+        if may_author(user):
+            return AccessDecision(True, f"{user.band.value} band")  # type: ignore[union-attr]
+        return AccessDecision(False, "this survey is for the manager bands and up")
+
+    return AccessDecision(False, f"no membership rule for audience {audience.value}")
 
 
 def may_answer(
@@ -138,13 +209,14 @@ def may_answer(
 ) -> AccessDecision:
     """Whether this user may start or continue a run of this survey.
 
-    Note what this replaced, twice over. It was once a check that the caller's role was
-    `respondent`; then a check on the creator department a survey named. Neither survives,
-    because the people in the senior groups hold author accounts: a line leader signs in
-    with Teams and is a creator by `role`, and refusing them a survey aimed at line
-    leaders on that basis would be refusing exactly the people it was written for.
+    Note what this replaced, three times over. It was once a check that the caller's
+    role was `respondent`; then a check on the creator department a survey named; then
+    membership rows in a join table. None survives, because each could disagree with
+    the org chart: the people in the senior bands hold sign-in accounts, and the
+    membership table happily recorded a line leader as QA, which the plant's own
+    structure says is not a job anyone holds.
 
-    So the question is membership, and `role` is not consulted here at all.
+    So the question is the job: function, band, and hats, read live.
     """
     if audience is None:
         return AccessDecision(False, "survey has no audience")
@@ -163,24 +235,25 @@ def may_answer(
         return AccessDecision(False, "this survey is for one named person")
 
     if audience is SurveyAudience.everyone:
-        if user.groups:
-            return AccessDecision(True, "in a plant group, and the survey is for everyone")
-        # Not "every account": an administration or service login belongs to nobody on the
-        # floor, and counting it would put people in a denominator who were never asked.
+        if user.function is not None:
+            return AccessDecision(True, "holds a job, and the survey is for everyone")
+        # Not "every account": an administration or service login belongs to nobody on
+        # any ladder, and counting it would put people in a denominator who were never
+        # asked.
         if _owns(user, created_by):
             return AccessDecision(True, "author testing their own survey")
         if admin:
             return AccessDecision(True, "admin")
-        return AccessDecision(False, "your account is not in any group")
+        return AccessDecision(False, "your account holds no job on the plant")
 
-    wanted = _AUDIENCE_GROUP[audience]
-    if wanted in user.groups:
-        return AccessDecision(True, f"member of {wanted.value}")
+    membership = _in_derived_audience(user, audience)
+    if membership:
+        return membership
     if admin:
         return AccessDecision(True, "admin")
     if _owns(user, created_by):
         return AccessDecision(True, "author testing their own survey")
-    return AccessDecision(False, f"this survey is for {wanted.value}")
+    return membership
 
 
 # A created_by that can match no user, so `may_answer`'s owner branch cannot fire. Named
@@ -215,9 +288,12 @@ def may_edit(user: User, created_by: UUID, admin: bool) -> AccessDecision:
 
     Owner or admin. Deliberately narrower than `may_list`, and this is the distinction
     that was missing rather than an extra one: every mutation guarded itself by fetching
-    the survey through the listing rule, so widening that rule for department colleagues
-    silently handed them the write path too. A colleague could rename and publish a
-    survey in somebody else's name, which is a good deal more than being able to read it.
+    the survey through the listing rule, so widening that rule for colleagues silently
+    handed them the write path too. A colleague could rename and publish a survey in
+    somebody else's name, which is a good deal more than being able to read it.
+
+    No executive branch either, for the same reason: oversight is reading, and a
+    factory manager who wants a survey changed asks the person whose name is on it.
 
     Not about the audience at all. Being asked a question, or being able to read what
     came back, has never implied being able to change what is being asked.
@@ -234,16 +310,18 @@ def may_read_rows(
     created_by: UUID,
     admin: bool,
     *,
-    creator_department: CreatorDepartment | None = None,
+    creator_function: Function | None = None,
 ) -> AccessDecision:
     """Whether this user may read individual runs and answers.
 
     Deliberately narrower than `may_answer` and deliberately not about the audience. Being
     asked a question does not entitle you to read what your colleagues answered, and in a
     workplace survey that distinction is the difference between honest answers and careful
-    ones.
+    ones. The audience's own seniors get nothing here either, by decision: HR surveying
+    the QA team does not hand head QA the raw answers, or nobody could survey a team
+    candidly about its own management.
 
-    A department colleague may, which was asked for so that a survey does not become
+    A function colleague at authoring band may, so that a survey does not become
     unreadable when one person is away. It widens who reads a respondent's words beyond
     the one author they might have pictured.
     """
@@ -251,9 +329,13 @@ def may_read_rows(
         return AccessDecision(True, "author of this survey")
     if admin:
         return AccessDecision(True, "admin")
-    if _colleague(user, creator_department):
-        return AccessDecision(True, f"colleague in {user.department.value}")  # type: ignore[union-attr]
-    return AccessDecision(False, "only the author, their department and an admin can read these")
+    if reads_all_surveys(user):
+        return AccessDecision(True, "site leadership")
+    if _colleague(user, creator_function):
+        return AccessDecision(True, f"colleague in {user.function.value}")  # type: ignore[union-attr]
+    return AccessDecision(
+        False, "only the author, their function's seniors, leadership and an admin can read these"
+    )
 
 
 def may_read_totals(
@@ -263,7 +345,7 @@ def may_read_totals(
     admin: bool,
     *,
     target: UUID | None = None,
-    creator_department: CreatorDepartment | None = None,
+    creator_function: Function | None = None,
 ) -> AccessDecision:
     """Whether this user may read counts and distributions, without the rows behind them.
 
@@ -272,6 +354,6 @@ def may_read_totals(
     people's answers. That was decided knowingly, and the threshold is one constant away
     when it is wanted.
     """
-    if may_read_rows(user, created_by, admin, creator_department=creator_department):
+    if may_read_rows(user, created_by, admin, creator_function=creator_function):
         return AccessDecision(True, "may read rows, so may read totals")
     return may_answer(user, audience, created_by, admin, target=target)

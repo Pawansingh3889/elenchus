@@ -5,6 +5,42 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-08-13. One job per person, and the org chart becomes the access model
+
+The plant's own hierarchy said the old model was wrong: the membership table happily
+recorded a line leader who was also QA, a job that does not exist, and the stored role
+column both duplicated and contradicted it. Rebuilt after looking at how this is done
+elsewhere (NIST RBAC's role hierarchies and separation-of-duty constraints, ordinary
+job-architecture practice, and the food industry's requirement that QA stands apart
+from production): every person now holds exactly one job, and every right derives.
+
+- **`function` x `band`, plus hats.** Ten functions (production, quality,
+  health_safety, technical, planning, hr, finance, supply_chain, it, executive), six
+  ordered bands (operative, line_leader, supervisor, manager, head, director), and a
+  hats table for cross-cutting duties, H&S first: a supervisor with H&S responsibility
+  keeps their production job and carries the hat. One job per person is a schema fact,
+  so the impossible overlap cannot be recorded again.
+- **`role`, `department` and `user_group_memberships` are gone.** Authoring is manager
+  band and up; admin is the IT function or the allowlist; `microsoft_id` is a sign-in
+  method and decides nothing. The admin screen writes jobs and hats, the reach preview
+  warns on the edits that move denominators (band and hat changes now), and old audit
+  rows keep their old vocabulary because history is served as written.
+- **Audiences derive from the job.** The production audiences are that ladder's bands,
+  `qa` is the whole quality function, the new `health_safety` audience is the function
+  or the hat, `managers` is the band anywhere, and `everyone` is anyone with a job,
+  which now includes the office, decided knowingly: a finance manager was never
+  honestly outside an all-staff survey.
+- **Sharing rules settled and pinned.** Colleagues are the authoring bands of one
+  function, symmetric, office functions silo'd; the executive function reads every
+  survey and its results and edits none of them; the audience's own seniors do not
+  read surveys aimed at their team, so HR can survey a team candidly about its own
+  management. Colleague results-reading had actually been dormant (the rule existed
+  and its call site never passed the department); it is wired and tested now.
+- **Migration with a remap, not a reset.** Seed accounts map by email to their new
+  jobs, stranger rows map by deterministic rules (authors by department at manager
+  band, respondents by their highest group), Adaeze's local IT grant survives, and the
+  seed grows a floor H&S manager (Hana) and a ground QA (Noor) on fresh c-block ids.
+
 ## 2026-08-13. A refine no longer discards what the model was never shown
 
 Found by a live end-to-end run rather than by the suite: the first refine of the

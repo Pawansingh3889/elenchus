@@ -1,9 +1,9 @@
 """Creating accounts, and deciding what somebody is.
 
-This is the first path in the app that writes `users.role`, so it is the first thing that
-answers "who can be an author" with something other than "whoever can reach the database".
-That makes the refusals the interesting half: each one below describes a row the access
-rules would go on to read as something nobody meant.
+This is the path that writes the job, and the job is what everything else derives from:
+whether somebody may author (band), whether they administer (function), and which
+audiences they are in. That makes the refusals the interesting half: each one below
+describes a row the access rules would go on to read as something nobody meant.
 
 Service level rather than over HTTP, like the rest of the suite. The boundary being
 tested is in `UserService` and on the schemas, so it holds whatever eventually supplies
@@ -16,37 +16,38 @@ import pytest
 import pytest_asyncio
 from pydantic import ValidationError as PydanticValidationError
 
+from app.access import in_audience, may_author
 from app.auth.dependencies import require_admin
 from app.errors import ConflictError, ForbiddenError, NotFoundError
 from app.templates.enums import SurveyAudience, TemplateStatus
 from app.templates.models import SurveyTemplate
-from app.users.models import CreatorDepartment, RespondentGroup, User, UserRole
+from app.users.models import Band, Function, Hat, User
 from app.users.repository import UserRepository
-from app.users.schemas import AccountCreate, AccountUpdate, MeRead, PersonRead
+from app.users.schemas import AccountCreate, AccountUpdate, MeRead
 from app.users.service import UserService
 
 
 def _floor(**kw) -> AccountCreate:
-    """A valid floor account: answers surveys, in a group, no department."""
+    """A valid floor account: a production operative."""
     return AccountCreate(
         **{
             "email": "rosa@plant.dev",
             "display_name": "Rosa",
-            "role": UserRole.respondent,
-            "groups": [RespondentGroup.operatives],
+            "function": Function.production,
+            "band": Band.operative,
             **kw,
         }
     )
 
 
 def _creator(**kw) -> AccountCreate:
-    """A valid author: has a department, and so has colleagues."""
+    """A valid authoring account: an office manager, with colleagues in her function."""
     return AccountCreate(
         **{
             "email": "ava@plant.dev",
             "display_name": "Ava",
-            "role": UserRole.author,
-            "department": CreatorDepartment.hr,
+            "function": Function.hr,
+            "band": Band.manager,
             **kw,
         }
     )
@@ -60,7 +61,7 @@ def _update_of(create: AccountCreate, **kw) -> AccountUpdate:
 
 @pytest_asyncio.fixture
 async def admin(session):
-    """An administrator by department. IT is what grants it, per app/access.
+    """An administrator by function. IT is what grants it, per app/access.
 
     Flushed, like the other user fixtures: `id` defaults at flush, so an unflushed User
     has none, and `created_by=admin.id` would quietly stamp null.
@@ -68,8 +69,8 @@ async def admin(session):
     user = User(
         email="it@plant.dev",
         display_name="IT",
-        role=UserRole.author,
-        department=CreatorDepartment.it,
+        function=Function.it,
+        band=Band.manager,
     )
     session.add(user)
     await session.flush()
@@ -80,26 +81,27 @@ async def admin(session):
 
 
 async def test_an_ordinary_author_is_not_an_administrator(author):
-    """The gate is `is_admin`, which never consults `role`.
+    """The gate is `is_admin`, which never consults the band.
 
-    An author is the *most* privileged ordinary account and still may not create people.
-    Being able to write surveys has never implied being able to decide who answers them.
+    An authoring band is the *most* privileged ordinary account and still may not create
+    people. Being able to write surveys has never implied deciding who answers them.
     """
     with pytest.raises(ForbiddenError):
         await require_admin(author)
 
 
-async def test_a_respondent_in_it_still_administers(session):
+async def test_it_administers_at_any_band(session):
     """`require_admin` is deliberately not layered on `require_author`.
 
-    An administrator whose own account is a respondent must still reach the screen that
-    would fix that, or the mistake is unrecoverable from inside the app.
+    Administering this app is the IT function's job, not a rank: an IT operative still
+    reaches the screen, which also means an administrator whose own band was edited down
+    can still reach the screen that would fix it.
     """
     user = User(
         email="it2@plant.dev",
         display_name="IT Two",
-        role=UserRole.respondent,
-        department=CreatorDepartment.it,
+        function=Function.it,
+        band=Band.operative,
     )
     assert await require_admin(user) is user
 
@@ -110,8 +112,8 @@ async def test_a_respondent_in_it_still_administers(session):
 async def test_creating_a_floor_account_records_who_created_it(session, admin):
     created = await UserService(session).create_account(_floor(), admin)
 
-    assert created.role is UserRole.respondent
-    assert created.groups == frozenset({RespondentGroup.operatives})
+    assert created.function is Function.production
+    assert created.band is Band.operative
     assert created.created_by == admin.id
 
 
@@ -124,66 +126,52 @@ async def test_an_account_the_seed_made_has_no_creator(session, author):
     assert author.created_by is None
 
 
-async def test_the_groups_asked_for_are_the_groups_they_get(session, admin):
+async def test_the_hats_asked_for_are_the_hats_they_get(session, admin):
     created = await UserService(session).create_account(
-        _floor(groups=[RespondentGroup.line_leaders, RespondentGroup.qa]), admin
+        _floor(band=Band.supervisor, hats=[Hat.health_safety]), admin
     )
-    assert created.groups == frozenset({RespondentGroup.line_leaders, RespondentGroup.qa})
+    assert created.hats == frozenset({Hat.health_safety})
 
 
-async def test_an_author_may_also_be_on_the_floor(session, admin):
-    """The case the whole membership model exists for.
-
-    A supervisor signs in with Teams, so holds an author account, and is still somebody a
-    survey aimed at supervisors was written for.
-    """
+async def test_one_job_carries_both_sides_of_a_senior_account(session, admin):
+    """The successor to the author-who-is-also-on-the-floor case, now one fact rather
+    than two kept in step: a shift manager authors *because* of the job that also puts
+    them in the shift_managers audience."""
     created = await UserService(session).create_account(
-        _creator(groups=[RespondentGroup.supervisors]), admin
+        _floor(email="rina@plant.dev", display_name="Rina", band=Band.manager), admin
     )
-    assert created.role is UserRole.author
-    assert RespondentGroup.supervisors in created.groups
+    assert may_author(created)
+    assert in_audience(created, SurveyAudience.shift_managers)
+    assert in_audience(created, SurveyAudience.managers)
 
 
 # --- the refusals ------------------------------------------------------------------
 
 
-def test_an_author_without_a_department_is_refused():
-    """A creator without one is a misconfiguration rather than a state (CLAUDE.md).
-
-    It decides who their colleagues are, and for `it` whether they administer the system.
-    """
-    with pytest.raises(PydanticValidationError, match="department"):
-        _creator(department=None)
-
-
-def test_a_respondent_with_a_department_is_refused():
-    """The load-bearing refusal, and the reason is a leak rather than tidiness.
-
-    `_colleague` in app/access/rules.py makes anyone sharing a department a colleague, and
-    `may_read_rows` hands a colleague every individual answer. A respondent given `hr`
-    would quietly gain the raw answers to every survey HR has ever run, which is the exact
-    opposite of what the pseudonymity elsewhere in this system promises them.
-    """
-    with pytest.raises(PydanticValidationError, match="Only an author has a department"):
-        _floor(department=CreatorDepartment.hr)
+def test_half_a_job_is_unrepresentable_on_the_form():
+    """The form states a job, and a job is both halves: the schema requires them, so
+    the check constraint's half-job state cannot even be asked for here."""
+    with pytest.raises(PydanticValidationError, match="band"):
+        AccountCreate(
+            email="x@plant.dev",
+            display_name="X",
+            function=Function.production,
+        )
 
 
-def test_a_respondent_in_no_group_is_refused():
-    """Somebody in no group can be asked nothing at all, not even a survey for everyone.
-
-    `may_answer` refuses an empty `user.groups` on the `everyone` branch, so an account
-    like this is a person nobody can survey. That is the blocker CLAUDE.md names, and it
-    would otherwise be created silently by leaving one field alone.
-    """
-    with pytest.raises(PydanticValidationError, match="at least one group"):
-        _floor(groups=[])
-
-
-def test_the_same_group_twice_is_refused():
-    """The membership key is (user_id, group), so this is otherwise an IntegrityError:
+def test_the_same_hat_twice_is_refused():
+    """The hats key is (user_id, hat), so this is otherwise an IntegrityError:
     the same refusal, several layers too late to name the field that caused it."""
     with pytest.raises(PydanticValidationError, match="twice"):
-        _floor(groups=[RespondentGroup.qa, RespondentGroup.qa])
+        _floor(hats=[Hat.health_safety, Hat.health_safety])
+
+
+def test_the_hs_hat_on_the_hs_function_is_refused():
+    """Not dangerous, just meaningless: the hat exists for people whose job is
+    elsewhere, and the audience already includes the whole function. Refused so the
+    directory never shows a badge that restates the job title."""
+    with pytest.raises(PydanticValidationError, match="already"):
+        _floor(function=Function.health_safety, band=Band.manager, hats=[Hat.health_safety])
 
 
 def test_an_address_with_no_at_sign_is_refused():
@@ -253,38 +241,34 @@ async def test_a_blank_microsoft_id_is_absent_rather_than_empty(session, admin):
 # --- replacing ---------------------------------------------------------------------
 
 
-async def test_an_update_removes_the_groups_it_leaves_out(session, admin):
+async def test_an_update_removes_the_hats_it_leaves_out(session, admin):
     """The reason the update is a replacement and not a patch.
 
-    Somebody moves off a line. A body that only ever added would make that unexpressible
-    through this screen, and the account would keep a membership that decides which
-    surveys reach them.
+    Somebody hands the H&S duty on. A body that only ever added would make that
+    unexpressible through this screen, and the account would keep a hat that decides
+    which surveys reach them.
     """
     svc = UserService(session)
     created = await svc.create_account(
-        _floor(groups=[RespondentGroup.line_leaders, RespondentGroup.qa]), admin
+        _floor(band=Band.supervisor, hats=[Hat.health_safety]), admin
     )
 
-    changed = await svc.replace_account(
-        created.id, _update_of(_floor(groups=[RespondentGroup.qa])), admin
-    )
+    changed = await svc.replace_account(created.id, _update_of(_floor(band=Band.supervisor)), admin)
 
-    assert changed.groups == frozenset({RespondentGroup.qa})
+    assert changed.hats == frozenset()
 
 
-async def test_granting_authorship_is_a_change_of_role_and_department(session, admin):
-    """The answer to "who decides who can be an author": an administrator, here."""
+async def test_granting_authorship_is_a_change_of_band(session, admin):
+    """The answer to "who decides who can be an author": an administrator, here, by
+    promoting the job. There is no role field left to set."""
     svc = UserService(session)
     created = await svc.create_account(_floor(), admin)
+    assert not may_author(created)
 
-    changed = await svc.replace_account(
-        created.id,
-        _update_of(_floor(), role=UserRole.author, department=CreatorDepartment.technical),
-        admin,
-    )
+    changed = await svc.replace_account(created.id, _update_of(_floor(band=Band.manager)), admin)
 
-    assert changed.role is UserRole.author
-    assert changed.department is CreatorDepartment.technical
+    assert may_author(changed)
+    assert changed.band is Band.manager
 
 
 async def test_an_absent_account_is_not_found(session, admin):
@@ -296,7 +280,7 @@ async def test_an_administrator_cannot_edit_away_their_own_administration(sessio
     """Unrecoverable from inside the app, which is what makes it worth a special case.
 
     The last administrator moves themselves out of IT, and from then on nobody can create
-    an account or grant anybody else the department that would let them. The fix is a
+    an account or grant anybody else the function that would let them. The fix is a
     database edit, which is the thing this screen exists to stop being necessary.
     """
     with pytest.raises(ConflictError, match="your own administrator access"):
@@ -304,8 +288,8 @@ async def test_an_administrator_cannot_edit_away_their_own_administration(sessio
             admin.id,
             AccountUpdate(
                 display_name="IT",
-                role=UserRole.author,
-                department=CreatorDepartment.management,
+                function=Function.executive,
+                band=Band.manager,
             ),
             admin,
         )
@@ -314,13 +298,13 @@ async def test_an_administrator_cannot_edit_away_their_own_administration(sessio
 async def test_one_administrator_may_still_demote_another(session, admin):
     """Only their own account is protected. Removing somebody else's is a real thing to do."""
     svc = UserService(session)
-    other = await svc.create_account(_creator(department=CreatorDepartment.it), admin)
+    other = await svc.create_account(_creator(function=Function.it), admin)
 
     changed = await svc.replace_account(
-        other.id, _update_of(_creator(department=CreatorDepartment.finance)), admin
+        other.id, _update_of(_creator(function=Function.finance)), admin
     )
 
-    assert changed.department is CreatorDepartment.finance
+    assert changed.function is Function.finance
 
 
 # --- signing in at all -------------------------------------------------------------
@@ -376,47 +360,20 @@ def test_identify_is_not_mounted_in_production():
 # --- what the screens read ---------------------------------------------------------
 
 
-def test_me_reports_administration_the_browser_could_not_work_out(admin):
-    """Half of `is_admin` is an allowlist in server settings, deliberately not shipped.
-
-    A client deciding this locally would decide it wrongly for every administrator who is
-    not in the IT department.
-    """
+def test_me_reports_what_the_browser_could_not_work_out(admin):
+    """Half of `is_admin` is an allowlist in server settings, deliberately not shipped,
+    and `may_author` turns on band order, which is the server's fact. A client deciding
+    either locally would decide wrongly."""
     me = MeRead(
         id=admin.id,
         display_name=admin.display_name,
-        role=admin.role,
-        department=admin.department,
+        function=admin.function,
+        band=admin.band,
+        may_author=True,
         is_admin=True,
     )
     assert me.is_admin
-
-
-def test_the_directory_marks_an_author_who_could_not_sign_in(session):
-    """`role` is stored as sent, so this pair can drift, and the drift is invisible.
-
-    An author with no Entra id may build surveys today and will stop being able to the day
-    `role` is derived from that id instead. The directory carries the flag so the screen
-    can say so while somebody is still looking at the account.
-    """
-    author_without = User(
-        id=uuid4(),
-        email="a@plant.dev",
-        display_name="A",
-        role=UserRole.author,
-        department=CreatorDepartment.hr,
-    )
-    author_with = User(
-        id=uuid4(),
-        email="b@plant.dev",
-        display_name="B",
-        role=UserRole.author,
-        department=CreatorDepartment.hr,
-        microsoft_id="entra-b",
-    )
-
-    assert PersonRead.of(author_without).has_microsoft_id is False
-    assert PersonRead.of(author_with).has_microsoft_id is True
+    assert me.may_author
 
 
 # --- reach, the number every screen must agree on ----------------------------------
@@ -426,27 +383,28 @@ async def test_reach_counts_by_the_answering_rule(session, admin):
     """One person per case, then the counts the rule implies and no others.
 
     Reach is live by decision, so the only thing holding every denominator honest is
-    that this method asks `in_audience` rather than counting rows some other way. The
-    admin fixture is an author in no group: an account, and in no audience at all.
+    that this method asks `in_audience` rather than counting rows some other way. Note
+    the admin: an IT manager holds a job now, so they are in `everyone` and `managers`,
+    which is the deliberate change from the membership model, where an office account
+    in no group was in no audience at all.
     """
     svc = UserService(session)
-    await svc.create_account(_floor(email="rosa@plant.dev", groups=[RespondentGroup.qa]), admin)
     await svc.create_account(
-        _floor(email="ravi@plant.dev", groups=[RespondentGroup.qa, RespondentGroup.operatives]),
-        admin,
+        _floor(email="noor@plant.dev", function=Function.quality, band=Band.operative), admin
     )
+    await svc.create_account(_floor(email="rosa@plant.dev"), admin)
     await svc.create_account(
-        _creator(email="ava@plant.dev", groups=[RespondentGroup.supervisors]), admin
+        _floor(email="rohan@plant.dev", band=Band.supervisor, hats=[Hat.health_safety]), admin
     )
 
     reach = await svc.reach_by_audience()
 
-    assert reach[SurveyAudience.qa] == 2
+    assert reach[SurveyAudience.qa] == 1
     assert reach[SurveyAudience.operatives] == 1
     assert reach[SurveyAudience.supervisors] == 1
-    # Everyone = anyone in any group. The admin and the author account itself are not
-    # people a survey can reach, and counting them would pad every denominator.
-    assert reach[SurveyAudience.everyone] == 3
+    assert reach[SurveyAudience.health_safety] == 1  # the hat, not the function, here
+    assert reach[SurveyAudience.managers] == 1  # the IT admin's band
+    assert reach[SurveyAudience.everyone] == 4  # three created, plus the admin's job
     assert SurveyAudience.person not in reach
 
 
@@ -461,7 +419,8 @@ async def test_creating_an_account_writes_its_first_history_row(session, admin):
 
     assert entry.kind == "created"
     assert entry.before is None
-    assert entry.after.groups == [RespondentGroup.operatives]
+    assert entry.after["function"] == "production"
+    assert entry.after["band"] == "operative"
     assert entry.changed_by == admin.id
     assert entry.changed_by_name == admin.display_name
 
@@ -469,18 +428,18 @@ async def test_creating_an_account_writes_its_first_history_row(session, admin):
 async def test_an_edit_records_what_it_was_and_what_it_became(session, admin):
     """The row is the answer to "why did reach move on Tuesday"."""
     svc = UserService(session)
-    created = await svc.create_account(_floor(groups=[RespondentGroup.qa]), admin)
-
-    await svc.replace_account(
-        created.id, _update_of(_floor(groups=[RespondentGroup.line_leaders])), admin
+    created = await svc.create_account(
+        _floor(function=Function.quality, band=Band.operative), admin
     )
+
+    await svc.replace_account(created.id, _update_of(_floor()), admin)
 
     newest, oldest = await svc.history(created.id)
     assert oldest.kind == "created"
     assert newest.kind == "updated"
     assert newest.before is not None
-    assert newest.before.groups == [RespondentGroup.qa]
-    assert newest.after.groups == [RespondentGroup.line_leaders]
+    assert newest.before["function"] == "quality"
+    assert newest.after["function"] == "production"
 
 
 async def test_a_save_that_changed_nothing_writes_nothing(session, admin):
@@ -519,21 +478,21 @@ def _published_survey(author_id, audience, title="Open survey", target=None) -> 
 async def test_preview_names_the_open_survey_a_person_would_leave(session, admin, author):
     """The guardrail itself: the moment before reach moves is when the mover sees it.
 
-    Rosa is the only QA member and an open survey is aimed at QA, so moving her off the
-    line takes that survey's reach from one to zero. The preview must say so, by title,
-    with both numbers, before anything is saved.
+    Noor is the only quality member and an open survey is aimed at QA, so moving her
+    onto production takes that survey's reach from one to zero. The preview must say so,
+    by title, with both numbers, before anything is saved.
     """
     svc = UserService(session)
-    rosa = await svc.create_account(_floor(groups=[RespondentGroup.qa]), admin)
+    noor = await svc.create_account(
+        _floor(email="noor@plant.dev", function=Function.quality), admin
+    )
     session.add(_published_survey(author.id, SurveyAudience.qa, title="QA weekly"))
     await session.flush()
 
-    impact = await svc.preview_change(
-        rosa.id, _update_of(_floor(groups=[RespondentGroup.operatives]))
-    )
+    impact = await svc.preview_change(noor.id, _update_of(_floor(function=Function.production)))
 
-    assert impact.groups_added == [RespondentGroup.operatives]
-    assert impact.groups_removed == [RespondentGroup.qa]
+    assert impact.function_before is Function.quality
+    assert impact.function_after is Function.production
     (survey,) = impact.surveys
     assert survey.title == "QA weekly"
     assert survey.now_in is False
@@ -546,18 +505,51 @@ async def test_preview_names_the_open_survey_a_person_would_join(session, admin,
     session.add(_published_survey(author.id, SurveyAudience.qa, title="QA weekly"))
     await session.flush()
 
-    impact = await svc.preview_change(
-        rosa.id, _update_of(_floor(groups=[RespondentGroup.operatives, RespondentGroup.qa]))
-    )
+    impact = await svc.preview_change(rosa.id, _update_of(_floor(function=Function.quality)))
 
     (survey,) = impact.surveys
     assert survey.now_in is True
     assert (survey.reach_before, survey.reach_after) == (0, 1)
 
 
+async def test_a_band_change_moves_the_managers_denominator(session, admin, author):
+    """The promotion case: a band edit is what moves the manager-audience surveys now,
+    the way a group edit used to move the group ones."""
+    svc = UserService(session)
+    rosa = await svc.create_account(_floor(), admin)
+    session.add(_published_survey(author.id, SurveyAudience.managers, title="Managers monthly"))
+    await session.flush()
+
+    impact = await svc.preview_change(rosa.id, _update_of(_floor(band=Band.manager)))
+
+    assert impact.band_before is Band.operative
+    assert impact.band_after is Band.manager
+    # The derived flag rides along so the dialog can warn about the authorship flip
+    # without re-inventing the band cutoff client-side.
+    assert (impact.may_author_before, impact.may_author_after) == (False, True)
+    titles = {s.title: s.now_in for s in impact.surveys}
+    assert titles["Managers monthly"] is True
+
+
+async def test_a_hat_change_moves_the_health_safety_denominator(session, admin, author):
+    svc = UserService(session)
+    rohan = await svc.create_account(
+        _floor(email="rohan@plant.dev", band=Band.supervisor, hats=[Hat.health_safety]), admin
+    )
+    session.add(_published_survey(author.id, SurveyAudience.health_safety, title="H&S check"))
+    await session.flush()
+
+    impact = await svc.preview_change(rohan.id, _update_of(_floor(band=Band.supervisor)))
+
+    assert impact.hats_removed == [Hat.health_safety]
+    (survey,) = impact.surveys
+    assert survey.title == "H&S check"
+    assert survey.now_in is False
+
+
 async def test_preview_is_silent_about_surveys_the_edit_does_not_touch(session, admin, author):
-    """Membership is unchanged for operatives, so the operatives survey must not appear:
-    a preview that lists everything teaches admins to read none of it."""
+    """The job is unchanged for the operatives audience, so the operatives survey must
+    not appear: a preview that lists everything teaches admins to read none of it."""
     svc = UserService(session)
     rosa = await svc.create_account(_floor(), admin)
     session.add(_published_survey(author.id, SurveyAudience.operatives, title="Ops daily"))
@@ -572,12 +564,12 @@ async def test_preview_skips_drafts_and_closed_surveys(session, admin, author):
     """Only open surveys are guarded: a draft reaches nobody yet, and a closed survey
     takes no new answers, so neither has a denominator this edit can move.
 
-    Rosa flips out of the QA audience here, and the preview must still be empty,
+    Noor flips out of the QA audience here, and the preview must still be empty,
     because the only QA surveys that exist are a draft and a closed one.
     """
     svc = UserService(session)
-    rosa = await svc.create_account(
-        _floor(groups=[RespondentGroup.qa, RespondentGroup.operatives]), admin
+    noor = await svc.create_account(
+        _floor(email="noor@plant.dev", function=Function.quality), admin
     )
     draft = _published_survey(author.id, SurveyAudience.qa, title="Draft")
     draft.status = TemplateStatus.draft
@@ -587,46 +579,23 @@ async def test_preview_skips_drafts_and_closed_surveys(session, admin, author):
     session.add(closed)
     await session.flush()
 
-    impact = await svc.preview_change(
-        rosa.id, _update_of(_floor(groups=[RespondentGroup.operatives]))
-    )
+    impact = await svc.preview_change(noor.id, _update_of(_floor(function=Function.production)))
 
-    assert impact.groups_removed == [RespondentGroup.qa]
+    assert impact.function_after is Function.production
     assert impact.surveys == []
 
 
-async def test_an_author_losing_their_last_group_leaves_every_everyone_survey(
-    session, admin, author
-):
-    """The everyone audience is anyone in any group, so an author's last group is
-    load-bearing: without it they are an account a survey cannot reach, and the preview
-    must say which open surveys stop reaching them."""
-    svc = UserService(session)
-    ava = await svc.create_account(
-        _creator(groups=[RespondentGroup.supervisors]),
-        admin,
-    )
-    session.add(_published_survey(author.id, SurveyAudience.everyone, title="All hands"))
-    await session.flush()
-
-    impact = await svc.preview_change(ava.id, _update_of(_creator(groups=[])))
-
-    (survey,) = impact.surveys
-    assert survey.title == "All hands"
-    assert survey.now_in is False
-
-
 async def test_preview_never_reports_a_survey_aimed_at_one_person(session, admin, author):
-    """The target is an id: no change of role or groups makes this user someone else,
-    so a person-aimed survey cannot flip and must never show up as if it could."""
+    """The target is an id: no change of job makes this user someone else, so a
+    person-aimed survey cannot flip and must never show up as if it could."""
     svc = UserService(session)
-    rosa = await svc.create_account(_floor(groups=[RespondentGroup.qa]), admin)
+    rosa = await svc.create_account(_floor(), admin)
     session.add(
         _published_survey(author.id, SurveyAudience.person, title="Just Rosa", target=rosa.id)
     )
     await session.flush()
 
-    impact = await svc.preview_change(rosa.id, _update_of(_floor(groups=[RespondentGroup.qa])))
+    impact = await svc.preview_change(rosa.id, _update_of(_floor(band=Band.line_leader)))
 
     assert impact.surveys == []
 
@@ -635,14 +604,16 @@ async def test_preview_writes_nothing(session, admin, author):
     """Read-only by construction, asserted anyway: a what-if that saved would be the
     exact bug its name promises it is not."""
     svc = UserService(session)
-    rosa = await svc.create_account(_floor(groups=[RespondentGroup.qa]), admin)
+    noor = await svc.create_account(
+        _floor(email="noor@plant.dev", function=Function.quality), admin
+    )
 
-    await svc.preview_change(rosa.id, _update_of(_floor(groups=[RespondentGroup.operatives])))
+    await svc.preview_change(noor.id, _update_of(_floor(function=Function.production)))
 
-    fresh = await UserRepository(session).get(rosa.id)
+    fresh = await UserRepository(session).get(noor.id)
     assert fresh is not None
-    assert fresh.groups == frozenset({RespondentGroup.qa})
-    entries = await svc.history(rosa.id)
+    assert fresh.function is Function.quality
+    entries = await svc.history(noor.id)
     assert [e.kind for e in entries] == ["created"]
 
 

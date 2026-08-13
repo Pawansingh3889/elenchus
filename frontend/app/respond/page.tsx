@@ -23,7 +23,7 @@ export default function RespondPage() {
 
   // Taking a survey is respondent-only (the backend refuses authors); send authors
   // back to Build rather than let them start a run under their own name.
-  const isAuthor = currentUser?.role === "author";
+  const isAuthor = currentUser?.may_author === true;
   useEffect(() => {
     if (isAuthor) router.replace("/");
   }, [isAuthor, router]);

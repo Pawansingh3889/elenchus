@@ -1,11 +1,21 @@
-"""User model, role enum, department enum, and plant-floor group membership."""
+"""User model and the job vocabulary: one function, one band, any number of hats.
+
+This replaced three older vocabularies at once (`UserRole`, `CreatorDepartment`,
+`RespondentGroup`) and the free-form membership table that joined them. The old shape
+let one person be recorded as a line leader and QA at the same time, which the plant's
+own org chart says is not a thing: QA checks production's work, so QA independence is
+structural, not a preference. The fix is the standard job-architecture one: every
+person holds exactly one job, a (function, band) pair, and everything the app used to
+store about them (role, department, groups) is derived from it. One job per person is
+the schema-level version of an RBAC separation-of-duty constraint.
+"""
 
 import enum
 from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, String, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, func
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -13,85 +23,107 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 
-class UserRole(str, enum.Enum):
-    author = "author"
-    respondent = "respondent"
+class Function(str, enum.Enum):
+    """Which ladder somebody is on: the departments of the plant, floor and office alike.
 
-
-class CreatorDepartment(str, enum.Enum):
-    """Which part of the business a creator belongs to, and who else sees their surveys.
-
-    Two jobs. It groups authors so that colleagues in one department can pick up each
-    other's surveys and read what came back, and for `it` it grants administration.
-
-    That second job reverses an earlier decision, recorded here rather than lost: admin
-    used to come only from the email allowlist in settings, so that granting it was never
-    a database edit. It is now also every member of `it`, which was asked for directly.
-    The allowlist still works, so an admin who does not work in IT is still possible.
+    One list rather than the old creator/respondent split, because the same question
+    ("where does this person work") was being answered by two vocabularies that could
+    disagree. The floor lives in `production`, `quality` and `health_safety`; the office
+    is the rest. `it` stays because IT membership grants administration, a decision
+    recorded on `is_admin`. `technical` is the spec-and-compliance office in the food
+    industry's sense of the word, distinct from the QA ladder in `quality`.
     """
 
+    production = "production"
+    quality = "quality"
+    health_safety = "health_safety"
+    technical = "technical"
+    planning = "planning"
     hr = "hr"
     finance = "finance"
-    technical = "technical"
-    management = "management"
-    # Office-side Quality and compliance: the people who write the hygiene surveys.
-    # Distinct from the `qa` group below on purpose, and the distinction is the same one
-    # the two enums exist for: this says which office team reads your surveys, that says
-    # what you do on the line, and one person can hold both.
-    quality = "quality"
+    supply_chain = "supply_chain"
     it = "it"
+    # Site leadership: the factory manager and the production director. A function of
+    # its own rather than a band on `production`, because they stand over every ladder,
+    # and the access rules give the band-qualified members of this one read access to
+    # every survey.
+    executive = "executive"
 
 
-class RespondentGroup(str, enum.Enum):
-    """What someone does on the plant floor, and the audience a survey can name.
+class Band(str, enum.Enum):
+    """How high on the ladder. Ordered, and the order is load-bearing: authoring and
+    the `managers` audience are both "manager band and up", read through BAND_RANK.
 
-    Membership in a table rather than a column, because these overlap in real life: a line
-    leader who also covers QA is in both, and one column would force a choice that is not
-    true. See `UserGroupMembership`.
-
-    Separate from `CreatorDepartment` for the same reason that enum stays separate from
-    `SurveyAudience`: "which office team is this person in" and "what do they do on the
-    line" are different questions. A manager has a Teams login and so an author account,
-    and still answers surveys aimed at managers, which is exactly why answering is decided
-    by membership here and not by `role`.
+    The names are the floor's own words. `line_leader` means nothing outside
+    production and simply goes unused elsewhere; inventing greyer words (associate,
+    lead) so every function could use every band would trade the plant's vocabulary
+    for an org chart nobody here works in. A QA technician on the floor is
+    `quality`/`operative`, which is precisely the job title the industry uses.
     """
 
-    operatives = "operatives"
-    line_leaders = "line_leaders"
-    supervisors = "supervisors"
-    # Runs a shift, between the line leaders and the managers. Added beside `managers`
-    # rather than folded into it: the earlier remap made `managers` carry the old office
-    # teams' surveys, and a shift manager on the floor is not who those were for.
-    shift_managers = "shift_managers"
-    managers = "managers"
-    qa = "qa"
+    operative = "operative"
+    line_leader = "line_leader"
+    supervisor = "supervisor"
+    manager = "manager"
+    head = "head"
+    director = "director"
+
+
+# The order, spelled out once. `list(Band)` would encode the same fact implicitly, but
+# a reorder of the enum for readability would then silently change who may author.
+BAND_RANK: dict[Band, int] = {
+    Band.operative: 0,
+    Band.line_leader: 1,
+    Band.supervisor: 2,
+    Band.manager: 3,
+    Band.head: 4,
+    Band.director: 5,
+}
+
+
+class Hat(str, enum.Enum):
+    """A cross-cutting responsibility somebody carries on top of their job.
+
+    The org chart's answer to "a supervisor with additional health and safety
+    responsibility": the job stays production/supervisor, the H&S duty is a hat. A
+    separate small vocabulary rather than a second job, because a hat grants being
+    *asked* about the duty (the health_safety audience) and nothing else: no
+    authoring, no colleague visibility, no band.
+    """
+
+    health_safety = "health_safety"
 
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (
+        # A job is a pair or nothing. Half a job (a function with no band, a band with
+        # no function) is a row every rule would misread, so the schema refuses it.
+        CheckConstraint(
+            "(function IS NULL) = (band IS NULL)",
+            name="ck_users_job_is_both_or_neither",
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     email: Mapped[str] = mapped_column(String(320), unique=True)
     display_name: Mapped[str] = mapped_column(String(200))
-    # The Entra object id, for the people who sign in with Microsoft. Its presence is what
-    # will decide `role` once real sign-in exists: whoever has one is a creator, and
-    # everyone else answers surveys and reaches the app by a link rather than a login.
+    # The Entra object id, for the people who sign in with Microsoft. Sign-in method
+    # only: it decides nothing about what the account may do, which is `band`'s job.
+    # The old intent for this column (its presence would decide who is a creator) died
+    # with the role column: line leaders use the ERP and will hold logins without that
+    # making them survey authors.
     #
-    # Nullable because most of a plant has no Microsoft account, and unique because two
-    # people sharing one would be two people sharing an identity.
-    #
-    # `role` below is still a stored column and still the thing the app reads. That is the
-    # development shim standing in for a login that does not exist yet, and the two are
-    # kept from drifting by a test asserting that every user with an id is an author and
-    # every author has one. When sign-in lands, role is derived here and the column goes.
+    # Nullable because most of a plant signs in by link, and unique because two people
+    # sharing one would be two people sharing an identity.
     microsoft_id: Mapped[str | None] = mapped_column(String(64), unique=True, default=None)
-    role: Mapped[UserRole] = mapped_column(SAEnum(UserRole, name="user_role"))
-    # Nullable because someone who only answers surveys has no office department: what
-    # they do on the line is `memberships` instead. A *creator* without one is a
-    # misconfiguration rather than a state, and access fails closed on it.
-    department: Mapped[CreatorDepartment | None] = mapped_column(
-        SAEnum(CreatorDepartment, name="creator_department"), default=None
+    # The job. Nullable as a pair (see the check constraint): a service or
+    # administration account has no place on any ladder, is in no audience, and may
+    # author nothing. Every real person has one.
+    function: Mapped[Function | None] = mapped_column(
+        SAEnum(Function, name="user_function"), default=None
     )
+    band: Mapped[Band | None] = mapped_column(SAEnum(Band, name="user_band"), default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     # The administrator who made this account on the admin screen. Null for everyone the
     # screen did not create: the seeded accounts predate it, and the accounts a real Entra
@@ -101,51 +133,51 @@ class User(Base):
     # Self-referential and deliberately not a relationship. Every reader wants a name to
     # print beside a row it already holds, and a relationship here would load a second User
     # per row down the same lazy path that raises MissingGreenlet inside the access rules,
-    # which is the reason `memberships` below is `selectin`.
+    # which is the reason `hat_rows` below is `selectin`.
     created_by: Mapped[UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), default=None
     )
 
     # `selectin` rather than lazy loading, and that is load-bearing rather than a tuning
-    # choice. The access rules are pure functions of what they are handed, so the groups
+    # choice. The access rules are pure functions of what they are handed, so the hats
     # have to be on the User by the time a rule reads them; a lazy relationship would
     # instead raise MissingGreenlet from inside a rule under async SQLAlchemy. One extra
     # query per load of users, and the one caller that loads every user is counting reach
     # over all of them anyway.
-    memberships: Mapped[list["UserGroupMembership"]] = relationship(
+    hat_rows: Mapped[list["UserHat"]] = relationship(
         back_populates="user", lazy="selectin", cascade="all, delete-orphan"
     )
 
     def __init__(self, **kw: Any) -> None:
-        """Start with an empty, *loaded* membership collection unless one was given.
+        """Start with an empty, *loaded* hats collection unless one was given.
 
         Without this, a `User` built in Python and flushed has an unloaded collection, and
-        the first rule to read `groups` raises MissingGreenlet from inside a pure function
+        the first rule to read `hats` raises MissingGreenlet from inside a pure function
         under async SQLAlchemy. `lazy="selectin"` does not help there: it applies to
         objects a query loads, and this one was never queried for.
 
         SQLAlchemy does not call `__init__` when loading a row, so this cannot mask a real
         collection with an empty one.
         """
-        kw.setdefault("memberships", [])
+        kw.setdefault("hat_rows", [])
         super().__init__(**kw)
 
     @property
-    def groups(self) -> frozenset[RespondentGroup]:
-        """The groups this person is in, as a set, which is what every rule wants.
+    def hats(self) -> frozenset[Hat]:
+        """The hats this person carries, as a set, which is what every rule wants.
 
         A property over the rows rather than a second stored column: there is one source
         of truth and no way for the two to disagree.
         """
-        return frozenset(m.group for m in self.memberships)
+        return frozenset(h.hat for h in self.hat_rows)
 
 
 class AccountChange(Base):
     """One admin edit to one account, written in the same transaction as the edit.
 
     Append-only, and the reason it exists is the live-reach decision: who a survey is for
-    is whoever is in the group today, so denominators move when membership does, and this
-    is the record that says who moved them. Deliberately no relationship back to User in
+    is whoever holds the job today, so denominators move when a job does, and this is the
+    record that says who moved them. Deliberately no relationship back to User in
     either direction; the history is fetched by the one endpoint that wants it, not
     carried around on every person the directory loads.
     """
@@ -163,25 +195,25 @@ class AccountChange(Base):
     changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     # {kind: created|updated, before: {...}|null, after: {...}}. The snapshots hold the
     # fields an administrator controls, as the strings the enums store, so a row is
-    # readable in psql without the application to decode it.
+    # readable in psql without the application to decode it. Rows written before the job
+    # model carry the old vocabulary (role, department, groups); they are history and are
+    # served as written, never rewritten to today's shape.
     change: Mapped[dict[str, Any]] = mapped_column(JSONB)
 
 
-class UserGroupMembership(Base):
-    """One person's membership of one plant-floor group.
+class UserHat(Base):
+    """One person carrying one cross-cutting responsibility.
 
-    The pair is the primary key, so the same person cannot be recorded in `operatives`
-    twice and no surrogate id has to be invented to say so.
+    The pair is the primary key, so the same hat cannot be recorded twice and no
+    surrogate id has to be invented to say so.
     """
 
-    __tablename__ = "user_group_memberships"
+    __tablename__ = "user_hats"
 
     user_id: Mapped[UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
     )
-    group: Mapped[RespondentGroup] = mapped_column(
-        SAEnum(RespondentGroup, name="respondent_group"), primary_key=True
-    )
+    hat: Mapped[Hat] = mapped_column(SAEnum(Hat, name="user_hat"), primary_key=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    user: Mapped[User] = relationship(back_populates="memberships")
+    user: Mapped[User] = relationship(back_populates="hat_rows")

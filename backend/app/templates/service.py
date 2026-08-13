@@ -12,7 +12,7 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.access import is_admin_by_config, may_answer, may_edit, may_list
+from app.access import is_admin_by_config, may_answer, may_edit, may_list, reads_all_surveys
 from app.config import get_settings
 from app.errors import ConflictError, ForbiddenError, NotFoundError
 from app.templates.enums import TemplateStatus
@@ -58,15 +58,22 @@ class TemplateService:
     async def list_drafts(
         self, status: TemplateStatus | None, author: User
     ) -> list[tuple[SurveyTemplate, int]]:
-        """An author's workspace, and their department's.
+        """An author's workspace, and their function's.
 
-        Scoped in the query to the author plus everyone in their department, then filtered
+        Scoped in the query to the author plus everyone in their function, then filtered
         again here so the one rule decides rather than the query agreeing with it by luck.
         The query has to be widened as well as the rule: a survey a colleague made is not
-        in `created_by = me`, so no amount of filtering would have let it through."""
+        in `created_by = me`, so no amount of filtering would have let it through. An
+        executive's scope is every creator, for the same reason in the other direction:
+        `reads_all_surveys` grants them the lot, and a query still scoped to their own
+        function would silently show them a sliver of it."""
         admin = is_admin_by_config(author)
-        creators = {author.id} | await self.users.ids_in_department(author.department)
-        departments = await self.users.departments_by_id()
+        functions = await self.users.functions_by_id()
+        creators = (
+            set(functions)
+            if reads_all_surveys(author)
+            else {author.id} | await self.users.ids_in_function(author.function)
+        )
         return [
             row
             for row in await self.repo.list_summaries(status, created_by_in=creators)
@@ -76,7 +83,7 @@ class TemplateService:
                 row[0].created_by,
                 admin,
                 target=row[0].audience_user_id,
-                creator_department=departments.get(row[0].created_by),
+                creator_function=functions.get(row[0].created_by),
             )
         ]
 
@@ -190,14 +197,14 @@ class TemplateService:
         # can't be used to enumerate which ids exist. The rule itself lives in
         # app/access: this used to compare created_by here, which was the same rule
         # written in a second place and free to drift from the one the engine uses.
-        departments = await self.users.departments_by_id()
+        functions = await self.users.functions_by_id()
         decision = may_list(
             author,
             template.audience,
             template.created_by,
             is_admin_by_config(author),
             target=template.audience_user_id,
-            creator_department=departments.get(template.created_by),
+            creator_function=functions.get(template.created_by),
         )
         if not decision:
             logger.info(

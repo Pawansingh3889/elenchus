@@ -413,7 +413,12 @@ async def test_refine_re_validates_so_a_bad_change_fails_loudly(session, author)
 
 
 async def test_refine_refuses_another_authors_template(session, author, other_author):
-    original, _ = await GenerationService(session, llm=FakeLLM(_VALID)).generate_draft("x", author)
+    """Aimed at operatives so the finance manager is outside the audience entirely: an
+    `everyone` draft would be visible to them since the job model, and the refusal
+    would then be the editing gate's forbidden rather than this absence."""
+    original, _ = await GenerationService(session, llm=FakeLLM(_VALID)).generate_draft(
+        "x", author, SurveyAudience.operatives
+    )
 
     with pytest.raises(NotFoundError):
         await GenerationService(session, llm=FakeLLM(_VALID)).refine_draft(

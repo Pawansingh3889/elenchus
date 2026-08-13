@@ -49,7 +49,7 @@ function ResultsContent() {
   const openRun = search.get("run");
   const slice = parseSlice(search.get("slice"), matrix);
 
-  const isRespondent = currentUser?.role === "respondent";
+  const isRespondent = currentUser ? !currentUser.may_author : false;
   useEffect(() => {
     if (isRespondent) router.replace("/respond");
   }, [isRespondent, router]);

@@ -29,7 +29,7 @@ export default function Dashboard() {
 
   // Build is author-only on the backend; a respondent landing here (e.g. after
   // switching users in the top bar) belongs on Respond, not on a page of 403s.
-  const isRespondent = currentUser?.role === "respondent";
+  const isRespondent = currentUser ? !currentUser.may_author : false;
   useEffect(() => {
     if (isRespondent) router.replace("/respond");
   }, [isRespondent, router]);

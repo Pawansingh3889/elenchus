@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import HTTP_201_CREATED
 
-from app.access import is_admin_by_config
+from app.access import is_admin_by_config, may_author
 from app.auth.dependencies import get_current_user, require_admin, require_author
 from app.db.session import get_session
 from app.errors import NotFoundError
@@ -60,7 +60,7 @@ async def list_users(
     _: User = Depends(get_current_user),
 ) -> list[UserRead]:
     users = await UserRepository(session).list_all()
-    return [UserRead.model_validate(u) for u in users]
+    return [UserRead.of(u) for u in users]
 
 
 @directory_router.get("", response_model=list[PersonRead])
@@ -116,7 +116,7 @@ async def identify(
     # Logged because this is the whole of signing in: a dev box being probed should leave
     # a trail, and "who acted as whom" is otherwise unanswerable after the fact.
     logger.info("dev identify: %s -> user=%s", email, user.id)
-    return UserRead.model_validate(user)
+    return UserRead.of(user)
 
 
 @directory_router.get("/reach", response_model=dict[SurveyAudience, int])
@@ -143,18 +143,20 @@ async def audience_reach(
 
 @me_router.get("", response_model=MeRead)
 async def read_me(user: User = Depends(get_current_user)) -> MeRead:
-    """Who the caller is, and whether they may administer anything.
+    """Who the caller is, and which surfaces are theirs.
 
-    Any known user, because the answer is only ever about themselves. The one field a
-    client could not work out for itself is `is_admin`: half of that rule is an email
-    allowlist held in server settings, and a browser deciding it locally would be a
-    browser deciding it wrongly for every administrator who is not in the IT department.
+    Any known user, because the answer is only ever about themselves. Neither derived
+    flag can be worked out client-side: `may_author` turns on band order, which is the
+    server's fact, and half of `is_admin` is an email allowlist held in server settings,
+    which a browser deciding locally would decide wrongly for every administrator who
+    is not in the IT function.
     """
     return MeRead(
         id=user.id,
         display_name=user.display_name,
-        role=user.role,
-        department=user.department,
+        function=user.function,
+        band=user.band,
+        may_author=may_author(user),
         is_admin=is_admin_by_config(user),
     )
 

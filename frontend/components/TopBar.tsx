@@ -70,7 +70,7 @@ export function TopBar() {
   // The nav must follow the acting user's role: Build pages are author-only on the
   // backend, so showing the link to a respondent just leads to a 403.
   const currentUser = users?.find((u) => u.id === currentUserId);
-  const isAuthor = currentUser?.role === "author";
+  const isAuthor = currentUser?.may_author === true;
 
   return (
     <header className="topbar">
@@ -112,7 +112,7 @@ export function TopBar() {
               <option value="">{topbar.selectUser}</option>
               {users?.map((u) => (
                 <option key={u.id} value={u.id}>
-                  {u.display_name} · {u.role}
+                  {u.display_name} · {u.function ?? "-"}
                 </option>
               ))}
             </select>

@@ -11,7 +11,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.access import is_admin_by_config, may_list, may_read_rows
+from app.access import is_admin_by_config, may_list, may_read_rows, reads_all_surveys
 from app.errors import NotFoundError
 from app.runs.enums import AnswerKind, RunStatus
 from app.runs.models import REPLY_PREFIX, SurveyRun
@@ -49,16 +49,22 @@ class ResultsService:
         self.users = UserRepository(session)
 
     async def dashboard(self, author: User) -> list[DashboardRow]:
-        """Every survey this author's department owns, with how each one is going.
+        """Every survey this author's function owns, with how each one is going.
 
-        Scoped in the query to the author plus their department rather than filtered
-        afterwards, so a survey from outside it is never loaded in the first place.
+        Scoped in the query to the author plus their function rather than filtered
+        afterwards, so a survey from outside it is never loaded in the first place. An
+        executive's scope is everyone: `reads_all_surveys` is their oversight, and this
+        dashboard is where they exercise it.
         """
-        creators = {author.id} | await self.users.ids_in_department(author.department)
+        functions = await self.users.functions_by_id()
+        creators = (
+            set(functions)
+            if reads_all_surveys(author)
+            else {author.id} | await self.users.ids_in_function(author.function)
+        )
         rows = await self.repo.dashboard_rows(creators)
         admin = is_admin_by_config(author)
         reach = await self._reach_by_audience()
-        departments = await self.users.departments_by_id()
         return [
             DashboardRow(
                 id=template.id,
@@ -101,7 +107,7 @@ class ResultsService:
                 template.created_by,
                 admin,
                 target=template.audience_user_id,
-                creator_department=departments.get(template.created_by),
+                creator_function=functions.get(template.created_by),
             )
         ]
 
@@ -274,14 +280,25 @@ class ResultsService:
         )
 
     async def _owned_or_404(self, template_id: UUID, author: User) -> SurveyTemplate:
-        """Responses carry respondent names and verbatim transcripts, so they are readable
-        only by the author and an admin. Being in a survey's audience means you were asked,
-        not that you may read what your colleagues said. Someone else's template reads as
-        absent rather than forbidden."""
+        """Responses carry pseudonyms and verbatim transcripts, so they are readable by
+        the author, the authoring bands of the author's own function, leadership and an
+        admin, and nobody else. Being in a survey's audience means you were asked, not
+        that you may read what your colleagues said. Someone else's template reads as
+        absent rather than forbidden.
+
+        The creator's function is passed since the job model landed: the colleague
+        branch of `may_read_rows` sat dead here for want of it, which made "colleagues
+        read each other's results" a sentence in the docs rather than a behaviour."""
         template = await self.templates.get(template_id)
         if template is None:
             raise NotFoundError("Template not found.")
-        decision = may_read_rows(author, template.created_by, is_admin_by_config(author))
+        functions = await self.users.functions_by_id()
+        decision = may_read_rows(
+            author,
+            template.created_by,
+            is_admin_by_config(author),
+            creator_function=functions.get(template.created_by),
+        )
         if not decision:
             logger.info(
                 "responses hidden: template=%s user=%s reason=%s",
