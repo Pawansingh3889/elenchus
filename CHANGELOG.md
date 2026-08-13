@@ -5,6 +5,31 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-08-13. The generator is held to the brief's question count
+
+Defect O2, live twice: asked for exactly 10 questions, the model returned 11, and the
+draft was persisted as if that were what the author wrote. The count is now a bound
+rather than a hope, closing the defect as row 30.
+
+- **Parsed conservatively from the brief.** Only an unambiguous exact ask binds:
+  "exactly 10 questions", "a 10-question survey", "ten questions". Softened ("about
+  10"), ranged ("8-10", "between 8 and 10"), scoped ("2 questions per shift", "the
+  first 3 questions") and conflicting counts stay advisory, because a false bound
+  rejects drafts the author never asked to constrain, while a missed one just leaves
+  today's behaviour.
+- **Pinned in the tool schema** as `minItems`/`maxItems` on the questions array, where
+  a constrained decoder can hold the model to it before a wrong draft exists.
+- **Enforced by the validator either way**, since not every provider honours those
+  bounds: a draft with the wrong count burns the one retry with an error naming both
+  numbers, and a second miss fails loudly rather than persisting.
+- **A count past the cap is the author's problem, said immediately.** A brief asking
+  for 30 against the cap of 20 could only ever fail after two paid model calls, blaming
+  the model for the brief. It is refused as a 422 before any call is made.
+
+The other half of O2, open questions drafted as four-option selects, is not fixed but
+superseded: drafting free text has since been banned deliberately, and the write-in is
+the mechanism that carries what an option list cannot anticipate.
+
 ## 2026-08-13. Playwright leaves the repo
 
 The browser suite was one smoke spec asserting the landing page's copy, and it cost

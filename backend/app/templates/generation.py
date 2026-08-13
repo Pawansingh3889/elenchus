@@ -7,6 +7,7 @@ so it lands in the same builder a hand-built one would.
 """
 
 import logging
+import re
 from typing import Any
 from uuid import UUID
 
@@ -14,6 +15,7 @@ from pydantic import Field
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.errors import ValidationError
 from app.llm import ledger
 from app.llm.client import LLMError, LLMProtocol
 from app.llm.decoding import decode_stringified
@@ -65,11 +67,78 @@ _TOOL_NAME = "draft_survey_template"
 _TOOL_DESCRIPTION = "Return a complete survey template as structured data, plus a short note."
 
 
-_TOOL: dict[str, Any] = {
-    "name": _TOOL_NAME,
-    "description": _TOOL_DESCRIPTION,
-    "input_schema": _DraftToolInput.model_json_schema(),
+def _tool(expected_count: int | None = None) -> dict[str, Any]:
+    """The draft tool, with the questions array pinned when the brief names a count.
+
+    A live run returned 11 questions against a brief that asked for exactly 10, twice
+    (defect O2). The bound in the schema is what a constrained decoder can hold the
+    model to; ``_validation_error`` is what actually holds the line, because not every
+    provider enforces minItems/maxItems.
+    """
+    schema = _DraftToolInput.model_json_schema()
+    if expected_count is not None:
+        schema["properties"]["questions"]["minItems"] = expected_count
+        schema["properties"]["questions"]["maxItems"] = expected_count
+    return {"name": _TOOL_NAME, "description": _TOOL_DESCRIPTION, "input_schema": schema}
+
+
+# Word numbers a brief plausibly writes a count in. Stops at twenty, which is also
+# MAX_GENERATED_QUESTIONS: past that, people write digits.
+_WORD_NUMBERS: dict[str, int] = {
+    w: n
+    for n, w in enumerate(
+        "one two three four five six seven eight nine ten eleven twelve thirteen fourteen "
+        "fifteen sixteen seventeen eighteen nineteen twenty".split(),
+        start=1,
+    )
 }
+
+# "about 10 questions" is not a promise to hold the model to. Softeners before the
+# number, or hedges after it, make the count advisory and the bound is skipped.
+# "first"/"next" and friends are here because "the first 3 questions should be about
+# safety" scopes three questions, it does not order a three-question survey.
+_SOFTENERS = (
+    r"(?:about|around|roughly|approximately|approx\.?|some|say|maybe|"
+    r"up to|at most|at least|no more than|fewer than|less than|more than|over|under|"
+    r"first|last|final|initial|next|another)"
+)
+# "2 questions per shift" and "2 questions each" size a section, not the survey.
+_HEDGES_AFTER = r"^\s*(?:or so|or more|or fewer|or less|max\b|maximum|tops|ish\b|per\b|each\b)"
+# A number that is the far end of a range ("8-10 questions", "between 8 and 10
+# questions") is not an exact ask either.
+_RANGE_BEFORE = r"\d\s*(?:-|–|to|and|or)\s*$"
+
+_COUNT = re.compile(
+    rf"(?<![\w-])(\d{{1,2}}|{'|'.join(_WORD_NUMBERS)})[\s-]+questions?\b",
+    re.IGNORECASE,
+)
+
+
+def _requested_question_count(brief: str) -> int | None:
+    """The question count the brief pins, or None when it names none or is not exact.
+
+    Conservative on purpose, in both directions. A missed match leaves today's
+    behaviour, which is the model reading the brief; a false match rejects drafts the
+    author never asked to bound. So a softened count ("about ten questions"), a range,
+    or two different counts in one brief ("10 questions on safety and 2 on kit") all
+    return None, and only an unambiguous single count becomes a bound.
+    """
+    counts: set[int] = set()
+    for match in _COUNT.finditer(brief):
+        token = match.group(1).lower()
+        count = int(token) if token.isdigit() else _WORD_NUMBERS[token]
+        if count == 0:
+            continue
+        before = brief[max(0, match.start() - 24) : match.start()].lower()
+        after = brief[match.end() : match.end() + 12].lower()
+        if re.search(rf"{_SOFTENERS}\s*$", before) or re.search(_RANGE_BEFORE, before):
+            continue
+        if re.search(_HEDGES_AFTER, after):
+            continue
+        counts.add(count)
+    if len(counts) != 1:
+        return None
+    return counts.pop()
 
 
 class GenerationService:
@@ -94,12 +163,23 @@ class GenerationService:
         may answer a survey decided by a model that was told nothing about the question,
         which is the same failure the `TemplateUpdate` docstring records. Overriding after
         the draft returns keeps one answer to "who is this for", and it is the author's."""
+        requested = _requested_question_count(prompt)
+        if requested is not None and requested > MAX_GENERATED_QUESTIONS:
+            # Refused before any model call: with the bound in the schema and the cap in
+            # the validator, a brief past the cap could only ever fail after two paid
+            # calls, with an error about the model rather than the brief.
+            raise ValidationError(
+                f"The brief asks for {requested} questions and drafting supports at most "
+                f"{MAX_GENERATED_QUESTIONS}. Ask for fewer, or add the rest by hand in "
+                "the builder."
+            )
         system = load_prompt(GENERATE_PROMPT_VERSION)
         with ledger.using_prompt(GENERATE_PROMPT_VERSION):
             template_in, note = await self._draft(
                 system,
                 [{"role": "user", "content": f"{prompt}\n\n{_policy()}"}],
                 previous_error=None,
+                expected_count=requested,
             )
         drafted = _without_catch_alls(template_in).model_copy(
             update={"audience": audience, "audience_user_id": audience_user_id}
@@ -152,6 +232,7 @@ class GenerationService:
         messages: list[dict[str, str]],
         previous_error: str | None,
         kept: frozenset[str] = frozenset(),
+        expected_count: int | None = None,
     ) -> tuple[TemplateCreate, str]:
         turn_messages = (
             messages
@@ -166,17 +247,19 @@ class GenerationService:
             ]
         )
         turn = await self.llm.tool_turn(
-            system=system, messages=turn_messages, tools=[_TOOL], max_tokens=4096
+            system=system, messages=turn_messages, tools=[_tool(expected_count)], max_tokens=4096
         )
         raw = _decode_stringified_fields(turn.tool_input)
         # Prefer the schema's note field; fall back to any spoken text a model does emit.
         note = str(raw.get("note") or turn.text or "").strip()
-        error = _validation_error(raw, kept)
+        error = _validation_error(raw, kept, expected_count)
         if error is None:
             return TemplateCreate.model_validate(raw), note
         if previous_error is None:
             logger.warning("generated template rejected, retrying: raw=%r error=%s", raw, error)
-            return await self._draft(system, messages, previous_error=error, kept=kept)
+            return await self._draft(
+                system, messages, previous_error=error, kept=kept, expected_count=expected_count
+            )
         # The rejection reason describes the fault but not the draft, so keep the raw
         # payload before failing (ARCHITECTURE.md 3.3).
         logger.error("template generation failed after one retry: raw=%r error=%s", raw, error)
@@ -339,7 +422,9 @@ def _free_text_drafted(template_in: TemplateCreate, kept: frozenset[str]) -> str
     )
 
 
-def _validation_error(raw: dict[str, Any], kept: frozenset[str]) -> str | None:
+def _validation_error(
+    raw: dict[str, Any], kept: frozenset[str], expected_count: int | None = None
+) -> str | None:
     try:
         template_in = TemplateCreate.model_validate(raw)
     except PydanticValidationError as exc:
@@ -351,5 +436,12 @@ def _validation_error(raw: dict[str, Any], kept: frozenset[str]) -> str | None:
         return "no questions"
     if len(template_in.questions) > MAX_GENERATED_QUESTIONS:
         return f"too many questions (max {MAX_GENERATED_QUESTIONS})"
+    if expected_count is not None and len(template_in.questions) != expected_count:
+        # The half of defect O2 this module can hold: the schema bound above steers, and
+        # this is what refuses a draft that ignored the brief's count anyway.
+        return (
+            f"the brief asks for exactly {expected_count} questions and this draft has "
+            f"{len(template_in.questions)}"
+        )
     # Last, so the rejection an author never sees is about content rather than shape.
     return _free_text_drafted(template_in, kept)

@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 
 from app.errors import NotFoundError
+from app.errors import ValidationError as AppValidationError
 from app.llm.client import LLMError, ToolTurn
 from app.templates.enums import AnswerType, SurveyAudience, TemplateStatus
 from app.templates.generation import GenerationService
@@ -24,9 +25,15 @@ class FakeLLM:
         # What the model was actually told. A refine returns the whole survey, so
         # anything missing from the brief is deleted rather than left alone.
         self.messages_seen: list[list[dict[str, str]]] = []
+        # The tool schemas each call carried, because a count bound that never reaches
+        # the schema is a bound only the validator holds.
+        self.tools_seen: list[list[dict[str, Any]]] = []
 
-    async def tool_turn(self, *, messages: list[dict[str, str]], **_: Any) -> ToolTurn:
+    async def tool_turn(
+        self, *, messages: list[dict[str, str]], tools: list[dict[str, Any]], **_: Any
+    ) -> ToolTurn:
         self.messages_seen.append(messages)
+        self.tools_seen.append(tools)
         payload = self._payloads[min(self.calls, len(self._payloads) - 1)]
         self.calls += 1
         return ToolTurn(text=self._note, tool_name="draft_survey_template", tool_input=payload)
@@ -173,6 +180,87 @@ async def test_generate_fails_loudly_after_retry(session, author):
     with pytest.raises(LLMError):
         await GenerationService(session, llm=fake).generate_draft("x", author)
     assert fake.calls == 2
+
+
+_THREE: dict[str, Any] = {
+    "title": "Onboarding",
+    "questions": [
+        {"text": "Your role?", "answer_type": "single_select", "options": ["Lead", "Operator"]},
+        {"text": "Systems used?", "answer_type": "multi_select", "options": ["ERP", "BI"]},
+        {"text": "First week rating?", "answer_type": "rating"},
+    ],
+}
+
+
+def test_requested_question_count_reads_only_an_unambiguous_exact_ask():
+    """The bound is conservative in both directions: a missed count leaves today's
+    behaviour, a false one rejects drafts the author never asked to bound."""
+    from app.templates.generation import _requested_question_count
+
+    assert _requested_question_count("a survey of exactly 10 questions on handover") == 10
+    assert _requested_question_count("make me a 10-question survey") == 10
+    assert _requested_question_count("ten questions about the new chiller") == 10
+    assert _requested_question_count("10 questions, mentioned twice: 10 questions") == 10
+    # Softened, ranged, scoped or conflicting counts are advisory, not bounds.
+    assert _requested_question_count("about 10 questions") is None
+    assert _requested_question_count("8-10 questions") is None
+    assert _requested_question_count("between 8 and 10 questions") is None
+    assert _requested_question_count("up to 12 questions") is None
+    assert _requested_question_count("10 questions or so") is None
+    assert _requested_question_count("2 questions per shift, covering the whole rota") is None
+    assert _requested_question_count("the first 3 questions should be about safety") is None
+    assert _requested_question_count("10 questions on safety and 2 questions on kit") is None
+    assert _requested_question_count("make question 3 optional") is None
+    assert _requested_question_count("ask about onboarding") is None
+
+
+async def test_a_draft_ignoring_the_briefs_count_is_retried_then_held(session, author):
+    """Defect O2: a live model returned 11 questions against a brief asking for exactly
+    10, twice. A wrong count now burns the retry, and a second miss fails loudly rather
+    than persisting a survey the author did not ask for."""
+    fake = FakeLLM(_VALID, _THREE)  # two questions, then the three the brief asked for
+    template, _ = await GenerationService(session, llm=fake).generate_draft(
+        "exactly 3 questions about handover", author
+    )
+    assert fake.calls == 2
+    assert len(template.questions) == 3
+
+    stubborn = FakeLLM(_VALID, _VALID)
+    with pytest.raises(LLMError):
+        await GenerationService(session, llm=stubborn).generate_draft(
+            "exactly 3 questions about handover", author
+        )
+    assert stubborn.calls == 2
+
+
+async def test_the_briefs_count_is_pinned_in_the_tool_schema(session, author):
+    """The validator holds the line, but the bound also has to reach the schema, where a
+    constrained decoder can enforce it before a wrong draft is ever produced."""
+    fake = FakeLLM(_VALID)
+    await GenerationService(session, llm=fake).generate_draft("two questions on kit", author)
+    questions_schema = fake.tools_seen[0][0]["input_schema"]["properties"]["questions"]
+    assert questions_schema["minItems"] == 2
+    assert questions_schema["maxItems"] == 2
+
+
+async def test_a_brief_without_a_count_leaves_the_schema_unbounded(session, author):
+    fake = FakeLLM(_VALID)
+    await GenerationService(session, llm=fake).generate_draft("ask about onboarding", author)
+    questions_schema = fake.tools_seen[0][0]["input_schema"]["properties"]["questions"]
+    assert "minItems" not in questions_schema
+    assert "maxItems" not in questions_schema
+
+
+async def test_a_count_past_the_cap_is_refused_before_any_model_call(session, author):
+    """With the bound in the schema and the cap in the validator, a brief asking for 30
+    could only ever fail after two paid calls, with an error blaming the model for the
+    brief. Refuse it up front, as the author's problem to rephrase."""
+    fake = FakeLLM(_VALID)
+    with pytest.raises(AppValidationError):
+        await GenerationService(session, llm=fake).generate_draft(
+            "30 questions covering every line", author
+        )
+    assert fake.calls == 0
 
 
 async def test_a_title_with_no_questions_is_rejected_not_persisted(session, author):
