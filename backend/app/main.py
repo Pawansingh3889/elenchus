@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.router import router as auth_router
 from app.conduct.router import router as runs_router
 from app.config import get_settings
 from app.db.session import get_session
@@ -62,6 +63,11 @@ app.add_middleware(
     allow_origins=[get_settings().frontend_origin],
     allow_methods=["*"],
     allow_headers=["*"],
+    # The session is an HttpOnly cookie on this origin, and the browser app is on
+    # another, so without this the cookie is never attached and a signed-in person reads
+    # as signed out. It is also why allow_origins names one origin rather than "*":
+    # credentials and a wildcard are not allowed together, and should not be.
+    allow_credentials=True,
     # Without this the browser can read a download's body but not its filename.
     expose_headers=["Content-Disposition"],
 )
@@ -82,6 +88,12 @@ if get_settings().app_env != "prod":
     # because requiring a caller is the deadlock it exists to undo. Not registering it
     # outside development is therefore the whole of its protection.
     app.include_router(dev_router)
+# Mounted always, unlike the dev picker above, and it is what makes that branch
+# survivable: this is how a production deployment is entered at all. An unconfigured
+# provider answers that it is unconfigured rather than 404ing as though sign-in did not
+# exist, because "nobody set the client secret" and "this build has no sign-in" are
+# different problems with different fixes.
+app.include_router(auth_router)
 # Not behind that branch: the people directory is a page authors use, not scaffolding
 # for the auth shim, and a deployment that dropped it would leave every reach number
 # on the dashboard unexplainable.

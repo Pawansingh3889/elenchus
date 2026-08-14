@@ -120,7 +120,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   // language, and a run started now is conducted in it.
   headers["Accept-Language"] = useLocaleStore.getState().locale;
 
-  const res = await fetch(`${BASE}/api/v1${path}`, { ...init, headers });
+  const res = await fetch(`${BASE}/api/v1${path}`, {
+    ...init,
+    headers,
+    // The session set by a Microsoft or Google sign-in is an HttpOnly cookie on the API's
+    // origin, and the browser will not attach it cross-origin without this. The dev
+    // header above still works when no cookie exists, which is what local runs use.
+    credentials: "include",
+  });
   if (!res.ok) {
     let detail = { message: res.statusText, questions: [] as number[] };
     try {
@@ -168,6 +175,18 @@ export const api = {
    *  the app from a browser with empty storage: listing users needs a caller, and a
    *  caller is an id, and that list was the only place to get one. Dev-only on the
    *  server, which is where it is guarded. */
+  /** Which real sign-in providers this deployment offers. Unauthenticated: the browser
+   *  has to ask before anyone is signed in. */
+  providers: () => request<{ providers: string[] }>("/auth/providers"),
+  /** Who the session cookie says this is, or null when there is no live session.
+   *
+   *  A 401 here is an answer, not a failure: the browser cannot read an HttpOnly cookie,
+   *  so asking the server is the only way to tell a signed-in visitor from a signed-out
+   *  one, and "nobody" has to come back as a value rather than as a thrown error. */
+  session: async (): Promise<User | null> => {
+    const res = await fetch(`${BASE}/api/v1/auth/me`, { credentials: "include" });
+    return res.ok ? ((await res.json()) as User) : null;
+  },
   identify: (email: string) =>
     request<User>("/dev/identify", { method: "POST", body: JSON.stringify({ email }) }),
   createAccount: (data: AccountCreate) =>
