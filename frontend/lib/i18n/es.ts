@@ -140,6 +140,8 @@ export const es: Messages = {
     showAll: (v: number, t: number) => `${v} de ${t} · mostrar todas`,
     noMatches: "Ninguna encuesta coincide.",
     bandTitle: (n: number) => `En ${n} encuesta${n === 1 ? "" : "s"} abierta${n === 1 ? "" : "s"}`,
+    inView: (n: number) => `${n} encuestas en esta vista`,
+    nothingPublished: "Nada de lo que se ve está publicado, así que nadie ha podido responder.",
     bandAria: (a: number, p: number, n: number) => `${a}% respondieron, ${p}% a medias, ${n}% sin empezar`,
     segAnswered: "respondieron",
     segPartWay: "a medias",

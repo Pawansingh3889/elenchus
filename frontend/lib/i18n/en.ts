@@ -148,6 +148,8 @@ export const en = {
     showAll: (v: number, t: number) => `Showing ${v} of ${t} · show all`,
     noMatches: "No surveys match that.",
     bandTitle: (n: number) => `Across ${n} open survey${n === 1 ? "" : "s"}`,
+    inView: (n: number) => `${n} survey${n === 1 ? "" : "s"} in view`,
+    nothingPublished: "Nothing in view has been published, so nobody can have answered yet.",
     bandAria: (a: number, p: number, n: number) => `${a}% answered, ${p}% part-way, ${n}% not yet started`,
     segAnswered: "answered",
     segPartWay: "part-way",

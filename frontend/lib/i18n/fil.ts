@@ -140,6 +140,8 @@ export const fil: Messages = {
     showAll: (v: number, t: number) => `${v} sa ${t} · ipakita lahat`,
     noMatches: "Walang survey na tumutugma.",
     bandTitle: (n: number) => `Sa ${n} bukas na survey`,
+    inView: (n: number) => `${n} survey sa view na ito`,
+    nothingPublished: "Walang nailathala sa nakikita, kaya wala pang makakasagot.",
     bandAria: (a: number, p: number, n: number) => `${a}% ang sumagot, ${p}% ang nasa kalagitnaan, ${n}% ang hindi pa nagsisimula`,
     segAnswered: "sumagot",
     segPartWay: "nasa kalagitnaan",

@@ -140,6 +140,8 @@ export const ro: Messages = {
     showAll: (v: number, t: number) => `${v} din ${t} · arată tot`,
     noMatches: "Niciun chestionar nu se potrivește.",
     bandTitle: (n: number) => `În ${n} chestionar${n === 1 ? "" : "e"} deschis${n === 1 ? "" : "e"}`,
+    inView: (n: number) => `${n} chestionare în această vedere`,
+    nothingPublished: "Nimic din ce se vede nu este publicat, deci nimeni nu a putut răspunde.",
     bandAria: (a: number, p: number, n: number) => `${a}% au răspuns, ${p}% la jumătate, ${n}% neîncepute`,
     segAnswered: "au răspuns",
     segPartWay: "la jumătate",

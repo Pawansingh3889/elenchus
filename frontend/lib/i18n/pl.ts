@@ -140,6 +140,8 @@ export const pl: Messages = {
     showAll: (v: number, t: number) => `${v} z ${t} · pokaż wszystkie`,
     noMatches: "Żadna ankieta nie pasuje.",
     bandTitle: (n: number) => `W ${n} otwartych ankietach`,
+    inView: (n: number) => `Widoczne ankiety: ${n}`,
+    nothingPublished: "Nic w widoku nie jest opublikowane, więc nikt nie mógł jeszcze odpowiedzieć.",
     bandAria: (a: number, p: number, n: number) => `${a}% odpowiedziało, ${p}% w trakcie, ${n}% nie zaczęło`,
     segAnswered: "odpowiedziało",
     segPartWay: "w trakcie",

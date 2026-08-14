@@ -140,6 +140,8 @@ export const lv: Messages = {
     showAll: (v: number, t: number) => `${v} no ${t} · rādīt visas`,
     noMatches: "Neviena aptauja neatbilst.",
     bandTitle: (n: number) => `${n} atvērtās aptaujās`,
+    inView: (n: number) => `Redzamas aptaujas: ${n}`,
+    nothingPublished: "Neviena redzamā aptauja nav publicēta, tāpēc neviens vēl nav varējis atbildēt.",
     bandAria: (a: number, p: number, n: number) => `${a}% atbildēja, ${p}% iesāka, ${n}% nav sākuši`,
     segAnswered: "atbildēja",
     segPartWay: "iesāka",

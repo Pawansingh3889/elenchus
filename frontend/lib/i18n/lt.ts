@@ -140,6 +140,8 @@ export const lt: Messages = {
     showAll: (v: number, t: number) => `${v} iš ${t} · rodyti visas`,
     noMatches: "Nė viena apklausa neatitinka.",
     bandTitle: (n: number) => `${n} atvirose apklausose`,
+    inView: (n: number) => `Rodoma apklausų: ${n}`,
+    nothingPublished: "Nė viena rodoma apklausa nepaskelbta, todėl niekas dar negalėjo atsakyti.",
     bandAria: (a: number, p: number, n: number) => `${a}% atsakė, ${p}% pradėjo, ${n}% nepradėjo`,
     segAnswered: "atsakė",
     segPartWay: "pradėjo",

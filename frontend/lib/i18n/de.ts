@@ -141,6 +141,8 @@ export const de: Messages = {
     showAll: (v: number, t: number) => `${v} von ${t} · alle anzeigen`,
     noMatches: "Keine Umfrage passt dazu.",
     bandTitle: (n: number) => `Über ${n} offene Umfrage${n === 1 ? "" : "n"}`,
+    inView: (n: number) => `${n} Umfragen in dieser Ansicht`,
+    nothingPublished: "Nichts in dieser Ansicht ist veröffentlicht, also kann noch niemand geantwortet haben.",
     bandAria: (a: number, p: number, n: number) => `${a}% beantwortet, ${p}% angefangen, ${n}% noch nicht begonnen`,
     segAnswered: "beantwortet",
     segPartWay: "angefangen",
