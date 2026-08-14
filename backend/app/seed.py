@@ -5,9 +5,16 @@ Run with ``python -m app.seed``. Safe to run repeatedly (keyed on id).
 Each person holds one job, which is the whole point of the job model: the seed used to
 record a line leader who was also QA, and the org chart says that job does not exist.
 The cast covers what the access rules need to be visible: a shift manager who authors
-(Ava), the office functions (Arjun, Fatima), an executive who reads everything without
-owning anything (Adaeze), the quality ladder top to bottom (Tomas, Quinn, Noor), a
-supervisor carrying the H&S hat (Rohan), and a dedicated H&S manager (Hana).
+(Ava), the office functions (Arjun, Fatima), the quality ladder top to bottom (Tomas,
+Quinn, Noor), a supervisor carrying the H&S hat (Rohan), and a dedicated H&S manager
+(Hana).
+
+**No executive.** There was one, on id a4, and she existed so that
+`reads_all_surveys` could be seen from a real account. She is gone by request, and the
+id goes with her rather than being handed to somebody else: ids are forever here, and
+reusing one is what the check in `seed()` refuses. Nothing tests the executive rule
+through the seed, so what is lost is a demonstration rather than coverage; add a fresh
+c-block id if you want it back.
 
 Nobody here is in IT, and so nobody here is an administrator. That is deliberate: IT
 membership grants admin, and a committed seed that shipped an administrator would hand
@@ -56,16 +63,6 @@ SEED_USERS: list[tuple[UUID, str, str, Function, Band, str | None]] = [
         Function.finance,
         Band.manager,
         "entra-fatima",
-    ),
-    (
-        UUID("00000000-0000-0000-0000-0000000000a4"),
-        "adaeze@elenchus.dev",
-        "Adaeze Author",
-        # The factory manager: executive reads every survey and edits none of them,
-        # which needs one seeded account to be seen from. Not IT, so still not admin.
-        Function.executive,
-        Band.head,
-        "entra-adaeze",
     ),
     (
         UUID("00000000-0000-0000-0000-0000000000a5"),
