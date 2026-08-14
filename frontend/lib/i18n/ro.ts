@@ -278,6 +278,7 @@ export const ro: Messages = {
     ofThoseWhoStarted: (n: number, of: number) => `${n} din ${of} care au început`,
     versionLabel: (v: number) => `Versiunea ${v}`,
     spread: (lo: number, hi: number) => `${lo} până la ${hi}`,
+    picksLine: (picks: number, people: number) => `${picks} selecții de la ${people} persoane, deci procentele depășesc 100%`,
     noAnswers: "Încă nu există răspunsuri la această întrebare.",
     answeredBy: (n: number) => `${n} au răspuns`,
     declinedBy: (n: number) => `${n} au refuzat`,

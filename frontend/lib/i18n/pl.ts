@@ -276,6 +276,7 @@ export const pl: Messages = {
     ofThoseWhoStarted: (n: number, of: number) => `${n} z ${of}, którzy zaczęli`,
     versionLabel: (v: number) => `Wersja ${v}`,
     spread: (lo: number, hi: number) => `${lo} do ${hi}`,
+    picksLine: (picks: number, people: number) => `${picks} wyborów od ${people} osób, więc udziały przekraczają 100%`,
     noAnswers: "Brak odpowiedzi na to pytanie.",
     answeredBy: (n: number) => `${n} odpowiedziało`,
     declinedBy: (n: number) => `${n} odmówiło`,

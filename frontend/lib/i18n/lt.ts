@@ -276,6 +276,7 @@ export const lt: Messages = {
     ofThoseWhoStarted: (n: number, of: number) => `${n} iš ${of}, kurie pradėjo`,
     versionLabel: (v: number) => `${v} versija`,
     spread: (lo: number, hi: number) => `nuo ${lo} iki ${hi}`,
+    picksLine: (picks: number, people: number) => `${picks} pasirinkimai iš ${people} žmonių, todėl dalys viršija 100%`,
     noAnswers: "Į šį klausimą atsakymų dar nėra.",
     answeredBy: (n: number) => `${n} atsakė`,
     declinedBy: (n: number) => `${n} atsisakė`,

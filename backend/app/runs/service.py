@@ -331,6 +331,9 @@ def _report_question(
     answer_type = question["answer_type"]
     counts: list[OptionCount] = []
     verbatim: list[str] = []
+    # Defaults to the number of people, which is the truth for every type where one
+    # person makes one choice. Only the multi-select branch moves it.
+    selections = len(answered)
     average: float | None = None
     low: float | None = None
     high: float | None = None
@@ -356,6 +359,9 @@ def _report_question(
             for w in dict.fromkeys(write_ins)
         ]
         verbatim = write_ins
+        # Every pick, write-ins included, which is what the counts above add up to. Summed
+        # from them rather than recounted from `answered`, so the two can never disagree.
+        selections = sum(c.count for c in counts)
     elif answer_type == "yes_no":
         yes = sum(1 for v in answered if v.get("yes_no") is True)
         counts = [
@@ -385,6 +391,7 @@ def _report_question(
         answered=len(answered),
         declined=declined,
         counts=counts,
+        selections=selections,
         average=average,
         low=low,
         high=high,
