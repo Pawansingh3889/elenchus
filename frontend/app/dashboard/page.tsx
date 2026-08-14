@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorBanner } from "@/components/ErrorBanner";
@@ -15,7 +15,7 @@ import { groupForDashboard, landingFor, type Attention } from "@/lib/dashboardAt
 import { useT } from "@/lib/i18n/useT";
 import { useCloseTemplate, useCurrentUser, useDashboard } from "@/lib/queries";
 import { useUserStore } from "@/lib/store";
-import type { DashboardRow } from "@/lib/types";
+import type { DashboardRow, TemplateStatus } from "@/lib/types";
 
 export default function Dashboard() {
   const { home } = useT();
@@ -24,6 +24,12 @@ export default function Dashboard() {
   // One request for the whole page: each survey and how it is going. The old list
   // showed a question count, which says what the survey is, not how it is doing.
   const { data: rows, isLoading, error } = useDashboard();
+  // Three controls over one list. Local state rather than the URL: this is a view
+  // preference, not a place, and a dashboard whose address changes as you type is one
+  // nobody can bookmark usefully.
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<"newest" | "oldest" | "az" | "za">("newest");
+  const [status, setStatus] = useState<TemplateStatus | null>(null);
   const close = useCloseTemplate();
   const router = useRouter();
 
@@ -41,7 +47,21 @@ export default function Dashboard() {
     return <p className="p-6 text-muted">{home.goingToRespond}</p>;
   }
 
-  const groups = rows ? groupForDashboard(rows) : null;
+  // Filtered, searched and sorted before grouping, so the attention grouping below
+  // arranges whatever survived rather than the other way round. Sorting here also flows
+  // into the Running and Closed sections, which keep the order they are handed.
+  const visible = (rows ?? [])
+    .filter((r) => (status === null ? true : r.status === status))
+    .filter((r) => r.title.toLowerCase().includes(query.trim().toLowerCase()))
+    .sort((a, b) => {
+      if (sort === "az") return a.title.localeCompare(b.title);
+      if (sort === "za") return b.title.localeCompare(a.title);
+      const at = new Date(a.updated_at).getTime();
+      const bt = new Date(b.updated_at).getTime();
+      return sort === "oldest" ? at - bt : bt - at;
+    });
+
+  const groups = rows ? groupForDashboard(visible) : null;
   // Completed runs, not people: summing people across surveys would count someone
   // asked twice as two people, and there is no distinct count to be had from rows
   // that are already aggregated per survey.
@@ -51,6 +71,9 @@ export default function Dashboard() {
   // differently below. Archived is deliberately absent: it means "hide this from my
   // list", so counting it here would put a number on the page about rows the page
   // does not show as themselves.
+  // Counted across every row rather than the visible ones, deliberately: these are also
+  // the filter buttons, and a count that shrank when you filtered by it would leave the
+  // other two reading zero with no way back.
   const statuses = (rows ?? []).reduce(
     (acc, r) => {
       if (r.status === "draft") acc.draft += 1;
@@ -141,9 +164,7 @@ export default function Dashboard() {
             {/* The same rows the groups below carry, tallied by lifecycle instead of by
                 attention, so an author can answer "how many drafts do I have" without
                 scanning the group badges. */}
-            <p className="text-xs tabular-nums text-muted">
-              {home.statusCounts(statuses.draft, statuses.published, statuses.closed)}
-            </p>
+
           </div>
 
           <div className="flex flex-wrap gap-6">
@@ -194,6 +215,83 @@ export default function Dashboard() {
             <p className="text-xs text-muted">{home.countedPerSurvey}</p>
           ) : null}
         </Card>
+      ) : null}
+
+      {/* The controls, deliberately outside the summary card rather than in its header.
+          They were in it, and filtering to drafts emptied the card of published surveys,
+          which unmounted it and took the filter buttons with it: a control that vanishes
+          the moment you use it. Search and sort stay behind a threshold, because on three
+          surveys they are two controls in the way of the thing you came to read. */}
+      {rows && rows.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {/* The lifecycle tally, and the filter. One control doing both jobs, because
+              a reader who has just read "2 drafts" and wants to see them should be able
+              to click the thing they read rather than hunt for a matching tab. */}
+          <div className="flex flex-wrap items-center gap-1 text-xs tabular-nums">
+            {(
+              [
+                ["draft", statuses.draft, home.countDrafts],
+                ["published", statuses.published, home.countPublished],
+                ["closed", statuses.closed, home.countClosed],
+              ] as const
+            ).map(([value, count, label]) => (
+              <button
+                key={value}
+                type="button"
+                // Toggling: clicking the active one clears it, so there is always a way
+                // back to everything without a separate "all" control.
+                onClick={() => setStatus(status === value ? null : value)}
+                aria-pressed={status === value}
+                className={`rounded-full px-2 py-0.5 ${
+                  status === value
+                    ? "bg-accent-strong text-on-slab"
+                    : "text-muted hover:text-ink"
+                }`}
+              >
+                {label(count)}
+              </button>
+            ))}
+          </div>
+          {rows.length > 6 ? (
+            <>
+          <input
+            type="search"
+            className="field max-w-xs"
+            placeholder={home.searchPlaceholder}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            aria-label={home.searchPlaceholder}
+          />
+          <label className="flex items-center gap-2 text-sm text-muted">
+            {home.sortLabel}
+            <select
+              className="field w-auto"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as typeof sort)}
+            >
+              <option value="newest">{home.sortNewest}</option>
+              <option value="oldest">{home.sortOldest}</option>
+              <option value="az">{home.sortAZ}</option>
+              <option value="za">{home.sortZA}</option>
+            </select>
+          </label>
+          {/* Shown only when something is actually filtered, and it says what it will
+              clear rather than just "clear". */}
+            </>
+          ) : null}
+          {status !== null || query ? (
+            <Button
+              variant="quiet"
+              size="sm"
+              onClick={() => {
+                setStatus(null);
+                setQuery("");
+              }}
+            >
+              {home.showAll(visible.length, rows.length)}
+            </Button>
+          ) : null}
+        </div>
       ) : null}
 
       {groups && groups.needsYou.length > 0 ? (
@@ -307,6 +405,11 @@ export default function Dashboard() {
       ) : null}
 
       {rows && rows.length === 0 ? <EmptyState title={home.empty} /> : null}
+      {/* Distinct from the empty state above, which says there are no surveys at all.
+          Here there are; none of them match, and saying "create one" would be wrong. */}
+      {rows && rows.length > 0 && visible.length === 0 ? (
+        <EmptyState title={home.noMatches} />
+      ) : null}
     </div>
   );
 }
