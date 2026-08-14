@@ -20,7 +20,10 @@ from app.users.schemas import UserRead
 
 logger = logging.getLogger("app.auth")
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+# The full path, as every other router here spells it: this app mounts routers without
+# a global prefix, so a bare "/auth" lands the routes one level up from every other
+# endpoint and 404s for anything calling the versioned API.
+router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 
 def _redirect_uri(provider: str) -> str:

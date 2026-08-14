@@ -226,3 +226,24 @@ async def test_a_microsoft_sign_in_links_the_object_id(session, author, monkeypa
     )
     await session.refresh(author)
     assert author.microsoft_id == "entra-oid-42"
+
+
+def test_the_sign_in_routes_are_mounted_where_the_browser_looks():
+    """The tests above call the callback directly, so none of them would notice the
+    router being mounted on the wrong path. This one did, when it was: the prefix said
+    `/auth` while every other router in this app spells the version out, so the browser
+    asked `/api/v1/auth/providers` and got a 404 while the suite stayed green.
+
+    Read off the router rather than the app, matching the user-list tests beside it, and
+    because FastAPI does not flatten included routers into `app.routes`.
+    """
+    from app.auth.router import router
+
+    paths = {getattr(r, "path", "") for r in router.routes}
+    assert paths == {
+        "/api/v1/auth/providers",
+        "/api/v1/auth/{provider}/login",
+        "/api/v1/auth/{provider}/callback",
+        "/api/v1/auth/logout",
+        "/api/v1/auth/me",
+    }

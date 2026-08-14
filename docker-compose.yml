@@ -31,6 +31,17 @@ services:
       # are forwarded so an operator's override actually reaches the container.
       DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
       DB_POOL_MAX_OVERFLOW: ${DB_POOL_MAX_OVERFLOW:-30}
+      # Real sign-in, forwarded for exactly the reason the allowlist above is: compose
+      # reads .env only to interpolate ${...} here, so a variable not named on this list
+      # never reaches the container. Unset means the provider is simply not offered, and
+      # the development email box remains the way in.
+      OAUTH_MICROSOFT_CLIENT_ID: ${OAUTH_MICROSOFT_CLIENT_ID:-}
+      OAUTH_MICROSOFT_CLIENT_SECRET: ${OAUTH_MICROSOFT_CLIENT_SECRET:-}
+      OAUTH_MICROSOFT_TENANT: ${OAUTH_MICROSOFT_TENANT:-}
+      OAUTH_GOOGLE_CLIENT_ID: ${OAUTH_GOOGLE_CLIENT_ID:-}
+      OAUTH_GOOGLE_CLIENT_SECRET: ${OAUTH_GOOGLE_CLIENT_SECRET:-}
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8000}
       # The OpenAI-compatible LLM tiers, tried in order (see .env.example). Passed
       # through explicitly: without these the container never sees the settings and the
       # chain silently can't engage.
