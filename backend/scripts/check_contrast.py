@@ -32,10 +32,10 @@ PAIRS: tuple[tuple[str, str, float, str], ...] = (
     ("secondary", "raised", 4.5, "secondary text on a card"),
     ("accent-strong", "raised", 4.5, "card labels"),
     ("ink", "canvas", 4.5, "body text"),
-    # The top bar and primary button. Added after a dark theme turned the bar light
-    # while its text stayed light, because --ink was painting both body text and the
-    # slab: one token, two jobs, and they diverge the moment a second theme exists.
-    ("on-slab", "slab", 4.5, "text on the top bar"),
+    # The primary button. It was the top bar too, until the bar turned white under a
+    # blue rule and left the slab dressing the button alone; the pair is still worth
+    # checking, because --slab is the one background whose text cannot come from --ink.
+    ("on-slab", "slab", 4.5, "text on the primary button"),
     ("err-text", "err-fill", 4.5, "error text on its fill"),
     # The same red carrying a plain link rather than sitting on its own fill: the
     # withdraw control on the run page. A colour checked only against the tinted

@@ -18,7 +18,7 @@ export const ro: Messages = {
     deleting: "Se șterge…",
   },
   topbar: {
-    brandLead: "Serviciu de",
+    brandLead: "Elenchus",
     brandTail: "Sondaje",
     home: "Acasă",
     dashboard: "Panou",

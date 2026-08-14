@@ -18,8 +18,8 @@ export const lv: Messages = {
     deleting: "Notiek dzēšana…",
   },
   topbar: {
-    brandLead: "Aptauju",
-    brandTail: "Serviss",
+    brandLead: "Elenchus",
+    brandTail: "Aptaujas",
     home: "Sākums",
     dashboard: "Panelis",
     people: "Cilvēki",

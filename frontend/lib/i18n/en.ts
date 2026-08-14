@@ -26,8 +26,8 @@ export const en = {
     deleting: "Deleting…",
   },
   topbar: {
-    brandLead: "Survey",
-    brandTail: "Service",
+    brandLead: "Elenchus",
+    brandTail: "Surveys",
     home: "Home",
     dashboard: "Dashboard",
     people: "People",

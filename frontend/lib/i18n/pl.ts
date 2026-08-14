@@ -18,8 +18,8 @@ export const pl: Messages = {
     deleting: "Usuwanie…",
   },
   topbar: {
-    brandLead: "Serwis",
-    brandTail: "Ankiet",
+    brandLead: "Elenchus",
+    brandTail: "Ankiety",
     home: "Start",
     dashboard: "Panel",
     people: "Osoby",
