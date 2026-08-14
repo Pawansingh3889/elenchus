@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorBanner } from "@/components/ErrorBanner";
@@ -15,7 +15,7 @@ import { groupForDashboard, landingFor, type Attention } from "@/lib/dashboardAt
 import { useT } from "@/lib/i18n/useT";
 import { useCloseTemplate, useCurrentUser, useDashboard } from "@/lib/queries";
 import { useUserStore } from "@/lib/store";
-import type { DashboardRow } from "@/lib/types";
+import type { DashboardRow, TemplateStatus } from "@/lib/types";
 
 export default function Dashboard() {
   const { home } = useT();
@@ -24,6 +24,12 @@ export default function Dashboard() {
   // One request for the whole page: each survey and how it is going. The old list
   // showed a question count, which says what the survey is, not how it is doing.
   const { data: rows, isLoading, error } = useDashboard();
+  // Three controls over one list. Local state rather than the URL: this is a view
+  // preference, not a place, and a dashboard whose address changes as you type is one
+  // nobody can bookmark usefully.
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<"newest" | "oldest" | "az" | "za">("newest");
+  const [status, setStatus] = useState<TemplateStatus | null>(null);
   const close = useCloseTemplate();
   const router = useRouter();
 
@@ -41,16 +47,36 @@ export default function Dashboard() {
     return <p className="p-6 text-muted">{home.goingToRespond}</p>;
   }
 
-  const groups = rows ? groupForDashboard(rows) : null;
+  // Filtered, searched and sorted before grouping, so the attention grouping below
+  // arranges whatever survived rather than the other way round. Sorting here also flows
+  // into the Running and Closed sections, which keep the order they are handed.
+  const visible = (rows ?? [])
+    .filter((r) => (status === null ? true : r.status === status))
+    .filter((r) => r.title.toLowerCase().includes(query.trim().toLowerCase()))
+    .sort((a, b) => {
+      if (sort === "az") return a.title.localeCompare(b.title);
+      if (sort === "za") return b.title.localeCompare(a.title);
+      const at = new Date(a.updated_at).getTime();
+      const bt = new Date(b.updated_at).getTime();
+      return sort === "oldest" ? at - bt : bt - at;
+    });
+
+  const groups = rows ? groupForDashboard(visible) : null;
   // Completed runs, not people: summing people across surveys would count someone
   // asked twice as two people, and there is no distinct count to be had from rows
   // that are already aggregated per survey.
-  const responses = (rows ?? []).reduce((n, r) => n + r.completed, 0);
+  // Over what is in view rather than over everything, because the card now sits
+  // directly under the filter that produced the view. A card describing 34 surveys
+  // above a list showing 2 invites reading the wrong number.
+  const responses = visible.reduce((n, r) => n + r.completed, 0);
 
   // The lifecycle tally, beside the attention numbers that cut the same rows
   // differently below. Archived is deliberately absent: it means "hide this from my
   // list", so counting it here would put a number on the page about rows the page
   // does not show as themselves.
+  // Counted across every row rather than the visible ones, deliberately: these are also
+  // the filter buttons, and a count that shrank when you filtered by it would leave the
+  // other two reading zero with no way back.
   const statuses = (rows ?? []).reduce(
     (acc, r) => {
       if (r.status === "draft") acc.draft += 1;
@@ -87,6 +113,86 @@ export default function Dashboard() {
   const partWay = audience ? Math.max(0, audience.started - audience.answered) : 0;
   const notYet = audience ? Math.max(0, asked - audience.started) : 0;
   const share = (n: number) => Math.round((n / asked) * 100);
+
+  // The toolbar, defined here and rendered inside the summary card. A variable rather
+  // than a component because it closes over every piece of state on this page and a
+  // component would mean threading eight props to move nothing.
+  const filtering = status !== null || query.trim() !== "";
+  const controls = (
+    <>
+      {/* The lifecycle tally, and the filter. One control doing both jobs, because a
+          reader who has just read "2 draft" and wants to see them should be able to click
+          the words they read rather than hunt for a matching tab. Counted across every
+          row rather than the visible ones: a count that shrank when you filtered by it
+          would leave the other two reading zero with no way back. */}
+      <div className="flex flex-wrap items-center gap-1 text-xs tabular-nums">
+        {(
+          [
+            ["draft", statuses.draft, home.countDrafts],
+            ["published", statuses.published, home.countPublished],
+            ["closed", statuses.closed, home.countClosed],
+          ] as const
+        ).map(([value, count, label]) => (
+          <button
+            key={value}
+            type="button"
+            // Clicking the active one clears it, so there is always a way back to
+            // everything without a separate "all" control.
+            onClick={() => setStatus(status === value ? null : value)}
+            aria-pressed={status === value}
+            className={`rounded-full px-2 py-0.5 ${
+              status === value ? "bg-accent-strong text-on-slab" : "text-muted hover:text-ink"
+            }`}
+          >
+            {label(count)}
+          </button>
+        ))}
+      </div>
+
+      {/* Past six surveys. Below that these are two controls in the way of the thing you
+          came to read. */}
+      {(rows?.length ?? 0) > 6 ? (
+        <>
+          <input
+            type="search"
+            className="field max-w-xs"
+            placeholder={home.searchPlaceholder}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            aria-label={home.searchPlaceholder}
+          />
+          <label className="flex items-center gap-2 text-sm text-muted">
+            {home.sortLabel}
+            <select
+              className="field w-auto"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as typeof sort)}
+            >
+              <option value="newest">{home.sortNewest}</option>
+              <option value="oldest">{home.sortOldest}</option>
+              <option value="az">{home.sortAZ}</option>
+              <option value="za">{home.sortZA}</option>
+            </select>
+          </label>
+        </>
+      ) : null}
+
+      {/* Only when something is actually filtered, and it says what it will clear
+          rather than just "clear". */}
+      {filtering ? (
+        <Button
+          variant="quiet"
+          size="sm"
+          onClick={() => {
+            setStatus(null);
+            setQuery("");
+          }}
+        >
+          {home.showAll(visible.length, rows?.length ?? 0)}
+        </Button>
+      ) : null}
+    </>
+  );
 
   // The line under each row. Reach is the denominator throughout, so there is one
   // percentage on this page and it is always "of the people it was for". Completion,
@@ -132,19 +238,17 @@ export default function Dashboard() {
         </div>
       ) : null}
 
-      {groups && audience && audience.surveys > 0 ? (
+      {/* One card: what acts on the list on top, what describes it underneath. It used
+          to render only when something was published, which is exactly the condition a
+          draft filter breaks, so the controls inside it would disappear the moment they
+          were used. It now renders whenever there is anything to show. */}
+      {groups && audience && rows && rows.length > 0 ? (
         <Card className="flex flex-col gap-3 p-4">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <p className="text-xs uppercase tracking-wide text-muted">
-              {home.bandTitle(audience.surveys)}
-            </p>
-            {/* The same rows the groups below carry, tallied by lifecycle instead of by
-                attention, so an author can answer "how many drafts do I have" without
-                scanning the group badges. */}
-            <p className="text-xs tabular-nums text-muted">
-              {home.statusCounts(statuses.draft, statuses.published, statuses.closed)}
-            </p>
-          </div>
+          <div className="flex flex-wrap items-center gap-2">{controls}</div>
+
+          <p className="text-xs uppercase tracking-wide text-muted">
+            {filtering ? home.inView(visible.length) : home.bandTitle(audience.surveys)}
+          </p>
 
           <div className="flex flex-wrap gap-6">
             <Stat value={groups.needsYou.length} label={home.surveysNeedingYou} />
@@ -152,7 +256,14 @@ export default function Dashboard() {
             <Stat value={responses} label={home.responsesIn} />
           </div>
 
-          {/* Three stages of one journey through one audience, so a single hue getting
+          {audience.surveys === 0 ? (
+            /* Nothing in view has been published, so there is no audience and nobody
+               could have answered. An empty bar here would read as everyone refusing,
+               which is the same mistake `completion_rate` returning null avoids. */
+            <p className="text-sm text-muted">{home.nothingPublished}</p>
+          ) : (
+            <>
+              {/* Three stages of one journey through one audience, so a single hue getting
               darker as it gets further along rather than three unrelated colours. The
               2px gaps are the surface showing through, which keeps two adjacent shades
               from reading as one block. A div bar rather than a charting component: one
@@ -193,6 +304,8 @@ export default function Dashboard() {
           {audience.surveys > 1 ? (
             <p className="text-xs text-muted">{home.countedPerSurvey}</p>
           ) : null}
+            </>
+          )}
         </Card>
       ) : null}
 
@@ -307,6 +420,11 @@ export default function Dashboard() {
       ) : null}
 
       {rows && rows.length === 0 ? <EmptyState title={home.empty} /> : null}
+      {/* Distinct from the empty state above, which says there are no surveys at all.
+          Here there are; none of them match, and saying "create one" would be wrong. */}
+      {rows && rows.length > 0 && visible.length === 0 ? (
+        <EmptyState title={home.noMatches} />
+      ) : null}
     </div>
   );
 }
