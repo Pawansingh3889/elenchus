@@ -178,6 +178,15 @@ export const api = {
   /** Which real sign-in providers this deployment offers. Unauthenticated: the browser
    *  has to ask before anyone is signed in. */
   providers: () => request<{ providers: string[] }>("/auth/providers"),
+  /** Who the session cookie says this is, or null when there is no live session.
+   *
+   *  A 401 here is an answer, not a failure: the browser cannot read an HttpOnly cookie,
+   *  so asking the server is the only way to tell a signed-in visitor from a signed-out
+   *  one, and "nobody" has to come back as a value rather than as a thrown error. */
+  session: async (): Promise<User | null> => {
+    const res = await fetch(`${BASE}/api/v1/auth/me`, { credentials: "include" });
+    return res.ok ? ((await res.json()) as User) : null;
+  },
   identify: (email: string) =>
     request<User>("/dev/identify", { method: "POST", body: JSON.stringify({ email }) }),
   createAccount: (data: AccountCreate) =>

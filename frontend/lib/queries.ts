@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 
 import { api } from "./api";
 import { useUserStore } from "./store";
@@ -30,10 +31,38 @@ export function usePeople() {
   return useQuery({ queryKey: ["people"], queryFn: api.listPeople });
 }
 
+/** Whether a provider session exists, and whose.
+ *
+ * The cookie a real sign-in sets is HttpOnly, so the browser cannot read it and cannot
+ * tell a signed-in visitor from a signed-out one without asking. This asks, once, and
+ * writes the id into the store on the way through: everything else in the app already
+ * reads that store, and the API client still sends the header from it, so one answer
+ * serves both sign-in methods rather than each page learning about both.
+ */
+export function useSession() {
+  const setCurrentUserId = useUserStore((s) => s.setCurrentUserId);
+  const query = useQuery({
+    queryKey: ["session"],
+    queryFn: api.session,
+    staleTime: 5 * 60 * 1000,
+    // A signed-out visitor is an answer, not an outage: retrying it four times on every
+    // page load is noise in the console and load on the API.
+    retry: false,
+  });
+  useEffect(() => {
+    if (query.data) setCurrentUserId(query.data.id);
+  }, [query.data, setCurrentUserId]);
+  return query;
+}
+
 export function useCurrentUser() {
   const { data: users } = useUsers();
+  const { data: session } = useSession();
   const userId = useUserStore((s) => s.currentUserId);
-  return users?.find((u) => u.id === userId) ?? null;
+  // The session first, because it is the one the server will actually act on. The
+  // picker scan is the development path, and it is a scan rather than a fetch because
+  // the same list draws the picker itself.
+  return session ?? users?.find((u) => u.id === userId) ?? null;
 }
 
 /** The caller as the server sees them, chiefly whether they administer anything.
