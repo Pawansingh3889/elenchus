@@ -1,17 +1,29 @@
-"""Dev-auth dependency.
+"""Who the caller is.
 
-A real identity provider replaces this without touching feature code: only how
-``get_current_user`` resolves the caller changes. Until then the caller identifies
-via an ``X-User-Id`` header, paired with a user picker in the UI. This is an
-explicit trial simplification, not a hidden fallback.
+The seam the whole system hangs off, and it now has two answers rather than one.
+
+**A signed session cookie**, set by `app/auth/router.py` after a Microsoft or Google
+sign-in. This is the real one, and in production it is the only one.
+
+**The `X-User-Id` header**, which is the development shim: a caller is whoever they say
+they are. That was the entire authentication story here for a long time, and it is
+exactly as weak as it sounds, so it is now refused outside development. It survives
+because the test suite and local work should not need a provider, a network round trip
+or a client secret, and because the seeded users have no provider accounts to sign in
+with.
+
+The order matters: the cookie is consulted first, so a browser that has genuinely signed
+in cannot be overridden by a header a page happened to send.
 """
 
 from uuid import UUID
 
-from fastapi import Depends, Header
+from fastapi import Cookie, Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.access import is_admin_by_config, may_author
+from app.auth import oauth
+from app.config import get_settings
 from app.db.session import get_session
 from app.errors import ForbiddenError, UnauthorizedError
 from app.users.models import User
@@ -20,11 +32,30 @@ from app.users.repository import UserRepository
 
 async def get_current_user(
     x_user_id: UUID | None = Header(default=None, alias="X-User-Id"),
+    elenchus_session: str | None = Cookie(default=None),
     session: AsyncSession = Depends(get_session),
 ) -> User:
+    users = UserRepository(session)
+
+    if elenchus_session:
+        signed = oauth.unsign(elenchus_session)
+        if signed is None:
+            # Expired or tampered with. Said plainly, because the fix is to sign in
+            # again and a bare 401 sends people to support instead.
+            raise UnauthorizedError("Your session has expired. Please sign in again.")
+        user = await users.get(UUID(signed))
+        if user is None:
+            # The account was deleted while its session was live.
+            raise UnauthorizedError("That account no longer exists.")
+        return user
+
     if x_user_id is None:
-        raise UnauthorizedError("Missing X-User-Id header.")
-    user = await UserRepository(session).get(x_user_id)
+        raise UnauthorizedError("Not signed in.")
+    if get_settings().app_env == "prod":
+        # The shim is the one thing in this system that would let anybody be anybody, so
+        # production refuses it outright rather than trusting that nothing sends it.
+        raise UnauthorizedError("Sign in with Microsoft or Google.")
+    user = await users.get(x_user_id)
     if user is None:
         raise UnauthorizedError("Unknown user id.")
     return user

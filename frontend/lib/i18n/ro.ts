@@ -29,6 +29,8 @@ export const ro: Messages = {
     signInLabel: "Autentifică-te ca",
     signInPlaceholder: "tu@elenchus.dev",
     signIn: "Continuă",
+    signInMicrosoft: "Conectare cu Microsoft",
+    signInGoogle: "Conectare cu Google",
     signingIn: "Se autentifică…",
     language: "Limbă",
   },

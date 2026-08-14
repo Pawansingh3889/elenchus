@@ -117,6 +117,16 @@ export function useReplaceAccount() {
   });
 }
 
+/** Which real sign-in providers exist, so the top bar draws only buttons that work.
+ *  Asked once and cached: the answer is a property of the deployment, not of the user. */
+export function useProviders() {
+  return useQuery({
+    queryKey: ["providers"],
+    queryFn: () => api.providers(),
+    staleTime: Infinity,
+  });
+}
+
 /** Sign in, for the development shim. Stores the id and refetches the picker, which was
  *  empty until this moment precisely because there was no id to fetch it with. */
 export function useIdentify() {

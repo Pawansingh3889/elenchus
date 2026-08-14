@@ -29,6 +29,8 @@ export const es: Messages = {
     signInLabel: "Entrar como",
     signInPlaceholder: "tu@elenchus.dev",
     signIn: "Continuar",
+    signInMicrosoft: "Entrar con Microsoft",
+    signInGoogle: "Entrar con Google",
     signingIn: "Entrando…",
     language: "Idioma",
   },

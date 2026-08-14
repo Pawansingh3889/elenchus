@@ -30,6 +30,8 @@ export const de: Messages = {
     signInLabel: "Anmelden als",
     signInPlaceholder: "du@elenchus.dev",
     signIn: "Weiter",
+    signInMicrosoft: "Mit Microsoft anmelden",
+    signInGoogle: "Mit Google anmelden",
     signingIn: "Anmeldung läuft…",
     language: "Sprache",
   },

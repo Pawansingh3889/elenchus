@@ -29,6 +29,8 @@ export const pl: Messages = {
     signInLabel: "Zaloguj się jako",
     signInPlaceholder: "ty@elenchus.dev",
     signIn: "Dalej",
+    signInMicrosoft: "Zaloguj się przez Microsoft",
+    signInGoogle: "Zaloguj się przez Google",
     signingIn: "Logowanie…",
     language: "Język",
   },

@@ -169,6 +169,30 @@ class Settings(BaseSettings):
     frontend_origin: str = Field(
         "http://localhost:3000", description="Allowed CORS origin for the browser app"
     )
+
+    # Real sign-in. Empty by default, and an empty provider is simply not offered rather
+    # than offered and broken: a deployment with none configured falls back to the dev
+    # picker, which app.main only mounts outside production. So a production deployment
+    # with no provider configured has no way in at all, which is the correct failure.
+    oauth_microsoft_client_id: str = Field("", description="Entra application (client) id")
+    oauth_microsoft_client_secret: str = Field("", description="Entra client secret value")
+    oauth_microsoft_tenant: str = Field(
+        "",
+        description="Entra directory (tenant) id. Empty means 'common', which admits any "
+        "Microsoft account; name the tenant to admit only the plant's directory.",
+    )
+    oauth_google_client_id: str = Field("", description="Google OAuth client id")
+    oauth_google_client_secret: str = Field("", description="Google OAuth client secret")
+    # No default, deliberately. A shared fallback would mean every deployment that forgot
+    # to set one could mint sessions for every other.
+    session_secret: str = Field(
+        "", description="Signing key for the session cookie. Required for real sign-in."
+    )
+    public_base_url: str = Field(
+        "http://localhost:8000",
+        description="This API's public origin, used to build the OAuth redirect URI. It "
+        "must match the redirect registered with the provider exactly.",
+    )
     log_level: str = Field(
         "INFO",
         description="Level for the app.* loggers. INFO keeps the per-call token-usage "

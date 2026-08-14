@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import { LOCALES, isLocale, type Locale } from "@/lib/i18n";
 import { useDocumentLanguage, useT } from "@/lib/i18n/useT";
-import { useIdentify, useUsers } from "@/lib/queries";
+import { useIdentify, useProviders, useUsers } from "@/lib/queries";
 import { useLocaleStore, useUserStore } from "@/lib/store";
 
 /**
@@ -22,9 +22,25 @@ function SignIn() {
   const { topbar } = useT();
   const [email, setEmail] = useState("");
   const identify = useIdentify();
+  const { data } = useProviders();
+  const providers = data?.providers ?? [];
+  const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
   return (
-    <form
+    <>
+      {/* Real sign-in, when the deployment has any. Plain links rather than fetches: the
+          browser has to navigate to the provider, and an XHR cannot do that. Only
+          configured providers appear, so no button here can fail for being unwired. */}
+      {providers.length > 0 ? (
+        <span className="topbar-signin">
+          {providers.map((p) => (
+            <a key={p} className="btn btn-primary" href={`${base}/api/v1/auth/${p}/login`}>
+              {p === "microsoft" ? topbar.signInMicrosoft : topbar.signInGoogle}
+            </a>
+          ))}
+        </span>
+      ) : null}
+      <form
       className="topbar-signin"
       onSubmit={(e) => {
         e.preventDefault();
@@ -52,7 +68,8 @@ function SignIn() {
       {identify.error ? (
         <span className="topbar-signin-error">{identify.error.message}</span>
       ) : null}
-    </form>
+      </form>
+    </>
   );
 }
 

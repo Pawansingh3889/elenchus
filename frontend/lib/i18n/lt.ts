@@ -29,6 +29,8 @@ export const lt: Messages = {
     signInLabel: "Prisijungti kaip",
     signInPlaceholder: "tu@elenchus.dev",
     signIn: "Tęsti",
+    signInMicrosoft: "Prisijungti su Microsoft",
+    signInGoogle: "Prisijungti su Google",
     signingIn: "Jungiamasi…",
     language: "Kalba",
   },

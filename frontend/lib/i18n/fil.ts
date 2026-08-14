@@ -29,6 +29,8 @@ export const fil: Messages = {
     signInLabel: "Mag-sign in bilang",
     signInPlaceholder: "ikaw@elenchus.dev",
     signIn: "Magpatuloy",
+    signInMicrosoft: "Mag-sign in gamit ang Microsoft",
+    signInGoogle: "Mag-sign in gamit ang Google",
     signingIn: "Nagsa-sign in…",
     language: "Wika",
   },

@@ -29,6 +29,8 @@ export const lv: Messages = {
     signInLabel: "Pieteikties kā",
     signInPlaceholder: "tu@elenchus.dev",
     signIn: "Turpināt",
+    signInMicrosoft: "Pieteikties ar Microsoft",
+    signInGoogle: "Pieteikties ar Google",
     signingIn: "Notiek pieteikšanās…",
     language: "Valoda",
   },

@@ -37,6 +37,8 @@ export const en = {
     signInLabel: "Sign in as",
     signInPlaceholder: "you@elenchus.dev",
     signIn: "Continue",
+    signInMicrosoft: "Sign in with Microsoft",
+    signInGoogle: "Sign in with Google",
     signingIn: "Signing in…",
     language: "Language",
   },
