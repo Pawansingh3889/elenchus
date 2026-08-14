@@ -163,7 +163,7 @@ export const pl: Messages = {
       "Opisz, czego chcesz się dowiedzieć, a pytania zostaną przygotowane za Ciebie. Po opublikowaniu odbiorcy odpowiadają w rozmowie, zamiast wypełniać pola. Każda odpowiedź jest sprawdzana z pytaniem przed zapisaniem.",
     videoTitle: "Zobacz, jak działa",
     videoLabel: "Krótki film pokazujący usługę ankiet w działaniu",
-    videoPlaceholder: "Film wkrótce",
+    videoUnsupported: "Twoja przeglądarka nie może odtworzyć tego filmu.",
     howTitle: "Jak to działa",
     stepNumber: (n: number) => `Krok ${n}`,
     step1Title: "Opisz",

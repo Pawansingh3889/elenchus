@@ -163,7 +163,7 @@ export const lv: Messages = {
       "Aprakstiet, ko vēlaties uzzināt, un jautājumi tiks sagatavoti jūsu vietā. Pēc publicēšanas cilvēki atbild sarunā, nevis aizpilda lodziņus. Katra atbilde pirms saglabāšanas tiek pārbaudīta pret jautājumu.",
     videoTitle: "Skatiet darbībā",
     videoLabel: "Īss video par aptauju pakalpojumu darbībā",
-    videoPlaceholder: "Video drīzumā",
+    videoUnsupported: "Jūsu pārlūks nevar atskaņot šo video.",
     howTitle: "Kā tas darbojas",
     stepNumber: (n: number) => `${n}. solis`,
     step1Title: "Aprakstiet",

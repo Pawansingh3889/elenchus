@@ -163,7 +163,7 @@ export const de: Messages = {
       "Beschreiben Sie, was Sie herausfinden möchten, und die Fragen werden für Sie entworfen. Nach dem Veröffentlichen antworten die Befragten im Gespräch, statt Kästchen auszufüllen. Jede Antwort wird vor dem Speichern gegen die Frage geprüft.",
     videoTitle: "In Aktion sehen",
     videoLabel: "Ein kurzes Video des Umfragedienstes im Einsatz",
-    videoPlaceholder: "Video folgt in Kürze",
+    videoUnsupported: "Ihr Browser kann dieses Video nicht abspielen.",
     howTitle: "So funktioniert es",
     stepNumber: (n: number) => `Schritt ${n}`,
     step1Title: "Beschreiben",

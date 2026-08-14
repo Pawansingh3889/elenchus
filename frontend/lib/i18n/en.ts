@@ -171,7 +171,7 @@ export const en = {
       "Describe what you want to find out and the questions get drafted for you. Publish it, and the people it is for answer by chatting rather than filling in boxes. Every answer is checked against the question before it is saved.",
     videoTitle: "See it working",
     videoLabel: "A short video of the survey service in use",
-    videoPlaceholder: "Video coming soon",
+    videoUnsupported: "Your browser cannot play this video.",
     howTitle: "How it works",
     stepNumber: (n: number) => `Step ${n}`,
     step1Title: "Describe it",
