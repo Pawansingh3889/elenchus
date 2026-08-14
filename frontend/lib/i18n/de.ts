@@ -273,6 +273,7 @@ export const de: Messages = {
     ofThoseWhoStarted: (n: number, of: number) => `${n} von ${of}, die begonnen haben`,
     versionLabel: (v: number) => `Version ${v}`,
     spread: (lo: number, hi: number) => `${lo} bis ${hi}`,
+    picksLine: (picks: number, people: number) => `${picks} Auswahlen von ${people} Personen, daher ergeben die Anteile mehr als 100%`,
     noAnswers: "Noch keine Antworten auf diese Frage.",
     answeredBy: (n: number) => `${n} beantwortet`,
     declinedBy: (n: number) => `${n} abgelehnt`,

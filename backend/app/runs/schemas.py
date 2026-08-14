@@ -158,6 +158,14 @@ class QuestionReport(BaseModel):
     declined: int
     # Selects, yes/no and ratings: the tally, in the author's option order, write-ins last.
     counts: list[OptionCount] = Field(default_factory=list)
+    # How many times anything was picked, across everyone who answered. On every type but
+    # `multi_select` this equals `answered`, because one person makes one choice. On a
+    # multi-select it does not, and the gap is the whole reason this field exists: three
+    # people picking two options each is six selections from three people, so a single
+    # percentage cannot describe both. `answered` is the denominator for "what share of
+    # people said this" and `selections` for "what share of the picks was this", and a
+    # page showing only one of them is quoting the question wrongly.
+    selections: int = 0
     # Ratings and numbers only. None when nobody answered, rather than 0, which would
     # read as everyone scoring zero.
     average: float | None = None

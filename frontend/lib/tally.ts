@@ -117,6 +117,13 @@ export function tallyQuestion({
     answered: answered.length,
     declined,
     counts,
+    // Every pick, write-ins included. Summed from `counts` rather than recounted, so a
+    // sliced view and the server's report cannot disagree about the denominator. On any
+    // type but multi-select this is the number of people, because one person picks once.
+    selections:
+      type === "single_select" || type === "multi_select"
+        ? counts.reduce((n, c) => n + c.count, 0)
+        : answered.length,
     average,
     low,
     high,

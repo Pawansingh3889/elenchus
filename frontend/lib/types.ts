@@ -404,6 +404,11 @@ export interface QuestionReport {
   answered: number;
   declined: number;
   counts: OptionCount[];
+  /** Every pick, across everyone who answered. Equals `answered` on every type where one
+   *  person makes one choice, and does not on a multi-select: three people picking two
+   *  options each is six selections from three people. `answered` is the denominator for
+   *  "what share of people said this", `selections` for "what share of the picks". */
+  selections: number;
   /** Ratings and numbers only. Null when nobody answered, not 0. */
   average: number | null;
   /** The spread, for the same two types. An average alone hides whether everyone said

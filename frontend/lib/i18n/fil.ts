@@ -270,6 +270,7 @@ export const fil: Messages = {
     ofThoseWhoStarted: (n: number, of: number) => `${n} sa ${of} na nagsimula`,
     versionLabel: (v: number) => `Bersyon ${v}`,
     spread: (lo: number, hi: number) => `${lo} hanggang ${hi}`,
+    picksLine: (picks: number, people: number) => `${picks} pinili ng ${people} tao, kaya lumalampas sa 100% ang mga porsyento`,
     noAnswers: "Wala pang sagot sa tanong na ito.",
     answeredBy: (n: number) => `${n} ang sumagot`,
     declinedBy: (n: number) => `${n} ang tumanggi`,

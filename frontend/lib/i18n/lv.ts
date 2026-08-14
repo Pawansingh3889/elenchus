@@ -276,6 +276,7 @@ export const lv: Messages = {
     ofThoseWhoStarted: (n: number, of: number) => `${n} no ${of}, kas sāka`,
     versionLabel: (v: number) => `${v}. versija`,
     spread: (lo: number, hi: number) => `no ${lo} līdz ${hi}`,
+    picksLine: (picks: number, people: number) => `${picks} izvēles no ${people} cilvēkiem, tāpēc daļas pārsniedz 100%`,
     noAnswers: "Uz šo jautājumu vēl nav atbilžu.",
     answeredBy: (n: number) => `${n} atbildēja`,
     declinedBy: (n: number) => `${n} atteicās`,

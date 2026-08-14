@@ -284,6 +284,7 @@ export const en = {
     ofThoseWhoStarted: (n: number, of: number) => `${n} of ${of} who started it`,
     versionLabel: (v: number) => `Version ${v}`,
     spread: (lo: number, hi: number) => `${lo} to ${hi}`,
+    picksLine: (picks: number, people: number) => `${picks} selections from ${people} people, so shares of people add past 100%`,
     noAnswers: "No answers to this question yet.",
     answeredBy: (n: number) => `${n} answered`,
     declinedBy: (n: number) => `${n} declined`,
