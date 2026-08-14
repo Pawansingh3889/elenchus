@@ -165,7 +165,7 @@ export const lt: Messages = {
       "Aprašykite, ką norite sužinoti, ir klausimai bus parengti už jus. Paskelbus žmonės atsako pokalbiu, o ne pildo laukelius. Kiekvienas atsakymas prieš išsaugant patikrinamas pagal klausimą.",
     videoTitle: "Pažiūrėkite, kaip veikia",
     videoLabel: "Trumpas vaizdo įrašas apie apklausų paslaugą veikiant",
-    videoPlaceholder: "Vaizdo įrašas netrukus",
+    videoUnsupported: "Jūsų naršyklė negali atkurti šio vaizdo įrašo.",
     howTitle: "Kaip tai veikia",
     stepNumber: (n: number) => `${n} žingsnis`,
     step1Title: "Aprašykite",

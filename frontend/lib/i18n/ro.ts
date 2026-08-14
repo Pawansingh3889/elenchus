@@ -165,7 +165,7 @@ export const ro: Messages = {
       "Descrieți ce vreți să aflați și întrebările sunt redactate pentru dumneavoastră. După publicare, oamenii răspund printr-o conversație, în loc să bifeze căsuțe. Fiecare răspuns este verificat față de întrebare înainte de a fi salvat.",
     videoTitle: "Vedeți cum funcționează",
     videoLabel: "Un scurt videoclip cu serviciul de chestionare în uz",
-    videoPlaceholder: "Videoclip în curând",
+    videoUnsupported: "Browserul dumneavoastră nu poate reda acest videoclip.",
     howTitle: "Cum funcționează",
     stepNumber: (n: number) => `Pasul ${n}`,
     step1Title: "Descrieți",

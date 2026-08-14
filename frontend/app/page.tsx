@@ -199,23 +199,30 @@ export default function Home() {
 
       {!currentUserId ? <p className="text-sm text-muted">{landing.signedOutHint}</p> : null}
 
-      {/* The video slot. Empty on purpose: there is no asset in the repo, and a committed
-          mp4 is weight that never comes back out of git history. To fill it, replace the
-          inner div with a <video> pointing at a file in `public/`, or with an iframe, and
-          leave the aspect-ratio wrapper alone so the page does not reflow when it loads. */}
+      {/* The video slot, filled. `public/walkthrough.mp4` is a screencast of this app being
+          used for real: the dashboard, a survey's results and recap, then a respondent
+          answering in the chat while the engine and the model take their own time. Nothing
+          in it is staged, which is the only reason it is worth 1.7MB of repo weight, the
+          cost this slot sat empty to avoid. Re-record it rather than editing around it. */}
       <section className="flex flex-col gap-2">
         <h2 className="text-md font-semibold text-ink">{landing.videoTitle}</h2>
         {/* Capped rather than full width. At the page's max-w-5xl a 16:9 box is over 500px
             tall, which made an empty placeholder the largest thing on the page and pushed
             the three steps under the fold. A real video does not need to be wider than
             this either. */}
-        <div
-          className="flex aspect-video w-full max-w-2xl items-center justify-center rounded-lg border border-line bg-canvas"
-          role="img"
+        <video
+          className="aspect-video w-full max-w-2xl rounded-lg border border-line bg-canvas"
+          controls
+          // Nothing is fetched until it is asked for: the file is the heaviest thing on a
+          // page whose whole job is to load fast for someone who has never been here.
+          preload="none"
+          poster="/walkthrough-poster.jpg"
+          playsInline
           aria-label={landing.videoLabel}
         >
-          <p className="text-sm text-muted">{landing.videoPlaceholder}</p>
-        </div>
+          <source src="/walkthrough.mp4" type="video/mp4" />
+          {landing.videoUnsupported}
+        </video>
       </section>
 
       <section className="flex flex-col gap-3">

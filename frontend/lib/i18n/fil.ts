@@ -164,7 +164,7 @@ export const fil: Messages = {
       "Ilarawan kung ano ang gusto mong malaman at ihahanda ang mga tanong para sa iyo. Kapag na-publish na, sumasagot ang mga tao sa pamamagitan ng usapan sa halip na pagpuno ng mga kahon. Bawat sagot ay sinusuri laban sa tanong bago ito i-save.",
     videoTitle: "Tingnan kung paano ito gumagana",
     videoLabel: "Maikling video ng survey service habang ginagamit",
-    videoPlaceholder: "Malapit nang mailabas ang video",
+    videoUnsupported: "Hindi mapatugtog ng iyong browser ang video na ito.",
     howTitle: "Paano ito gumagana",
     stepNumber: (n: number) => `Hakbang ${n}`,
     step1Title: "Ilarawan",

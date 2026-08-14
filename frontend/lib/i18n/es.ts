@@ -165,7 +165,7 @@ export const es: Messages = {
       "Describe qué quieres averiguar y las preguntas se redactan por ti. Al publicarla, las personas a las que va dirigida responden conversando en lugar de rellenar casillas. Cada respuesta se comprueba con la pregunta antes de guardarse.",
     videoTitle: "Míralo en funcionamiento",
     videoLabel: "Un vídeo breve del servicio de encuestas en uso",
-    videoPlaceholder: "Vídeo próximamente",
+    videoUnsupported: "Su navegador no puede reproducir este vídeo.",
     howTitle: "Cómo funciona",
     stepNumber: (n: number) => `Paso ${n}`,
     step1Title: "Descríbela",
