@@ -19,8 +19,8 @@ export const de: Messages = {
     notFound: "Nicht gefunden",
   },
   topbar: {
-    brandLead: "Umfrage",
-    brandTail: "Dienst",
+    brandLead: "Elenchus",
+    brandTail: "Umfragen",
     home: "Start",
     dashboard: "Übersicht",
     people: "Personen",

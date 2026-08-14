@@ -18,8 +18,8 @@ export const lt: Messages = {
     deleting: "Trinama…",
   },
   topbar: {
-    brandLead: "Apklausų",
-    brandTail: "Tarnyba",
+    brandLead: "Elenchus",
+    brandTail: "Apklausos",
     home: "Pradžia",
     dashboard: "Skydelis",
     people: "Žmonės",

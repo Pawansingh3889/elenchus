@@ -18,7 +18,7 @@ export const fil: Messages = {
     notFound: "Hindi natagpuan",
   },
   topbar: {
-    brandLead: "Serbisyong",
+    brandLead: "Elenchus",
     brandTail: "Survey",
     home: "Home",
     dashboard: "Dashboard",

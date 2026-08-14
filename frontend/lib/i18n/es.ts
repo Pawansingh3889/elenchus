@@ -18,7 +18,7 @@ export const es: Messages = {
     deleting: "Eliminando…",
   },
   topbar: {
-    brandLead: "Servicio de",
+    brandLead: "Elenchus",
     brandTail: "Encuestas",
     home: "Inicio",
     dashboard: "Panel",
