@@ -129,6 +129,8 @@ export const es: Messages = {
     ofPeople: (done: number, of: number) => `${done} de ${of} respondieron`,
     runsFromPeople: (runs: number, people: number) => `${runs} respuestas de ${people} personas`,
     bandTitle: (n: number) => `En ${n} encuesta${n === 1 ? "" : "s"} abierta${n === 1 ? "" : "s"}`,
+    statusCounts: (drafts: number, published: number, closed: number) =>
+      `${drafts} borrador${drafts === 1 ? "" : "es"} · ${published} publicada${published === 1 ? "" : "s"} · ${closed} cerrada${closed === 1 ? "" : "s"}`,
     bandAria: (a: number, p: number, n: number) => `${a}% respondieron, ${p}% a medias, ${n}% sin empezar`,
     segAnswered: "respondieron",
     segPartWay: "a medias",

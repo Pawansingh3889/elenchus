@@ -47,6 +47,20 @@ export default function Dashboard() {
   // that are already aggregated per survey.
   const responses = (rows ?? []).reduce((n, r) => n + r.completed, 0);
 
+  // The lifecycle tally, beside the attention numbers that cut the same rows
+  // differently below. Archived is deliberately absent: it means "hide this from my
+  // list", so counting it here would put a number on the page about rows the page
+  // does not show as themselves.
+  const statuses = (rows ?? []).reduce(
+    (acc, r) => {
+      if (r.status === "draft") acc.draft += 1;
+      else if (r.status === "published") acc.published += 1;
+      else if (r.status === "closed") acc.closed += 1;
+      return acc;
+    },
+    { draft: 0, published: 0, closed: 0 },
+  );
+
   // The whole audience as one bar: answered, part-way, not yet. One shape instead of two
   // percentages, which is what made the old pair unreadable: the reader had to work out
   // what each was over, and the two denominators were different. Here there is one
@@ -123,6 +137,12 @@ export default function Dashboard() {
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <p className="text-xs uppercase tracking-wide text-muted">
               {home.bandTitle(audience.surveys)}
+            </p>
+            {/* The same rows the groups below carry, tallied by lifecycle instead of by
+                attention, so an author can answer "how many drafts do I have" without
+                scanning the group badges. */}
+            <p className="text-xs tabular-nums text-muted">
+              {home.statusCounts(statuses.draft, statuses.published, statuses.closed)}
             </p>
           </div>
 

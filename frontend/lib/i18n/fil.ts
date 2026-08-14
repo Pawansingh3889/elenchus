@@ -129,6 +129,8 @@ export const fil: Messages = {
     ofPeople: (done: number, of: number) => `${done} sa ${of} ang sumagot`,
     runsFromPeople: (runs: number, people: number) => `${runs} sagot mula sa ${people} tao`,
     bandTitle: (n: number) => `Sa ${n} bukas na survey`,
+    statusCounts: (drafts: number, published: number, closed: number) =>
+      `${drafts} draft · ${published} nailathala · ${closed} sarado`,
     bandAria: (a: number, p: number, n: number) => `${a}% ang sumagot, ${p}% ang nasa kalagitnaan, ${n}% ang hindi pa nagsisimula`,
     segAnswered: "sumagot",
     segPartWay: "nasa kalagitnaan",

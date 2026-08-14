@@ -129,6 +129,8 @@ export const lv: Messages = {
     ofPeople: (done: number, of: number) => `atbildējuši ${done} no ${of}`,
     runsFromPeople: (runs: number, people: number) => `${runs} atbildes no ${people} cilvēkiem`,
     bandTitle: (n: number) => `${n} atvērtās aptaujās`,
+    statusCounts: (drafts: number, published: number, closed: number) =>
+      `Melnraksti: ${drafts} · publicētas: ${published} · slēgtas: ${closed}`,
     bandAria: (a: number, p: number, n: number) => `${a}% atbildēja, ${p}% iesāka, ${n}% nav sākuši`,
     segAnswered: "atbildēja",
     segPartWay: "iesāka",

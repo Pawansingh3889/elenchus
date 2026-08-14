@@ -137,6 +137,8 @@ export const en = {
     ofPeople: (done: number, of: number) => `${done} of ${of} answered`,
     runsFromPeople: (runs: number, people: number) => `${runs} runs from ${people} people`,
     bandTitle: (n: number) => `Across ${n} open survey${n === 1 ? "" : "s"}`,
+    statusCounts: (drafts: number, published: number, closed: number) =>
+      `${drafts} draft${drafts === 1 ? "" : "s"} · ${published} published · ${closed} closed`,
     bandAria: (a: number, p: number, n: number) => `${a}% answered, ${p}% part-way, ${n}% not yet started`,
     segAnswered: "answered",
     segPartWay: "part-way",
