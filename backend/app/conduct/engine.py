@@ -23,6 +23,7 @@ from app.conduct.validation import (
     ungrounded_yes_no,
     validate_answer,
 )
+from app.config import get_settings
 from app.errors import ConflictError, ForbiddenError, NotFoundError
 from app.i18n import language_note, translate
 from app.llm import ledger
@@ -32,7 +33,7 @@ from app.llm.prompts import load_prompt
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
 from app.runs.models import REPLY_PREFIX, Answer, RunMessage, SurveyRun, add_llm_spend
 from app.templates.enums import FollowUpPolicy, TemplateStatus
-from app.templates.snapshot import questions_of, setting_of
+from app.templates.reading import questions_of, setting_of
 from app.templates.visibility import next_visible, remaining_possible
 from app.users.models import User
 
@@ -129,20 +130,18 @@ class ConductEngine:
                 raise ConflictError("You have already answered this survey.")
             return await self.load(existing.id, respondent)
 
-        version = await self.repo.latest_version(template_id)
-        if version is None:
-            raise ConflictError("This template has no published version to answer.")
-        questions = questions_of(version.definition)
+        template = await self.repo.get_template(template_id)
+        if template is None:
+            raise ConflictError("This survey does not exist.")
+        questions = questions_of(template)
         if not questions:
-            raise ConflictError("The published version has no questions.")
+            raise ConflictError("This survey has no questions.")
 
-        run = SurveyRun(
-            template_version_id=version.id, respondent_id=respondent.id, language=language
-        )
+        run = SurveyRun(template_id=template.id, respondent_id=respondent.id, language=language)
         run.messages.append(
             RunMessage(
                 role=MessageRole.assistant,
-                content=_opening_text(version.definition, questions[0]),
+                content=_opening_text(template.title, questions[0]),
             )
         )
         self.repo.add(run)
@@ -166,22 +165,31 @@ class ConductEngine:
         return run
 
     async def questions(self, run: SurveyRun) -> list[dict[str, Any]]:
-        version = await self.repo.get_version(run.template_version_id)
-        if version is None:
-            raise NotFoundError("The run's template version is missing.")
-        return questions_of(version.definition)
+        """The questions this run is being conducted against, read live.
+
+        Live is the change: these used to come from the frozen version the run named, so
+        a run held the questions it started with however the draft moved. Now an author
+        editing a published survey changes what an in-flight conversation asks next.
+        Read at the moment they are needed rather than held, so at least the change takes
+        effect at a question boundary rather than mid-turn.
+        """
+        template = await self.repo.get_template(run.template_id)
+        if template is None:
+            raise NotFoundError("The run's survey is missing.")
+        return questions_of(template)
 
     async def setting(self, run: SurveyRun) -> str | None:
-        """What the author said about the workplace, frozen at publish with the questions.
+        """What the author said about the workplace, read live with the questions.
 
-        Read from the version rather than the template, for the same reason the questions
-        are: a run is conducted against what was published, and an author editing the
-        draft mid-study must not change how answers already being given are read.
+        It was frozen at publish, so that an author editing the draft mid-study could not
+        change how answers already being given were read. That guarantee went with
+        versions; the fallback to the deployment's own setting moved here with it, since
+        there is no snapshot left to bake it into.
         """
-        version = await self.repo.get_version(run.template_version_id)
-        if version is None:
-            raise NotFoundError("The run's template version is missing.")
-        return setting_of(version.definition)
+        template = await self.repo.get_template(run.template_id)
+        if template is None:
+            raise NotFoundError("The run's survey is missing.")
+        return setting_of(template) or get_settings().survey_setting or None
 
     def probing(self, run: SurveyRun, questions: list[dict[str, Any]]) -> bool:
         """True when the last thing asked was a follow-up, not the scripted question.
@@ -226,8 +234,8 @@ class ConductEngine:
         """
         out: list[tuple[SurveyRun, UUID, str, int, int]] = []
         for run, template_id, title in await self.repo.in_progress_for(respondent.id):
-            version = await self.repo.get_version(run.template_version_id)
-            questions = questions_of(version.definition) if version else []
+            template = await self.repo.get_template(run.template_id)
+            questions = questions_of(template) if template else []
             answered, total = self.progress(run, questions)
             out.append((run, template_id, title, answered, total))
         return out
@@ -751,8 +759,8 @@ def _is_uuid(value: str) -> bool:
     return True
 
 
-def _opening_text(definition: dict[str, Any], first: dict[str, Any]) -> str:
-    return f"Thanks for taking {definition['title']}. {first['text']}"
+def _opening_text(title: str, first: dict[str, Any]) -> str:
+    return f"Thanks for taking {title}. {first['text']}"
 
 
 def _last_assistant(run: SurveyRun) -> str:

@@ -19,7 +19,7 @@ from app.runs.enums import AnswerKind, MessageRole, RunStatus
 from app.runs.models import Answer, RunMessage, SurveyRun
 from app.sample_data import SAMPLE_RUNS, SAMPLE_SURVEYS, SURVEY_BY_KEY, RunFixture, SurveyFixture
 from app.templates.enums import AnswerType, FollowUpPolicy, TemplateStatus
-from app.templates.models import SurveyQuestion, SurveyTemplate, SurveyTemplateVersion
+from app.templates.models import SurveyQuestion, SurveyTemplate
 from app.users.models import User
 
 # A fixed, timezone-aware base so seeded timestamps are reproducible across machines.
@@ -64,8 +64,9 @@ def _insert_survey(session: AsyncSession, survey: SurveyFixture, users: dict[str
         status=TemplateStatus.published,
         created_by=_user(users, survey["created_by"]),
     )
-    # Recreate the draft questions from the frozen definition (same ids), so the builder
-    # can open the survey, not just the runner read its version.
+    # The questions come from the fixture's definition block, which is where they have
+    # always lived. It used to be a frozen snapshot beside the draft; it is now simply
+    # the fixture's record of the questions, and there is one copy in the database.
     for question in definition["questions"]:
         template.questions.append(
             SurveyQuestion(
@@ -79,27 +80,24 @@ def _insert_survey(session: AsyncSession, survey: SurveyFixture, users: dict[str
                 follow_up_policy=FollowUpPolicy(question["follow_up_policy"]),
             )
         )
+    # Published, with the fixture's own publication details rather than a snapshot row.
+    # An explicit stamp, not `template.created_at`: that column has a server default and
+    # is still None until the flush, so copying it here left every sample survey looking
+    # unpublished and its results 404ing.
+    template.published_at = datetime.now(UTC)
+    template.published_by = _user(users, survey["version"]["published_by"])
     session.add(template)
-    session.add(
-        SurveyTemplateVersion(
-            id=UUID(survey["version"]["version_id"]),
-            template_id=template.id,
-            version=survey["version"]["number"],
-            definition=definition,
-            published_by=_user(users, survey["version"]["published_by"]),
-        )
-    )
 
 
 def _insert_run(
     session: AsyncSession, run: RunFixture, users: dict[str, UUID], base: datetime
 ) -> None:
     respondent = _user(users, run["respondent"])
-    version_id = UUID(SURVEY_BY_KEY[run["survey_key"]]["version"]["version_id"])
+    template_id = UUID(SURVEY_BY_KEY[run["survey_key"]]["template_id"])
     completed_at = base + timedelta(minutes=5) if run["completed"] else None
     survey_run = SurveyRun(
         id=UUID(run["run_id"]),
-        template_version_id=version_id,
+        template_id=template_id,
         respondent_id=respondent,
         status=RunStatus(run["status"]),
         current_question_index=run["current_question_index"],

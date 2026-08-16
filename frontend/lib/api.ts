@@ -22,7 +22,6 @@ import type {
   SurveyReport,
   Template,
   TemplateSummary,
-  TemplateVersion,
   TemplateWrite,
   User,
 } from "./types";
@@ -152,7 +151,7 @@ export const api = {
     request<Template>(`/templates/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   deleteTemplate: (id: string) => request<void>(`/templates/${id}`, { method: "DELETE" }),
   publishTemplate: (id: string) =>
-    request<TemplateVersion>(`/templates/${id}/publish`, { method: "POST" }),
+    request<Template>(`/templates/${id}/publish`, { method: "POST" }),
   closeTemplate: (id: string) =>
     request<Template>(`/templates/${id}/close`, { method: "POST" }),
   generateTemplate: (

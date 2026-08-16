@@ -5,6 +5,31 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-08-16. Published versions are removed
+
+Asked for directly. A survey had a draft and a stack of immutable versions; it now has
+one definition, and publishing is a status change.
+
+- **A run names its survey**, not a version of it, and the engine reads the questions and
+  the setting at each turn rather than from a snapshot taken when the run started.
+- **Every run counts in the report.** Runs that answered earlier wording used to be
+  excluded and counted separately, with a line on the page and a clause in the recap's
+  caveat saying so. There is nothing to exclude now, so both are gone.
+- **`published_at` and `published_by` move onto the survey**, set once on the first
+  publish, so "when did this go out and who sent it" survives the versions that used to
+  answer it.
+- **`snapshot.py` becomes `reading.py`.** It existed so that no reader had to guess what
+  a missing field in a frozen document meant; it now builds the same shape from the
+  question rows, and its tests were rewritten to pin the shape rather than the JSON.
+- **The publish dialog stops promising a freeze.** It now says that later edits change
+  the survey for everyone, including anyone part-way through, because they do.
+
+Four tests changed sides rather than being deleted: they asserted the guarantee that has
+been given up, and now assert what happens instead, so an author editing a live survey
+mid-run is a documented behaviour rather than a surprise. The cost of the whole change,
+including that a stored recap can now outlive the questions it described, is written up
+in CLAUDE.md.
+
 ## 2026-08-13. The generator is held to the brief's question count
 
 Defect O2, live twice: asked for exactly 10 questions, the model returned 11, and the

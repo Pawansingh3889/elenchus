@@ -1,7 +1,7 @@
 # Elenchus Survey Service
 
 A standalone, embeddable survey service. Authors build survey templates (by natural
-language or a builder UI) and publish immutable versions; respondents complete published
+language or a builder UI) and publish them; respondents complete published
 surveys through a conversational, LLM-driven runner that keeps the model on rails.
 
 Full brief in [`trial-brief/`](trial-brief/README.md); what the app does
@@ -83,7 +83,9 @@ curl -s http://localhost:8000/api/v1/templates \
    **Dashboard** lists your surveys and how each is going. Write a survey or describe one
    in the compose bar, pick who it is for beside it, then **Publish**. The publish dialog
    shows the live headcount of the audience; publishing freezes the current draft as an
-   immutable version, while the draft carries on evolving separately.
+   open for answers. Editing it afterwards changes it for everyone, including anyone
+   part-way through, so what each person was actually asked is recorded on their answers
+   rather than in a frozen copy of the survey.
 2. Sign in as **rosa@elenchus.dev** and open **Respond**. Start the survey and answer it in
    the chat. Chips, stars and date pickers appear with the question, but they only produce
    text: the engine validates every answer against the question's type either way.
@@ -120,7 +122,7 @@ backend/
     users/             User model (one job: function x band + hats), admin account
                        routes, the append-only account_changes audit table
     access/            every access rule, as pure functions over the job
-    templates/         template, question, immutable version models + publishing
+    templates/         template and question models, publishing, reading.py
     runs/              run, answer and transcript models, and results for authors
     conduct/           the deterministic run engine (answer validation, run locking)
     templates/…        visibility.py (show_when evaluation), estimate.py (time to complete)

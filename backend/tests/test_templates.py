@@ -7,7 +7,6 @@ from pydantic import ValidationError
 
 from app.errors import ConflictError, NotFoundError
 from app.templates.enums import AnswerType, TemplateStatus
-from app.templates.models import SurveyTemplateVersion
 from app.templates.schemas import QuestionInput, TemplateCreate
 from app.templates.service import TemplateService
 from tests.builders import update_of
@@ -29,34 +28,38 @@ async def test_create_and_get_draft(session, author):
     assert [q.position for q in fetched.questions] == [0, 1]
 
 
-async def test_publish_creates_version_one(session, author):
+async def test_publish_opens_the_survey_and_records_when(session, author):
     svc = TemplateService(session)
     t = await svc.create_draft(TemplateCreate(title="T", questions=[_q("q1")]), author)
-    version = await svc.publish(t.id, author)
-    assert version.version == 1
-    assert (await svc.get_draft(t.id, author)).status is TemplateStatus.published
+    published = await svc.publish(t.id, author)
+    assert published.status is TemplateStatus.published
+    assert published.published_at is not None
+    assert published.published_by == author.id
 
 
-async def test_republish_increments_and_v1_is_immutable(session, author):
+async def test_republishing_does_not_move_the_publication_date(session, author):
+    """Re-opening a survey is not a new publication.
+
+    This is what is left of versioning. There used to be a v1 frozen against edits and a
+    v2 beside it; now an edit changes the one definition, and the only thing publish
+    still records is when the survey first went out. Moving that date on every republish
+    would rewrite the answer to "when did this go out", which is the question the field
+    exists for.
+    """
     svc = TemplateService(session)
     t = await svc.create_draft(TemplateCreate(title="Orig", questions=[_q("q1")]), author)
-    v1 = await svc.publish(t.id, author)
-    assert v1.version == 1
+    first = await svc.publish(t.id, author)
+    stamped = first.published_at
 
-    # Edit the draft, then re-publish.
     await svc.update_draft(
         t.id, update_of(t, title="Changed", questions=[_q("q1"), _q("q2")]), author
     )
-    v2 = await svc.publish(t.id, author)
-    assert v2.version == 2
-
-    # v1's frozen snapshot must be untouched by the later edit — re-read from the db.
-    fresh_v1 = await session.get(SurveyTemplateVersion, v1.id)
-    assert fresh_v1 is not None
-    assert fresh_v1.definition["title"] == "Orig"
-    assert len(fresh_v1.definition["questions"]) == 1
-    assert v2.definition["title"] == "Changed"
-    assert len(v2.definition["questions"]) == 2
+    again = await svc.publish(t.id, author)
+    assert again.published_at == stamped
+    # And the edit is simply live: there is no earlier copy of the questions anywhere.
+    fetched = await svc.get_draft(t.id, author)
+    assert fetched.title == "Changed"
+    assert len(fetched.questions) == 2
 
 
 async def test_publish_empty_template_conflicts(session, author):

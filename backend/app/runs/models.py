@@ -43,7 +43,11 @@ class SurveyRun(Base):
     __tablename__ = "survey_runs"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    template_version_id: Mapped[UUID] = mapped_column(ForeignKey("survey_template_versions.id"))
+    # The survey itself, not a frozen version of it. What that costs is recorded in
+    # CLAUDE.md: editing a published survey changes the question earlier answers were
+    # given to, and each answer's own `question_text` is the only record of the wording
+    # it was actually asked under.
+    template_id: Mapped[UUID] = mapped_column(ForeignKey("survey_templates.id"), index=True)
     respondent_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
     status: Mapped[RunStatus] = mapped_column(
         SAEnum(RunStatus, name="run_status"), default=RunStatus.in_progress

@@ -19,7 +19,6 @@ from app.templates.schemas import (
     TemplateRead,
     TemplateSummary,
     TemplateUpdate,
-    TemplateVersionRead,
 )
 from app.templates.service import TemplateService
 from app.users.models import User
@@ -133,16 +132,19 @@ async def refine_template(
     return GeneratedTemplate(template=TemplateRead.model_validate(template), note=note)
 
 
-@router.post(
-    "/{template_id}/publish", response_model=TemplateVersionRead, status_code=HTTP_201_CREATED
-)
+@router.post("/{template_id}/publish", response_model=TemplateRead)
 async def publish_template(
     template_id: UUID,
     author: User = Depends(require_author),
     session: AsyncSession = Depends(get_session),
-) -> TemplateVersionRead:
-    version = await TemplateService(session).publish(template_id, author)
-    return TemplateVersionRead.model_validate(version)
+) -> TemplateRead:
+    """Open the survey for answers, and return it.
+
+    200 rather than 201: publishing creates nothing now. It used to mint a frozen
+    version row, which is what the 201 described.
+    """
+    template = await TemplateService(session).publish(template_id, author)
+    return TemplateRead.model_validate(template)
 
 
 @router.post("/{template_id}/close", response_model=TemplateRead)

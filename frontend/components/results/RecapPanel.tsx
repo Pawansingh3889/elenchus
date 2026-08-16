@@ -144,7 +144,7 @@ export function RecapPanel({
   return (
     <Card className="flex flex-col gap-3 border-ai-border bg-ai-fill p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <CardLabel>{msg.report.recapFrom(recap.runs_included, recap.version)}</CardLabel>
+        <CardLabel>{msg.report.recapFrom(recap.runs_included)}</CardLabel>
         {action}
       </div>
 

@@ -319,8 +319,14 @@ async def test_run_completes_after_the_final_question(session, respondent, publi
         await ConductEngine(session, llm=FakeLLM()).handle_message(run.id, "more", respondent)
 
 
-async def test_republishing_leaves_an_in_flight_run_alone(session, author, respondent, published):
-    """A run is bound to the version it started on, so authors can keep editing."""
+async def test_an_edit_reaches_a_run_already_in_flight(session, author, respondent, published):
+    """An author rewriting a published survey changes what an in-flight run asks next.
+
+    This asserted the opposite and was the strongest argument for versions: a run was
+    bound to the version it started on, so an author could keep editing without touching
+    anybody mid-conversation. That is gone. The engine reads the questions at each turn,
+    so the change lands at the next question rather than mid-turn, and answers already
+    recorded keep the `question_text` they were given under."""
     engine = ConductEngine(session, llm=FakeLLM())
     run = await engine.start_run(published.id, respondent)
     first = FakeLLM(_record("Line lead"), _move_on())
@@ -339,24 +345,22 @@ async def test_republishing_leaves_an_in_flight_run_alone(session, author, respo
         ),
         author,
     )
-    assert (await svc.publish(published.id, author)).version == 2
+    await svc.publish(published.id, author)
 
     reloaded = ConductEngine(session, llm=FakeLLM())
     live = await reloaded.load(run.id, respondent)
-    assert [q["text"] for q in await reloaded.questions(live)] == [
-        "What's your role?",
-        "Rate your onboarding",
-    ]
-    assert live.current_question_index == 1  # position untouched by the republish
+    # The run now sees the rewritten survey, not the one it started.
+    assert [q["text"] for q in await reloaded.questions(live)] == ["A brand new question"]
+    # The index is untouched: the engine owns place-keeping, and an edit does not move
+    # anybody. Here that means the run is already past the end of a shorter survey.
+    assert live.current_question_index == 1
 
-    # And it still completes against v1's questions, not the new ones.
-    llm = FakeLLM(_record(4, "Thanks, that's everything."))
-    live = await ConductEngine(session, llm=llm).handle_message(live.id, "four", respondent)
-    assert live.status is RunStatus.completed
+    # The answer already recorded is still there, still carrying the question it was
+    # actually asked, which is now the only record that the old wording ever existed.
     assert [a.value for a in live.answers if a.kind is AnswerKind.scripted] == [
-        {"text": "Line lead"},
-        {"rating": 4},
+        {"text": "Line lead"}
     ]
+    assert [a.question_text for a in live.answers] == ["What's your role?"]
 
 
 def _decline(reason: str = "respondent declined", say: str = "No problem.") -> ToolTurn:
@@ -1432,9 +1436,16 @@ async def test_the_setting_is_never_said_to_the_respondent(session, author, resp
     assert "line leaders" not in spoken
 
 
-async def test_the_setting_is_frozen_at_publish(session, author, respondent):
-    """A run is conducted against what was published. An author rewriting the draft
-    mid-study must not change how answers already being given are read."""
+async def test_the_setting_follows_the_author_mid_run(session, author, respondent):
+    """An author rewriting the setting changes how an in-flight run is read.
+
+    The opposite of what this asserted, and the change is the point. The setting used to
+    be frozen at publish beside the questions, so a conversation already under way was
+    interpreted against the workplace the author described when they published. With
+    versions gone there is one setting, read at each turn, and an edit reaches runs that
+    are already happening. Pinned rather than left to be discovered, because it is the
+    kind of thing that surfaces as an inexplicable change in how one respondent's
+    answers were read."""
     published = await _published_with_setting(session, author, _PLANT)
     engine = ConductEngine(session, llm=FakeLLM())
     run = await engine.start_run(published.id, respondent)
@@ -1449,8 +1460,8 @@ async def test_the_setting_is_frozen_at_publish(session, author, respondent):
     await ConductEngine(session, llm=llm).handle_message(run.id, "tempereture", respondent)
 
     briefing = llm.briefings[0]
-    assert "held on ice at 0 to 2 degrees" in briefing
-    assert "Completely different workplace" not in briefing
+    assert "Completely different workplace" in briefing
+    assert "held on ice at 0 to 2 degrees" not in briefing
 
 
 _PLANT_CONFIG = (
@@ -1506,11 +1517,10 @@ async def test_a_surveys_own_setting_beats_the_deployments(
     assert "held on ice" not in briefing
 
 
-async def test_the_deployment_setting_is_frozen_at_publish(
-    session, author, respondent, monkeypatch
-):
-    """Editing the deployment's description must not change how answers already being
-    given are read, for the same reason editing the draft does not."""
+async def test_the_deployment_setting_is_read_live(session, author, respondent, monkeypatch):
+    """Editing the deployment's description reaches runs already under way, for the same
+    reason editing the survey's own setting does: there is nothing frozen left to read
+    from, so the engine reads the current value at each turn."""
     from app.config import get_settings
 
     monkeypatch.setenv("SURVEY_SETTING", _PLANT_CONFIG)
@@ -1525,8 +1535,8 @@ async def test_the_deployment_setting_is_frozen_at_publish(
     await ConductEngine(session, llm=llm).handle_message(run.id, "tempereture", respondent)
 
     briefing = llm.briefings[0]
-    assert "held on ice at 0 to 2" in briefing
-    assert "Somewhere else" not in briefing
+    assert "Somewhere else" in briefing
+    assert "held on ice at 0 to 2" not in briefing
     monkeypatch.delenv("SURVEY_SETTING", raising=False)
     get_settings.cache_clear()
 

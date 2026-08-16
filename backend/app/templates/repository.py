@@ -1,6 +1,5 @@
 """All template, question, and version queries."""
 
-from typing import Any
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -10,7 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.runs.enums import RunStatus
 from app.runs.models import SurveyRun
 from app.templates.enums import TemplateStatus
-from app.templates.models import SurveyQuestion, SurveyTemplate, SurveyTemplateVersion
+from app.templates.models import SurveyQuestion, SurveyTemplate
 
 
 class TemplateRepository:
@@ -59,27 +58,16 @@ class TemplateRepository:
     async def delete(self, template: SurveyTemplate) -> None:
         await self.session.delete(template)
 
-    async def next_version(self, template_id: UUID) -> int:
-        stmt = select(func.coalesce(func.max(SurveyTemplateVersion.version), 0)).where(
-            SurveyTemplateVersion.template_id == template_id
-        )
-        current = (await self.session.execute(stmt)).scalar_one()
-        return int(current) + 1
-
-    def add_version(self, version: SurveyTemplateVersion) -> None:
-        self.session.add(version)
-
     async def completed_by(self, respondent_id: UUID) -> set[UUID]:
-        """Templates this person has already finished, across every version.
+        """Templates this person has already finished.
 
         The respondent's list is an invitation, and after one-answer-per-person a Start
-        button on a survey they have completed is a button that can only 409. Kept here
-        rather than in `conduct` because this join is `templates` reading its own version
-        table, and `templates` must not import a repository from another domain.
+        button on a survey they have completed is a button that can only 409. A run now
+        names its survey directly, so this is a read of `survey_runs` rather than the
+        join through versions it used to be.
         """
         stmt = (
-            select(SurveyTemplateVersion.template_id)
-            .join(SurveyRun, SurveyRun.template_version_id == SurveyTemplateVersion.id)
+            select(SurveyRun.template_id)
             .where(
                 SurveyRun.respondent_id == respondent_id,
                 SurveyRun.status == RunStatus.completed,
@@ -88,36 +76,20 @@ class TemplateRepository:
         )
         return set((await self.session.execute(stmt)).scalars().all())
 
-    async def latest_version(self, template_id: UUID) -> SurveyTemplateVersion | None:
-        """The newest published version, or None for a survey never published.
+    async def list_published(self) -> list[SurveyTemplate]:
+        """Published surveys, newest first, with their questions loaded.
 
-        ``conduct`` has its own copy of this query, and deliberately: it reads versions
-        to conduct a run and owns that read. This one serves the report, which counts
-        answers against the questions as they are published now.
+        It used to return the survey beside the frozen definition a respondent would be
+        asked, because a draft kept evolving after publication and counting its questions
+        advertised a survey that did not exist yet: three questions on the home page, two
+        in the run. With versions gone there is one set of questions and that gap closes
+        by construction, so this returns the survey and its callers read the questions
+        off it.
         """
         stmt = (
-            select(SurveyTemplateVersion)
-            .where(SurveyTemplateVersion.template_id == template_id)
-            .order_by(SurveyTemplateVersion.version.desc())
-            .limit(1)
-        )
-        return (await self.session.execute(stmt)).scalar_one_or_none()
-
-    async def list_published_latest(self) -> list[tuple[SurveyTemplate, dict[str, Any]]]:
-        """Published surveys with the definition a respondent would actually be asked.
-
-        Not the draft. A draft keeps evolving after publication, so counting its
-        questions advertised a survey that does not exist yet — three questions on the
-        home page, two in the run.
-        """
-        stmt = (
-            select(SurveyTemplate, SurveyTemplateVersion.definition)
-            .join(SurveyTemplateVersion, SurveyTemplateVersion.template_id == SurveyTemplate.id)
+            select(SurveyTemplate)
             .where(SurveyTemplate.status == TemplateStatus.published)
-            .distinct(SurveyTemplateVersion.template_id)
-            # DISTINCT ON keeps the first row per template, so the highest version wins.
-            .order_by(SurveyTemplateVersion.template_id, SurveyTemplateVersion.version.desc())
+            .options(selectinload(SurveyTemplate.questions))
+            .order_by(SurveyTemplate.updated_at.desc())
         )
-        rows = (await self.session.execute(stmt)).all()
-        newest_first = sorted(rows, key=lambda r: r[0].updated_at, reverse=True)
-        return [(r[0], r[1]) for r in newest_first]
+        return list((await self.session.execute(stmt)).scalars().all())

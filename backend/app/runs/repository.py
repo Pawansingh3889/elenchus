@@ -9,10 +9,10 @@ from sqlalchemy.orm import selectinload
 
 from app.runs.enums import RunStatus
 from app.runs.models import SurveyRun
-from app.templates.models import SurveyTemplate, SurveyTemplateVersion
+from app.templates.models import SurveyTemplate
 from app.users.models import User
 
-ResultRow = Row[tuple[SurveyRun, SurveyTemplateVersion, User]]
+ResultRow = Row[tuple[SurveyRun, SurveyTemplate, User]]
 
 
 class ResultsRepository:
@@ -21,12 +21,15 @@ class ResultsRepository:
 
     async def list_for_template(self, template_id: UUID) -> list[ResultRow]:
         stmt = (
-            select(SurveyRun, SurveyTemplateVersion, User)
-            .join(SurveyTemplateVersion, SurveyRun.template_version_id == SurveyTemplateVersion.id)
+            select(SurveyRun, SurveyTemplate, User)
+            .join(SurveyTemplate, SurveyRun.template_id == SurveyTemplate.id)
             .join(User, SurveyRun.respondent_id == User.id)
-            .where(SurveyTemplateVersion.template_id == template_id)
+            .where(SurveyRun.template_id == template_id)
             .order_by(SurveyRun.started_at.desc())
-            .options(selectinload(SurveyRun.answers))
+            # The template's questions come with it: the caller reads them off this row,
+            # and without this that is a lazy load in an async session, which raises
+            # rather than quietly issuing a query.
+            .options(selectinload(SurveyRun.answers), selectinload(SurveyTemplate.questions))
         )
         return list((await self.session.execute(stmt)).all())
 
@@ -51,8 +54,8 @@ class ResultsRepository:
         """
         stmt = (
             select(SurveyRun.respondent_id)
-            .join(SurveyTemplateVersion, SurveyRun.template_version_id == SurveyTemplateVersion.id)
-            .where(SurveyTemplateVersion.template_id == template_id)
+            .join(SurveyTemplate, SurveyRun.template_id == SurveyTemplate.id)
+            .where(SurveyRun.template_id == template_id)
             .group_by(SurveyRun.respondent_id)
             .order_by(func.min(SurveyRun.started_at), SurveyRun.respondent_id)
         )
@@ -104,11 +107,10 @@ class ResultsRepository:
                 func.max(SurveyRun.started_at).label("last_started_at"),
                 func.max(SurveyRun.completed_at).label("last_completed_at"),
             )
-            .outerjoin(
-                SurveyTemplateVersion,
-                SurveyTemplateVersion.template_id == SurveyTemplate.id,
-            )
-            .outerjoin(SurveyRun, SurveyRun.template_version_id == SurveyTemplateVersion.id)
+            # One outer join where there were two. A run named a version and a version
+            # named a survey, so counting a survey's runs meant hopping through a table
+            # that existed only to be hopped through.
+            .outerjoin(SurveyRun, SurveyRun.template_id == SurveyTemplate.id)
             .where(SurveyTemplate.created_by.in_(author_ids))
             .group_by(SurveyTemplate.id)
             .order_by(SurveyTemplate.updated_at.desc())
@@ -117,10 +119,16 @@ class ResultsRepository:
 
     async def get_detail(self, run_id: UUID) -> ResultRow | None:
         stmt = (
-            select(SurveyRun, SurveyTemplateVersion, User)
-            .join(SurveyTemplateVersion, SurveyRun.template_version_id == SurveyTemplateVersion.id)
+            select(SurveyRun, SurveyTemplate, User)
+            .join(SurveyTemplate, SurveyRun.template_id == SurveyTemplate.id)
             .join(User, SurveyRun.respondent_id == User.id)
             .where(SurveyRun.id == run_id)
-            .options(selectinload(SurveyRun.answers), selectinload(SurveyRun.messages))
+            .options(
+                selectinload(SurveyRun.answers),
+                selectinload(SurveyRun.messages),
+                # The caller reads the survey's questions off this row. Without it that
+                # is a lazy load in an async session, which raises rather than querying.
+                selectinload(SurveyTemplate.questions),
+            )
         )
         return (await self.session.execute(stmt)).first()

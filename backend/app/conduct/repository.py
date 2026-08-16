@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 from app.runs.enums import AnswerKind, RunStatus
 from app.runs.models import Answer, RunMessage, SurveyRun
 from app.templates.enums import SurveyAudience, TemplateStatus
-from app.templates.models import SurveyTemplate, SurveyTemplateVersion
+from app.templates.models import SurveyTemplate
 
 # Postgres SQLSTATE for "could not obtain lock" under FOR UPDATE NOWAIT.
 LOCK_NOT_AVAILABLE = "55P03"
@@ -73,17 +73,19 @@ class RunRepository:
         )
         return (await self.session.execute(stmt)).scalar_one_or_none()
 
-    async def latest_version(self, template_id: UUID) -> SurveyTemplateVersion | None:
+    async def get_template(self, template_id: UUID) -> SurveyTemplate | None:
+        """The survey a run is being conducted against, with its questions loaded.
+
+        Replaces the pair of version reads this used to carry. `conduct` keeps its own
+        query rather than borrowing `templates`': it reads a survey in order to conduct
+        it, and owns that read.
+        """
         stmt = (
-            select(SurveyTemplateVersion)
-            .where(SurveyTemplateVersion.template_id == template_id)
-            .order_by(SurveyTemplateVersion.version.desc())
-            .limit(1)
+            select(SurveyTemplate)
+            .where(SurveyTemplate.id == template_id)
+            .options(selectinload(SurveyTemplate.questions))
         )
         return (await self.session.execute(stmt)).scalar_one_or_none()
-
-    async def get_version(self, version_id: UUID) -> SurveyTemplateVersion | None:
-        return await self.session.get(SurveyTemplateVersion, version_id)
 
     async def template_gate(
         self, template_id: UUID
@@ -152,12 +154,8 @@ class RunRepository:
         """
         stmt = (
             select(SurveyRun)
-            .join(
-                SurveyTemplateVersion,
-                SurveyRun.template_version_id == SurveyTemplateVersion.id,
-            )
             .where(
-                SurveyTemplateVersion.template_id == template_id,
+                SurveyRun.template_id == template_id,
                 SurveyRun.respondent_id == respondent_id,
                 SurveyRun.status != RunStatus.abandoned,
             )
@@ -179,11 +177,8 @@ class RunRepository:
         stranded in the author's results as an abandoned half-answer.
         """
         stmt = (
-            select(SurveyRun, SurveyTemplateVersion.template_id, SurveyTemplateVersion.definition)
-            .join(
-                SurveyTemplateVersion,
-                SurveyRun.template_version_id == SurveyTemplateVersion.id,
-            )
+            select(SurveyRun, SurveyRun.template_id, SurveyTemplate.title)
+            .join(SurveyTemplate, SurveyRun.template_id == SurveyTemplate.id)
             .where(
                 SurveyRun.respondent_id == respondent_id,
                 SurveyRun.status == RunStatus.in_progress,
@@ -192,4 +187,7 @@ class RunRepository:
             .options(selectinload(SurveyRun.answers))
         )
         rows = (await self.session.execute(stmt)).all()
-        return [(r[0], r[1], r[2].get("title", "")) for r in rows]
+        # The third column is the survey's title, selected directly. It used to be the
+        # frozen definition, out of which the title had to be dug with a default for the
+        # case where the document had none.
+        return [(r[0], r[1], r[2]) for r in rows]

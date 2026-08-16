@@ -129,8 +129,11 @@ class SurveySummaryRead(BaseModel):
     # must not itself be a model's claim.
     caveat: str
     # What it was generated from, so the page can say so rather than implying the recap
-    # covers whatever the report happens to show today.
-    version: int
+    # covers whatever the report happens to show today. The version used to be half of
+    # this and cannot be any more: with one definition per survey, an edit to the
+    # questions moves no number a stored recap can notice, so a recap can now outlive
+    # the wording it described. Recorded in CLAUDE.md as the sharpest edge of dropping
+    # versions.
     runs_included: int
     generated_at: str
     # Provenance, already stored in the document and until now readable only by opening
@@ -340,9 +343,12 @@ class SurveySummaryService:
             **content.model_dump(),
             # Computed here and stored with the recap: the numbers it states cannot
             # move while the recap is servable, because reuse is conditional on the
-            # same version and completed-run count.
+            # same completed-run count. The version used to be part of this key and
+            # cannot be any more: a survey has one definition now, so an edit to its
+            # questions no longer moves a number the reuse check can see. A recap written
+            # before an edit therefore survives it, which is the sharpest edge of dropping
+            # versions and is recorded in CLAUDE.md rather than hidden here.
             "caveat": _caveat(report),
-            "version": report.version,
             "runs_included": report.runs_completed,
             "prompt_version": PROMPT_VERSION,
             "verify_prompt_version": VERIFY_PROMPT_VERSION,
@@ -371,8 +377,6 @@ class SurveySummaryService:
         """
         stored = template.summary
         if not isinstance(stored, dict):
-            return None
-        if stored.get("version") != report.version:
             return None
         if stored.get("runs_included") != report.runs_completed:
             return None
@@ -475,10 +479,6 @@ def _caveat(report: SurveyReport) -> str:
     question, and every part of it is a fact the database already holds.
     """
     parts = [f"{report.people_completed} of {report.reach} answered"]
-    if report.runs_on_earlier_versions:
-        parts.append(
-            f"{report.runs_on_earlier_versions} answered an earlier version, not counted here"
-        )
     mostly_declined = [q for q in report.questions if q.declined > q.answered]
     if mostly_declined:
         worst = max(mostly_declined, key=lambda q: q.declined)
@@ -562,7 +562,6 @@ def _with_numbers(
         # Required, not defaulted: every document written under PROMPT_VERSION carries
         # one, and `_reusable` refuses older documents before they reach here.
         caveat=str(document["caveat"]),
-        version=int(document["version"]),
         runs_included=int(document["runs_included"]),
         generated_at=str(document["generated_at"]),
         # Optional metadata, so `.get` is honest here rather than a shrug over required

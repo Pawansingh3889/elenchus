@@ -74,7 +74,6 @@ export function RunPanel({
       {run ? (
         <>
           <p className="text-sm text-muted">
-            {msg.report.versionLabel(run.version)} ·{" "}
             {msg.results.startedOn(new Date(run.started_at).toLocaleString())} ·{" "}
             {run.completed_at
               ? msg.results.completedOn(new Date(run.completed_at).toLocaleString())

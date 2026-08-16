@@ -54,7 +54,7 @@ export function RespondentTable({
             downloadCsv(
               // The slice is in the file as well as on the page, so a download taken
               // while filtered is not mistaken later for the whole survey.
-              `${matrix.title.replace(/[^\w -]/g, "")}-v${matrix.version}${
+              `${matrix.title.replace(/[^\w -]/g, "")}${
                 runs.length === matrix.runs.length ? "" : "-filtered"
               }.csv`,
               matrixToCsv(matrix, runs, msg),

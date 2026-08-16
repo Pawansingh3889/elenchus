@@ -30,9 +30,9 @@ from app.runs.schemas import (
     SurveyReport,
 )
 from app.templates.enums import SurveyAudience
-from app.templates.models import SurveyTemplate, SurveyTemplateVersion
+from app.templates.models import SurveyTemplate
+from app.templates.reading import questions_of
 from app.templates.repository import TemplateRepository
-from app.templates.snapshot import questions_of
 from app.templates.visibility import remaining_possible
 from app.users.models import User
 from app.users.repository import UserRepository
@@ -132,8 +132,8 @@ class ResultsService:
         row = await self.repo.get_detail(run_id)
         if row is None:
             raise NotFoundError("Run not found.")
-        run, version, _ = row
-        if version.template_id != template_id:
+        run, template_of_run, _ = row
+        if template_of_run.id != template_id:
             raise NotFoundError("That run belongs to a different template.")
         # Numbered across the whole survey rather than within this row, which is why the
         # lookup is a second query rather than something the run carries: a respondent's
@@ -143,7 +143,6 @@ class ResultsService:
             id=run.id,
             respondent_label=respondent_label(numbers[run.respondent_id]),
             status=run.status,
-            version=version.version,
             started_at=run.started_at,
             completed_at=run.completed_at,
             messages=[MessageDetailRead.model_validate(m) for m in run.messages],
@@ -160,17 +159,17 @@ class ResultsService:
         say", which is the question a survey is run to answer, and an author with forty
         respondents was opening forty runs or exporting a spreadsheet to find out.
 
-        Counted against the latest published version. A run started before a republish
-        answered different questions under different ids, and folding those answers in
-        would quietly change what a number means; they are excluded and counted so the
-        omission is on the page rather than in the code.
+        Every run counts. It used to count only those answering the latest published
+        version, excluding earlier ones and saying how many, because a republish changed
+        the questions under different ids. With versions gone there is one set of
+        questions, so there is nothing to exclude, and the honest reading of that is
+        recorded in CLAUDE.md: an answer given before an edit is now reported under the
+        wording that replaced it.
         """
         template = await self._owned_or_404(template_id, author)
-        version = await self.templates.latest_version(template_id)
-        if version is None:
-            raise NotFoundError("This survey has no published version to report on.")
-
-        questions = questions_of(version.definition)
+        if template.published_at is None:
+            raise NotFoundError("This survey has not been published, so it has no results.")
+        questions = questions_of(template)
         # Scripted answers only. A follow-up answers a question the model wrote, not the
         # author's, so counting them here would tally answers to questions nobody chose.
         answers: dict[str, list[dict[str, Any]]] = {q["id"]: [] for q in questions}
@@ -180,22 +179,19 @@ class ResultsService:
         # this?" could show four yeses and nothing about what happened next.
         probes: dict[str, list[dict[str, Any]]] = {q["id"]: [] for q in questions}
         probed_runs: dict[str, set[UUID]] = {q["id"]: set() for q in questions}
-        runs_total = runs_completed = on_earlier = 0
+        runs_total = runs_completed = 0
         # People as well as runs, from rows already loaded. A run count answers "how much
         # material is there"; a person count answers "how many of the people this was for
         # have answered", and before the one-answer-per-person guard those differed by a
         # factor of four on a real survey.
         people_started: set[UUID] = set()
         people_completed: set[UUID] = set()
-        for run, run_version, _ in await self.repo.list_for_template(template_id):
+        for run, _template, _ in await self.repo.list_for_template(template_id):
             runs_total += 1
             people_started.add(run.respondent_id)
             if run.status is RunStatus.completed:
                 runs_completed += 1
                 people_completed.add(run.respondent_id)
-            if run_version.id != version.id:
-                on_earlier += 1
-                continue
             for answer in run.answers:
                 key = str(answer.question_id)
                 if key not in answers:
@@ -209,13 +205,11 @@ class ResultsService:
         return SurveyReport(
             template_id=template.id,
             title=template.title,
-            version=version.version,
             runs_total=runs_total,
             runs_completed=runs_completed,
             reach=(await self._reach_by_audience()).get(template.audience, 0),
             people_started=len(people_started),
             people_completed=len(people_completed),
-            runs_on_earlier_versions=on_earlier,
             questions=[
                 _report_question(q, answers[q["id"]], probes[q["id"]], len(probed_runs[q["id"]]))
                 for q in questions
@@ -230,23 +224,16 @@ class ResultsService:
         another. That join was reachable only one run at a time, so correlating a survey
         of forty meant forty requests and doing the arithmetic by hand.
 
-        Scoped to the latest published version on the same rule as the report: a run
-        that answered different questions under different ids is excluded and counted,
-        not folded in.
+        Every run, on the same rule as the report: there is one set of questions now, so
+        there is nothing to scope to.
         """
         template = await self._owned_or_404(template_id, author)
-        version = await self.templates.latest_version(template_id)
-        if version is None:
-            raise NotFoundError("This survey has no published version to report on.")
-
-        questions = questions_of(version.definition)
+        if template.published_at is None:
+            raise NotFoundError("This survey has not been published, so it has no answers.")
+        questions = questions_of(template)
         numbers = await self.repo.respondent_numbers(template_id)
         runs: list[MatrixRun] = []
-        on_earlier = 0
-        for run, run_version, _ in await self.repo.list_for_template(template_id):
-            if run_version.id != version.id:
-                on_earlier += 1
-                continue
+        for run, _template, _ in await self.repo.list_for_template(template_id):
             runs.append(
                 MatrixRun(
                     run_id=run.id,
@@ -264,7 +251,6 @@ class ResultsService:
         return AnswersMatrix(
             template_id=template.id,
             title=template.title,
-            version=version.version,
             questions=[
                 MatrixQuestion(
                     id=UUID(q["id"]),
@@ -276,7 +262,6 @@ class ResultsService:
                 for q in questions
             ],
             runs=runs,
-            runs_on_earlier_versions=on_earlier,
         )
 
     async def _owned_or_404(self, template_id: UUID, author: User) -> SurveyTemplate:
@@ -466,16 +451,13 @@ def flatten_answer(value: dict[str, Any]) -> str:
     return json.dumps(value)  # future shapes export verbatim rather than crash a download
 
 
-def _summary(
-    run: SurveyRun, version: SurveyTemplateVersion, numbers: dict[UUID, int]
-) -> RunSummary:
-    questions = questions_of(version.definition)
+def _summary(run: SurveyRun, template: SurveyTemplate, numbers: dict[UUID, int]) -> RunSummary:
+    questions = questions_of(template)
     answers = {str(a.question_id): a.value for a in run.answers if a.kind is AnswerKind.scripted}
     return RunSummary(
         id=run.id,
         respondent_label=respondent_label(numbers[run.respondent_id]),
         status=run.status,
-        version=version.version,
         answered=len(answers),
         # Same denominator the respondent sees: questions a condition ruled out were
         # never asked, so counting them would leave every conditional run looking

@@ -95,7 +95,6 @@ function ResultsContent() {
         <>
           <header className="flex flex-wrap items-center justify-between gap-3">
             <h1 className="text-xl font-semibold">{report.title}</h1>
-            <Badge>{msg.report.versionLabel(report.version)}</Badge>
           </header>
 
           {/* Two rates, each labelled with what it is over. They were one tile reading
@@ -126,11 +125,6 @@ function ResultsContent() {
           {/* Said on the page rather than left in the code: those runs answered
               different questions under different ids, so counting them here would
               change what every number means. */}
-          {report.runs_on_earlier_versions > 0 ? (
-            <p className="rounded-lg border border-warn-border bg-warn-fill p-3 text-sm text-warn-text">
-              {msg.report.earlierVersions(report.runs_on_earlier_versions)}
-            </p>
-          ) : null}
 
           {/* Only when the two disagree, which is only on answers given before one
               answer per person was enforced. */}

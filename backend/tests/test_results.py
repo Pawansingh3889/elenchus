@@ -38,14 +38,21 @@ async def test_lists_who_answered_and_how_far_they_got(session, author, responde
     assert summary.respondent_label == "Respondent 1"
     assert summary.status is RunStatus.in_progress
     assert (summary.answered, summary.total) == (1, 2)
-    assert summary.version == 1
     assert summary.completed_at is None
 
 
-async def test_a_run_is_reported_against_the_version_it_answered(
+async def test_a_run_is_re_scored_when_the_author_rewrites_the_survey(
     session, author, respondent, published
 ):
-    """The author rewrites the survey mid-run; the response must not be re-scored."""
+    """The author rewrites the survey mid-run, and the response IS re-scored.
+
+    This is the cost of dropping versions, pinned so nobody meets it by surprise. The
+    test it replaces asserted the opposite and was the guarantee: a run answered the
+    questions frozen at publish, and an author editing afterwards could not change what
+    an existing response was scored against. Now there is one definition, so the run's
+    total follows the edit, and the only record of what was actually asked is the
+    `question_text` stored on each answer row.
+    """
     run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
     await _answer_first(session, run, respondent)
 
@@ -59,11 +66,11 @@ async def test_a_run_is_reported_against_the_version_it_answered(
         ),
         author,
     )
-    assert (await svc.publish(published.id, author)).version == 2
+    await svc.publish(published.id, author)
 
     summary = (await ResultsService(session).list_runs(published.id, author))[0]
-    assert summary.version == 1
-    assert summary.total == 2  # v1's question count, not v2's
+    # One question now, so the run that answered two is measured against one.
+    assert summary.total == 1
 
 
 async def test_detail_returns_the_answers_and_the_transcript(
@@ -300,9 +307,10 @@ async def test_runs_against_an_older_version_are_excluded_and_counted(
     await _answer_all(session, template, other_respondent, [["PPE"]])
 
     report = await ResultsService(session).report(template.id, author)
-    assert report.version == 2
+    # Both runs count. Before, the earlier one was excluded and reported as excluded,
+    # because it had answered different questions under different ids; there is one set
+    # of questions now, so there is nothing to exclude and nothing to say about it.
     assert report.runs_total == 2
-    assert report.runs_on_earlier_versions == 1
     assert [(c.label, c.count) for c in report.questions[0].counts] == [
         ("Cleaning", 0),
         ("Waste", 0),
@@ -515,7 +523,6 @@ async def test_the_matrix_puts_every_answer_beside_the_person_who_gave_it(
 
     matrix = await ResultsService(session).answers_matrix(template.id, author)
 
-    assert matrix.version == 1
     assert [q.text for q in matrix.questions] == [
         "Which aspects need improvement?",
         "Are practices followed consistently?",
@@ -593,12 +600,16 @@ async def test_the_matrix_carries_follow_up_answers_with_their_kind(
     assert answers[1].question_text == "What does that involve day to day?"
 
 
-async def test_the_matrix_excludes_earlier_versions_and_counts_them(
+async def test_the_matrix_covers_every_run_now_that_versions_are_gone(
     session, author, respondent, other_respondent, published
 ):
-    """The report's rule, and for the report's reason: a run that answered different
-    questions under different ids cannot join these columns, so it is left out and named
-    rather than folded in."""
+    """The report's rule, and for the report's reason.
+
+    It used to be the opposite: a run that answered different questions under different
+    ids could not join these columns, so it was left out and named. With one definition
+    per survey there are no other ids, so every run joins the matrix, including one that
+    answered questions the author has since rewritten. The columns are the survey as it
+    stands; an older run simply has nothing under the new ones."""
     stale = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
     await _answer_first(session, stale, respondent)
 
@@ -620,9 +631,7 @@ async def test_the_matrix_excludes_earlier_versions_and_counts_them(
 
     matrix = await ResultsService(session).answers_matrix(published.id, author)
 
-    assert matrix.version == 2
-    assert matrix.runs_on_earlier_versions == 1
-    assert [r.run_id for r in matrix.runs] == [current.id]
+    assert {r.run_id for r in matrix.runs} == {stale.id, current.id}
 
 
 async def test_the_matrix_labels_match_the_run_list(

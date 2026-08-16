@@ -6,21 +6,19 @@ keeps evolving afterwards; respondents only ever see published versions.
 
 import logging
 from datetime import UTC, datetime
-from typing import Any
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.access import is_admin_by_config, may_answer, may_edit, may_list, reads_all_surveys
-from app.config import get_settings
 from app.errors import ConflictError, ForbiddenError, NotFoundError
 from app.templates.enums import TemplateStatus
 from app.templates.estimate import estimated_minutes
-from app.templates.models import SurveyQuestion, SurveyTemplate, SurveyTemplateVersion
+from app.templates.models import SurveyQuestion, SurveyTemplate
+from app.templates.reading import questions_of
 from app.templates.repository import TemplateRepository
 from app.templates.schemas import QuestionInput, TemplateCreate, TemplateUpdate
-from app.templates.snapshot import questions_of
 from app.users.models import User
 from app.users.repository import UserRepository
 
@@ -89,22 +87,23 @@ class TemplateService:
 
     async def list_published(self, user: User) -> list[tuple[SurveyTemplate, int, int, bool]]:
         """Every published survey this user may actually start, with the count and time
-        estimate they will face, read from the published version rather than the evolving
-        draft.
+        estimate they will face. It used to read the published version rather than the
+        evolving draft; with versions gone there is one set of questions, so the gap
+        between what is advertised and what is asked closes by construction.
 
         Filtered by may_answer rather than may_list, because this list is an invitation:
         every row on it is something the reader is about to be offered a Start button for.
         Before audiences existed this method took no user at all and returned everything
         published, which is precisely the bug audiences were introduced to fix."""
         admin = is_admin_by_config(user)
-        rows = await self.repo.list_published_latest()
+        templates = await self.repo.list_published()
         # One query for the lot, not one per row. A survey this person has finished still
         # belongs on the list: hiding it looks like the survey disappeared, and the point
         # is to tell them they have already done it.
         answered = await self.repo.completed_by(user.id)
         return [
             (template, len(questions), estimated_minutes(questions), template.id in answered)
-            for template, definition in rows
+            for template in templates
             if may_answer(
                 user,
                 template.audience,
@@ -112,7 +111,7 @@ class TemplateService:
                 admin,
                 target=template.audience_user_id,
             )
-            for questions in [questions_of(definition)]
+            for questions in [questions_of(template)]
         ]
 
     async def update_draft(
@@ -150,21 +149,34 @@ class TemplateService:
             await self.session.rollback()
             raise ConflictError("Cannot delete a template that has published versions.") from exc
 
-    async def publish(self, template_id: UUID, author: User) -> SurveyTemplateVersion:
+    async def publish(self, template_id: UUID, author: User) -> SurveyTemplate:
+        """Open this survey for answers.
+
+        A status change, and nothing more. It used to freeze the draft into an immutable
+        version, and dropping that was asked for directly on 16 Aug 2026: what it bought
+        was that a published survey could not change under the people answering it, and
+        what it cost was a second definition to keep in step. The cost of losing it is
+        recorded in CLAUDE.md rather than left for a reader to discover, because from
+        here an edit to a published survey changes the question earlier answers were
+        given to, and each answer's own `question_text` is the only record of the wording
+        it was asked under.
+
+        `published_at` and `published_by` are set once, on the first publish. Re-opening
+        a survey is not a new publication, and moving the date would rewrite when it went
+        out.
+        """
         template = await self._get_for_edit_or_404(template_id, author)
         if not template.questions:
             raise ConflictError("Cannot publish a template with no questions.")
-        version = SurveyTemplateVersion(
-            template_id=template.id,
-            version=await self.repo.next_version(template_id),
-            definition=_snapshot(template),
-            published_by=author.id,
-        )
-        self.repo.add_version(version)
         template.status = TemplateStatus.published
+        if template.published_at is None:
+            template.published_at = datetime.now(UTC)
+            template.published_by = author.id
         await self.session.commit()
-        await self.session.refresh(version)
-        return version
+        # Re-read rather than refresh: a commit expires everything, and `refresh` brings
+        # back the columns while leaving `questions` unloaded, which is both a lazy load
+        # waiting to happen and a response body missing the questions it promises.
+        return await self._get_for_edit_or_404(template_id, author)
 
     async def close(self, template_id: UUID, author: User) -> SurveyTemplate:
         """Stop this survey taking new answers. Runs already in progress are untouched.
@@ -186,8 +198,10 @@ class TemplateService:
         template.status = TemplateStatus.closed
         template.closed_at = datetime.now(UTC)
         await self.session.commit()
-        await self.session.refresh(template)
-        return template
+        # Re-read rather than refresh: a commit expires everything, and `refresh` brings
+        # back the columns while leaving `questions` unloaded, which is both a lazy load
+        # waiting to happen and a response body missing the questions it promises.
+        return await self._get_for_edit_or_404(template_id, author)
 
     async def _get_or_404(self, template_id: UUID, author: User) -> SurveyTemplate:
         template = await self.repo.get(template_id)
@@ -253,33 +267,3 @@ def _to_question(q: QuestionInput, position: int) -> SurveyQuestion:
         follow_up_policy=q.follow_up_policy,
         show_when=q.show_when.model_dump(mode="json") if q.show_when else None,
     )
-
-
-def _snapshot(template: SurveyTemplate) -> dict[str, Any]:
-    return {
-        "title": template.title,
-        "description": template.description,
-        # Frozen with the questions: a run is conducted against the setting the
-        # author published, not whatever the draft says by the time it is answered.
-        #
-        # Falls back to the deployment's own, because the plant does not change between
-        # surveys and asking every author to retype it is how it ends up wrong on half
-        # of them. Frozen here rather than read at conduct time for the same reason the
-        # questions are: editing the deployment's description must not change how answers
-        # already being given are read. A survey that carries its own keeps it.
-        "setting": template.setting or get_settings().survey_setting or None,
-        "questions": [
-            {
-                "id": str(q.id),
-                "position": q.position,
-                "text": q.text,
-                "answer_type": q.answer_type.value,
-                "options": q.options,
-                "allow_other": q.allow_other,
-                "required": q.required,
-                "follow_up_policy": q.follow_up_policy.value,
-                "show_when": q.show_when,
-            }
-            for q in sorted(template.questions, key=lambda x: x.position)
-        ],
-    }

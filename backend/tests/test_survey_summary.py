@@ -96,7 +96,6 @@ async def test_recaps_a_survey_and_attaches_the_real_counts(session, author, res
 
     assert recap.headline.startswith("The line stops")
     assert recap.runs_included == 1
-    assert recap.version == 1
     machine, reported = recap.findings
     assert machine.question_text == "Which machine stops most often?"
     assert machine.answered == 1
@@ -367,9 +366,13 @@ async def test_the_caveat_is_the_engines_numbers(session, author, respondent):
     assert stored.recap.caveat == "1 of 2 answered."
 
 
-def test_the_caveat_names_earlier_versions_and_declined_questions():
-    """The two qualifiers, exercised directly: each appears only when it is true, so
-    the ordinary recap stays one clause long."""
+def test_the_caveat_names_a_mostly_declined_question():
+    """The qualifier, exercised directly: it appears only when it is true, so the
+    ordinary recap stays one clause long.
+
+    It used to have a second clause naming runs that answered an earlier version, which
+    the report excluded. Versions are gone and nothing is excluded, so a caveat about an
+    exclusion that cannot happen would be worse than no caveat at all."""
     from uuid import uuid4
 
     from app.runs.schemas import QuestionReport, SurveyReport
@@ -396,22 +399,16 @@ def test_the_caveat_names_earlier_versions_and_declined_questions():
         base = dict(
             template_id=uuid4(),
             title="T",
-            version=2,
             runs_total=3,
             runs_completed=3,
             reach=8,
             people_started=4,
             people_completed=3,
-            runs_on_earlier_versions=0,
             questions=[],
         )
         return SurveyReport(**{**base, **kw})
 
     assert _caveat(report()) == "3 of 8 answered."
-    assert (
-        _caveat(report(runs_on_earlier_versions=2))
-        == "3 of 8 answered; 2 answered an earlier version, not counted here."
-    )
     assert (
         _caveat(report(questions=[question(0, 3, 0), question(2, 1, 2)]))
         == "3 of 8 answered; question 3 was mostly declined."

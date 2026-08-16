@@ -80,9 +80,13 @@ def test_an_unknown_type_still_counts_as_a_question() -> None:
 # ------------------------------------------------- the published list describes the version
 
 
-async def test_the_published_list_describes_the_version_not_the_draft(session, author):
-    """The draft keeps evolving after publication. Counting its questions advertised a
-    survey that does not exist yet — three questions on the home page, two in the run."""
+async def test_the_published_list_describes_the_survey_as_it_stands(session, author):
+    """An edit after publication is what a respondent will be asked.
+
+    This test used to assert the opposite, and it was the point of versions: the draft
+    kept evolving after publication, so counting its questions advertised a survey that
+    did not exist yet, three on the home page and two in the run. With one definition
+    there is no gap to mind, and the list describes exactly what the runner will ask."""
     svc = TemplateService(session)
     template = await svc.create_draft(
         TemplateCreate(title="Drift", questions=[_q("one"), _q("two")]), author
@@ -97,7 +101,7 @@ async def test_the_published_list_describes_the_version_not_the_draft(session, a
     listed = [row for row in await svc.list_published(author) if row[0].id == template.id]
     _, question_count, minutes, _answered = listed[0]
 
-    assert question_count == 2  # what a respondent is actually asked
+    assert question_count == 3  # the edit is live, and it is what will be asked
     assert minutes >= 1
 
 
