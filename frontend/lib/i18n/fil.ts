@@ -174,6 +174,16 @@ export const fil: Messages = {
     surveysRunning: "tumatakbo",
     responsesIn: "natanggap na sagot",
   },
+  signin: {
+    title: "Mag-sign in sa Elenchus",
+    subtitle: "Mga survey para sa planta, itinatanong bilang usapan.",
+    noProviders: "Hindi pa naka-set up ang pag-sign in sa deployment na ito. Hilingin sa IT na mag-configure ng provider.",
+    needsSignIn: "Kailangang malaman ng pahinang ito kung sino ka.",
+    goToSignIn: "Pumunta sa pag-sign in",
+    noAccountTitle: "Wala pang account?",
+    noAccountBody:
+      "Ang mga account ay ginagawa ng administrator, dahil ang magagawa mo rito ay nakabatay sa iyong trabaho. Hilingin sa iyong manager o sa IT na idagdag ka.",
+  },
   landing: {
     heroTitle: "Mga survey na nagtatanong na parang tao, hindi parang form",
     heroBody:

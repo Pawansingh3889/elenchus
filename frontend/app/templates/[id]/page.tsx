@@ -22,6 +22,7 @@ import {
   useUsers,
 } from "@/lib/queries";
 import { ApiError } from "@/lib/api";
+import { SignInPrompt } from "@/components/SignInPrompt";
 import { useT } from "@/lib/i18n/useT";
 import { useDraftNoteStore, useLocaleStore, useUserStore } from "@/lib/store";
 import type { SurveyAudience } from "@/lib/types";
@@ -99,7 +100,7 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
     );
   }
 
-  if (!currentUserId) return <div className="empty">{msg.builder.pickUser}</div>;
+  if (!currentUserId) return <SignInPrompt />;
   if (isRespondent) return <div className="empty">{msg.home.goingToRespond}</div>;
   if (isLoading) return <div className="muted">{msg.common.loading}</div>;
   if (error || !template) {

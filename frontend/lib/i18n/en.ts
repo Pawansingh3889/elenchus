@@ -183,6 +183,16 @@ export const en = {
     describePlaceholder:
       "Describe the survey… e.g. An onboarding survey for factory staff: their role, the systems they use daily, and their biggest data frustrations.",
   },
+  signin: {
+    title: "Sign in to Elenchus",
+    subtitle: "Surveys for the plant, asked as a conversation.",
+    noProviders: "Sign-in is not set up on this deployment yet. Ask IT to configure a provider.",
+    needsSignIn: "This page needs to know who you are.",
+    goToSignIn: "Go to sign in",
+    noAccountTitle: "No account yet?",
+    noAccountBody:
+      "Accounts are created by an administrator, because what you can do here follows from your job. Ask your manager or IT to add you.",
+  },
   landing: {
     heroTitle: "Surveys that ask like a person, not a form",
     heroBody:

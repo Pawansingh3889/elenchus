@@ -175,6 +175,16 @@ export const pl: Messages = {
     surveysRunning: "w toku",
     responsesIn: "otrzymanych odpowiedzi",
   },
+  signin: {
+    title: "Zaloguj się do Elenchus",
+    subtitle: "Ankiety dla zakładu, zadawane jak rozmowa.",
+    noProviders: "Logowanie nie jest jeszcze skonfigurowane w tym wdrożeniu. Poproś IT o skonfigurowanie dostawcy.",
+    needsSignIn: "Ta strona musi wiedzieć, kim jesteś.",
+    goToSignIn: "Przejdź do logowania",
+    noAccountTitle: "Nie masz jeszcze konta?",
+    noAccountBody:
+      "Konta zakłada administrator, ponieważ Twoje uprawnienia wynikają ze stanowiska. Poproś przełożonego lub IT o dodanie Cię.",
+  },
   landing: {
     heroTitle: "Ankiety, które pytają jak człowiek, a nie jak formularz",
     heroBody:

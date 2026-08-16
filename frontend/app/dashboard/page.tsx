@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { EmptyState } from "@/components/EmptyState";
+import { SignInPrompt } from "@/components/SignInPrompt";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { Stat } from "@/components/Stat";
 import { Badge } from "@/components/ui/badge";
@@ -41,7 +42,9 @@ export default function Dashboard() {
   }, [isRespondent, router]);
 
   if (!currentUserId) {
-    return <p className="p-6 text-muted">{home.pickUser}</p>;
+    // The sign-in page, not a sentence telling them to find a control. It carries the
+    // provider buttons and the explanation of why an unknown address is refused.
+    return <SignInPrompt />;
   }
   if (isRespondent) {
     return <p className="p-6 text-muted">{home.goingToRespond}</p>;

@@ -175,6 +175,16 @@ export const lv: Messages = {
     surveysRunning: "norit",
     responsesIn: "saņemtas atbildes",
   },
+  signin: {
+    title: "Pieteikties Elenchus",
+    subtitle: "Rūpnīcas aptaujas, uzdotas kā saruna.",
+    noProviders: "Pieteikšanās šajā vidē vēl nav iestatīta. Lūdziet IT konfigurēt pakalpojumu sniedzēju.",
+    needsSignIn: "Šai lapai jāzina, kas jūs esat.",
+    goToSignIn: "Doties uz pieteikšanos",
+    noAccountTitle: "Vēl nav konta?",
+    noAccountBody:
+      "Kontus izveido administrators, jo jūsu tiesības šeit izriet no amata. Lūdziet vadītājam vai IT jūs pievienot.",
+  },
   landing: {
     heroTitle: "Aptaujas, kas jautā kā cilvēks, nevis kā veidlapa",
     heroBody:

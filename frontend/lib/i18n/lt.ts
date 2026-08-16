@@ -175,6 +175,16 @@ export const lt: Messages = {
     surveysRunning: "vykdomos",
     responsesIn: "gauta atsakymų",
   },
+  signin: {
+    title: "Prisijungti prie Elenchus",
+    subtitle: "Gamyklos apklausos, užduodamos kaip pokalbis.",
+    noProviders: "Prisijungimas šioje diegimo aplinkoje dar nesukonfigūruotas. Paprašykite IT sukonfigūruoti tiekėją.",
+    needsSignIn: "Šiam puslapiui reikia žinoti, kas jūs esate.",
+    goToSignIn: "Eiti prisijungti",
+    noAccountTitle: "Dar neturite paskyros?",
+    noAccountBody:
+      "Paskyras kuria administratorius, nes jūsų teisės čia kyla iš pareigų. Paprašykite vadovo arba IT jus pridėti.",
+  },
   landing: {
     heroTitle: "Apklausos, kurios klausia kaip žmogus, o ne kaip forma",
     heroBody:

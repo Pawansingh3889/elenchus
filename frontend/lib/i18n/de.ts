@@ -175,6 +175,16 @@ export const de: Messages = {
     surveysRunning: "laufen",
     responsesIn: "Antworten eingegangen",
   },
+  signin: {
+    title: "Bei Elenchus anmelden",
+    subtitle: "Umfragen für den Betrieb, als Gespräch gestellt.",
+    noProviders: "Die Anmeldung ist auf dieser Installation noch nicht eingerichtet. Bitten Sie die IT, einen Anbieter zu konfigurieren.",
+    needsSignIn: "Diese Seite muss wissen, wer Sie sind.",
+    goToSignIn: "Zur Anmeldung",
+    noAccountTitle: "Noch kein Konto?",
+    noAccountBody:
+      "Konten werden von einer Administratorin angelegt, weil sich Ihre Rechte hier aus Ihrer Stelle ergeben. Bitten Sie Ihre Führungskraft oder die IT.",
+  },
   landing: {
     heroTitle: "Umfragen, die fragen wie ein Mensch, nicht wie ein Formular",
     heroBody:

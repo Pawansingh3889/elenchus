@@ -175,6 +175,16 @@ export const ro: Messages = {
     surveysRunning: "în desfășurare",
     responsesIn: "răspunsuri primite",
   },
+  signin: {
+    title: "Conectare la Elenchus",
+    subtitle: "Chestionare pentru fabrică, puse ca o conversație.",
+    noProviders: "Conectarea nu este încă configurată pe această instalare. Cereți IT să configureze un furnizor.",
+    needsSignIn: "Această pagină trebuie să știe cine sunteți.",
+    goToSignIn: "Mergeți la conectare",
+    noAccountTitle: "Încă nu aveți cont?",
+    noAccountBody:
+      "Conturile sunt create de un administrator, pentru că drepturile dumneavoastră aici decurg din post. Cereți managerului sau IT să vă adauge.",
+  },
   landing: {
     heroTitle: "Chestionare care întreabă ca un om, nu ca un formular",
     heroBody:

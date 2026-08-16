@@ -175,6 +175,16 @@ export const es: Messages = {
     surveysRunning: "en curso",
     responsesIn: "respuestas recibidas",
   },
+  signin: {
+    title: "Iniciar sesión en Elenchus",
+    subtitle: "Encuestas para la planta, planteadas como una conversación.",
+    noProviders: "El inicio de sesión aún no está configurado en esta instalación. Pida a TI que configure un proveedor.",
+    needsSignIn: "Esta página necesita saber quién es usted.",
+    goToSignIn: "Ir a iniciar sesión",
+    noAccountTitle: "¿Aún no tiene cuenta?",
+    noAccountBody:
+      "Las cuentas las crea un administrador, porque lo que puede hacer aquí se deriva de su puesto. Pida a su responsable o a TI que le den de alta.",
+  },
   landing: {
     heroTitle: "Encuestas que preguntan como una persona, no como un formulario",
     heroBody:

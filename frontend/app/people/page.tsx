@@ -18,6 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { hatLabel, jobLabel } from "@/lib/audience";
+import { SignInPrompt } from "@/components/SignInPrompt";
 import { useT } from "@/lib/i18n/useT";
 import { useCurrentUser, useMe, usePeople } from "@/lib/queries";
 import { useUserStore } from "@/lib/store";
@@ -60,7 +61,7 @@ export default function People() {
     if (isRespondent) router.replace("/respond");
   }, [isRespondent, router]);
 
-  if (!currentUserId) return <p className="p-6 text-muted">{home.pickUser}</p>;
+  if (!currentUserId) return <SignInPrompt />;
   if (isRespondent) return <p className="p-6 text-muted">{home.goingToRespond}</p>;
 
   return (
