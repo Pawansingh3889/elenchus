@@ -14,10 +14,17 @@
  *
  * Only string literals are checked. A class assembled at runtime is invisible here,
  * which is a real limit and the reason this is a guard rather than a proof.
+ *
+ * `classNamesIn` is exported and pinned by tests/classGuard.test.ts, and the scan below
+ * runs only when this file is the process entry point. That is not ceremony: for its
+ * whole life this guard read no plain `className="…"` string at all (see the note on
+ * the regex), and nothing noticed, because a guard with no test of its own passes
+ * silently whether it is checking everything or nothing.
  */
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 
 import { compile } from "tailwindcss";
 
@@ -35,14 +42,22 @@ const SKIP = [path.join("lib", "i18n")];
  * localStorage keys, all of which are kebab-case and none of which is a class; the
  * noise was large enough to bury a real finding, which is the only thing this is for.
  */
-function classNamesIn(source) {
+export function classNamesIn(source) {
   const found = new Set();
   const regions = [];
   // className="…" and className={ … } up to the closing brace of the expression, plus
   // the argument lists of cn() and cva(). Brace matching is deliberately shallow: a
   // className expression that nests braces is rare and the worst case is reading a
   // little less than everything, never reporting something that is not there.
-  for (const match of source.matchAll(/className\s*=\s*"([^"]*)"/g)) regions.push(match[1]);
+  //
+  // A region is scanned for *quoted* literals below, so it has to keep its quotes. The
+  // whole match, not the capture: pushing the capture handed the loop the bare text
+  // between the quotes, which contains no quoted literal and therefore contributed
+  // nothing. The plainest way to name a class was the one form this guard never read,
+  // and it stayed that way from the day it was written until 17 Aug 2026, when a
+  // CSS-less name inside a cn() was rejected while the identical one in a plain string
+  // three files away had been passing all along.
+  for (const match of source.matchAll(/className\s*=\s*"([^"]*)"/g)) regions.push(match[0]);
   for (const match of source.matchAll(/className\s*=\s*\{([\s\S]*?)\}\s*\n?\s*(?:\/?>|\w+=)/g)) {
     regions.push(match[1]);
   }
@@ -78,74 +93,79 @@ function sourceFiles(dir, out = []) {
   return out;
 }
 
-const candidates = new Map(); // class -> the files that name it
-for (const dir of SOURCE_DIRS) {
-  const full = path.join(ROOT, dir);
-  if (!fs.existsSync(full)) continue;
-  for (const file of sourceFiles(full)) {
-    const source = fs.readFileSync(file, "utf8");
-    for (const name of classNamesIn(source)) {
-      if (!candidates.has(name)) candidates.set(name, new Set());
-      candidates.get(name).add(path.relative(ROOT, file));
+// The scan runs only when this file is the process entry point, so a test can import
+// `classNamesIn` above without the whole codebase being scanned and `process.exit`
+// being called out from under the runner.
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const candidates = new Map(); // class -> the files that name it
+  for (const dir of SOURCE_DIRS) {
+    const full = path.join(ROOT, dir);
+    if (!fs.existsSync(full)) continue;
+    for (const file of sourceFiles(full)) {
+      const source = fs.readFileSync(file, "utf8");
+      for (const name of classNamesIn(source)) {
+        if (!candidates.has(name)) candidates.set(name, new Set());
+        candidates.get(name).add(path.relative(ROOT, file));
+      }
     }
   }
-}
 
-const entry = fs.readFileSync(path.join(ROOT, "app/tailwind.css"), "utf8");
-const compiled = await compile(entry, {
-  base: path.join(ROOT, "app"),
-  loadStylesheet: async (id) => {
-    const resolved = require.resolve(id);
-    return {
-      base: path.dirname(resolved),
-      path: resolved,
-      content: fs.readFileSync(resolved, "utf8"),
-    };
-  },
-});
+  const entry = fs.readFileSync(path.join(ROOT, "app/tailwind.css"), "utf8");
+  const compiled = await compile(entry, {
+    base: path.join(ROOT, "app"),
+    loadStylesheet: async (id) => {
+      const resolved = require.resolve(id);
+      return {
+        base: path.dirname(resolved),
+        path: resolved,
+        content: fs.readFileSync(resolved, "utf8"),
+      };
+    },
+  });
 
-const names = [...candidates.keys()];
-const css = compiled.build(names);
+  const names = [...candidates.keys()];
+  const css = compiled.build(names);
 
-// A class that produced a rule appears in the output, escaped the way CSS needs.
-const escape = (name) => name.replace(/[.:[\]()/%,#'=$!?{}|^&>+~*]/g, (ch) => "\\" + ch);
-const produced = (name) => css.includes("." + escape(name));
+  // A class that produced a rule appears in the output, escaped the way CSS needs.
+  const escape = (name) => name.replace(/[.:[\]()/%,#'=$!?{}|^&>+~*]/g, (ch) => "\\" + ch);
+  const produced = (name) => css.includes("." + escape(name));
 
-// Words that look like classes and are not: they never had a rule to produce, and
-// the guard would report every one of them on every run. Kept short deliberately.
-const NOT_A_CLASS =
-  /^(true|false|null|undefined|button|div|span|img|svg|use|href|src|alt|type|role|id|key|name|value|title|width|height|http|https|utf-8|application\/json|text\/plain|get|post|put|patch|delete|assistant|user|and|or|the|a|an|is|to|of|in|on|for|with|by|at|as|it|be|are|was|were|this|that|from|not|no|yes|one|two|all|any|new|old|off|up|down|left|right|start|end|center|top|bottom|none|auto|both|never|always|polite|assertive|dialog|alert|status|main|nav|header|footer|section|article|aside|form|input|label|select|option|table|thead|tbody|tr|th|td|ul|ol|li|p|h1|h2|h3|h4|h5|h6|a11y|aria|data|dark|light|system|en|ar|he|ur|hi|bn|es|fr|de)$/;
+  // Words that look like classes and are not: they never had a rule to produce, and
+  // the guard would report every one of them on every run. Kept short deliberately.
+  const NOT_A_CLASS =
+    /^(true|false|null|undefined|button|div|span|img|svg|use|href|src|alt|type|role|id|key|name|value|title|width|height|http|https|utf-8|application\/json|text\/plain|get|post|put|patch|delete|assistant|user|and|or|the|a|an|is|to|of|in|on|for|with|by|at|as|it|be|are|was|were|this|that|from|not|no|yes|one|two|all|any|new|old|off|up|down|left|right|start|end|center|top|bottom|none|auto|both|never|always|polite|assertive|dialog|alert|status|main|nav|header|footer|section|article|aside|form|input|label|select|option|table|thead|tbody|tr|th|td|ul|ol|li|p|h1|h2|h3|h4|h5|h6|a11y|aria|data|dark|light|system|en|ar|he|ur|hi|bn|es|fr|de)$/;
 
-// The hand-written classes globals.css actually defines. Read rather than guessed at
-// by shape: "is it kebab-case" would exempt `inset-inline-end-3`, which is precisely
-// the invented-utility mistake this guard exists to catch. A name is legacy only if
-// there is a rule for it in the stylesheet.
-const legacy = new Set();
-for (const [, selector] of fs
-  .readFileSync(path.join(ROOT, "app/globals.css"), "utf8")
-  .matchAll(/\.([a-zA-Z][\w-]*)/g)) {
-  legacy.add(selector);
-}
-
-const missing = [];
-for (const name of names) {
-  if (NOT_A_CLASS.test(name)) continue;
-  // Only things shaped like a utility: a dash, a variant colon, or a bracketed
-  // arbitrary value. A bare word is prose far more often than it is a class.
-  if (!/[-:[]/.test(name)) continue;
-  if (legacy.has(name)) continue;
-  if (!produced(name)) missing.push(name);
-}
-
-if (missing.length) {
-  console.error(
-    `FAIL: ${missing.length} class name(s) produce no CSS. Either the utility does ` +
-      `not exist, or its token is missing from app/tailwind.css:`,
-  );
-  for (const name of missing.sort()) {
-    console.error(`  ${name}  (in ${[...candidates.get(name)].sort().join(", ")})`);
+  // The hand-written classes globals.css actually defines. Read rather than guessed at
+  // by shape: "is it kebab-case" would exempt `inset-inline-end-3`, which is precisely
+  // the invented-utility mistake this guard exists to catch. A name is legacy only if
+  // there is a rule for it in the stylesheet.
+  const legacy = new Set();
+  for (const [, selector] of fs
+    .readFileSync(path.join(ROOT, "app/globals.css"), "utf8")
+    .matchAll(/\.([a-zA-Z][\w-]*)/g)) {
+    legacy.add(selector);
   }
-  process.exit(1);
-}
 
-console.log(`ok: every Tailwind class produces CSS, ${names.length} candidate(s) checked`);
+  const missing = [];
+  for (const name of names) {
+    if (NOT_A_CLASS.test(name)) continue;
+    // Only things shaped like a utility: a dash, a variant colon, or a bracketed
+    // arbitrary value. A bare word is prose far more often than it is a class.
+    if (!/[-:[]/.test(name)) continue;
+    if (legacy.has(name)) continue;
+    if (!produced(name)) missing.push(name);
+  }
+
+  if (missing.length) {
+    console.error(
+      `FAIL: ${missing.length} class name(s) produce no CSS. Either the utility does ` +
+        `not exist, or its token is missing from app/tailwind.css:`,
+    );
+    for (const name of missing.sort()) {
+      console.error(`  ${name}  (in ${[...candidates.get(name)].sort().join(", ")})`);
+    }
+    process.exit(1);
+  }
+
+  console.log(`ok: every Tailwind class produces CSS, ${names.length} candidate(s) checked`);
+}

@@ -97,7 +97,7 @@ export function ControlBar({
   return (
     <div
       ref={ref}
-      className="results-controls sticky top-0 z-20 -mx-4 border-b border-line bg-canvas/95 px-4 py-2 backdrop-blur"
+      className="sticky top-0 z-20 -mx-4 border-b border-line bg-canvas/95 px-4 py-2 backdrop-blur"
     >
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <label className="flex items-center gap-2 text-sm text-muted">

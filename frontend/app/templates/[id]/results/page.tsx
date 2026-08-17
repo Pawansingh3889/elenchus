@@ -115,7 +115,9 @@ function ResultsContent() {
   if (isRespondent) return <p className="p-6 text-muted">{msg.home.goingToRespond}</p>;
 
   return (
-    // The stable hook e2e/shot.mjs waits on for this page.
+    // results-page is what globals.css widens the shell for, via :has. It used to be
+    // the hook a Playwright screenshot script waited on; that script went with the
+    // browser suite in 2f56dfb, so the class earns its place from the stylesheet now.
     <div className="results-page mx-auto flex max-w-7xl flex-col gap-4 p-4">
       <SurveyNav templateId={id} current="results" />
 
