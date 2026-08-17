@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { FlagStrip } from "@/components/results/FlagStrip";
 import { QuestionCard } from "@/components/results/QuestionCard";
+import { QuestionRail } from "@/components/results/QuestionRail";
 import { RecapPanel } from "@/components/results/RecapPanel";
 import { RespondentTable } from "@/components/results/RespondentTable";
 import { RunPanel } from "@/components/results/RunPanel";
@@ -115,7 +116,7 @@ function ResultsContent() {
 
   return (
     // The stable hook e2e/shot.mjs waits on for this page.
-    <div className="results-page mx-auto flex max-w-5xl flex-col gap-4 p-4">
+    <div className="results-page mx-auto flex max-w-7xl flex-col gap-4 p-4">
       <SurveyNav templateId={id} current="results" />
 
       {isLoading ? (
@@ -219,84 +220,98 @@ function ResultsContent() {
 
           {slice && shown.length === 0 ? <EmptyState title={msg.results.sliceEmpty} /> : null}
 
-          {matrix && shown.length > 0 ? (
-            <RespondentTable
-              matrix={matrix}
-              runs={shown}
-              openRun={openRun}
-              onOpen={(runId) => setParam("run", runId)}
-            />
-          ) : null}
-
           {questions.length > 0 && shown.length > 0 ? (
-            <section className="flex flex-col gap-3">
-              <h2 className="text-md font-semibold">{msg.results.questionsHeading}</h2>
-              {/* Tiles, not a column. One card per row spent 992px on a bar for a
-                  count of one and made eight questions five screens tall. Two columns
-                  from lg up; a card decides its own span (see QuestionCard), and the
-                  grid is not dense, so Q4 never appears above Q3 to fill a gap. */}
-              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-              {questions.map(({ report: question, runIds, series }, i) => (
-                <QuestionCard
-                  key={question.id}
-                  question={question}
-                  position={i}
-                  series={compareQuestion && compareQuestion.id !== question.id ? series : []}
-                  flagged={flagged.has(question.id)}
-                  slice={slice}
-                  onSlice={(next) => setParam("slice", next ? formatSlice(next) : null)}
-                  pageComparing={Boolean(compareQuestion)}
-                >
-                  {/* Counted on the page, read on click: forty open answers is a long
-                      list to scroll past on the way to the next question, and grouping
-                      them would mean deciding what people meant, which this is not.
-                      Each one links to the response it came from, which the report
-                      endpoint could not do because it drops the attribution. */}
-                  {question.verbatim.length > 0 ? (
-                    <details className="mt-3">
-                      <summary className="cursor-pointer text-sm text-muted">
-                        {msg.report.inTheirWords(question.verbatim.length)}
-                      </summary>
-                      <ul className="mt-2 flex flex-col gap-1 ps-4">
-                        {question.verbatim.map((v, j) => (
-                          <li key={j} className="list-disc text-sm">
-                            {runIds[j] ? (
-                              <button
-                                type="button"
-                                className="cursor-pointer text-start underline-offset-4 hover:underline"
-                                onClick={() => setParam("run", runIds[j])}
-                              >
-                                {v}
-                              </button>
-                            ) : (
-                              v
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    </details>
-                  ) : null}
+            /* The rail beside what it points at, and the respondent table below the
+               charts rather than above them: aggregate first, then the rows behind it,
+               which is the order every results dashboard settles on and the order an
+               author reads in. min-w-0 so the table inside can scroll rather than
+               stretching the column to its own width. */
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
+              <QuestionRail
+                questions={questions.map(({ report: q }) => ({ id: q.id, text: q.text }))}
+                flagged={flagged}
+              />
 
-                  {/* Its own list, below the answers rather than mixed into them: a
-                      follow-up answers a question the model wrote. */}
-                  {question.follow_ups.length > 0 ? (
-                    <details className="mt-2">
-                      <summary className="cursor-pointer text-sm text-muted">
-                        {msg.report.whatProbesFound(question.follow_ups.length)}
-                      </summary>
-                      <ul className="mt-2 flex flex-col gap-1 ps-4">
-                        {question.follow_ups.map((v, j) => (
-                          <li key={j} className="list-disc text-sm">
-                            {v}
-                          </li>
-                        ))}
-                      </ul>
-                    </details>
-                  ) : null}
-                </QuestionCard>
-              ))}
+              <div className="flex min-w-0 flex-1 flex-col gap-4">
+                <section className="flex flex-col gap-3">
+                  <h2 className="text-md font-semibold">{msg.results.questionsHeading}</h2>
+                  {/* Tiles, not a column. One card per row spent 992px on a bar for a
+                      count of one and made eight questions five screens tall. Two columns
+                      from lg up; a card decides its own span (see QuestionCard), and the
+                      grid is not dense, so Q4 never appears above Q3 to fill a gap. */}
+                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                    {questions.map(({ report: question, runIds, series }, i) => (
+                      <QuestionCard
+                        key={question.id}
+                        question={question}
+                        position={i}
+                        series={compareQuestion && compareQuestion.id !== question.id ? series : []}
+                        flagged={flagged.has(question.id)}
+                        slice={slice}
+                        onSlice={(next) => setParam("slice", next ? formatSlice(next) : null)}
+                        pageComparing={Boolean(compareQuestion)}
+                      >
+                        {/* Counted on the page, read on click: forty open answers is a long
+                            list to scroll past on the way to the next question, and grouping
+                            them would mean deciding what people meant, which this is not.
+                            Each one links to the response it came from, which the report
+                            endpoint could not do because it drops the attribution. */}
+                        {question.verbatim.length > 0 ? (
+                          <details className="mt-3">
+                            <summary className="cursor-pointer text-sm text-muted">
+                              {msg.report.inTheirWords(question.verbatim.length)}
+                            </summary>
+                            <ul className="mt-2 flex flex-col gap-1 ps-4">
+                              {question.verbatim.map((v, j) => (
+                                <li key={j} className="list-disc text-sm">
+                                  {runIds[j] ? (
+                                    <button
+                                      type="button"
+                                      className="cursor-pointer text-start underline-offset-4 hover:underline"
+                                      onClick={() => setParam("run", runIds[j])}
+                                    >
+                                      {v}
+                                    </button>
+                                  ) : (
+                                    v
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          </details>
+                        ) : null}
+
+                        {/* Its own list, below the answers rather than mixed into them: a
+                            follow-up answers a question the model wrote. */}
+                        {question.follow_ups.length > 0 ? (
+                          <details className="mt-2">
+                            <summary className="cursor-pointer text-sm text-muted">
+                              {msg.report.whatProbesFound(question.follow_ups.length)}
+                            </summary>
+                            <ul className="mt-2 flex flex-col gap-1 ps-4">
+                              {question.follow_ups.map((v, j) => (
+                                <li key={j} className="list-disc text-sm">
+                                  {v}
+                                </li>
+                              ))}
+                            </ul>
+                          </details>
+                        ) : null}
+                      </QuestionCard>
+                    ))}
+                  </div>
+                </section>
+
+                {matrix && shown.length > 0 ? (
+                  <RespondentTable
+                    matrix={matrix}
+                    runs={shown}
+                    openRun={openRun}
+                    onOpen={(runId) => setParam("run", runId)}
+                  />
+                ) : null}
               </div>
-            </section>
+            </div>
           ) : null}
         </>
       ) : null}

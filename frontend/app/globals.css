@@ -417,6 +417,14 @@ select {
   margin: 0 auto;
   padding: 24px 20px 60px;
 }
+/* The one page that is not a column of prose. A rail beside a two-column grid needs
+   more than the reading width the rest of the app is set to, and at 1120px the cards
+   came out narrower than they were before the grid existed. Scoped with :has rather
+   than raising the width globally, so the dashboard, the builder and the directory keep
+   the measure they were designed at. */
+.app-main:has(.results-page) {
+  max-width: 1280px;
+}
 .page {
   display: flex;
   flex-direction: column;

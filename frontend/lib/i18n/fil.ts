@@ -365,6 +365,7 @@ export const fil: Messages = {
     clickToUnslice: "I-click para ipakita ulit ang lahat",
     legendSlice: (g: string) => `Ipakita lang ang ${g}`,
     unfoldZeros: (n: number) => `${n} na opsyon na walang pumili`,
+    railNumber: (n: number) => `T${n}`,
     foldZeros: (n: number) => `Itago ang ${n} na walang pumili`,
     sliceEmpty: "Walang sumagot nang ganoon, kaya walang maipapakita.",
     exportCsv: "I-download ang CSV",

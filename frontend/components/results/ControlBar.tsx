@@ -1,6 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -65,6 +66,26 @@ export function ControlBar({
   total: number;
 }) {
   const msg = useT();
+  // How tall this bar is, published as a custom property for everything that has to sit
+  // clear of it: the rail sticks below it, and a card scrolled to from the rail or the
+  // flag strip must land under it rather than behind it. Measured rather than guessed,
+  // because the height moves with the chips and the legend, from 57px to 142px on this
+  // survey alone, and a constant that fits one of those states hides content in another.
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const publish = () =>
+      document.documentElement.style.setProperty("--controls-h", `${el.offsetHeight}px`);
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.removeProperty("--controls-h");
+    };
+  }, []);
+
   const sliceable = sliceableQuestions(questions);
   if (sliceable.length === 0) return null;
 
@@ -74,7 +95,10 @@ export function ControlBar({
   const anythingSet = Boolean(slice || compareBy);
 
   return (
-    <div className="results-controls sticky top-0 z-10 -mx-4 border-b border-line bg-canvas/95 px-4 py-2 backdrop-blur">
+    <div
+      ref={ref}
+      className="results-controls sticky top-0 z-20 -mx-4 border-b border-line bg-canvas/95 px-4 py-2 backdrop-blur"
+    >
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <label className="flex items-center gap-2 text-sm text-muted">
           {msg.results.sliceBy}

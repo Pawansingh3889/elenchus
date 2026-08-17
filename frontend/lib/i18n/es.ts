@@ -373,6 +373,7 @@ export const es: Messages = {
     clickToUnslice: "Haz clic para ver a todos otra vez",
     legendSlice: (g: string) => `Ver solo ${g}`,
     unfoldZeros: (n: number) => `${n} ${n === 1 ? "opción que nadie eligió" : "opciones que nadie eligió"}`,
+    railNumber: (n: number) => `P${n}`,
     foldZeros: (n: number) => `Ocultar las ${n} que nadie eligió`,
     sliceEmpty: "Nadie dio esa respuesta, así que no hay nada que mostrar.",
     exportCsv: "Descargar CSV",

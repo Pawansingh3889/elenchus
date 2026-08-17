@@ -374,6 +374,7 @@ export const ro: Messages = {
     clickToUnslice: "Clic pentru a vedea din nou pe toți",
     legendSlice: (g: string) => `Arată doar ${g}`,
     unfoldZeros: (n: number) => `${n} ${n === 1 ? "opțiune pe care nimeni nu a ales-o" : "opțiuni pe care nimeni nu le-a ales"}`,
+    railNumber: (n: number) => `Î${n}`,
     foldZeros: (n: number) => `Ascunde cele ${n} nealese`,
     sliceEmpty: "Nimeni nu a dat acest răspuns, deci nu este nimic de arătat.",
     exportCsv: "Descarcă CSV",

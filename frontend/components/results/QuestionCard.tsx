@@ -209,7 +209,12 @@ export function QuestionCard({
     // because it depends on the data the card holds; the grid it sits in stays dumb.
     <Card
       id={`question-${question.id}`}
-      className={wide ? "scroll-mt-28 p-4 lg:col-span-2" : "scroll-mt-28 p-4"}
+      className={wide ? "p-4 lg:col-span-2" : "p-4"}
+      // Scrolled to from the rail and from the flag strip, so it has to land under the
+      // sticky bar rather than behind it. The bar publishes its own height because that
+      // height moves with the chips; a constant fits one state and hides content in the
+      // others.
+      style={{ scrollMarginTop: "calc(var(--controls-h, 0px) + 1rem)" }}
     >
       <div className="flex flex-wrap items-center gap-2">
         <CardLabel>{msg.builder.questionLabel(position + 1)}</CardLabel>

@@ -372,6 +372,7 @@ export const lt: Messages = {
     clickToUnslice: "Spustelėkite, kad vėl matytumėte visus",
     legendSlice: (g: string) => `Rodyti tik ${g}`,
     unfoldZeros: (n: number) => `${n} ${n === 1 ? "variantas, kurio niekas nepasirinko" : "variantai, kurių niekas nepasirinko"}`,
+    railNumber: (n: number) => `K${n}`,
     foldZeros: (n: number) => `Slėpti ${n} nepasirinktus`,
     sliceEmpty: "Niekas taip neatsakė, todėl nėra ko rodyti.",
     exportCsv: "Atsisiųsti CSV",

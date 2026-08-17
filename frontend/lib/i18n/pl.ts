@@ -372,6 +372,7 @@ export const pl: Messages = {
     clickToUnslice: "Kliknij, aby znów pokazać wszystkich",
     legendSlice: (g: string) => `Pokaż tylko ${g}`,
     unfoldZeros: (n: number) => `${n} ${n === 1 ? "opcja, której nikt nie wybrał" : "opcji, których nikt nie wybrał"}`,
+    railNumber: (n: number) => `P${n}`,
     foldZeros: (n: number) => `Ukryj ${n} niewybranych`,
     sliceEmpty: "Nikt nie udzielił takiej odpowiedzi, więc nie ma czego pokazać.",
     exportCsv: "Pobierz CSV",
