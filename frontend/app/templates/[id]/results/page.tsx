@@ -238,6 +238,8 @@ function ResultsContent() {
                   position={i}
                   series={compareQuestion && compareQuestion.id !== question.id ? series : []}
                   flagged={flagged.has(question.id)}
+                  slice={slice}
+                  onSlice={(next) => setParam("slice", next ? formatSlice(next) : null)}
                 >
                   {/* Counted on the page, read on click: forty open answers is a long
                       list to scroll past on the way to the next question, and grouping

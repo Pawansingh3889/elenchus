@@ -22,6 +22,7 @@ import {
 import { Card, CardLabel } from "@/components/ui/card";
 import { seriesColour } from "@/lib/comparison";
 import { useT } from "@/lib/i18n/useT";
+import { SLICEABLE_TYPES, type Slice } from "@/lib/slicing";
 import type { QuestionReport } from "@/lib/types";
 
 /**
@@ -44,12 +45,23 @@ import type { QuestionReport } from "@/lib/types";
  *   a reader who cannot separate the hues.
  * - **Zero rows stay.** An option nobody picked is a finding, and a missing row reads as
  *   an option that was never offered.
+ *
+ * **A mark is a filter.** Clicking a bar or a donut segment slices the page to the
+ * people who gave that answer, and clicking it again clears the slice: the same
+ * `?slice=` the control bar sets, reached from the chart instead of the menu. This is
+ * the interaction every BI tool is built around, and it costs almost nothing here
+ * because slicing already existed; what it adds is that "did the people who said X also
+ * say Y" is one click on X rather than a hunt through a select. Write-ins are not
+ * clickable, for the reason `lib/slicing.ts` gives: one person's words are not a group.
+ * The keyboard path stays the control bar, since an SVG rectangle is not focusable.
  */
 export function QuestionCard({
   question,
   position,
   series = [],
   flagged = false,
+  slice = null,
+  onSlice,
   children,
 }: {
   question: QuestionReport;
@@ -59,6 +71,10 @@ export function QuestionCard({
   series?: { label: string; report: QuestionReport }[];
   /** Named in the strip at the top of the page, so the card says so on arrival. */
   flagged?: boolean;
+  /** The page's current slice, so a mark on this card can show it is the one selected. */
+  slice?: Slice | null;
+  /** Set or clear the slice from a mark. Absent means marks are not clickable. */
+  onSlice?: (slice: Slice | null) => void;
   children?: React.ReactNode;
 }) {
   const msg = useT();
@@ -72,6 +88,36 @@ export function QuestionCard({
   const picks = question.selections;
   const share = (count: number, of: number) => (of > 0 ? `${Math.round((count / of) * 1000) / 10}%` : "-");
 
+  // Which marks act. Only the types the slicer accepts, and only when the page gave us
+  // a way to set it: the same rule in one place, so a card can never offer a click the
+  // control bar could not have made.
+  const clickable =
+    Boolean(onSlice) && (SLICEABLE_TYPES as readonly string[]).includes(question.answer_type);
+  const selectedHere = slice && slice.questionId === question.id ? slice.value : null;
+  const toggle = (value: string, writeIn: boolean) => {
+    if (!clickable || writeIn || !onSlice) return;
+    onSlice(selectedHere === value ? null : { questionId: question.id, value });
+  };
+  // Recharts hands a click the drawn item, and the row it was drawn from sits on its
+  // `payload`; the same shape for a bar rectangle and a pie sector, which is why one
+  // handler serves both.
+  const onMark = (item: { payload?: Record<string, unknown> }) => {
+    const row = item.payload ?? {};
+    toggle(String(row.value ?? ""), Boolean(row.writeIn));
+  };
+  // Said in the tooltip, because a mark that acts has to say so somewhere and the
+  // tooltip is what the reader is looking at when they are about to click.
+  const hint = (row: Record<string, unknown>): string | null => {
+    if (!clickable || row.writeIn) return null;
+    if (selectedHere === row.value) return msg.results.clickToUnslice;
+    return msg.results.clickToSlice(Number(row.count ?? 0));
+  };
+  // Selected state: the chosen mark keeps its colour and the rest of this card's marks
+  // step back. Only on the card the slice is on; every other card is showing the group
+  // and has nothing to dim. Opacity rather than a second hue, so the mark stays the same
+  // colour it was, only quieter, and its count still prints in full.
+  const dimmed = (value: string) => selectedHere !== null && selectedHere !== value;
+
   // Comparing turns one bar per option into one bar per option per group, which is the
   // only arrangement on this page where colour identifies anything. The whole-survey
   // tally still supplies the option order, so the rows do not reshuffle when a
@@ -79,8 +125,10 @@ export function QuestionCard({
   const comparing = series.length > 1;
   const grouped = comparing
     ? question.counts.map((c) => {
-        const row: Record<string, string | number> = {
+        const row: Record<string, string | number | boolean> = {
           label: c.write_in ? `${c.label} ${msg.report.writeIn}` : c.label,
+          value: c.label,
+          writeIn: c.write_in,
         };
         for (const s of series) {
           row[s.label] = s.report.counts.find((x) => x.label === c.label)?.count ?? 0;
@@ -91,6 +139,8 @@ export function QuestionCard({
 
   const rows = question.counts.map((c) => ({
     label: c.write_in ? `${c.label} ${msg.report.writeIn}` : c.label,
+    // The undecorated option, which is what a slice is keyed on.
+    value: c.label,
     count: c.count,
     writeIn: c.write_in,
     // The label printed at the end of the mark: the count, then its share of people,
@@ -107,11 +157,14 @@ export function QuestionCard({
   // therefore wins, and the same question answers "how split" and "who differs"
   // depending on what was asked of it.
   const donut = question.answer_type === "yes_no" && !comparing && rows.some((r) => r.count > 0);
+  const chartClass = clickable
+    ? "mt-3 [&_.recharts-bar-rectangle]:cursor-pointer [&_.recharts-pie-sector]:cursor-pointer"
+    : "mt-3";
 
   return (
     // The anchor the flag strip links to, and a scroll margin so the card lands below
-    // the top bar rather than under it.
-    <Card id={`question-${question.id}`} className="scroll-mt-20 p-4">
+    // the sticky control bar rather than under it.
+    <Card id={`question-${question.id}`} className="scroll-mt-28 p-4">
       <div className="flex flex-wrap items-center gap-2">
         <CardLabel>{msg.builder.questionLabel(position + 1)}</CardLabel>
         {/* The same words the strip used, so arriving here confirms the jump landed
@@ -140,9 +193,9 @@ export function QuestionCard({
       ) : null}
 
       {donut ? (
-        <ChartContainer height={200} className="mt-3">
+        <ChartContainer height={200} className={chartClass}>
           <PieChart>
-            <Tooltip content={<ChartTooltipContent />} />
+            <Tooltip content={<ChartTooltipContent hint={hint} />} />
             <Pie
               data={rows.filter((r) => r.count > 0)}
               dataKey="count"
@@ -159,17 +212,22 @@ export function QuestionCard({
                 `${name} ${value} (${share(Number(value ?? 0), people)})`
               }
               labelLine={false}
+              onClick={onMark}
             >
               {rows
                 .filter((r) => r.count > 0)
                 .map((row, i) => (
-                  <Cell key={row.label} fill={i === 0 ? CHART_MARK : "var(--accent)"} />
+                  <Cell
+                    key={row.label}
+                    fill={i === 0 ? CHART_MARK : "var(--accent)"}
+                    fillOpacity={dimmed(row.value) ? 0.35 : 1}
+                  />
                 ))}
             </Pie>
           </PieChart>
         </ChartContainer>
       ) : comparing && grouped.length > 0 ? (
-        <ChartContainer height={Math.max(120, grouped.length * (series.length * 16 + 18) + 24)} className="mt-3">
+        <ChartContainer height={Math.max(120, grouped.length * (series.length * 16 + 18) + 24)} className={chartClass}>
           <BarChart data={grouped} layout="vertical" margin={{ top: 4, right: 40, bottom: 4, left: 4 }}>
             <XAxis type="number" hide />
             <YAxis
@@ -180,7 +238,7 @@ export function QuestionCard({
               axisLine={{ stroke: CHART_GRID }}
               tick={{ fill: CHART_AXIS }}
             />
-            <Tooltip cursor={{ fill: CHART_GRID }} content={<ChartTooltipContent />} />
+            <Tooltip cursor={{ fill: CHART_GRID }} content={<ChartTooltipContent hint={hint} />} />
             {series.map((s, i) => (
               <Bar
                 key={s.label}
@@ -192,12 +250,20 @@ export function QuestionCard({
                 // rather than on each of them.
                 label={{ position: "right", fill: CHART_AXIS, fontSize: 11 }}
                 isAnimationActive={false}
-              />
+                onClick={onMark}
+              >
+                {grouped.map((row) => (
+                  <Cell
+                    key={String(row.value)}
+                    fillOpacity={dimmed(String(row.value)) ? 0.35 : 1}
+                  />
+                ))}
+              </Bar>
             ))}
           </BarChart>
         </ChartContainer>
       ) : rows.length > 0 ? (
-        <ChartContainer height={height} className="mt-3">
+        <ChartContainer height={height} className={chartClass}>
           {/* Room at the end for the label the bar carries. A multi-select prints two
               percentages rather than one, and the longest bar is the one with no room
               to spare: at 92 the "4 100% · 30.8%" on a full-width bar wrapped onto two
@@ -216,7 +282,7 @@ export function QuestionCard({
               axisLine={{ stroke: CHART_GRID }}
               tick={{ fill: CHART_AXIS }}
             />
-            <Tooltip cursor={{ fill: CHART_GRID }} content={<ChartTooltipContent />} />
+            <Tooltip cursor={{ fill: CHART_GRID }} content={<ChartTooltipContent hint={hint} />} />
             {/* A rating's average, drawn on the scale it belongs to. The number is
                 already in the line above; the line is what makes it a position rather
                 than a fact to hold in your head while reading the bars. */}
@@ -244,13 +310,18 @@ export function QuestionCard({
                 dataKey: "marked",
               }}
               isAnimationActive={false}
+              onClick={onMark}
             >
               {rows.map((row) => (
                 // A write-in is the respondent's own words rather than an option the
                 // author offered, so it is drawn in the lighter step of the same hue:
                 // still one series, with the distinction carried by the "(write-in)" in
                 // the label rather than by colour alone.
-                <Cell key={row.label} fill={row.writeIn ? "var(--accent)" : CHART_MARK} />
+                <Cell
+                  key={row.label}
+                  fill={row.writeIn ? "var(--accent)" : CHART_MARK}
+                  fillOpacity={dimmed(row.value) ? 0.35 : 1}
+                />
               ))}
             </Bar>
           </BarChart>

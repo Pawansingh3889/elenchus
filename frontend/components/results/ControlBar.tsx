@@ -174,18 +174,45 @@ export function ControlBar({
           {/* The legend, once, beside the chip that created it. Always present when
               there is more than one series, because identity must never be carried by
               colour alone, and the swatches are the same tokens the bars use. */}
-          {groups.length > 0 ? (
+          {groups.length > 0 && compareBy ? (
             <span className="flex flex-wrap items-center gap-3 text-sm">
-              {groups.map((label, i) => (
-                <span key={label} className="flex items-center gap-1.5">
-                  <span
-                    className="size-2.5 shrink-0 rounded-sm"
-                    style={{ background: seriesColour(i, label) }}
-                    aria-hidden
-                  />
-                  <span className="text-muted">{label}</span>
-                </span>
-              ))}
+              {groups.map((label, i) =>
+                // A legend entry is a group, and a group is a slice waiting to happen:
+                // clicking one narrows the page to it, the same as clicking its bar
+                // would. "other" is a fold of several groups and names no single
+                // answer, so it stays a label.
+                label === "other" ? (
+                  <span key={label} className="flex items-center gap-1.5">
+                    <span
+                      className="size-2.5 shrink-0 rounded-sm"
+                      style={{ background: seriesColour(i, label) }}
+                      aria-hidden
+                    />
+                    <span className="text-muted">{label}</span>
+                  </span>
+                ) : (
+                  <button
+                    key={label}
+                    type="button"
+                    className="flex cursor-pointer items-center gap-1.5 rounded-md px-1 hover:bg-surface"
+                    title={msg.results.legendSlice(label)}
+                    onClick={() =>
+                      onSlice(
+                        slice?.questionId === compareBy && slice.value === label
+                          ? null
+                          : { questionId: compareBy, value: label },
+                      )
+                    }
+                  >
+                    <span
+                      className="size-2.5 shrink-0 rounded-sm"
+                      style={{ background: seriesColour(i, label) }}
+                      aria-hidden
+                    />
+                    <span className="text-muted">{label}</span>
+                  </button>
+                ),
+              )}
             </span>
           ) : null}
 

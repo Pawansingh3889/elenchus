@@ -58,14 +58,21 @@ export function ChartTooltipContent({
   payload,
   label,
   suffix,
+  hint,
 }: {
   active?: boolean;
-  payload?: Array<{ value?: number | string; name?: string }>;
+  payload?: Array<{ value?: number | string; name?: string; payload?: Record<string, unknown> }>;
   label?: string;
   suffix?: string;
+  /** A line under the value saying what a click will do, given the hovered row. A mark
+   *  that acts on click has to say so somewhere, and the tooltip is the one place the
+   *  reader is already looking when they are about to click it. */
+  hint?: (row: Record<string, unknown>) => string | null;
 }) {
   if (!active || !payload?.length) return null;
   const value = payload[0]?.value;
+  const row = payload[0]?.payload;
+  const line = hint && row ? hint(row) : null;
   return (
     <div className="rounded-lg border border-line bg-raised px-3 py-2 shadow-[var(--shadow-md)]">
       <div className="text-sm text-ink font-medium">{label}</div>
@@ -73,6 +80,7 @@ export function ChartTooltipContent({
         {value}
         {suffix ? ` ${suffix}` : ""}
       </div>
+      {line ? <div className="mt-1 text-xs text-accent-strong">{line}</div> : null}
     </div>
   );
 }
