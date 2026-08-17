@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.access import may_author
+from app.access import in_audience, may_author
 from app.templates.enums import SurveyAudience
 from app.users.models import Band, Function, Hat, User
 
@@ -62,6 +62,15 @@ class PersonRead(BaseModel):
     # and have no way to sign in the day the header shim is replaced by a real login.
     # A boolean rather than the value because the page only ever asks "is one set".
     has_microsoft_id: bool
+    # Which audiences reach this person, computed by `app/access` rather than left for
+    # the browser to work out. The page draws a map of who a survey reaches, and a map
+    # drawn from a paraphrase of the rules is a map that drifts from them: `in_audience`
+    # is the rule, and this is the same call the denominators use.
+    #
+    # `person` is absent by construction. It reaches exactly one named individual and is
+    # a property of a survey rather than of a job, so listing it here would mean either
+    # naming everybody or naming nobody.
+    audiences: list[SurveyAudience]
 
     @classmethod
     def of(cls, user: User) -> "PersonRead":
@@ -76,6 +85,11 @@ class PersonRead(BaseModel):
             # a person's badges could shuffle between refreshes for no reason a reader
             # could see, which reads as the data changing when nothing has.
             hats=sorted(user.hats, key=lambda h: h.value),
+            audiences=[
+                audience
+                for audience in SurveyAudience
+                if audience is not SurveyAudience.person and in_audience(user, audience)
+            ],
         )
 
 
@@ -247,6 +261,11 @@ class AccountSnapshot(BaseModel):
             band=user.band,
             microsoft_id=user.microsoft_id,
             hats=sorted(user.hats, key=lambda h: h.value),
+            audiences=[
+                audience
+                for audience in SurveyAudience
+                if audience is not SurveyAudience.person and in_audience(user, audience)
+            ],
         )
 
 
@@ -343,4 +362,9 @@ class AccountRead(BaseModel):
             microsoft_id=user.microsoft_id,
             created_by=user.created_by,
             hats=sorted(user.hats, key=lambda h: h.value),
+            audiences=[
+                audience
+                for audience in SurveyAudience
+                if audience is not SurveyAudience.person and in_audience(user, audience)
+            ],
         )

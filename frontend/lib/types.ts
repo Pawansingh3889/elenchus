@@ -69,6 +69,11 @@ export interface Person {
    *  an authoring band without one builds surveys today and has no way to sign in
    *  when the header shim is replaced, so the directory marks it. */
   has_microsoft_id: boolean;
+  /** Which audiences reach this person, computed server-side by `app/access`. The
+   *  browser must not re-derive this: a map of who a survey reaches, drawn from a
+   *  paraphrase of the rules, is a map that drifts from them. `person` is absent by
+   *  construction, being a property of a survey rather than of a job. */
+  audiences: SurveyAudience[];
 }
 
 /** The caller, as themselves. Both derived flags are the server's to compute:

@@ -63,6 +63,12 @@ export const ro: Messages = {
   people: {
     title: "Persoane",
     subtitle: "Cine este în fabrică și ce chestionare îi pot ajunge.",
+    mapLabel: "Arată pe cine ajunge",
+    mapNoAudience: "Nicio audiență selectată",
+    mapReaches: "persoane sunt în această audiență",
+    mapHint: "Alegeți o audiență pentru a vedea pe cine ajunge.",
+    mapCannotReach: (can: number, cannot: number) => `${can} se pot conecta · ${cannot} încă nu pot fi contactate`,
+    mapUnreachableNames: (names: string) => `Nicio conectare înregistrată pentru: ${names}. Regulile îi includ, dar nu există cale către ei.`,
     colName: "Nume",
     colJob: "Post",
     colHats: "Responsabilități",

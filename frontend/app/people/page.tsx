@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { PersonDialog } from "@/components/PersonDialog";
+import { ReachMap } from "@/components/ReachMap";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -83,7 +84,9 @@ export default function People() {
 
       {rows ? (
         <Card className="overflow-x-auto p-0">
-          <Table>
+          <ReachMap people={rows ?? []} />
+
+        <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>{people.colName}</TableHead>

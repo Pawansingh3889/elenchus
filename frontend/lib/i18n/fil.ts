@@ -63,6 +63,12 @@ export const fil: Messages = {
   people: {
     title: "Mga tao",
     subtitle: "Sino ang nasa planta, at aling mga survey ang maaaring umabot sa kanila.",
+    mapLabel: "Ipakita kung sino ang naaabot ng",
+    mapNoAudience: "Walang piniling audience",
+    mapReaches: "tao ang nasa audience na ito",
+    mapHint: "Pumili ng audience para makita kung sino ang naaabot nito.",
+    mapCannotReach: (can: number, cannot: number) => `${can} ang makaka-sign in · ${cannot} ang hindi pa maaabot`,
+    mapUnreachableNames: (names: string) => `Walang nakatalang sign-in para kay/kina: ${names}. Naaabot sila ng mga panuntunan ngunit walang daan patungo sa kanila.`,
     colName: "Pangalan",
     colJob: "Trabaho",
     colHats: "Mga tungkulin",

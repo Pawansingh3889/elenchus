@@ -63,6 +63,12 @@ export const lt: Messages = {
   people: {
     title: "Žmonės",
     subtitle: "Kas dirba gamykloje ir kurios apklausos gali juos pasiekti.",
+    mapLabel: "Rodyti, ką pasiekia",
+    mapNoAudience: "Auditorija nepasirinkta",
+    mapReaches: "žmonės yra šioje auditorijoje",
+    mapHint: "Pasirinkite auditoriją, kad pamatytumėte, ką ji pasiekia.",
+    mapCannotReach: (can: number, cannot: number) => `${can} gali prisijungti · ${cannot} kol kas nepasiekiami`,
+    mapUnreachableNames: (names: string) => `Prisijungimas neužfiksuotas: ${names}. Taisyklės juos pasiekia, o kelio pas juos nėra.`,
     colName: "Vardas",
     colJob: "Pareigos",
     colHats: "Papildomos pareigos",

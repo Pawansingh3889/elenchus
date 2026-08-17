@@ -63,6 +63,12 @@ export const es: Messages = {
   people: {
     title: "Personas",
     subtitle: "Quién está en la planta y qué encuestas pueden llegarle.",
+    mapLabel: "Mostrar a quién llega",
+    mapNoAudience: "Ninguna audiencia seleccionada",
+    mapReaches: "personas están en esta audiencia",
+    mapHint: "Elija una audiencia para ver a quién llega.",
+    mapCannotReach: (can: number, cannot: number) => `${can} pueden iniciar sesión · ${cannot} aún no son alcanzables`,
+    mapUnreachableNames: (names: string) => `Sin acceso registrado para: ${names}. Las reglas los incluyen y no hay forma de llegar a ellos.`,
     colName: "Nombre",
     colJob: "Puesto",
     colHats: "Responsabilidades",

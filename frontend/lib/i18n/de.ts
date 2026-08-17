@@ -64,6 +64,12 @@ export const de: Messages = {
   people: {
     title: "Personen",
     subtitle: "Wer im Werk ist, und welche Umfragen sie erreichen können.",
+    mapLabel: "Erreicht werden von",
+    mapNoAudience: "Keine Zielgruppe gewählt",
+    mapReaches: "Personen sind in dieser Zielgruppe",
+    mapHint: "Wählen Sie eine Zielgruppe, um zu sehen, wen sie erreicht.",
+    mapCannotReach: (can: number, cannot: number) => `${can} können sich anmelden · ${cannot} sind noch nicht erreichbar`,
+    mapUnreachableNames: (names: string) => `Keine Anmeldung hinterlegt für: ${names}. Die Regeln erreichen sie, der Weg dorthin fehlt.`,
     colName: "Name",
     colJob: "Tätigkeit",
     colHats: "Zusatzaufgaben",

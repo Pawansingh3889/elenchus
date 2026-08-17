@@ -71,6 +71,12 @@ export const en = {
   people: {
     title: "People",
     subtitle: "Who is on the plant, and which surveys can reach them.",
+    mapLabel: "Show who is reached by",
+    mapNoAudience: "No audience selected",
+    mapReaches: "people are in this audience",
+    mapHint: "Pick an audience to see who it reaches.",
+    mapCannotReach: (can: number, cannot: number) => `${can} can sign in · ${cannot} cannot be reached yet`,
+    mapUnreachableNames: (names: string) => `No sign-in recorded for: ${names}. A survey reaches them by the rules and has no way to get to them.`,
     colName: "Name",
     colJob: "Job",
     colHats: "Responsibilities",

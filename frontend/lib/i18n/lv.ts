@@ -63,6 +63,12 @@ export const lv: Messages = {
   people: {
     title: "Cilvēki",
     subtitle: "Kas ir rūpnīcā un kuras aptaujas var viņus sasniegt.",
+    mapLabel: "Rādīt, ko sasniedz",
+    mapNoAudience: "Auditorija nav izvēlēta",
+    mapReaches: "cilvēki ir šajā auditorijā",
+    mapHint: "Izvēlieties auditoriju, lai redzētu, ko tā sasniedz.",
+    mapCannotReach: (can: number, cannot: number) => `${can} var pieteikties · ${cannot} pagaidām nav sasniedzami`,
+    mapUnreachableNames: (names: string) => `Nav reģistrēta pieteikšanās: ${names}. Noteikumi tos sasniedz, bet ceļa nav.`,
     colName: "Vārds",
     colJob: "Amats",
     colHats: "Papildu pienākumi",

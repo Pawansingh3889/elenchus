@@ -63,6 +63,12 @@ export const pl: Messages = {
   people: {
     title: "Osoby",
     subtitle: "Kto jest w zakładzie i jakie ankiety mogą do nich trafić.",
+    mapLabel: "Pokaż, kogo obejmuje",
+    mapNoAudience: "Nie wybrano odbiorców",
+    mapReaches: "osób jest w tej grupie odbiorców",
+    mapHint: "Wybierz odbiorców, aby zobaczyć, kogo obejmują.",
+    mapCannotReach: (can: number, cannot: number) => `${can} może się zalogować · ${cannot} jeszcze nieosiągalnych`,
+    mapUnreachableNames: (names: string) => `Brak zapisanego logowania dla: ${names}. Reguły ich obejmują, ale nie ma jak do nich dotrzeć.`,
     colName: "Imię i nazwisko",
     colJob: "Stanowisko",
     colHats: "Obowiązki",
