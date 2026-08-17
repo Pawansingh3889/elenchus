@@ -20,6 +20,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { Card, CardLabel } from "@/components/ui/card";
+import { seriesColour } from "@/lib/comparison";
 import { useT } from "@/lib/i18n/useT";
 import type { QuestionReport } from "@/lib/types";
 
@@ -47,10 +48,14 @@ import type { QuestionReport } from "@/lib/types";
 export function QuestionCard({
   question,
   position,
+  series = [],
   children,
 }: {
   question: QuestionReport;
   position: number;
+  /** One tally per compared group. Empty when nothing is being compared, which is the
+   *  ordinary case and the one that stays a single series. */
+  series?: { label: string; report: QuestionReport }[];
   children?: React.ReactNode;
 }) {
   const msg = useT();
@@ -63,6 +68,23 @@ export function QuestionCard({
   const people = question.answered;
   const picks = question.selections;
   const share = (count: number, of: number) => (of > 0 ? `${Math.round((count / of) * 1000) / 10}%` : "-");
+
+  // Comparing turns one bar per option into one bar per option per group, which is the
+  // only arrangement on this page where colour identifies anything. The whole-survey
+  // tally still supplies the option order, so the rows do not reshuffle when a
+  // comparison is turned on.
+  const comparing = series.length > 1;
+  const grouped = comparing
+    ? question.counts.map((c) => {
+        const row: Record<string, string | number> = {
+          label: c.write_in ? `${c.label} ${msg.report.writeIn}` : c.label,
+        };
+        for (const s of series) {
+          row[s.label] = s.report.counts.find((x) => x.label === c.label)?.count ?? 0;
+        }
+        return row;
+      })
+    : [];
 
   const rows = question.counts.map((c) => ({
     label: c.write_in ? `${c.label} ${msg.report.writeIn}` : c.label,
@@ -77,7 +99,11 @@ export function QuestionCard({
   // Enough room per row to read the label, capped so a twenty-option question does not
   // become a page of its own.
   const height = Math.max(80, Math.min(rows.length * 34 + 24, 460));
-  const donut = question.answer_type === "yes_no" && rows.some((r) => r.count > 0);
+  // A donut is two parts of one whole, which is exactly what a yes/no is until you
+  // compare groups: then it is two wholes, and a donut can only draw one. Comparing
+  // therefore wins, and the same question answers "how split" and "who differs"
+  // depending on what was asked of it.
+  const donut = question.answer_type === "yes_no" && !comparing && rows.some((r) => r.count > 0);
 
   return (
     <Card className="p-4">
@@ -127,6 +153,34 @@ export function QuestionCard({
                 ))}
             </Pie>
           </PieChart>
+        </ChartContainer>
+      ) : comparing && grouped.length > 0 ? (
+        <ChartContainer height={Math.max(120, grouped.length * (series.length * 16 + 18) + 24)} className="mt-3">
+          <BarChart data={grouped} layout="vertical" margin={{ top: 4, right: 40, bottom: 4, left: 4 }}>
+            <XAxis type="number" hide />
+            <YAxis
+              type="category"
+              dataKey="label"
+              width={150}
+              tickLine={false}
+              axisLine={{ stroke: CHART_GRID }}
+              tick={{ fill: CHART_AXIS }}
+            />
+            <Tooltip cursor={{ fill: CHART_GRID }} content={<ChartTooltipContent />} />
+            {series.map((s, i) => (
+              <Bar
+                key={s.label}
+                dataKey={s.label}
+                fill={seriesColour(i, s.label)}
+                radius={[0, 4, 4, 0]}
+                // The count on every bar, so the chart reads in greyscale and to anyone
+                // who cannot separate the hues. The legend lives once above the cards
+                // rather than on each of them.
+                label={{ position: "right", fill: CHART_AXIS, fontSize: 11 }}
+                isAnimationActive={false}
+              />
+            ))}
+          </BarChart>
         </ChartContainer>
       ) : rows.length > 0 ? (
         <ChartContainer height={height} className="mt-3">

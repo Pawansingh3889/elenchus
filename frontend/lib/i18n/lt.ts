@@ -356,6 +356,8 @@ export const lt: Messages = {
     sliceBy: "Rodyti tik",
     sliceClear: "Išvalyti",
     sliceShowing: (n: number, total: number) => `${n} iš ${total} atsakymų`,
+    compareLabel: "Palyginti pagal",
+    compareNone: "Nelyginama",
     sliceEmpty: "Niekas taip neatsakė, todėl nėra ko rodyti.",
     exportCsv: "Atsisiųsti CSV",
     tableRespondent: "Respondentas",

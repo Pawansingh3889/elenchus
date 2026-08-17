@@ -358,6 +358,8 @@ export const ro: Messages = {
     sliceBy: "Arată doar",
     sliceClear: "Șterge",
     sliceShowing: (n: number, total: number) => `${n} din ${total} răspunsuri`,
+    compareLabel: "Compară după",
+    compareNone: "Fără comparație",
     sliceEmpty: "Nimeni nu a dat acest răspuns, deci nu este nimic de arătat.",
     exportCsv: "Descarcă CSV",
     tableRespondent: "Respondent",

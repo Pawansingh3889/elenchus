@@ -356,6 +356,8 @@ export const lv: Messages = {
     sliceBy: "Rādīt tikai",
     sliceClear: "Notīrīt",
     sliceShowing: (n: number, total: number) => `${n} no ${total} atbildēm`,
+    compareLabel: "Salīdzināt pēc",
+    compareNone: "Nesalīdzina",
     sliceEmpty: "Neviens nav sniedzis šādu atbildi, tāpēc nav ko rādīt.",
     exportCsv: "Lejupielādēt CSV",
     tableRespondent: "Respondents",

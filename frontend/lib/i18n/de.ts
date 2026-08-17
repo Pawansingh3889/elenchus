@@ -352,6 +352,8 @@ export const de: Messages = {
     sliceBy: "Nur zeigen",
     sliceClear: "Zurücksetzen",
     sliceShowing: (n: number, total: number) => `${n} von ${total} Antworten`,
+    compareLabel: "Vergleichen nach",
+    compareNone: "Kein Vergleich",
     sliceEmpty: "Diese Antwort hat niemand gegeben, es gibt nichts zu zeigen.",
     exportCsv: "CSV herunterladen",
     tableRespondent: "Teilnehmer",

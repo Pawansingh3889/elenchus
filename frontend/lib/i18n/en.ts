@@ -364,6 +364,8 @@ export const en = {
     sliceBy: "Show only",
     sliceClear: "Clear",
     sliceShowing: (n: number, total: number) => `${n} of ${total} responses`,
+    compareLabel: "Compare by",
+    compareNone: "Not comparing",
     sliceEmpty: "Nobody gave that answer, so there is nothing to show.",
     exportCsv: "Download CSV",
     tableRespondent: "Respondent",

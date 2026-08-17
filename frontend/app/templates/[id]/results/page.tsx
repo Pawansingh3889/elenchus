@@ -9,6 +9,7 @@ import { QuestionCard } from "@/components/results/QuestionCard";
 import { RecapPanel } from "@/components/results/RecapPanel";
 import { RespondentTable } from "@/components/results/RespondentTable";
 import { RunPanel } from "@/components/results/RunPanel";
+import { CompareControl } from "@/components/results/CompareControl";
 import { SliceControl } from "@/components/results/SliceControl";
 import { Stat } from "@/components/Stat";
 import { SurveyNav } from "@/components/SurveyNav";
@@ -19,6 +20,7 @@ import { useT } from "@/lib/i18n/useT";
 import { useAnswersMatrix, useCurrentUser, useReport } from "@/lib/queries";
 import { formatSlice, parseSlice, sliceRuns } from "@/lib/slicing";
 import { useUserStore } from "@/lib/store";
+import { groupRuns } from "@/lib/comparison";
 import { tallyInputs, tallyQuestion } from "@/lib/tally";
 
 /**
@@ -63,16 +65,36 @@ function ResultsContent() {
     router.replace(next.toString() ? `?${next}` : "?", { scroll: false });
   }
 
+  const compareBy = search.get("compare");
   const shown = matrix ? sliceRuns(matrix.runs, slice) : [];
   // Sliced and unsliced tallies come from the same code either way, so the page never
   // shows a server number beside a client number and invites a comparison between two
   // provenances. `lib/tally.ts` is checked against the server's own cases in vitest.
   const inputs = matrix ? tallyInputs(matrix.questions, shown) : null;
+
+  // Comparison. Colour on this page carries one thing: which group of people a bar
+  // belongs to. Picking a question here splits the shown runs by how each person
+  // answered it, and every card below then draws one bar per group.
+  //
+  // Four groups at most, because the series palette is four and a fifth hue would
+  // either read grey or borrow the amber that status is rationed to. The rest fold into
+  // one "other" bar rather than disappearing, and the control says so.
+  const compareQuestion = matrix?.questions.find((q) => q.id === compareBy) ?? null;
+  const groups = compareQuestion ? groupRuns(shown, compareQuestion) : [];
   const questions =
     inputs && matrix
       ? [...matrix.questions]
           .sort((a, b) => a.position - b.position)
-          .map((q) => ({ report: tallyQuestion(inputs.get(q.id)!), runIds: inputs.get(q.id)!.runIds }))
+          .map((q) => ({
+            report: tallyQuestion(inputs.get(q.id)!),
+            runIds: inputs.get(q.id)!.runIds,
+            // One tally per group, from the same function the whole-survey tally uses,
+            // so a series and the bar behind it can never come from two code paths.
+            series: groups.map((g) => ({
+              label: g.label,
+              report: tallyQuestion(tallyInputs(matrix.questions, g.runs).get(q.id)!),
+            })),
+          }))
       : [];
 
   if (!currentUserId) return <p className="p-6 text-muted">{msg.results.pickAuthor}</p>;
@@ -156,6 +178,15 @@ function ResultsContent() {
             />
           ) : null}
 
+          {matrix && matrix.runs.length > 0 ? (
+            <CompareControl
+              questions={matrix.questions}
+              compareBy={compareBy}
+              onChange={(next) => setParam("compare", next)}
+              groups={groups.map((g) => g.label)}
+            />
+          ) : null}
+
           {openRun ? (
             <RunPanel templateId={id} runId={openRun} onClose={() => setParam("run", null)} />
           ) : null}
@@ -174,8 +205,13 @@ function ResultsContent() {
           {questions.length > 0 && shown.length > 0 ? (
             <section className="flex flex-col gap-3">
               <h2 className="text-md font-semibold">{msg.results.questionsHeading}</h2>
-              {questions.map(({ report: question, runIds }, i) => (
-                <QuestionCard key={question.id} question={question} position={i}>
+              {questions.map(({ report: question, runIds, series }, i) => (
+                <QuestionCard
+                  key={question.id}
+                  question={question}
+                  position={i}
+                  series={compareQuestion && compareQuestion.id !== question.id ? series : []}
+                >
                   {/* Counted on the page, read on click: forty open answers is a long
                       list to scroll past on the way to the next question, and grouping
                       them would mean deciding what people meant, which this is not.

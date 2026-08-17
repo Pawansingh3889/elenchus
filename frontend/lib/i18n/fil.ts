@@ -349,6 +349,8 @@ export const fil: Messages = {
     sliceBy: "Ipakita lang",
     sliceClear: "I-clear",
     sliceShowing: (n: number, total: number) => `${n} sa ${total} na sagot`,
+    compareLabel: "Ihambing ayon sa",
+    compareNone: "Walang paghahambing",
     sliceEmpty: "Walang sumagot nang ganoon, kaya walang maipapakita.",
     exportCsv: "I-download ang CSV",
     tableRespondent: "Sumagot",
