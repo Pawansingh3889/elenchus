@@ -5,6 +5,7 @@ import { Suspense, useEffect } from "react";
 
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorBanner } from "@/components/ErrorBanner";
+import { FlagStrip } from "@/components/results/FlagStrip";
 import { QuestionCard } from "@/components/results/QuestionCard";
 import { RecapPanel } from "@/components/results/RecapPanel";
 import { RespondentTable } from "@/components/results/RespondentTable";
@@ -13,7 +14,6 @@ import { CompareControl } from "@/components/results/CompareControl";
 import { SliceControl } from "@/components/results/SliceControl";
 import { Stat } from "@/components/Stat";
 import { SurveyNav } from "@/components/SurveyNav";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useT } from "@/lib/i18n/useT";
@@ -21,6 +21,7 @@ import { useAnswersMatrix, useCurrentUser, useReport } from "@/lib/queries";
 import { formatSlice, parseSlice, sliceRuns } from "@/lib/slicing";
 import { useUserStore } from "@/lib/store";
 import { groupRuns } from "@/lib/comparison";
+import { flagsFor } from "@/lib/flags";
 import { tallyInputs, tallyQuestion } from "@/lib/tally";
 
 /**
@@ -97,6 +98,13 @@ function ResultsContent() {
           }))
       : [];
 
+  // From the same tallies the cards below draw, so the strip can never name a finding
+  // the chart it points at does not show. Recomputed under a slice rather than kept from
+  // the whole survey: while a slice is showing, every number on the page is about those
+  // people, and a flag from the other group would be the one thing that is not.
+  const flags = flagsFor(questions.map((q) => q.report));
+  const flagged = new Set(flags.map((f) => f.questionId));
+
   if (!currentUserId) return <p className="p-6 text-muted">{msg.results.pickAuthor}</p>;
   if (isRespondent) return <p className="p-6 text-muted">{msg.home.goingToRespond}</p>;
 
@@ -142,7 +150,21 @@ function ResultsContent() {
               label={msg.report.rateFinished}
               of={msg.report.ofThoseWhoStarted(report.runs_completed, report.runs_total)}
             />
+            {/* A count rather than a rate, because it is not a share of anything: it is
+                how many questions are worth reading first. Absent when there are none,
+                so a clean survey does not carry a permanent "0 flagged" that trains the
+                reader to skip the row. */}
+            {flags.length > 0 ? (
+              <Stat
+                value={flags.length}
+                label={msg.report.rateFlagged}
+                of={msg.report.ofQuestions(questions.length)}
+                className="text-warn-text"
+              />
+            ) : null}
           </Card>
+
+          <FlagStrip flags={flags} />
 
           {/* Said on the page rather than left in the code: those runs answered
               different questions under different ids, so counting them here would
@@ -211,6 +233,7 @@ function ResultsContent() {
                   question={question}
                   position={i}
                   series={compareQuestion && compareQuestion.id !== question.id ? series : []}
+                  flagged={flagged.has(question.id)}
                 >
                   {/* Counted on the page, read on click: forty open answers is a long
                       list to scroll past on the way to the next question, and grouping

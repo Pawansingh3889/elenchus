@@ -49,6 +49,7 @@ export function QuestionCard({
   question,
   position,
   series = [],
+  flagged = false,
   children,
 }: {
   question: QuestionReport;
@@ -56,6 +57,8 @@ export function QuestionCard({
   /** One tally per compared group. Empty when nothing is being compared, which is the
    *  ordinary case and the one that stays a single series. */
   series?: { label: string; report: QuestionReport }[];
+  /** Named in the strip at the top of the page, so the card says so on arrival. */
+  flagged?: boolean;
   children?: React.ReactNode;
 }) {
   const msg = useT();
@@ -106,8 +109,19 @@ export function QuestionCard({
   const donut = question.answer_type === "yes_no" && !comparing && rows.some((r) => r.count > 0);
 
   return (
-    <Card className="p-4">
-      <CardLabel>{msg.builder.questionLabel(position + 1)}</CardLabel>
+    // The anchor the flag strip links to, and a scroll margin so the card lands below
+    // the top bar rather than under it.
+    <Card id={`question-${question.id}`} className="scroll-mt-20 p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <CardLabel>{msg.builder.questionLabel(position + 1)}</CardLabel>
+        {/* The same words the strip used, so arriving here confirms the jump landed
+            where it said it would. Icon and text, never the amber alone. */}
+        {flagged ? (
+          <span className="rounded-md border border-warn-border bg-warn-fill px-1.5 py-0.5 text-xs text-warn-text">
+            <span aria-hidden>&#9888;</span> {msg.report.flagged}
+          </span>
+        ) : null}
+      </div>
       <h3 className="mt-1 text-md font-semibold">{question.text}</h3>
       <p className="mt-1 text-sm text-muted">
         {msg.report.answeredBy(question.answered)}

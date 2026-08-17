@@ -43,6 +43,10 @@ PAIRS: tuple[tuple[str, str, float, str], ...] = (
     # one is the label on the single irreversible action a respondent has.
     ("err-text", "canvas", 4.5, "a danger link on the page background"),
     ("warn-text", "warn-fill", 4.5, "warning text on its fill"),
+    # The flag count on the results headline, which is the amber on a plain card rather
+    # than on the tinted strip below it. Same token, different measurement, and it is the
+    # number that decides whether an author reads the strip at all.
+    ("warn-text", "raised", 4.5, "a flag count on a card"),
     ("focus", "raised", 3.0, "focus ring on a card"),
     ("focus", "canvas", 3.0, "focus ring on the page background"),
 )
