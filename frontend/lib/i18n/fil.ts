@@ -74,6 +74,12 @@ export const fil: Messages = {
     colHats: "Mga tungkulin",
     buildsSurveys: "Gumagawa ng survey",
     noJob: "Walang trabaho, kaya walang maitatanong sa kanya",
+    searchPlaceholder: "Maghanap ng tao",
+    bandFilterLabel: "Antas",
+    bandFilterAll: "Lahat ng antas",
+    noMatches: "Walang tumutugma.",
+    inFunction: (n: number) => `${n} ${n === 1 ? 'tao' : 'tao'}`,
+    showing: (shown: number, total: number) => `Ipinapakita ang ${shown} sa ${total}`,
     readOnly: "Basahin lamang. Administrador lang ang makakadagdag o makakapagbago ng tao.",
   },
   admin: {

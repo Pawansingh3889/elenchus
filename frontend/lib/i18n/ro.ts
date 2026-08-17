@@ -74,6 +74,12 @@ export const ro: Messages = {
     colHats: "Responsabilități",
     buildsSurveys: "Creează chestionare",
     noJob: "Fără post, deci nu i se poate cere nimic",
+    searchPlaceholder: "Caută persoane",
+    bandFilterLabel: "Nivel",
+    bandFilterAll: "Toate nivelurile",
+    noMatches: "Nimeni nu se potrivește.",
+    inFunction: (n: number) => `${n} ${n === 1 ? 'persoană' : 'persoane'}`,
+    showing: (shown: number, total: number) => `Se afișează ${shown} din ${total}`,
     readOnly: "Doar citire. Numai un administrator poate adăuga sau modifica persoane.",
   },
   admin: {

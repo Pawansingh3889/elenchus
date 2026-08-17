@@ -74,6 +74,12 @@ export const pl: Messages = {
     colHats: "Obowiązki",
     buildsSurveys: "Tworzy ankiety",
     noJob: "Bez stanowiska, więc nie można o nic zapytać",
+    searchPlaceholder: "Szukaj osób",
+    bandFilterLabel: "Szczebel",
+    bandFilterAll: "Wszystkie szczeble",
+    noMatches: "Nikt nie pasuje.",
+    inFunction: (n: number) => `${n} ${n === 1 ? 'osoba' : n < 5 ? 'osoby' : 'osób'}`,
+    showing: (shown: number, total: number) => `Pokazano ${shown} z ${total}`,
     readOnly: "Tylko do odczytu. Osoby może dodawać i zmieniać wyłącznie administrator.",
   },
   admin: {

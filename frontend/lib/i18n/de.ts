@@ -75,6 +75,12 @@ export const de: Messages = {
     colHats: "Zusatzaufgaben",
     buildsSurveys: "Erstellt Umfragen",
     noJob: "Ohne Tätigkeit, kann also nichts gefragt werden",
+    searchPlaceholder: "Personen suchen",
+    bandFilterLabel: "Ebene",
+    bandFilterAll: "Alle Ebenen",
+    noMatches: "Niemand passt dazu.",
+    inFunction: (n: number) => `${n} ${n === 1 ? 'Person' : 'Personen'}`,
+    showing: (shown: number, total: number) => `${shown} von ${total} angezeigt`,
     readOnly: "Nur lesbar. Nur eine Administratorin oder ein Administrator kann Personen anlegen oder ändern.",
   },
   admin: {

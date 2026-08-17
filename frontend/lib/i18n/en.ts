@@ -82,6 +82,12 @@ export const en = {
     colHats: "Responsibilities",
     buildsSurveys: "Builds surveys",
     noJob: "No job, so cannot be asked anything",
+    searchPlaceholder: "Search people",
+    bandFilterLabel: "Band",
+    bandFilterAll: "All bands",
+    noMatches: "Nobody matches that.",
+    inFunction: (n: number) => `${n} ${n === 1 ? 'person' : 'people'}`,
+    showing: (shown: number, total: number) => `Showing ${shown} of ${total}`,
     readOnly: "Read-only. Only an administrator can add or change people.",
   },
   admin: {

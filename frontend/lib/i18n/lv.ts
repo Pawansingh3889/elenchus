@@ -74,6 +74,12 @@ export const lv: Messages = {
     colHats: "Papildu pienākumi",
     buildsSurveys: "Veido aptaujas",
     noJob: "Bez amata, tāpēc neko nevar pajautāt",
+    searchPlaceholder: "Meklēt cilvēkus",
+    bandFilterLabel: "Līmenis",
+    bandFilterAll: "Visi līmeņi",
+    noMatches: "Neviens neatbilst.",
+    inFunction: (n: number) => `${n} ${n === 1 ? 'cilvēks' : 'cilvēki'}`,
+    showing: (shown: number, total: number) => `Rāda ${shown} no ${total}`,
     readOnly: "Tikai lasāms. Pievienot vai mainīt cilvēkus var tikai administrators.",
   },
   admin: {

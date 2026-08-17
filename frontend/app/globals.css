@@ -53,6 +53,39 @@
   --hero-from: #00417f;
   --hero-to: #0b6fb8;
   --on-hero: #ffffff;
+  /* The quieter text on the hero: subtitles, the bar's nav links, the label over the
+     user picker. An opaque colour rather than --on-hero at reduced opacity, because the
+     first build used opacity 0.85 and that resolves to #dae9f4 over the bright stop,
+     which is 4.26:1: under the floor, and invisible to the checker, which cannot see
+     through alpha. This is the softest colour that still clears 4.5:1 at that stop. */
+  --on-hero-muted: #e8f1f8;
+  /* ---------------------------------------------------------------------------
+     The band ramp, for the People page.
+
+     Six steps, operative to director, one per band, so seniority reads as depth
+     across the reach map and the same tint follows a person into the table below
+     it. A ramp rather than six hues because a band is ordered data and ordered data
+     gets an ordered scale, and because lightness survives colour-vision deficiency
+     where hue does not. Neutral rather than blue, deliberately: on that page the
+     accent blue means exactly one thing, "reached by the selected audience", and a
+     director cell that was also blue would fight the lit cell beside it.
+
+     Each step carries its own text colour, because the ramp crosses over at step 5:
+     the light steps take the page's ink and the dark ones take white, and every one
+     of the six pairs is measured by check_contrast.py. The lowest is 5.06:1.
+     --------------------------------------------------------------------------- */
+  --band-1: #e9edf3;
+  --band-2: #d8dfe8;
+  --band-3: #bfc8d5;
+  --band-4: #96a3b5;
+  --band-5: #5e6d83;
+  --band-6: #2f3d52;
+  --on-band-1: #0b1222;
+  --on-band-2: #0b1222;
+  --on-band-3: #0b1222;
+  --on-band-4: #0b1222;
+  --on-band-5: #ffffff;
+  --on-band-6: #ffffff;
   /* 14px, from the health app. Softer than the 8px this used, and the reason the
      cards there read as cards rather than as panels. */
   /* ---------------------------------------------------------------------------
@@ -184,6 +217,19 @@
     --hero-from: #0d2947;
     --hero-to: #17456e;
     --on-hero: #eaf2fa;
+    --on-hero-muted: #c4d3e3;
+    --band-1: #243043;
+    --band-2: #2f3d55;
+    --band-3: #3d4d6a;
+    --band-4: #526482;
+    --band-5: #7891ae;
+    --band-6: #aebdd0;
+    --on-band-1: #e8ecf3;
+    --on-band-2: #e8ecf3;
+    --on-band-3: #e8ecf3;
+    --on-band-4: #e8ecf3;
+    --on-band-5: #0b1222;
+    --on-band-6: #0b1222;
     /* Elevation reads as light on a dark surface, not as a cast shadow. */
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
@@ -226,6 +272,19 @@
   --hero-from: #0d2947;
   --hero-to: #17456e;
   --on-hero: #eaf2fa;
+  --on-hero-muted: #c4d3e3;
+  --band-1: #243043;
+  --band-2: #2f3d55;
+  --band-3: #3d4d6a;
+  --band-4: #526482;
+  --band-5: #7891ae;
+  --band-6: #aebdd0;
+  --on-band-1: #e8ecf3;
+  --on-band-2: #e8ecf3;
+  --on-band-3: #e8ecf3;
+  --on-band-4: #e8ecf3;
+  --on-band-5: #0b1222;
+  --on-band-6: #0b1222;
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
   color-scheme: dark;
@@ -343,11 +402,17 @@ select {
    in here therefore reads against a card surface rather than against a dark bar, which
    is why the rules below name --ink and --border instead of --on-slab and the overlay
    pair. Leaving one of them behind is a white-on-white control, so they move together. */
+/* The bar carries the home page's gradient, so every page shows a strip of it and the
+   product reads as one thing from the top of any screen. Every control on it keeps its
+   own opaque surface (the picker, the sign-in field, the button, the error pill), so
+   the only text painted straight onto the gradient is the brand, the nav and the small
+   label over the picker, and those three use the two hero text tokens the contrast
+   guard measures at both stops. The 3px accent rule under the bar went with the white
+   background: it existed to give a white bar an edge, and a gradient has one. */
 .topbar {
   height: 60px;
-  background: var(--raised);
-  color: var(--ink);
-  border-block-end: 3px solid var(--accent-strong);
+  background: linear-gradient(90deg, var(--hero-from), var(--hero-to));
+  color: var(--on-hero);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -358,7 +423,7 @@ select {
   font-size: var(--text-md);
 }
 .topbar-brand span {
-  color: var(--accent);
+  color: var(--on-hero-muted);
   font-weight: 600;
 }
 .topbar-user {
@@ -370,7 +435,7 @@ select {
   font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--muted);
+  color: var(--on-hero-muted);
 }
 .topbar-user select {
   background: var(--canvas);
@@ -417,8 +482,8 @@ select {
   cursor: not-allowed;
   opacity: 0.55;
 }
-/* The bar is a card surface now, so a refusal here can use the same error tokens as
-   everywhere else. It could not when the bar was dark: the error text is dark. */
+/* A refusal here paints its own fill, so it reads the same on the gradient as it did on
+   the white bar before it: the error text only ever sits on --err-fill. */
 .topbar-signin-error {
   font-size: var(--text-xs);
   color: var(--err-text);
@@ -472,8 +537,7 @@ select {
    whatever cascade layer the declaration is in. That is the mechanism the textarea and
    the buttons below rely on to stay legible on their own surfaces. */
 .home-hero-sub {
-  color: var(--on-hero);
-  opacity: 0.85;
+  color: var(--on-hero-muted);
 }
 /* The one type step above the app's scale. clamp so it is a headline on a laptop and
    still a headline, not a paragraph, on a phone held in a chill store. */
@@ -1027,13 +1091,11 @@ select.field {
   font-weight: 600;
 }
 .topbar-nav a {
-  color: var(--muted);
-}
-.topbar-nav a {
+  color: var(--on-hero-muted);
   transition: color var(--dur-fast) var(--ease);
 }
 .topbar-nav a:hover {
-  color: var(--accent-strong);
+  color: var(--on-hero);
 }
 
 .survey-list {

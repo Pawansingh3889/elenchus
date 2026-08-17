@@ -296,6 +296,19 @@ PALETTE = """:root {{
   --hero-from: #00417f;
   --hero-to: #0b6fb8;
   --on-hero: #ffffff;
+  --on-hero-muted: #e8f1f8;
+  --band-1: #e9edf3;
+  --band-2: #d8dfe8;
+  --band-3: #bfc8d5;
+  --band-4: #96a3b5;
+  --band-5: #5e6d83;
+  --band-6: #2f3d52;
+  --on-band-1: #0b1222;
+  --on-band-2: #0b1222;
+  --on-band-3: #0b1222;
+  --on-band-4: #0b1222;
+  --on-band-5: #ffffff;
+  --on-band-6: #ffffff;
 }}
 """
 

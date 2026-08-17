@@ -74,6 +74,12 @@ export const lt: Messages = {
     colHats: "Papildomos pareigos",
     buildsSurveys: "Kuria apklausas",
     noJob: "Be pareigų, todėl nieko negalima paklausti",
+    searchPlaceholder: "Ieškoti žmonių",
+    bandFilterLabel: "Lygis",
+    bandFilterAll: "Visi lygiai",
+    noMatches: "Niekas neatitinka.",
+    inFunction: (n: number) => `${n} ${n === 1 ? 'žmogus' : n < 10 ? 'žmonės' : 'žmonių'}`,
+    showing: (shown: number, total: number) => `Rodoma ${shown} iš ${total}`,
     readOnly: "Tik skaitymui. Pridėti ar keisti žmones gali tik administratorius.",
   },
   admin: {

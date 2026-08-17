@@ -74,6 +74,12 @@ export const es: Messages = {
     colHats: "Responsabilidades",
     buildsSurveys: "Crea encuestas",
     noJob: "Sin puesto, así que no se le puede preguntar nada",
+    searchPlaceholder: "Buscar personas",
+    bandFilterLabel: "Nivel",
+    bandFilterAll: "Todos los niveles",
+    noMatches: "Nadie coincide con eso.",
+    inFunction: (n: number) => `${n} ${n === 1 ? 'persona' : 'personas'}`,
+    showing: (shown: number, total: number) => `Mostrando ${shown} de ${total}`,
     readOnly: "Solo lectura. Únicamente un administrador puede añadir o cambiar personas.",
   },
   admin: {
