@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import { LOCALES, isLocale, type Locale } from "@/lib/i18n";
 import { useDocumentLanguage, useT } from "@/lib/i18n/useT";
-import { useIdentify, useProviders, useSession, useUsers } from "@/lib/queries";
+import { useIdentify, useProviders, useUsers } from "@/lib/queries";
 import { useLocaleStore, useUserStore } from "@/lib/store";
 
 /**
