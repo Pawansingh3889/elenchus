@@ -231,6 +231,11 @@ function ResultsContent() {
           {questions.length > 0 && shown.length > 0 ? (
             <section className="flex flex-col gap-3">
               <h2 className="text-md font-semibold">{msg.results.questionsHeading}</h2>
+              {/* Tiles, not a column. One card per row spent 992px on a bar for a
+                  count of one and made eight questions five screens tall. Two columns
+                  from lg up; a card decides its own span (see QuestionCard), and the
+                  grid is not dense, so Q4 never appears above Q3 to fill a gap. */}
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
               {questions.map(({ report: question, runIds, series }, i) => (
                 <QuestionCard
                   key={question.id}
@@ -240,6 +245,7 @@ function ResultsContent() {
                   flagged={flagged.has(question.id)}
                   slice={slice}
                   onSlice={(next) => setParam("slice", next ? formatSlice(next) : null)}
+                  pageComparing={Boolean(compareQuestion)}
                 >
                   {/* Counted on the page, read on click: forty open answers is a long
                       list to scroll past on the way to the next question, and grouping
@@ -289,6 +295,7 @@ function ResultsContent() {
                   ) : null}
                 </QuestionCard>
               ))}
+              </div>
             </section>
           ) : null}
         </>

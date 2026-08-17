@@ -191,10 +191,11 @@ export function ControlBar({
                     <span className="text-muted">{label}</span>
                   </span>
                 ) : (
-                  <button
+                  <Button
                     key={label}
-                    type="button"
-                    className="flex cursor-pointer items-center gap-1.5 rounded-md px-1 hover:bg-surface"
+                    variant="quiet"
+                    size="sm"
+                    className="gap-1.5 px-1"
                     title={msg.results.legendSlice(label)}
                     onClick={() =>
                       onSlice(
@@ -210,7 +211,7 @@ export function ControlBar({
                       aria-hidden
                     />
                     <span className="text-muted">{label}</span>
-                  </button>
+                  </Button>
                 ),
               )}
             </span>

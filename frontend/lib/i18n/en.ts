@@ -379,6 +379,8 @@ export const en = {
     clickToSlice: (n: number) => `Click to show only these ${n}`,
     clickToUnslice: "Click to show everyone again",
     legendSlice: (g: string) => `Show only ${g}`,
+    unfoldZeros: (n: number) => `${n} option${n === 1 ? "" : "s"} nobody picked`,
+    foldZeros: (n: number) => `Hide the ${n} nobody picked`,
     sliceEmpty: "Nobody gave that answer, so there is nothing to show.",
     exportCsv: "Download CSV",
     tableRespondent: "Respondent",

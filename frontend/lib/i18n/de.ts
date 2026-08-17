@@ -367,6 +367,8 @@ export const de: Messages = {
     clickToSlice: (n: number) => `Klicken, um nur diese ${n} zu zeigen`,
     clickToUnslice: "Klicken, um wieder alle zu zeigen",
     legendSlice: (g: string) => `Nur ${g} zeigen`,
+    unfoldZeros: (n: number) => `${n} ${n === 1 ? "Option, die niemand gewählt hat" : "Optionen, die niemand gewählt hat"}`,
+    foldZeros: (n: number) => `Die ${n} nicht gewählten ausblenden`,
     sliceEmpty: "Diese Antwort hat niemand gegeben, es gibt nichts zu zeigen.",
     exportCsv: "CSV herunterladen",
     tableRespondent: "Teilnehmer",

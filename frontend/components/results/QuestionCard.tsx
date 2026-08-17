@@ -1,5 +1,7 @@
 "use client";
 
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { useState } from "react";
 import {
   Bar,
   BarChart,
@@ -19,11 +21,21 @@ import {
   ChartContainer,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { Button } from "@/components/ui/button";
 import { Card, CardLabel } from "@/components/ui/card";
 import { seriesColour } from "@/lib/comparison";
 import { useT } from "@/lib/i18n/useT";
 import { SLICEABLE_TYPES, type Slice } from "@/lib/slicing";
 import type { QuestionReport } from "@/lib/types";
+
+/**
+ * More rows than this is a long list. One number, two consequences: the card goes full
+ * width so its labels get an axis they fit on, and its zero rows fold behind a count.
+ * Eight because it is the largest option list that still reads as a glance at half
+ * width, and because the plant's own surveys sit either side of it: an area list of
+ * eight, a location list of eleven.
+ */
+export const LONG_LIST = 8;
 
 /**
  * One question, as the whole survey answered it.
@@ -62,6 +74,7 @@ export function QuestionCard({
   flagged = false,
   slice = null,
   onSlice,
+  pageComparing = false,
   children,
 }: {
   question: QuestionReport;
@@ -75,6 +88,9 @@ export function QuestionCard({
   slice?: Slice | null;
   /** Set or clear the slice from a mark. Absent means marks are not clickable. */
   onSlice?: (slice: Slice | null) => void;
+  /** Whether the page is comparing at all, so the compared question, which draws one
+   *  series, still takes the full width its neighbours do. */
+  pageComparing?: boolean;
   children?: React.ReactNode;
 }) {
   const msg = useT();
@@ -149,9 +165,35 @@ export function QuestionCard({
       ? `${c.count}  ${share(c.count, people)} · ${share(c.count, picks)}`
       : `${c.count}  ${share(c.count, people)}`,
   }));
+  // A long list is a different kind of card, decided by one number, with two
+  // consequences that belong together. It goes full width, so its labels get an axis
+  // they fit on: at 150px, "Chilled finished goods store" wrapped and still ran four
+  // pixels past the plot. And its zero rows fold, because thirteen rows for a question
+  // five people answered is mostly a column of empty space, and eight zeros are a
+  // finding a reader can be told in one line rather than shown in eight. Rating never
+  // folds: its five steps are the scale, and an unused end of it is the shape.
+  //
+  // Comparing also goes wide regardless, since one bar per option per group needs the
+  // room, and any card is short of it at half width.
+  const longList = rows.length > LONG_LIST && question.answer_type !== "rating";
+  // Wide when this card compares, when the page does (the compared question itself
+  // draws one series, and left at half width it sat alone beside a column of wide
+  // cards), or when its list is long. Free text has no chart and never needs the room.
+  const wide = (comparing || pageComparing || longList) && rows.length > 0;
+  // 240 fits the longest option this plant has written so far ("Slightly worse than
+  // last summer", 224px at the tick size) with room; 150 is what a six-option scale
+  // wraps comfortably into at half width.
+  const axisWidth = wide ? 240 : 150;
+  const [unfolded, setUnfolded] = useState(false);
+  const zeroRows = longList ? rows.filter((r) => r.count === 0).length : 0;
+  const folded = longList && !unfolded && zeroRows > 0;
+  const shownRows = folded ? rows.filter((r) => r.count > 0) : rows;
+  const shownGrouped = folded
+    ? grouped.filter((row) => series.some((s) => Number(row[s.label]) > 0))
+    : grouped;
   // Enough room per row to read the label, capped so a twenty-option question does not
   // become a page of its own.
-  const height = Math.max(80, Math.min(rows.length * 34 + 24, 460));
+  const height = Math.max(80, Math.min(shownRows.length * 34 + 24, 460));
   // A donut is two parts of one whole, which is exactly what a yes/no is until you
   // compare groups: then it is two wholes, and a donut can only draw one. Comparing
   // therefore wins, and the same question answers "how split" and "who differs"
@@ -163,8 +205,12 @@ export function QuestionCard({
 
   return (
     // The anchor the flag strip links to, and a scroll margin so the card lands below
-    // the sticky control bar rather than under it.
-    <Card id={`question-${question.id}`} className="scroll-mt-28 p-4">
+    // the sticky control bar rather than under it. The span is the card's own decision
+    // because it depends on the data the card holds; the grid it sits in stays dumb.
+    <Card
+      id={`question-${question.id}`}
+      className={wide ? "scroll-mt-28 p-4 lg:col-span-2" : "scroll-mt-28 p-4"}
+    >
       <div className="flex flex-wrap items-center gap-2">
         <CardLabel>{msg.builder.questionLabel(position + 1)}</CardLabel>
         {/* The same words the strip used, so arriving here confirms the jump landed
@@ -227,13 +273,13 @@ export function QuestionCard({
           </PieChart>
         </ChartContainer>
       ) : comparing && grouped.length > 0 ? (
-        <ChartContainer height={Math.max(120, grouped.length * (series.length * 16 + 18) + 24)} className={chartClass}>
-          <BarChart data={grouped} layout="vertical" margin={{ top: 4, right: 40, bottom: 4, left: 4 }}>
+        <ChartContainer height={Math.max(120, shownGrouped.length * (series.length * 16 + 18) + 24)} className={chartClass}>
+          <BarChart data={shownGrouped} layout="vertical" margin={{ top: 4, right: 40, bottom: 4, left: 4 }}>
             <XAxis type="number" hide />
             <YAxis
               type="category"
               dataKey="label"
-              width={150}
+              width={axisWidth}
               tickLine={false}
               axisLine={{ stroke: CHART_GRID }}
               tick={{ fill: CHART_AXIS }}
@@ -252,7 +298,7 @@ export function QuestionCard({
                 isAnimationActive={false}
                 onClick={onMark}
               >
-                {grouped.map((row) => (
+                {shownGrouped.map((row) => (
                   <Cell
                     key={String(row.value)}
                     fillOpacity={dimmed(String(row.value)) ? 0.35 : 1}
@@ -262,14 +308,14 @@ export function QuestionCard({
             ))}
           </BarChart>
         </ChartContainer>
-      ) : rows.length > 0 ? (
+      ) : shownRows.length > 0 ? (
         <ChartContainer height={height} className={chartClass}>
           {/* Room at the end for the label the bar carries. A multi-select prints two
               percentages rather than one, and the longest bar is the one with no room
               to spare: at 92 the "4 100% · 30.8%" on a full-width bar wrapped onto two
               lines and ran off the plot. */}
           <BarChart
-            data={rows}
+            data={shownRows}
             layout="vertical"
             margin={{ top: 4, right: multi ? 150 : 92, bottom: 4, left: 4 }}
           >
@@ -277,7 +323,7 @@ export function QuestionCard({
             <YAxis
               type="category"
               dataKey="label"
-              width={150}
+              width={axisWidth}
               tickLine={false}
               axisLine={{ stroke: CHART_GRID }}
               tick={{ fill: CHART_AXIS }}
@@ -312,7 +358,7 @@ export function QuestionCard({
               isAnimationActive={false}
               onClick={onMark}
             >
-              {rows.map((row) => (
+              {shownRows.map((row) => (
                 // A write-in is the respondent's own words rather than an option the
                 // author offered, so it is drawn in the lighter step of the same hue:
                 // still one series, with the distinction carried by the "(write-in)" in
@@ -326,6 +372,23 @@ export function QuestionCard({
             </Bar>
           </BarChart>
         </ChartContainer>
+      ) : null}
+
+      {/* The zeros, said rather than drawn. The count is the finding ("eight of the
+          eleven places were never named"), and it stays on the card whether folded or
+          not; unfolding draws the rows for a reader who wants to see which. Once
+          unfolded it stays unfolded for this card, so a slice does not snap it shut. */}
+      {longList && zeroRows > 0 ? (
+        <Button
+          variant="quiet"
+          size="sm"
+          className="mt-2 -ms-2 text-muted"
+          aria-expanded={unfolded}
+          onClick={() => setUnfolded((v) => !v)}
+        >
+          {unfolded ? <ChevronDown aria-hidden /> : <ChevronRight aria-hidden />}
+          {unfolded ? msg.results.foldZeros(zeroRows) : msg.results.unfoldZeros(zeroRows)}
+        </Button>
       ) : null}
 
       {children}
