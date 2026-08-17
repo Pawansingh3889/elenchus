@@ -58,11 +58,20 @@ test("deleting a template invalidates the dashboard it navigates back to", async
 });
 
 test("publishing invalidates the dashboard and what a respondent can open", async () => {
+  // Publishing returns the survey itself now: it is a status change rather than a new
+  // frozen version, so there is no version row to hand back.
   vi.spyOn(api, "publishTemplate").mockResolvedValue({
-    id: "v1",
-    template_id: "t1",
-    version: 1,
-    published_at: "2026-08-12T00:00:00Z",
+    id: "t1",
+    title: "T",
+    description: null,
+    status: "published",
+    created_by: "u1",
+    created_at: "2026-08-12T00:00:00Z",
+    updated_at: "2026-08-12T00:00:00Z",
+    audience: "everyone",
+    audience_user_id: null,
+    setting: null,
+    questions: [],
   });
   const client = new QueryClient();
   const invalidated = vi.spyOn(client, "invalidateQueries");
@@ -82,7 +91,6 @@ test("a generated recap lands on the key the page reads", async () => {
     headline: "The line stops most often at the guillotine.",
     findings: [],
     caveat: "3 of 8 answered.",
-    version: 1,
     runs_included: 3,
     generated_at: "2026-08-12T00:00:00Z",
   };

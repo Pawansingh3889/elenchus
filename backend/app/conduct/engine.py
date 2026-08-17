@@ -8,7 +8,7 @@ what to say. Nothing reaches the run until it has validated.
 
 import logging
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Final
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +23,7 @@ from app.conduct.validation import (
     ungrounded_yes_no,
     validate_answer,
 )
+from app.config import get_settings
 from app.errors import ConflictError, ForbiddenError, NotFoundError
 from app.i18n import language_note, translate
 from app.llm import ledger
@@ -32,7 +33,7 @@ from app.llm.prompts import load_prompt
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
 from app.runs.models import REPLY_PREFIX, Answer, RunMessage, SurveyRun, add_llm_spend
 from app.templates.enums import FollowUpPolicy, TemplateStatus
-from app.templates.snapshot import questions_of, setting_of
+from app.templates.reading import questions_of, setting_of
 from app.templates.visibility import next_visible, remaining_possible
 from app.users.models import User
 
@@ -63,6 +64,16 @@ FOLLOW_UP = "ask_follow_up"
 UNANSWERABLE = "flag_unanswerable"
 MOVE_ON = "move_on"
 REPLY = "reply"
+
+# The answer types whose vocabulary is closed: the author fixed the values, so an answer
+# is a selection from them rather than something the respondent composed. Only these can
+# be *corrected* by a probe, which is what `_corrects_scripted` decides. Free text is
+# absent deliberately: a probe on a text question adds a second thing the respondent
+# said, and overwriting the first with it would delete an answer to make room for an
+# elaboration on it.
+_CLOSED_TYPES: Final[frozenset[str]] = frozenset(
+    {"single_select", "multi_select", "yes_no", "rating", "number", "date"}
+)
 
 
 class ConductEngine:
@@ -129,20 +140,18 @@ class ConductEngine:
                 raise ConflictError("You have already answered this survey.")
             return await self.load(existing.id, respondent)
 
-        version = await self.repo.latest_version(template_id)
-        if version is None:
-            raise ConflictError("This template has no published version to answer.")
-        questions = questions_of(version.definition)
+        template = await self.repo.get_template(template_id)
+        if template is None:
+            raise ConflictError("This survey does not exist.")
+        questions = questions_of(template)
         if not questions:
-            raise ConflictError("The published version has no questions.")
+            raise ConflictError("This survey has no questions.")
 
-        run = SurveyRun(
-            template_version_id=version.id, respondent_id=respondent.id, language=language
-        )
+        run = SurveyRun(template_id=template.id, respondent_id=respondent.id, language=language)
         run.messages.append(
             RunMessage(
                 role=MessageRole.assistant,
-                content=_opening_text(version.definition, questions[0]),
+                content=_opening_text(template.title, questions[0]),
             )
         )
         self.repo.add(run)
@@ -166,22 +175,31 @@ class ConductEngine:
         return run
 
     async def questions(self, run: SurveyRun) -> list[dict[str, Any]]:
-        version = await self.repo.get_version(run.template_version_id)
-        if version is None:
-            raise NotFoundError("The run's template version is missing.")
-        return questions_of(version.definition)
+        """The questions this run is being conducted against, read live.
+
+        Live is the change: these used to come from the frozen version the run named, so
+        a run held the questions it started with however the draft moved. Now an author
+        editing a published survey changes what an in-flight conversation asks next.
+        Read at the moment they are needed rather than held, so at least the change takes
+        effect at a question boundary rather than mid-turn.
+        """
+        template = await self.repo.get_template(run.template_id)
+        if template is None:
+            raise NotFoundError("The run's survey is missing.")
+        return questions_of(template)
 
     async def setting(self, run: SurveyRun) -> str | None:
-        """What the author said about the workplace, frozen at publish with the questions.
+        """What the author said about the workplace, read live with the questions.
 
-        Read from the version rather than the template, for the same reason the questions
-        are: a run is conducted against what was published, and an author editing the
-        draft mid-study must not change how answers already being given are read.
+        It was frozen at publish, so that an author editing the draft mid-study could not
+        change how answers already being given were read. That guarantee went with
+        versions; the fallback to the deployment's own setting moved here with it, since
+        there is no snapshot left to bake it into.
         """
-        version = await self.repo.get_version(run.template_version_id)
-        if version is None:
-            raise NotFoundError("The run's template version is missing.")
-        return setting_of(version.definition)
+        template = await self.repo.get_template(run.template_id)
+        if template is None:
+            raise NotFoundError("The run's survey is missing.")
+        return setting_of(template) or get_settings().survey_setting or None
 
     def probing(self, run: SurveyRun, questions: list[dict[str, Any]]) -> bool:
         """True when the last thing asked was a follow-up, not the scripted question.
@@ -226,8 +244,8 @@ class ConductEngine:
         """
         out: list[tuple[SurveyRun, UUID, str, int, int]] = []
         for run, template_id, title in await self.repo.in_progress_for(respondent.id):
-            version = await self.repo.get_version(run.template_version_id)
-            questions = questions_of(version.definition) if version else []
+            template = await self.repo.get_template(run.template_id)
+            questions = questions_of(template) if template else []
             answered, total = self.progress(run, questions)
             out.append((run, template_id, title, answered, total))
         return out
@@ -607,19 +625,26 @@ class ConductEngine:
 
         if turn.tool_name == RECORD:
             scripted = not state["scripted_recorded"]
+            value = (
+                validate_answer(question, turn.tool_input["value"])
+                if scripted
+                else _follow_up_value(question, turn.tool_input["value"])
+            )
             run.answers.append(
                 Answer(
                     question_id=UUID(question["id"]),
                     kind=AnswerKind.scripted if scripted else AnswerKind.follow_up,
                     question_text=question["text"] if scripted else _last_assistant(run),
-                    value=(
-                        validate_answer(question, turn.tool_input["value"])
-                        if scripted
-                        else _follow_up_value(question, turn.tool_input["value"])
-                    ),
+                    value=value,
                     answered_by=run.respondent_id,
                 )
             )
+            # A probe that answers in the author's own vocabulary has corrected the
+            # scripted answer rather than added a new one, so the scripted answer is
+            # amended to it. See _corrects_scripted for which probes qualify.
+            if not scripted and _corrects_scripted(question, value):
+                _amend_scripted(run, question, value)
+                state["scripted_value"] = value
             await self.session.flush()
             if _may_probe(question, state["follow_ups_used"]):
                 return None  # let the model decide: probe again, or move on
@@ -751,8 +776,8 @@ def _is_uuid(value: str) -> bool:
     return True
 
 
-def _opening_text(definition: dict[str, Any], first: dict[str, Any]) -> str:
-    return f"Thanks for taking {definition['title']}. {first['text']}"
+def _opening_text(title: str, first: dict[str, Any]) -> str:
+    return f"Thanks for taking {title}. {first['text']}"
 
 
 def _last_assistant(run: SurveyRun) -> str:
@@ -824,6 +849,67 @@ def _follow_up_value(question: dict[str, Any], raw: Any) -> dict[str, Any]:
             f"a follow-up answer must fit the question's type or be text, got {raw!r}"
         )
     return {"text": raw.strip()}
+
+
+def _corrects_scripted(question: dict[str, Any], value: dict[str, Any]) -> bool:
+    """Whether this follow-up answer corrects the scripted answer instead of adding to it.
+
+    A probe is not always a new question. When the model asks "was that during unloading
+    or at the intake checks?", it is re-asking the author's question with the option list
+    spelled out, and the reply is an answer to *that* question in *that* vocabulary. Filed
+    as a follow-up it is never counted, because a follow-up answers a question the model
+    wrote and so belongs to no option list. The result was a chart that disagreed with its
+    own transcript: on a live survey the question "where have you seen product above the
+    chill specification" tallied zero for "Vehicle unloading at intake" while two of the
+    three respondents had named it under probing, and the scripted answers the engine kept
+    instead were "sat on the bay" and "intake" as write-ins, which are a fragment of a
+    sentence and a duplicate of an option that was offered.
+
+    Two conditions, and the pair is the whole rule.
+
+    **The parent's vocabulary is closed.** The values were fixed by the author, so the
+    probe's answer is a selection from the same set the scripted answer was, and one of
+    them has to be wrong. On free text there is no set to select from: a probe there
+    elaborates, and replacing "the chiller by intake has been drifting for weeks" with
+    what they said next would delete an answer to make room for a note about it.
+
+    **The probe answered in that vocabulary.** `_follow_up_value` already tries the
+    parent's shape first and falls back to prose, so a value carrying `text` under a
+    closed parent is the fallback and nothing else: the respondent replied to the probe
+    with something the option list has no room for, which is a genuine second thing they
+    said, and it stays a follow-up.
+
+    Correction is replacement rather than a merge. What the respondent settled on is the
+    answer, and merging would keep the misparse beside it forever: "intake" would stay a
+    write-in row next to the "Vehicle unloading at intake" it was a worse spelling of, and
+    a chart cannot show that the first was withdrawn. Nothing is lost either way, because
+    the transcript keeps every word and the follow-up row keeps the exchange.
+    """
+    return question["answer_type"] in _CLOSED_TYPES and "text" not in value
+
+
+def _amend_scripted(run: SurveyRun, question: dict[str, Any], value: dict[str, Any]) -> None:
+    """Replace the scripted answer's value in place, keeping the row it lives on.
+
+    The row, not a new one: `question_text` on it is the author's question as it was
+    worded when this person was asked, which since versions were removed is the only
+    record of what they actually saw. Re-recording would restate it from today's draft.
+
+    Reversed, so a second correction amends the answer rather than an older row: there is
+    one scripted answer per question, and the last one appended is it.
+
+    Loud when there is none, because the caller only reaches this once `scripted_recorded`
+    is true, and that came from counting the same rows this searches. Disagreement between
+    them is a broken invariant, not a case to handle.
+    """
+    for answer in reversed(run.answers):
+        if answer.kind is AnswerKind.scripted and str(answer.question_id) == question["id"]:
+            answer.value = value
+            return
+    raise RuntimeError(
+        f"run={run.id} question={question['id']}: a probe corrected a scripted answer "
+        "that is not on the run"
+    )
 
 
 def _value_schema(question: dict[str, Any]) -> dict[str, Any]:

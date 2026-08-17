@@ -28,7 +28,6 @@ from app.runs.models import RunMessage, SurveyRun
 from app.templates.enums import AnswerType, FollowUpPolicy, SurveyAudience
 from app.templates.schemas import QuestionInput, TemplateCreate
 from app.templates.service import TemplateService
-from tests.builders import update_of
 from tests.fakes import FakeLLM
 from tests.fakes import follow_up as _follow_up
 from tests.fakes import move_on as _move_on
@@ -317,46 +316,6 @@ async def test_run_completes_after_the_final_question(session, respondent, publi
 
     with pytest.raises(ConflictError):  # a finished run takes no more messages
         await ConductEngine(session, llm=FakeLLM()).handle_message(run.id, "more", respondent)
-
-
-async def test_republishing_leaves_an_in_flight_run_alone(session, author, respondent, published):
-    """A run is bound to the version it started on, so authors can keep editing."""
-    engine = ConductEngine(session, llm=FakeLLM())
-    run = await engine.start_run(published.id, respondent)
-    first = FakeLLM(_record("Line lead"), _move_on())
-    run = await ConductEngine(session, llm=first).handle_message(run.id, "line lead", respondent)
-
-    # The author rewrites the survey and republishes while the respondent is mid-run.
-    svc = TemplateService(session)
-    await svc.update_draft(
-        published.id,
-        update_of(
-            published,
-            title="Something else entirely",
-            questions=[
-                QuestionInput(text="A brand new question", answer_type=AnswerType.long_text)
-            ],
-        ),
-        author,
-    )
-    assert (await svc.publish(published.id, author)).version == 2
-
-    reloaded = ConductEngine(session, llm=FakeLLM())
-    live = await reloaded.load(run.id, respondent)
-    assert [q["text"] for q in await reloaded.questions(live)] == [
-        "What's your role?",
-        "Rate your onboarding",
-    ]
-    assert live.current_question_index == 1  # position untouched by the republish
-
-    # And it still completes against v1's questions, not the new ones.
-    llm = FakeLLM(_record(4, "Thanks, that's everything."))
-    live = await ConductEngine(session, llm=llm).handle_message(live.id, "four", respondent)
-    assert live.status is RunStatus.completed
-    assert [a.value for a in live.answers if a.kind is AnswerKind.scripted] == [
-        {"text": "Line lead"},
-        {"rating": 4},
-    ]
 
 
 def _decline(reason: str = "respondent declined", say: str = "No problem.") -> ToolTurn:
@@ -863,6 +822,108 @@ async def test_a_follow_up_that_re_asks_the_question_stays_structured(
 
     follow_ups = [a for a in run.answers if a.kind is AnswerKind.follow_up]
     assert follow_ups[0].value == {"yes_no": False}
+    # And the answer itself is what they settled on. "no actually" corrects the yes; the
+    # scripted answer is the one every tally reads, so leaving it saying yes would report
+    # the opposite of what this person told the interviewer.
+    scripted = [a for a in run.answers if a.kind is AnswerKind.scripted]
+    assert scripted[0].value == {"yes_no": False}
+
+
+# ------------------------------------------------- a probe can correct, not just add
+
+
+async def test_a_probe_that_resolves_the_option_list_corrects_the_answer(
+    session, respondent, published_multi_select
+):
+    """Found by conducting a real survey, and it made the chart contradict the transcript.
+
+    Asked where product had been above the chill spec, the respondent answered with a
+    reading and a place that is not on the option list. The engine kept the only thing it
+    could make of that, a write-in of the fragment, then probed and got the two real
+    options back. Filed as a follow-up those were never counted, so the question tallied
+    zero for "Vehicle unloading at intake" while the transcript above it said otherwise.
+    """
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published_multi_select.id, respondent)
+
+    llm = FakeLLM(
+        _record(["sat on the bay"]),
+        _follow_up("Was that during vehicle unloading, or at the intake checks?"),
+    )
+    run = await ConductEngine(session, llm=llm).handle_message(
+        run.id, "6.2 at the core on a box that had been sat on the bay", respondent
+    )
+    scripted = next(a for a in run.answers if a.kind is AnswerKind.scripted)
+    assert scripted.value == {"options": [], "other": ["sat on the bay"]}
+
+    llm = FakeLLM(
+        _record(["Vehicle unloading at intake", "Intake checks before booking in"]), _move_on()
+    )
+    run = await ConductEngine(session, llm=llm).handle_message(
+        run.id, "unloading, and the intake checks before booking in", respondent
+    )
+
+    scripted = [a for a in run.answers if a.kind is AnswerKind.scripted]
+    assert len(scripted) == 1, "correcting an answer must not create a second one"
+    # Replaced, not merged. The write-in was the engine's reading of a sentence, not an
+    # option this person chose, and merging would leave it as a row on the chart beside
+    # the option it was a worse spelling of, with no way to show it was withdrawn.
+    assert scripted[0].value == {
+        "options": ["Vehicle unloading at intake", "Intake checks before booking in"]
+    }
+    # The author's wording, not the probe's: this is the only record of what the
+    # respondent was actually asked.
+    assert scripted[0].question_text == "Where have you seen product above the chill specification?"
+    # And the exchange is still on the run, so how the answer was reached is not lost.
+    assert [a.value for a in run.answers if a.kind is AnswerKind.follow_up] == [
+        {"options": ["Vehicle unloading at intake", "Intake checks before booking in"]}
+    ]
+
+
+async def test_a_probe_answered_in_prose_leaves_the_answer_alone(
+    session, respondent, published_yes_no
+):
+    """The boundary on the other side of a closed question.
+
+    "Could you describe the issues?" is a new question however closed its parent is, and
+    its answer is prose that the option list has no room for. Correcting on it would be
+    the engine deciding a description is a better yes/no than the yes it was given.
+    """
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published_yes_no.id, respondent)
+
+    llm = FakeLLM(_record(True), _follow_up("Could you describe the issues?"))
+    run = await ConductEngine(session, llm=llm).handle_message(run.id, "yes", respondent)
+
+    llm = FakeLLM(_record("The scanner drops its connection every few hours."), _move_on())
+    run = await ConductEngine(session, llm=llm).handle_message(
+        run.id, "the scanner drops its connection every few hours", respondent
+    )
+
+    scripted = [a for a in run.answers if a.kind is AnswerKind.scripted]
+    assert scripted[0].value == {"yes_no": True}
+
+
+async def test_a_probe_on_a_text_question_adds_rather_than_corrects(session, respondent, published):
+    """Free text has no option list, so a probe there elaborates and never replaces.
+
+    Both answers are things the respondent said, and the scripted one is what they said
+    to the author's question. Overwriting it with the elaboration would delete an answer
+    to make room for a note about it.
+    """
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    llm = FakeLLM(_record("Line lead"), _follow_up("What does that involve?"))
+    run = await ConductEngine(session, llm=llm).handle_message(run.id, "line lead", respondent)
+
+    llm = FakeLLM(_record("Running the packing line and the handover."), _move_on())
+    run = await ConductEngine(session, llm=llm).handle_message(
+        run.id, "running the packing line and the handover", respondent
+    )
+
+    scripted = [a for a in run.answers if a.kind is AnswerKind.scripted]
+    assert scripted[0].value == {"text": "Line lead"}
 
 
 async def test_the_follow_up_gate_still_refuses_nonsense(session, respondent, published_yes_no):
@@ -1432,27 +1493,8 @@ async def test_the_setting_is_never_said_to_the_respondent(session, author, resp
     assert "line leaders" not in spoken
 
 
-async def test_the_setting_is_frozen_at_publish(session, author, respondent):
-    """A run is conducted against what was published. An author rewriting the draft
-    mid-study must not change how answers already being given are read."""
-    published = await _published_with_setting(session, author, _PLANT)
-    engine = ConductEngine(session, llm=FakeLLM())
-    run = await engine.start_run(published.id, respondent)
-
-    svc = TemplateService(session)
-    template = await svc.get_draft(published.id, author)
-    await svc.update_draft(
-        published.id, update_of(template, setting="Completely different workplace."), author
-    )
-
-    llm = FakeLLM(_record("temperature"), _move_on())
-    await ConductEngine(session, llm=llm).handle_message(run.id, "tempereture", respondent)
-
-    briefing = llm.briefings[0]
-    assert "held on ice at 0 to 2 degrees" in briefing
-    assert "Completely different workplace" not in briefing
-
-
+# The workplace as a deployment supplies it, for the tests below. Restored after a
+# careless cut took it out along with the tests either side of it.
 _PLANT_CONFIG = (
     "Chilled fish processing plant, BRCGS certified. Fresh fish is held on ice at 0 to 2 "
     "degrees; above that is a chill-chain problem. Respondents are line leaders."
@@ -1506,11 +1548,10 @@ async def test_a_surveys_own_setting_beats_the_deployments(
     assert "held on ice" not in briefing
 
 
-async def test_the_deployment_setting_is_frozen_at_publish(
-    session, author, respondent, monkeypatch
-):
-    """Editing the deployment's description must not change how answers already being
-    given are read, for the same reason editing the draft does not."""
+async def test_the_deployment_setting_is_read_live(session, author, respondent, monkeypatch):
+    """Editing the deployment's description reaches runs already under way, for the same
+    reason editing the survey's own setting does: there is nothing frozen left to read
+    from, so the engine reads the current value at each turn."""
     from app.config import get_settings
 
     monkeypatch.setenv("SURVEY_SETTING", _PLANT_CONFIG)
@@ -1525,8 +1566,8 @@ async def test_the_deployment_setting_is_frozen_at_publish(
     await ConductEngine(session, llm=llm).handle_message(run.id, "tempereture", respondent)
 
     briefing = llm.briefings[0]
-    assert "held on ice at 0 to 2" in briefing
-    assert "Somewhere else" not in briefing
+    assert "Somewhere else" in briefing
+    assert "held on ice at 0 to 2" not in briefing
     monkeypatch.delenv("SURVEY_SETTING", raising=False)
     get_settings.cache_clear()
 

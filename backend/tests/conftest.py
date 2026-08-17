@@ -234,6 +234,41 @@ async def published_yes_no(session, author):
 
 
 @pytest_asyncio.fixture
+async def published_multi_select(session, author):
+    """A published survey whose first question is a multi-select with write-ins allowed.
+
+    Its own fixture because this is where a probe most often re-asks the author's own
+    question: a long option list is read out a few at a time, and the answer to "was that
+    at unloading or at the checks?" is a selection from the same list the scripted answer
+    came from. Modelled on the live survey where that answer was filed as an uncounted
+    follow-up and the chart disagreed with its own transcript.
+    """
+    svc = TemplateService(session)
+    template = await svc.create_draft(
+        TemplateCreate(
+            title="Chill chain check",
+            questions=[
+                QuestionInput(
+                    text="Where have you seen product above the chill specification?",
+                    answer_type=AnswerType.multi_select,
+                    options=[
+                        "Vehicle unloading at intake",
+                        "Intake checks before booking in",
+                        "Marshalling for dispatch",
+                    ],
+                    allow_other=True,
+                    follow_up_policy=FollowUpPolicy.when_unclear,
+                ),
+                QuestionInput(text="Rate the chill chain", answer_type=AnswerType.rating),
+            ],
+        ),
+        author,
+    )
+    await svc.publish(template.id, author)
+    return template
+
+
+@pytest_asyncio.fixture
 async def published(session, author):
     """A published two-question survey: q0 permits follow-ups, q1 is a rating that does not."""
     svc = TemplateService(session)

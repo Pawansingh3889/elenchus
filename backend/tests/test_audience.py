@@ -103,6 +103,11 @@ async def test_an_audience_can_be_chosen_and_changed_while_it_is_a_draft(session
 
 
 async def test_the_audience_is_frozen_once_published(session, author):
+    """Now a consequence of the wider rule rather than its own check: a published survey
+    cannot be edited at all, so it certainly cannot be re-aimed. Kept because the reason
+    is specific and worth keeping a test against: a survey that collects Finance answers
+    and is then pointed at HR ends up with one set of results drawn from two
+    populations, and nothing in the data records that it moved."""
     svc = TemplateService(session)
     template = await svc.create_draft(_draft("Managers check", SurveyAudience.managers), author)
     await svc.publish(template.id, author)
@@ -117,30 +122,32 @@ async def test_the_audience_is_frozen_once_published(session, author):
             ),
             author,
         )
-    assert "audience cannot change" in caught.value.message
+    assert "cannot be edited" in caught.value.message
 
 
-async def test_a_published_survey_can_still_be_edited_otherwise(session, author):
-    """The freeze is on the audience alone. Republishing with new questions is the
-    versioning story the whole app is built around, and it must not be collateral."""
+async def test_a_published_survey_cannot_be_edited_at_all(session, author):
+    """The replacement for a test that asserted the opposite.
+
+    The freeze used to be on the audience alone, so that republishing with new questions
+    still worked, which was the versioning story the app was built around. Versions are
+    gone and publishing is what freezes a survey, so the narrower rule has widened into
+    this one.
+    """
     svc = TemplateService(session)
     template = await svc.create_draft(_draft("Managers check", SurveyAudience.managers), author)
     await svc.publish(template.id, author)
 
-    updated = await svc.update_draft(
-        template.id,
-        update_of(
-            template,
-            title="Finance check, rewritten",
-            questions=[
-                QuestionInput(text="Anything?", answer_type=AnswerType.short_text),
-                QuestionInput(text="Anything else?", answer_type=AnswerType.short_text),
-            ],
-        ),
-        author,
-    )
-    assert updated.title == "Finance check, rewritten"
-    assert len(updated.questions) == 2
+    with pytest.raises(ConflictError) as caught:
+        await svc.update_draft(
+            template.id,
+            update_of(
+                template,
+                title="Rewritten",
+                questions=[QuestionInput(text="Anything?", answer_type=AnswerType.short_text)],
+            ),
+            author,
+        )
+    assert "cannot be edited" in str(caught.value.message)
 
 
 async def test_an_update_that_omits_the_audience_is_refused_not_defaulted():

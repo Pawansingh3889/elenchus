@@ -35,6 +35,12 @@ class SurveyTemplate(Base):
     # When this stopped taking answers. NULL for everything that has never been closed,
     # which is most of them, and the date the dashboard shows beside the final counts.
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    # When this was first published, and by whom. The frozen version used to hold both;
+    # with versions gone they live here, because "when did this go out, and who sent it"
+    # is the first question asked of a survey that produced surprising answers. Set once,
+    # on the first publish: a later edit is not a new publication.
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    published_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"), default=None)
     # Who this survey is for. NOT NULL with a default, because "aimed at nobody" is not a
     # state a survey can be in, and every survey written before this existed was in fact
     # aimed at the respondent pool. Frozen at publish: see TemplateService.publish.
@@ -102,21 +108,3 @@ class SurveyQuestion(Base):
     __table_args__ = (
         UniqueConstraint("template_id", "position", name="question_template_position"),
     )
-
-
-class SurveyTemplateVersion(Base):
-    """Immutable snapshot produced at publish time. Never updated in place."""
-
-    __tablename__ = "survey_template_versions"
-
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    template_id: Mapped[UUID] = mapped_column(ForeignKey("survey_templates.id"))
-    version: Mapped[int] = mapped_column(Integer)
-    # Frozen definition: {title, description, questions: [...]} at publish time.
-    definition: Mapped[dict[str, Any]] = mapped_column(JSONB)
-    published_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-    published_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
-
-    __table_args__ = (UniqueConstraint("template_id", "version", name="version_template_version"),)

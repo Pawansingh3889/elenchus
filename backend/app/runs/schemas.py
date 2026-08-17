@@ -54,7 +54,6 @@ class RunSummary(BaseModel):
     id: UUID
     respondent_label: str
     status: RunStatus
-    version: int
     answered: int
     total: int
     started_at: datetime
@@ -65,7 +64,6 @@ class RunDetail(BaseModel):
     id: UUID
     respondent_label: str
     status: RunStatus
-    version: int
     started_at: datetime
     completed_at: datetime | None
     messages: list[MessageDetailRead]
@@ -243,12 +241,10 @@ class AnswersMatrix(BaseModel):
 
     template_id: UUID
     title: str
-    version: int
     questions: list[MatrixQuestion]
     runs: list[MatrixRun]
     # Excluded and counted, exactly as the report treats them: their questions are not
     # these questions, so their answers cannot join these columns.
-    runs_on_earlier_versions: int
 
 
 class SurveyReport(BaseModel):
@@ -256,7 +252,6 @@ class SurveyReport(BaseModel):
 
     template_id: UUID
     title: str
-    version: int
     runs_total: int
     runs_completed: int
     # People rather than runs: how many the survey is for, how many opened it, how many
@@ -268,5 +263,4 @@ class SurveyReport(BaseModel):
     # Runs answered against an earlier published version. Their questions are not these
     # questions, so their answers are not counted here rather than being folded in and
     # quietly changing what a number means. Named so the omission is visible.
-    runs_on_earlier_versions: int
     questions: list[QuestionReport]

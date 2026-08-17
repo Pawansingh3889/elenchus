@@ -57,7 +57,7 @@ async def test_another_authors_template_reads_as_absent(session, author, other_a
                 mine.id, update_of(mine, title="Hijacked", questions=[_q("x")]), other_author
             )
         elif action == "delete":
-            await svc.delete_draft(mine.id, other_author)
+            await svc.delete_survey(mine.id, other_author)
         else:
             await svc.publish(mine.id, other_author)
 
@@ -80,7 +80,7 @@ async def test_a_visible_survey_is_still_not_editable_by_a_stranger(
                 mine.id, update_of(mine, title="Hijacked", questions=[_q("x")]), other_author
             )
         elif action == "delete":
-            await svc.delete_draft(mine.id, other_author)
+            await svc.delete_survey(mine.id, other_author)
         else:
             await svc.publish(mine.id, other_author)
 

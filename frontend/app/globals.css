@@ -47,6 +47,28 @@
   --ai-border: rgba(0, 94, 184, 0.2);
   /* 14px, from the health app. Softer than the 8px this used, and the reason the
      cards there read as cards rather than as panels. */
+  /* ---------------------------------------------------------------------------
+     Chart series.
+
+     Four, in this fixed order, never cycled and never generated: a fifth group folds
+     into --series-other rather than inventing a hue. They exist for one job, comparing
+     groups on the same question, because a tally of options is one series and colouring
+     each bar there would say the options differ in kind when they differ only in count.
+
+     Chosen by running the palette validator rather than by eye: all four sit inside the
+     lightness band, clear the chroma floor, keep adjacent-pair separation under
+     colour-vision deficiency, and reach 3:1 against the card. A fifth candidate either
+     read as grey or collided with the amber below, which is why there are four.
+
+     Amber, red and green are absent on purpose. They are the status colours, and a
+     series that borrows one spends the meaning the status colours are rationed to keep.
+     --------------------------------------------------------------------------- */
+  --series-1: #005eb8;
+  --series-2: #0d9488;
+  --series-3: #7c3aed;
+  --series-4: #b6357a;
+  --series-other: #64748b;
+
   --radius: 14px;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
@@ -394,6 +416,14 @@ select {
   max-width: 1120px;
   margin: 0 auto;
   padding: 24px 20px 60px;
+}
+/* The one page that is not a column of prose. A rail beside a two-column grid needs
+   more than the reading width the rest of the app is set to, and at 1120px the cards
+   came out narrower than they were before the grid existed. Scoped with :has rather
+   than raising the width globally, so the dashboard, the builder and the directory keep
+   the measure they were designed at. */
+.app-main:has(.results-page) {
+  max-width: 1280px;
 }
 .page {
   display: flex;

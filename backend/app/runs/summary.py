@@ -327,8 +327,8 @@ class RunSummaryService:
         row = await self.repo.get_detail(run_id)
         if row is None:
             raise NotFoundError("Run not found.")
-        run, version, _ = row
-        if version.template_id != template_id:
+        run, template_of_run, _ = row
+        if template_of_run.id != template_id:
             raise NotFoundError("That run belongs to a different template.")
         return cast("SurveyRun", run)  # unpacking a Row loses the element types
 

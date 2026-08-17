@@ -161,7 +161,7 @@ export function QuestionEditor({
             {/* A select rather than a checkbox, because the third value is the point.
                 A tick could only ever say "probing allowed", which the interviewer reads
                 as "probe if the answer is unusable" and then almost never does. */}
-            <label className="qcard-policy">
+            <label>
               {msg.builder.followUps}
               <select
                 value={question.follow_up_policy}

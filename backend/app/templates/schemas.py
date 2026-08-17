@@ -275,12 +275,3 @@ class TemplateSummary(BaseModel):
     # Whether this reader has already completed it. Defaulted, so the author's own drafts
     # list is unaffected: it is only ever true on the respondent's invitation list.
     answered: bool = False
-
-
-class TemplateVersionRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: UUID
-    template_id: UUID
-    version: int
-    published_at: datetime

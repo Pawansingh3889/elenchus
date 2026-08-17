@@ -80,41 +80,30 @@ def test_an_unknown_type_still_counts_as_a_question() -> None:
 # ------------------------------------------------- the published list describes the version
 
 
-async def test_the_published_list_describes_the_version_not_the_draft(session, author):
-    """The draft keeps evolving after publication. Counting its questions advertised a
-    survey that does not exist yet — three questions on the home page, two in the run."""
+async def test_the_published_list_describes_what_will_be_asked(session, author):
+    """The count on the list is the count in the run.
+
+    Two rules ago this was a real gap: the draft went on evolving after publication, so
+    the list advertised three questions and the runner asked two. Versions closed it by
+    describing the published copy; freezing the survey at publish closes it by there
+    being nothing left to drift.
+    """
     svc = TemplateService(session)
     template = await svc.create_draft(
         TemplateCreate(title="Drift", questions=[_q("one"), _q("two")]), author
     )
-    await svc.publish(template.id, author)
     await svc.update_draft(
         template.id,
         update_of(template, title="Drift", questions=[_q("one"), _q("two"), _q("three")]),
         author,
     )
+    await svc.publish(template.id, author)
 
     listed = [row for row in await svc.list_published(author) if row[0].id == template.id]
     _, question_count, minutes, _answered = listed[0]
 
-    assert question_count == 2  # what a respondent is actually asked
+    assert question_count == 3
     assert minutes >= 1
-
-
-async def test_republishing_moves_the_list_on_to_the_new_version(session, author):
-    svc = TemplateService(session)
-    template = await svc.create_draft(TemplateCreate(title="Grow", questions=[_q("one")]), author)
-    await svc.publish(template.id, author)
-    await svc.update_draft(
-        template.id, update_of(template, title="Grow", questions=[_q("one"), _q("two")]), author
-    )
-    await svc.publish(template.id, author)
-
-    listed = [row for row in await svc.list_published(author) if row[0].id == template.id]
-    assert listed[0][1] == 2
-
-
-# ------------------------------------------------------------------ resuming
 
 
 async def test_an_unfinished_run_is_offered_back_to_its_respondent(
@@ -211,7 +200,7 @@ async def test_one_persons_answer_does_not_block_another(
 async def test_republishing_does_not_reopen_a_survey_already_answered(
     session, author, respondent, published
 ):
-    """Keyed on the survey, not the version it was published as.
+    """Keyed on the survey, and publishing twice is the only republish there is now.
 
     A run belongs to the survey it answered. Keying on the version would mean an author
     fixing a typo and republishing silently reopens the survey to everyone who has been
@@ -225,10 +214,9 @@ async def test_republishing_does_not_reopen_a_survey_already_answered(
         )
     assert run.status is RunStatus.completed
 
-    svc = TemplateService(session)
-    draft = await svc.get_draft(published.id, author)
-    await svc.update_draft(published.id, update_of(draft, title="Onboarding check-in v2"), author)
-    await svc.publish(published.id, author)
+    # Publishing again is all a republish can be now: the survey is frozen, so there is
+    # no edit to make first.
+    await TemplateService(session).publish(published.id, author)
 
     with pytest.raises(ConflictError):
         await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)

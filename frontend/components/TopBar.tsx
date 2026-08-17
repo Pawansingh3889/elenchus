@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 
 import { LOCALES, isLocale, type Locale } from "@/lib/i18n";
 import { useDocumentLanguage, useT } from "@/lib/i18n/useT";
@@ -18,49 +18,6 @@ import { useLocaleStore, useUserStore } from "@/lib/store";
  * Scaffolding, and it should go when a real identity provider does. Nothing else on this
  * page will need changing when it does: only how the id is obtained changes.
  */
-/** Why a sign-in was refused, read off the query string the callback redirects with.
- *
- * The server sends people back here with a reason rather than showing a JSON error page,
- * because the person who cannot get in is a shift manager and `{"detail": ...}` tells
- * them nothing. Unknown reasons print as themselves rather than being swallowed: a new
- * refusal added on the server should still say something here.
- */
-function SignInError() {
-  const { topbar } = useT();
-  // `useSyncExternalStore` rather than an effect that sets state: the query string is
-  // browser-only state, the server snapshot is empty, and this is the one pattern that
-  // reads it without either a hydration mismatch or a setState inside an effect. It
-  // never changes after load, so the subscribe function has nothing to subscribe to.
-  const search = useSyncExternalStore(
-    () => () => {},
-    () => window.location.search,
-    () => "",
-  );
-  const reason = new URLSearchParams(search).get("sign_in_error");
-
-  useEffect(() => {
-    if (!reason) return;
-    // Cleared from the address bar so a refresh does not re-show it and the reason does
-    // not travel in a link somebody copies. Deliberately not state: the message stays on
-    // screen for this render, and only the URL changes.
-    const url = new URL(window.location.href);
-    url.searchParams.delete("sign_in_error");
-    window.history.replaceState({}, "", url);
-  }, [reason]);
-
-  if (!reason) return null;
-  const said: Record<string, string> = {
-    no_account: topbar.errNoAccount,
-    state_mismatch: topbar.errRetry,
-    expired: topbar.errRetry,
-    no_code: topbar.errRetry,
-    no_email: topbar.errNoEmail,
-  };
-  // An unknown reason prints as itself rather than being swallowed: a refusal added on
-  // the server should still say something here.
-  return <span className="topbar-signin-error">{said[reason] ?? reason}</span>;
-}
-
 function SignIn() {
   const { topbar } = useT();
   const [email, setEmail] = useState("");
@@ -74,7 +31,6 @@ function SignIn() {
       {/* Real sign-in, when the deployment has any. Plain links rather than fetches: the
           browser has to navigate to the provider, and an XHR cannot do that. Only
           configured providers appear, so no button here can fail for being unwired. */}
-      <SignInError />
       {providers.length > 0 ? (
         <span className="topbar-signin">
           {providers.map((p) => (

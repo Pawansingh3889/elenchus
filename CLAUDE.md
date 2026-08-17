@@ -9,7 +9,7 @@ A standalone, embeddable survey service, in two halves:
 
 - **Authoring** — an author builds a survey template either by describing it in natural
   language (the LLM drafts it via a schema-constrained tool call) or by hand in a builder
-  UI. Both edit the same draft. Publishing snapshots the draft into an immutable version.
+  UI. Both edit the same draft. Publishing opens the survey for answers.
 - **Conducting** — a respondent completes a published survey through a conversational,
   LLM-driven chat. The engine owns state; the model is a constrained collaborator.
 
@@ -36,7 +36,7 @@ A standalone, embeddable survey service, in two halves:
 ## Data model
 
 See SPEC.md §3. Tables: `users`, `survey_templates`, `survey_questions`,
-`survey_template_versions` (immutable), `survey_runs`, `answers`, `run_messages`.
+`survey_runs`, `answers`, `run_messages`.
 Alembic migrations from the first table; no `create_all` in application code.
 
 ## Conventions
@@ -157,3 +157,52 @@ Alembic migrations from the first table; no `create_all` in application code.
   `get_current_user`. Do not move it out from behind that branch, and do not "fix" the
   deadlock by unauthenticating the user list: that hands out every id, which is every
   credential.
+- **A survey has one definition, and editing it is live.** Removed
+  `survey_template_versions` on 16 Aug 2026, asked for directly. Publishing was a
+  snapshot: the draft froze into an immutable version, runs named the version they
+  started on, and the report counted only the latest, excluding earlier runs and saying
+  how many. That is all gone. A run names the survey, the engine reads the questions and
+  the setting at each turn, and every run counts.
+
+  **What it costs, stated because it is the kind of thing that surfaces later as a
+  mystery.** An author editing a published survey changes the question that earlier
+  answers were given to; a respondent mid-conversation gets the new questions at the next
+  turn; the report scores old answers against new wording; and a stored recap can outlive
+  the questions it described, because the reuse key could once include the version and
+  now cannot. The only surviving record of what somebody was actually asked is the
+  `question_text` copied onto each answer row at the moment it was recorded, which is why
+  that column matters more than it did.
+
+  **What replaced it.** `survey_templates.published_at` and `published_by`, set once on
+  the first publish, so "when did this go out and who sent it" still has an answer.
+  `app/templates/reading.py` replaced `snapshot.py` and keeps its job: one place turns a
+  survey into the dicts every reader consumes, so no reader guesses what a missing field
+  means. The publish dialog says plainly that later edits change the survey for everyone,
+  including anyone part-way through, rather than promising a freeze that no longer
+  happens.
+
+  For a BRCGS-adjacent product this is the trade worth re-examining first if audit
+  evidence ever matters: an auditor asking "what exactly was this person asked" is now
+  answered by one column rather than by an immutable row.
+- **Publishing freezes a survey, and only an unanswered one can be deleted.** Asked for
+  directly on 17 Aug 2026, a day after versions were removed, and the two together are
+  coherent rather than contradictory: versions froze a *copy* while the draft evolved,
+  and this freezes the *survey* itself. Either way nobody's answer is re-pointed at a
+  question they were not asked. A survey that needs different questions is a new survey,
+  which also keeps two sets of answers from blending under one title.
+
+  **Delete is permanent and therefore narrow.** It removes the survey and its questions
+  outright, and it refuses the moment any run exists, of any status: an abandoned
+  half-conversation is still something a person said. This is not a soft delete; there is
+  no tombstone and no purge job. The gate is the run count rather than the status,
+  because a draft nobody could answer and a published survey nobody did are the same
+  situation.
+
+  **Backups do not make deletion safe, which is why the rule is a rule.** A restore
+  brings back the whole database at a moment in time, not one survey out of it, so
+  recovering a wrongly deleted survey costs every answer given since. See
+  `docs/BACKUP.md`: continuous WAL archiving to immutable object storage, on the
+  3-2-1-1-0 rule, with a weekly restore test that fails loudly, because a check nobody
+  has watched fail is decoration. The bucket does not exist yet and nothing has been
+  restored, which that document says plainly.
+

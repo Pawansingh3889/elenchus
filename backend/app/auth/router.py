@@ -79,7 +79,9 @@ async def callback(
 
     def refuse(reason: str) -> RedirectResponse:
         logger.info("sign-in refused: provider=%s reason=%s", provider, reason)
-        return RedirectResponse(f"{front}/?sign_in_error={reason}", status_code=307)
+        # To the sign-in page rather than the landing page: somebody who has just been
+        # turned away needs the reason next to the button they pressed.
+        return RedirectResponse(f"{front}/signin?sign_in_error={reason}", status_code=307)
 
     p = oauth.get_provider(provider)
     if not code or not state:

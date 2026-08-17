@@ -69,6 +69,11 @@ export interface Person {
    *  an authoring band without one builds surveys today and has no way to sign in
    *  when the header shim is replaced, so the directory marks it. */
   has_microsoft_id: boolean;
+  /** Which audiences reach this person, computed server-side by `app/access`. The
+   *  browser must not re-derive this: a map of who a survey reaches, drawn from a
+   *  paraphrase of the rules, is a map that drifts from them. `person` is absent by
+   *  construction, being a property of a survey rather than of a job. */
+  audiences: SurveyAudience[];
 }
 
 /** The caller, as themselves. Both derived flags are the server's to compute:
@@ -251,13 +256,6 @@ export interface TemplateWrite {
   questions: QuestionInput[];
 }
 
-export interface TemplateVersion {
-  id: string;
-  template_id: string;
-  version: number;
-  published_at: string;
-}
-
 export type RunStatus = "in_progress" | "completed" | "abandoned";
 export type AnswerKind = "scripted" | "follow_up";
 export type MessageRole = "assistant" | "user";
@@ -315,7 +313,6 @@ export interface RunSummary {
   id: string;
   respondent_label: string;
   status: RunStatus;
-  version: number;
   answered: number;
   total: number;
   started_at: string;
@@ -345,7 +342,6 @@ export interface RunDetail {
   id: string;
   respondent_label: string;
   status: RunStatus;
-  version: number;
   started_at: string;
   completed_at: string | null;
   messages: RunMessageDetail[];
@@ -445,7 +441,6 @@ export interface SurveySummary {
   /** The evidence line, computed server-side from the report (who answered, earlier
    *  versions, mostly-declined questions). Engine numbers, never model prose. */
   caveat: string;
-  version: number;
   runs_included: number;
   generated_at: string;
   /** Which prompt and which tier wrote it. Optional because a recap stored before these
@@ -484,7 +479,7 @@ export interface MatrixRun {
   answers: RunAnswer[];
 }
 
-/** Every answer on the current version, by respondent, with nothing tallied.
+/** Every answer to this survey, by respondent, with nothing tallied.
  *
  *  This is what makes a slice possible: the report can say what a question found but
  *  not whether the people who said one thing also said another, and reconstructing
@@ -492,23 +487,17 @@ export interface MatrixRun {
 export interface AnswersMatrix {
   template_id: string;
   title: string;
-  version: number;
   questions: MatrixQuestion[];
   runs: MatrixRun[];
-  runs_on_earlier_versions: number;
 }
 
 export interface SurveyReport {
   template_id: string;
   title: string;
-  version: number;
   runs_total: number;
   runs_completed: number;
   reach: number;
   people_started: number;
   people_completed: number;
-  /** Answered against an earlier published version, so counted apart rather than folded
-   *  in: their questions are not these questions. */
-  runs_on_earlier_versions: number;
   questions: QuestionReport[];
 }

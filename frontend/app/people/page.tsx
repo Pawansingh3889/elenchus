@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { PersonDialog } from "@/components/PersonDialog";
+import { ReachMap } from "@/components/ReachMap";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -18,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { hatLabel, jobLabel } from "@/lib/audience";
+import { SignInPrompt } from "@/components/SignInPrompt";
 import { useT } from "@/lib/i18n/useT";
 import { useCurrentUser, useMe, usePeople } from "@/lib/queries";
 import { useUserStore } from "@/lib/store";
@@ -60,7 +62,7 @@ export default function People() {
     if (isRespondent) router.replace("/respond");
   }, [isRespondent, router]);
 
-  if (!currentUserId) return <p className="p-6 text-muted">{home.pickUser}</p>;
+  if (!currentUserId) return <SignInPrompt />;
   if (isRespondent) return <p className="p-6 text-muted">{home.goingToRespond}</p>;
 
   return (
@@ -82,7 +84,9 @@ export default function People() {
 
       {rows ? (
         <Card className="overflow-x-auto p-0">
-          <Table>
+          <ReachMap people={rows ?? []} />
+
+        <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>{people.colName}</TableHead>

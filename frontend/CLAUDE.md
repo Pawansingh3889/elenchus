@@ -33,3 +33,26 @@ context for every session including the ones that never open this directory.
   pinned by vitest against the server's own cases. `SLICE_MIN_GROUP` in `lib/slicing.ts`
   is 0 and every sliced view passes through it: that is the suppression threshold the
   docs asked to be left one constant away.
+- **Colour on the report carries a group, and amber carries a flag. Nothing else.**
+  Built 17 Aug 2026. A hue per option was the obvious way to "add colour to the charts"
+  and is wrong: a tally of options is one series, so colouring each bar claims the
+  options differ in kind when they differ only in count. Colour arrives with a second
+  dimension instead, which is `?compare=<question id>`: pick a question whose answers
+  split the room and every card draws one bar per group. Four hues, computed rather than
+  chosen (the dataviz validator passes `#005eb8,#0d9488,#7c3aed,#b6357a` on the lightness
+  band, chroma floor, CVD separation and contrast); a fifth candidate either read grey or
+  took the amber, so a fifth group folds into a neutral "other". Colour follows position
+  in the group list, never rank in a chart, so a filter never repaints the survivors, and
+  every bar keeps its count as text because identity is never colour alone.
+  That is why amber is rationed: `lib/flags.ts` is the only place a status colour appears
+  on this page, and **a flag is a fact about the answers, never a judgement about the
+  plant.** Two kinds only. Half the room declined, which holds for any question type; or
+  a rating averaging in the bottom two steps of the app's own 1-5 scale. One line per
+  question, refusal winning when both apply, so the strip and the tile counting it cannot
+  disagree. The exclusions are the design and are the thing not to undo: **a number is
+  never flagged**, because a chiller at 6C is a chill-chain breach and six years of
+  service is not, and a question carries its text and its type but no safe range, so any
+  threshold would be the app inventing a limit and attributing it to the survey (the day
+  questions carry an author-set range, that is where the flag goes); and **a yes/no
+  majority is never flagged**, because "was PPE available" answered no is bad and "did you
+  have any problems" answered no is good, and only the question text separates them.

@@ -33,10 +33,14 @@ Imagine an HR manager who wants to know how new employees are settling in. They 
   paths edit the same draft, so an AI draft can be tweaked by hand.
 
 When the author is happy, they hit **Publish**. Publishing is like printing an exam
-paper: from that moment, that version is **frozen forever**. The author can keep
-editing their draft for next time, but everyone answering version 1 sees exactly
-version 1. That matters because results only make sense if you know exactly what was
-asked.
+paper and pinning it to the noticeboard: from that moment people can answer it.
+
+Editing it afterwards changes the survey **for everyone**, including anyone part-way
+through answering. It used to work the other way, freezing each publication so a
+response could always be read against the exact wording it was given; that was removed
+on 16 August 2026 by request. What survives as the record of what somebody was actually
+asked is that every stored answer keeps a copy of its question's text as it stood at the
+moment it was answered.
 
 ### The Respondent — the person who answers
 
@@ -139,8 +143,8 @@ the survey still completed cleanly.
 - **Field/floor staff surveys** — people who never sit at a desk answer in a chat like
   any other message thread; choice answers come back as clean categories that can be
   counted.
-- **Research questionnaires** — every published version is frozen, so responses to
-  version 1 are never mixed up with the reworded version 2.
+- **Research questionnaires**: every answer keeps the wording of the question it was
+  given, so a reworded question later does not erase what was actually asked.
 
 Because it's a standalone, embeddable service with a clean API, it can sit behind any
 of these — the chat can be embedded where the respondents already are.
