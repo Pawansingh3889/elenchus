@@ -17,7 +17,6 @@ from app.runs.service import ResultsService
 from app.templates.enums import AnswerType
 from app.templates.schemas import QuestionInput, TemplateCreate
 from app.templates.service import TemplateService
-from tests.builders import update_of
 from tests.fakes import FakeLLM, follow_up, move_on, record, reply
 
 
@@ -39,38 +38,6 @@ async def test_lists_who_answered_and_how_far_they_got(session, author, responde
     assert summary.status is RunStatus.in_progress
     assert (summary.answered, summary.total) == (1, 2)
     assert summary.completed_at is None
-
-
-async def test_a_run_is_re_scored_when_the_author_rewrites_the_survey(
-    session, author, respondent, published
-):
-    """The author rewrites the survey mid-run, and the response IS re-scored.
-
-    This is the cost of dropping versions, pinned so nobody meets it by surprise. The
-    test it replaces asserted the opposite and was the guarantee: a run answered the
-    questions frozen at publish, and an author editing afterwards could not change what
-    an existing response was scored against. Now there is one definition, so the run's
-    total follows the edit, and the only record of what was actually asked is the
-    `question_text` stored on each answer row.
-    """
-    run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
-    await _answer_first(session, run, respondent)
-
-    svc = TemplateService(session)
-    await svc.update_draft(
-        published.id,
-        update_of(
-            published,
-            title="Rewritten",
-            questions=[QuestionInput(text="One question now", answer_type=AnswerType.long_text)],
-        ),
-        author,
-    )
-    await svc.publish(published.id, author)
-
-    summary = (await ResultsService(session).list_runs(published.id, author))[0]
-    # One question now, so the run that answered two is measured against one.
-    assert summary.total == 1
 
 
 async def test_detail_returns_the_answers_and_the_transcript(
@@ -275,47 +242,6 @@ async def test_a_declined_question_is_counted_apart_from_an_answered_one(
     aspects = (await ResultsService(session).report(template.id, author)).questions[0]
     assert (aspects.answered, aspects.declined) == (0, 1)
     assert all(c.count == 0 for c in aspects.counts)
-
-
-async def test_runs_against_an_older_version_are_excluded_and_counted(
-    session, author, respondent, other_respondent
-):
-    """A republish gives every question a new id, so those answers are not answers to
-    these questions. Folding them in would quietly change what a number means, so they
-    are left out and the omission is put on the page."""
-    template = await _reportable(session, author)
-    await _answer_all(session, template, respondent, [["Cleaning"], True, 5])
-
-    svc = TemplateService(session)
-    draft = await svc.get_draft(template.id, author)
-    await svc.update_draft(
-        template.id,
-        update_of(
-            draft,
-            questions=[
-                QuestionInput(
-                    text="Which aspects need improvement?",
-                    answer_type=AnswerType.multi_select,
-                    options=["Cleaning", "Waste", "PPE"],
-                    allow_other=True,
-                )
-            ],
-        ),
-        author,
-    )
-    await svc.publish(template.id, author)
-    await _answer_all(session, template, other_respondent, [["PPE"]])
-
-    report = await ResultsService(session).report(template.id, author)
-    # Both runs count. Before, the earlier one was excluded and reported as excluded,
-    # because it had answered different questions under different ids; there is one set
-    # of questions now, so there is nothing to exclude and nothing to say about it.
-    assert report.runs_total == 2
-    assert [(c.label, c.count) for c in report.questions[0].counts] == [
-        ("Cleaning", 0),
-        ("Waste", 0),
-        ("PPE", 1),
-    ]
 
 
 async def test_the_report_shows_what_a_probe_drew_out(session, author, respondent, published):
@@ -598,40 +524,6 @@ async def test_the_matrix_carries_follow_up_answers_with_their_kind(
     # The model's own question travels with it, because the author reading the probe
     # needs to know what was asked to make sense of what came back.
     assert answers[1].question_text == "What does that involve day to day?"
-
-
-async def test_the_matrix_covers_every_run_now_that_versions_are_gone(
-    session, author, respondent, other_respondent, published
-):
-    """The report's rule, and for the report's reason.
-
-    It used to be the opposite: a run that answered different questions under different
-    ids could not join these columns, so it was left out and named. With one definition
-    per survey there are no other ids, so every run joins the matrix, including one that
-    answered questions the author has since rewritten. The columns are the survey as it
-    stands; an older run simply has nothing under the new ones."""
-    stale = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
-    await _answer_first(session, stale, respondent)
-
-    svc = TemplateService(session)
-    await svc.update_draft(
-        published.id,
-        update_of(
-            published,
-            questions=[QuestionInput(text="One question now", answer_type=AnswerType.long_text)],
-        ),
-        author,
-    )
-    await svc.publish(published.id, author)
-    current = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, other_respondent)
-    llm = FakeLLM(record("a fresh answer"), move_on())
-    await ConductEngine(session, llm=llm).handle_message(
-        current.id, "a fresh answer", other_respondent
-    )
-
-    matrix = await ResultsService(session).answers_matrix(published.id, author)
-
-    assert {r.run_id for r in matrix.runs} == {stale.id, current.id}
 
 
 async def test_the_matrix_labels_match_the_run_list(

@@ -213,6 +213,7 @@ export const es: Messages = {
     pickUser: "Entra desde la barra superior.",
     tabBuild: "Editar",
     tabsLabel: "Páginas de la encuesta",
+    deleteBlocked: (n: number) => `${n} persona(s) han respondido, así que no se puede eliminar. Ciérrelo en su lugar.`,
     titlePlaceholder: "Título de la encuesta",
     descriptionPlaceholder: "Descripción (opcional)",
     questionPlaceholder: "Texto de la pregunta",

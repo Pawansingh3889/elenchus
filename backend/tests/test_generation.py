@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 
-from app.errors import NotFoundError
+from app.errors import ConflictError, NotFoundError
 from app.errors import ValidationError as AppValidationError
 from app.llm.client import LLMError, ToolTurn
 from app.templates.enums import AnswerType, SurveyAudience, TemplateStatus
@@ -473,23 +473,26 @@ async def test_a_refine_keeps_the_person_a_survey_is_aimed_at(session, author, r
     assert updated.audience_user_id == respondent.id
 
 
-async def test_a_refine_of_a_published_survey_survives_the_models_audience_guess(session, author):
-    """update_draft rightly refuses to move a published survey's audience. Before the
-    carry-over that guard was reachable by the model's guess, so whether a refine of a
-    published survey worked at all depended on the model happening to echo the right
-    audience back; one live refine survived only because the description mentioned the
-    QA team."""
+async def test_a_refine_of_a_published_survey_is_refused(session, author):
+    """Refining is editing, and a published survey cannot be edited.
+
+    This asserted something subtler until 17 Aug 2026: `update_draft` refused to move a
+    published survey's audience, so whether a refine worked at all depended on the model
+    happening to echo the right audience back, and one live refine survived only because
+    the description mentioned the QA team. Carrying the author's audience over fixed
+    that. Now the whole survey is frozen at publish, so the answer is simply no, and the
+    author is told to publish a new survey instead.
+    """
     original, _ = await GenerationService(session, llm=FakeLLM(_VALID)).generate_draft(
         "onboarding", author, SurveyAudience.qa
     )
     await TemplateService(session).publish(original.id, author)
 
-    guessed = FakeLLM({**_VALID, "audience": "operatives"})
-    updated, _ = await GenerationService(session, llm=guessed).refine_draft(
-        original.id, "make it shorter", author
-    )
-    assert updated.audience is SurveyAudience.qa
-    assert updated.status is TemplateStatus.published
+    with pytest.raises(ConflictError) as refused:
+        await GenerationService(session, llm=FakeLLM(_VALID)).refine_draft(
+            original.id, "make it shorter", author
+        )
+    assert "cannot be edited" in str(refused.value.message)
 
 
 async def test_refine_re_validates_so_a_bad_change_fails_loudly(session, author):

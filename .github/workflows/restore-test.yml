@@ -1,0 +1,94 @@
+# The "0" in 3-2-1-1-0: the last restore test completed with zero errors.
+#
+# A backup nobody has restored is a belief. This restores one into a scratch database and
+# asserts three things a silent failure would otherwise hide: that the schema matches the
+# code, that the tables carrying answers are not empty, and that the whole thing finished.
+#
+# Weekly rather than per-push. It reads a real repository and its job is to catch drift
+# and rot, neither of which happens between commits.
+name: Restore test
+
+on:
+  schedule:
+    # Monday morning, so a failure is looked at on a working day rather than discovered
+    # the following weekend.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    # Absent credentials the job cannot mean anything, and a green tick for a run that
+    # checked nothing is worse than no run at all.
+    if: ${{ vars.BACKUP_REPO_CONFIGURED == 'true' }}
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: elenchus
+          POSTGRES_PASSWORD: elenchus
+          POSTGRES_DB: elenchus_restore
+        options: >-
+          --health-cmd "pg_isready -U elenchus"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+        ports: ["5432:5432"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pgBackRest and the client
+        run: sudo apt-get update && sudo apt-get install -y pgbackrest postgresql-client
+
+      - name: Point pgBackRest at the repository
+        env:
+          REPO_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+          REPO_S3_ENDPOINT: ${{ secrets.BACKUP_S3_ENDPOINT }}
+          REPO_S3_KEY: ${{ secrets.BACKUP_S3_KEY }}
+          REPO_S3_KEY_SECRET: ${{ secrets.BACKUP_S3_KEY_SECRET }}
+          REPO_CIPHER_PASS: ${{ secrets.BACKUP_CIPHER_PASS }}
+        run: |
+          sudo mkdir -p /etc/pgbackrest
+          sudo tee /etc/pgbackrest/pgbackrest.conf >/dev/null <<CONF
+          [global]
+          repo1-type=s3
+          repo1-s3-bucket=${REPO_S3_BUCKET}
+          repo1-s3-endpoint=${REPO_S3_ENDPOINT}
+          repo1-s3-key=${REPO_S3_KEY}
+          repo1-s3-key-secret=${REPO_S3_KEY_SECRET}
+          repo1-s3-region=auto
+          repo1-path=/elenchus
+          repo1-cipher-type=aes-256-cbc
+          repo1-cipher-pass=${REPO_CIPHER_PASS}
+          [elenchus]
+          pg1-path=/var/lib/postgresql/restore
+          CONF
+
+      - name: Restore the latest backup
+        run: |
+          sudo mkdir -p /var/lib/postgresql/restore
+          sudo pgbackrest --stanza=elenchus --log-level-console=info restore
+
+      - name: The schema must match the code
+        # A backup that restores into a schema the application cannot run against has
+        # restored nothing useful, and that is invisible unless something asks.
+        env:
+          DATABASE_URL: postgresql+asyncpg://elenchus:elenchus@localhost:5432/elenchus_restore
+        run: |
+          cd backend
+          pipx install uv || pip install uv
+          uv sync --locked
+          test "$(uv run alembic current | grep -o '[0-9a-f]\{12\}' | head -1)" \
+             = "$(uv run alembic heads | grep -o '[0-9a-f]\{12\}' | head -1)"
+
+      - name: The answers must actually be there
+        # An empty restore succeeds quietly. This is the failure nobody notices until the
+        # day they need the data.
+        env:
+          PGPASSWORD: elenchus
+        run: |
+          for table in users survey_templates survey_questions; do
+            count=$(psql -h localhost -U elenchus -d elenchus_restore -tAc "select count(*) from $table")
+            echo "$table: $count"
+            test "$count" -gt 0 || { echo "::error::$table restored empty"; exit 1; }
+          done

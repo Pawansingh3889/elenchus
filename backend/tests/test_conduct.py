@@ -28,7 +28,6 @@ from app.runs.models import RunMessage, SurveyRun
 from app.templates.enums import AnswerType, FollowUpPolicy, SurveyAudience
 from app.templates.schemas import QuestionInput, TemplateCreate
 from app.templates.service import TemplateService
-from tests.builders import update_of
 from tests.fakes import FakeLLM
 from tests.fakes import follow_up as _follow_up
 from tests.fakes import move_on as _move_on
@@ -317,50 +316,6 @@ async def test_run_completes_after_the_final_question(session, respondent, publi
 
     with pytest.raises(ConflictError):  # a finished run takes no more messages
         await ConductEngine(session, llm=FakeLLM()).handle_message(run.id, "more", respondent)
-
-
-async def test_an_edit_reaches_a_run_already_in_flight(session, author, respondent, published):
-    """An author rewriting a published survey changes what an in-flight run asks next.
-
-    This asserted the opposite and was the strongest argument for versions: a run was
-    bound to the version it started on, so an author could keep editing without touching
-    anybody mid-conversation. That is gone. The engine reads the questions at each turn,
-    so the change lands at the next question rather than mid-turn, and answers already
-    recorded keep the `question_text` they were given under."""
-    engine = ConductEngine(session, llm=FakeLLM())
-    run = await engine.start_run(published.id, respondent)
-    first = FakeLLM(_record("Line lead"), _move_on())
-    run = await ConductEngine(session, llm=first).handle_message(run.id, "line lead", respondent)
-
-    # The author rewrites the survey and republishes while the respondent is mid-run.
-    svc = TemplateService(session)
-    await svc.update_draft(
-        published.id,
-        update_of(
-            published,
-            title="Something else entirely",
-            questions=[
-                QuestionInput(text="A brand new question", answer_type=AnswerType.long_text)
-            ],
-        ),
-        author,
-    )
-    await svc.publish(published.id, author)
-
-    reloaded = ConductEngine(session, llm=FakeLLM())
-    live = await reloaded.load(run.id, respondent)
-    # The run now sees the rewritten survey, not the one it started.
-    assert [q["text"] for q in await reloaded.questions(live)] == ["A brand new question"]
-    # The index is untouched: the engine owns place-keeping, and an edit does not move
-    # anybody. Here that means the run is already past the end of a shorter survey.
-    assert live.current_question_index == 1
-
-    # The answer already recorded is still there, still carrying the question it was
-    # actually asked, which is now the only record that the old wording ever existed.
-    assert [a.value for a in live.answers if a.kind is AnswerKind.scripted] == [
-        {"text": "Line lead"}
-    ]
-    assert [a.question_text for a in live.answers] == ["What's your role?"]
 
 
 def _decline(reason: str = "respondent declined", say: str = "No problem.") -> ToolTurn:
@@ -1436,34 +1391,8 @@ async def test_the_setting_is_never_said_to_the_respondent(session, author, resp
     assert "line leaders" not in spoken
 
 
-async def test_the_setting_follows_the_author_mid_run(session, author, respondent):
-    """An author rewriting the setting changes how an in-flight run is read.
-
-    The opposite of what this asserted, and the change is the point. The setting used to
-    be frozen at publish beside the questions, so a conversation already under way was
-    interpreted against the workplace the author described when they published. With
-    versions gone there is one setting, read at each turn, and an edit reaches runs that
-    are already happening. Pinned rather than left to be discovered, because it is the
-    kind of thing that surfaces as an inexplicable change in how one respondent's
-    answers were read."""
-    published = await _published_with_setting(session, author, _PLANT)
-    engine = ConductEngine(session, llm=FakeLLM())
-    run = await engine.start_run(published.id, respondent)
-
-    svc = TemplateService(session)
-    template = await svc.get_draft(published.id, author)
-    await svc.update_draft(
-        published.id, update_of(template, setting="Completely different workplace."), author
-    )
-
-    llm = FakeLLM(_record("temperature"), _move_on())
-    await ConductEngine(session, llm=llm).handle_message(run.id, "tempereture", respondent)
-
-    briefing = llm.briefings[0]
-    assert "Completely different workplace" in briefing
-    assert "held on ice at 0 to 2 degrees" not in briefing
-
-
+# The workplace as a deployment supplies it, for the tests below. Restored after a
+# careless cut took it out along with the tests either side of it.
 _PLANT_CONFIG = (
     "Chilled fish processing plant, BRCGS certified. Fresh fish is held on ice at 0 to 2 "
     "degrees; above that is a chill-chain problem. Respondents are line leaders."

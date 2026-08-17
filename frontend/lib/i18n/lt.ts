@@ -212,6 +212,7 @@ export const lt: Messages = {
     pickUser: "Prisijunkite viršutinėje juostoje.",
     tabBuild: "Redaguoti",
     tabsLabel: "Apklausos puslapiai",
+    deleteBlocked: (n: number) => `Atsakė ${n} žmonių, todėl ištrinti negalima. Vietoj to uždarykite.`,
     titlePlaceholder: "Apklausos pavadinimas",
     descriptionPlaceholder: "Aprašymas (nebūtina)",
     questionPlaceholder: "Klausimo tekstas",

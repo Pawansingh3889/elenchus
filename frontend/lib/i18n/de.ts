@@ -213,6 +213,7 @@ export const de: Messages = {
     pickUser: "Melden Sie sich oben an.",
     tabBuild: "Bearbeiten",
     tabsLabel: "Umfrageseiten",
+    deleteBlocked: (n: number) => `${n} Person(en) haben geantwortet, daher kann dies nicht gelöscht werden. Schließen Sie es stattdessen.`,
     titlePlaceholder: "Titel der Umfrage",
     descriptionPlaceholder: "Beschreibung (optional)",
     questionPlaceholder: "Fragetext",

@@ -58,6 +58,19 @@ class TemplateRepository:
     async def delete(self, template: SurveyTemplate) -> None:
         await self.session.delete(template)
 
+    async def run_count(self, template_id: UUID) -> int:
+        """How many runs this survey has, of any status.
+
+        Any status on purpose: an abandoned half-conversation is still something a
+        person said, and a delete that ignored it would destroy words on the grounds
+        that nobody finished. `templates` reading `survey_runs` directly rather than
+        borrowing `conduct`'s repository, on the same rule `completed_by` follows.
+        """
+        stmt = (
+            select(func.count()).select_from(SurveyRun).where(SurveyRun.template_id == template_id)
+        )
+        return int((await self.session.execute(stmt)).scalar_one())
+
     async def completed_by(self, respondent_id: UUID) -> set[UUID]:
         """Templates this person has already finished.
 

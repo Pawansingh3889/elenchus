@@ -8,7 +8,6 @@ import logging
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.access import is_admin_by_config, may_answer, may_edit, may_list, reads_all_surveys
@@ -118,13 +117,19 @@ class TemplateService:
         self, template_id: UUID, data: TemplateUpdate, author: User
     ) -> SurveyTemplate:
         template = await self._get_for_edit_or_404(template_id, author)
-        # Frozen once published. The audience is part of what was published, like the
-        # questions: a survey that starts collecting Finance answers and is then pointed
-        # at HR ends up with one set of results drawn from two different populations, and
-        # nothing in the data records that it moved.
-        if data.audience is not template.audience and template.status is not TemplateStatus.draft:
+        # Frozen once published, wholly, not just its audience.
+        #
+        # This restores by a different route what dropping versions gave up. There, the
+        # published copy was frozen and the draft went on evolving; here there is one
+        # definition and publishing is what freezes it. Either way the property that
+        # matters holds: nobody's answer is re-pointed at a question they were not asked,
+        # and a survey collecting answers cannot change under the people giving them.
+        #
+        # A survey that needs different questions is a new survey, which also keeps the
+        # two sets of answers apart instead of blending populations under one title.
+        if template.status is not TemplateStatus.draft:
             raise ConflictError(
-                "A published survey's audience cannot change. Publish a new survey instead."
+                "A published survey cannot be edited. Close it and publish a new one instead."
             )
         template.title = data.title
         template.description = data.description
@@ -140,14 +145,30 @@ class TemplateService:
         await self.session.commit()
         return await self._get_for_edit_or_404(template_id, author)
 
-    async def delete_draft(self, template_id: UUID, author: User) -> None:
+    async def delete_survey(self, template_id: UUID, author: User) -> None:
+        """Erase a survey entirely: the survey, its questions, and nothing else.
+
+        Permanent by design and by request, so this is deliberately narrow: it refuses
+        the moment anybody has answered. A survey with responses holds the only copy of
+        what those people said, and a click that destroys it is not something a backup
+        undoes, because restoring brings back the whole database at a moment in time
+        rather than one survey out of it. Closing is what retires a survey that has
+        answers; deleting is for the ones that never collected any.
+
+        The count is the gate rather than the status: a draft nobody could answer and a
+        published survey nobody did are the same situation, and a closed survey with
+        answers is still a record.
+        """
         template = await self._get_for_edit_or_404(template_id, author)
+        answered = await self.repo.run_count(template_id)
+        if answered:
+            raise ConflictError(
+                f"{answered} "
+                + ("person has" if answered == 1 else "people have")
+                + " answered this survey, so it cannot be deleted. Close it instead."
+            )
         await self.repo.delete(template)
-        try:
-            await self.session.commit()
-        except IntegrityError as exc:
-            await self.session.rollback()
-            raise ConflictError("Cannot delete a template that has published versions.") from exc
+        await self.session.commit()
 
     async def publish(self, template_id: UUID, author: User) -> SurveyTemplate:
         """Open this survey for answers.

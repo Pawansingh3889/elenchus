@@ -214,6 +214,7 @@ export const ro: Messages = {
     pickUser: "Autentifică-te din bara de sus.",
     tabBuild: "Editează",
     tabsLabel: "Paginile chestionarului",
+    deleteBlocked: (n: number) => `${n} persoane au răspuns, deci nu poate fi șters. Închideți-l în schimb.`,
     titlePlaceholder: "Titlul sondajului",
     descriptionPlaceholder: "Descriere (opțional)",
     questionPlaceholder: "Textul întrebării",

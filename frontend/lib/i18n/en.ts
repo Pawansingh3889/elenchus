@@ -220,6 +220,7 @@ export const en = {
     pickUser: "Sign in at the top of the page.",
     tabBuild: "Build",
     tabsLabel: "Survey pages",
+    deleteBlocked: (n: number) => `${n} ${n === 1 ? "person has" : "people have"} answered, so this cannot be deleted. Close it instead.`,
     titlePlaceholder: "Survey title",
     descriptionPlaceholder: "Description (optional)",
     questionPlaceholder: "Question text",

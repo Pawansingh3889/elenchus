@@ -116,7 +116,7 @@ async def delete_template(
     author: User = Depends(require_author),
     session: AsyncSession = Depends(get_session),
 ) -> None:
-    await TemplateService(session).delete_draft(template_id, author)
+    await TemplateService(session).delete_survey(template_id, author)
 
 
 @router.post("/{template_id}/refine", response_model=GeneratedTemplate)

@@ -212,6 +212,7 @@ export const lv: Messages = {
     pickUser: "Piesakieties augšējā joslā.",
     tabBuild: "Rediģēt",
     tabsLabel: "Aptaujas lapas",
+    deleteBlocked: (n: number) => `Atbildējuši ${n} cilvēki, tāpēc to nevar dzēst. Tā vietā aizveriet to.`,
     titlePlaceholder: "Aptaujas nosaukums",
     descriptionPlaceholder: "Apraksts (nav obligāts)",
     questionPlaceholder: "Jautājuma teksts",

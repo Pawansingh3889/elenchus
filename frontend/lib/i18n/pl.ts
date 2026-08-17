@@ -212,6 +212,7 @@ export const pl: Messages = {
     pickUser: "Zaloguj się na górnym pasku.",
     tabBuild: "Edytuj",
     tabsLabel: "Strony ankiety",
+    deleteBlocked: (n: number) => `Odpowiedziało ${n} osób, więc nie można tego usunąć. Zamknij zamiast tego.`,
     titlePlaceholder: "Tytuł ankiety",
     descriptionPlaceholder: "Opis (opcjonalnie)",
     questionPlaceholder: "Treść pytania",

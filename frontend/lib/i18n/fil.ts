@@ -211,6 +211,7 @@ export const fil: Messages = {
     pickUser: "Mag-sign in sa itaas.",
     tabBuild: "I-edit",
     tabsLabel: "Mga pahina ng survey",
+    deleteBlocked: (n: number) => `${n} tao ang sumagot, kaya hindi ito maaaring burahin. Isara na lang ito.`,
     titlePlaceholder: "Pamagat ng survey",
     descriptionPlaceholder: "Paglalarawan (opsyonal)",
     questionPlaceholder: "Teksto ng tanong",

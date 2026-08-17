@@ -6,6 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.errors import ConflictError, NotFoundError
+from app.runs.enums import RunStatus
 from app.templates.enums import AnswerType, TemplateStatus
 from app.templates.schemas import QuestionInput, TemplateCreate
 from app.templates.service import TemplateService
@@ -37,29 +38,21 @@ async def test_publish_opens_the_survey_and_records_when(session, author):
     assert published.published_by == author.id
 
 
-async def test_republishing_does_not_move_the_publication_date(session, author):
-    """Re-opening a survey is not a new publication.
+async def test_publishing_twice_does_not_move_the_publication_date(session, author):
+    """Publishing is idempotent, and the date it records is the first one.
 
-    This is what is left of versioning. There used to be a v1 frozen against edits and a
-    v2 beside it; now an edit changes the one definition, and the only thing publish
-    still records is when the survey first went out. Moving that date on every republish
-    would rewrite the answer to "when did this go out", which is the question the field
-    exists for.
+    Editing after publication is refused now, so the only way to publish twice is to
+    press the button twice. Moving the date then would rewrite the answer to "when did
+    this go out", which is the question the field exists for.
     """
     svc = TemplateService(session)
     t = await svc.create_draft(TemplateCreate(title="Orig", questions=[_q("q1")]), author)
     first = await svc.publish(t.id, author)
     stamped = first.published_at
 
-    await svc.update_draft(
-        t.id, update_of(t, title="Changed", questions=[_q("q1"), _q("q2")]), author
-    )
     again = await svc.publish(t.id, author)
     assert again.published_at == stamped
-    # And the edit is simply live: there is no earlier copy of the questions anywhere.
-    fetched = await svc.get_draft(t.id, author)
-    assert fetched.title == "Changed"
-    assert len(fetched.questions) == 2
+    assert again.status is TemplateStatus.published
 
 
 async def test_publish_empty_template_conflicts(session, author):
@@ -118,3 +111,68 @@ def test_options_that_collide_case_insensitively_are_refused():
         text="q", answer_type=AnswerType.single_select, options=[" Days ", "Nights"]
     )
     assert kept.options == ["Days", "Nights"]
+
+
+async def test_a_published_survey_cannot_be_edited(session, author):
+    """The property that dropping versions gave up, restored by the other route.
+
+    There, the published copy was frozen and the draft went on evolving. Here there is
+    one definition and publishing freezes it, so either way nobody's answer is
+    re-pointed at a question they were not asked.
+    """
+    svc = TemplateService(session)
+    t = await svc.create_draft(TemplateCreate(title="Live", questions=[_q("q1")]), author)
+    await svc.publish(t.id, author)
+    with pytest.raises(ConflictError) as refused:
+        await svc.update_draft(t.id, update_of(t, title="Changed"), author)
+    assert "cannot be edited" in str(refused.value.message)
+
+
+async def test_an_unanswered_survey_can_be_deleted_outright(session, author):
+    """Published but unanswered is the same situation as a draft: nothing anybody said
+    is in it."""
+    svc = TemplateService(session)
+    t = await svc.create_draft(TemplateCreate(title="Nobody home", questions=[_q("q1")]), author)
+    await svc.publish(t.id, author)
+    await svc.delete_survey(t.id, author)
+    with pytest.raises(NotFoundError):
+        await svc.get_draft(t.id, author)
+
+
+async def test_a_survey_with_answers_refuses_to_be_deleted(session, author, respondent):
+    """The one that matters. A survey with responses holds the only copy of what those
+    people said, and no backup undoes this selectively: a restore brings back the whole
+    database at a moment in time, not one survey out of it."""
+    from app.conduct.engine import ConductEngine
+    from tests.fakes import FakeLLM
+
+    svc = TemplateService(session)
+    t = await svc.create_draft(TemplateCreate(title="Answered", questions=[_q("q1")]), author)
+    await svc.publish(t.id, author)
+    await ConductEngine(session, llm=FakeLLM()).start_run(t.id, respondent)
+
+    with pytest.raises(ConflictError) as refused:
+        await svc.delete_survey(t.id, author)
+    assert "cannot be deleted" in str(refused.value.message)
+    # And it is still there, which is the whole point of refusing.
+    assert (await svc.get_draft(t.id, author)).title == "Answered"
+
+
+async def test_an_abandoned_half_conversation_still_protects_the_survey(
+    session, author, respondent
+):
+    """Any run counts, not just finished ones: an abandoned conversation is still
+    something a person said, and deleting on the grounds that nobody finished would
+    destroy it."""
+    from app.conduct.engine import ConductEngine
+    from tests.fakes import FakeLLM
+
+    svc = TemplateService(session)
+    t = await svc.create_draft(TemplateCreate(title="Half", questions=[_q("q1")]), author)
+    await svc.publish(t.id, author)
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(t.id, respondent)
+    run.status = RunStatus.abandoned
+    await session.commit()
+
+    with pytest.raises(ConflictError):
+        await svc.delete_survey(t.id, author)

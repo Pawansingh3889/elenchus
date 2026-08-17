@@ -184,3 +184,25 @@ Alembic migrations from the first table; no `create_all` in application code.
   For a BRCGS-adjacent product this is the trade worth re-examining first if audit
   evidence ever matters: an auditor asking "what exactly was this person asked" is now
   answered by one column rather than by an immutable row.
+- **Publishing freezes a survey, and only an unanswered one can be deleted.** Asked for
+  directly on 17 Aug 2026, a day after versions were removed, and the two together are
+  coherent rather than contradictory: versions froze a *copy* while the draft evolved,
+  and this freezes the *survey* itself. Either way nobody's answer is re-pointed at a
+  question they were not asked. A survey that needs different questions is a new survey,
+  which also keeps two sets of answers from blending under one title.
+
+  **Delete is permanent and therefore narrow.** It removes the survey and its questions
+  outright, and it refuses the moment any run exists, of any status: an abandoned
+  half-conversation is still something a person said. This is not a soft delete; there is
+  no tombstone and no purge job. The gate is the run count rather than the status,
+  because a draft nobody could answer and a published survey nobody did are the same
+  situation.
+
+  **Backups do not make deletion safe, which is why the rule is a rule.** A restore
+  brings back the whole database at a moment in time, not one survey out of it, so
+  recovering a wrongly deleted survey costs every answer given since. See
+  `docs/BACKUP.md`: continuous WAL archiving to immutable object storage, on the
+  3-2-1-1-0 rule, with a weekly restore test that fails loudly, because a check nobody
+  has watched fail is decoration. The bucket does not exist yet and nothing has been
+  restored, which that document says plainly.
+

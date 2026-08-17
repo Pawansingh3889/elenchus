@@ -17,6 +17,7 @@ import {
   useDeleteTemplate,
   usePublishTemplate,
   useRefineTemplate,
+  useDashboard,
   useTemplate,
   useUpdateTemplate,
   useUsers,
@@ -25,7 +26,7 @@ import { ApiError } from "@/lib/api";
 import { SignInPrompt } from "@/components/SignInPrompt";
 import { useT } from "@/lib/i18n/useT";
 import { useDraftNoteStore, useLocaleStore, useUserStore } from "@/lib/store";
-import type { SurveyAudience } from "@/lib/types";
+import type { DashboardRow, SurveyAudience } from "@/lib/types";
 
 export default function BuilderPage({ params }: { params: Promise<{ id: string }> }) {
   const msg = useT();
@@ -36,6 +37,12 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
   const locale = useLocaleStore((s) => s.locale);
   const currentUser = useCurrentUser();
   const { data: template, isLoading, error } = useTemplate(id);
+  // How many people have answered, for the delete rule. Read off the dashboard rows
+  // rather than a new endpoint: that query is already cached app-wide, and the server
+  // enforces the rule regardless, so this only has to explain it.
+  const { data: dashboardRows } = useDashboard();
+  const answered = dashboardRows?.find((r: DashboardRow) => r.id === id)?.started ?? 0;
+  const isDraft = template?.status === "draft";
   const update = useUpdateTemplate(id);
   const publish = usePublishTemplate(id);
   const remove = useDeleteTemplate(id);
@@ -246,17 +253,24 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
           />
           <div className="builder-actions">
             <span className={`pill pill-${template.status}`}>{template.status}</span>
-            <button className="btn btn-secondary" onClick={save} disabled={update.isPending}>
-              {update.isPending ? msg.common.saving : msg.common.save}
-            </button>
-            <button
-              className="btn btn-primary"
-              onClick={() => setConfirmingPublish(true)}
-              disabled={publish.isPending || questions.length === 0 || blockers.length > 0}
-              title={blockers.length > 0 ? blockers.join("\n") : undefined}
-            >
-              {publish.isPending ? msg.common.publishing : msg.common.publish}
-            </button>
+            {/* Saving and publishing exist only while it is a draft. A published survey
+                is frozen: the server refuses the edit, and offering a Save button that
+                can only fail is worse than not offering one. */}
+            {isDraft ? (
+              <>
+                <button className="btn btn-secondary" onClick={save} disabled={update.isPending}>
+                  {update.isPending ? msg.common.saving : msg.common.save}
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => setConfirmingPublish(true)}
+                  disabled={publish.isPending || questions.length === 0 || blockers.length > 0}
+                  title={blockers.length > 0 ? blockers.join("\n") : undefined}
+                >
+                  {publish.isPending ? msg.common.publishing : msg.common.publish}
+                </button>
+              </>
+            ) : null}
             {confirmingDelete ? (
               <>
                 <button className="btn btn-danger" onClick={onDelete} disabled={remove.isPending}>
@@ -266,6 +280,10 @@ export default function BuilderPage({ params }: { params: Promise<{ id: string }
                   {msg.common.cancel}
                 </button>
               </>
+            ) : answered > 0 ? (
+              // Not a disabled button: a control that cannot be used and does not say
+              // why reads as a bug. The count is the reason, so print the count.
+              <span className="text-sm text-muted">{msg.builder.deleteBlocked(answered)}</span>
             ) : (
               <button className="btn btn-quiet" onClick={() => setConfirmingDelete(true)}>
                 {msg.common.delete}

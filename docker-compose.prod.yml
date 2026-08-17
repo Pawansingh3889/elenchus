@@ -191,6 +191,40 @@ services:
       sh -c "pnpm build && pnpm start"
     restart: unless-stopped
 
+  # Continuous archiving to object storage. The database ships each write-ahead log
+  # segment as it closes, so recovery is to a moment rather than to last night: the
+  # difference between losing a shift's answers and losing the ones since 14:32.
+  #
+  # Empty by default and inert when unset, like every other credential here. A
+  # deployment with no repository configured runs exactly as it did, with no backups and
+  # nothing pretending otherwise. See docs/BACKUP.md.
+  backup:
+    image: pgbackrest/pgbackrest:2.55
+    profiles: ["backup"]
+    environment:
+      PGBACKREST_REPO1_TYPE: s3
+      PGBACKREST_REPO1_S3_BUCKET: ${BACKUP_S3_BUCKET:?set BACKUP_S3_BUCKET to enable backups}
+      PGBACKREST_REPO1_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:?set BACKUP_S3_ENDPOINT}
+      PGBACKREST_REPO1_S3_KEY: ${BACKUP_S3_KEY:?set BACKUP_S3_KEY}
+      PGBACKREST_REPO1_S3_KEY_SECRET: ${BACKUP_S3_KEY_SECRET:?set BACKUP_S3_KEY_SECRET}
+      PGBACKREST_REPO1_S3_REGION: ${BACKUP_S3_REGION:-auto}
+      PGBACKREST_REPO1_PATH: /elenchus
+      # Encrypted in the repository, so the bucket holding it is not also a copy of every
+      # answer in plain text. The passphrase is not recoverable from the backup: lose it
+      # and the backups are noise.
+      PGBACKREST_REPO1_CIPHER_TYPE: aes-256-cbc
+      PGBACKREST_REPO1_CIPHER_PASS: ${BACKUP_CIPHER_PASS:?set BACKUP_CIPHER_PASS}
+      # A guess until the plant's own record-retention standard replaces it: BRCGS ties
+      # retention to shelf life plus customer requirements, and this file should not
+      # invent that number.
+      PGBACKREST_REPO1_RETENTION_FULL: ${BACKUP_RETENTION_FULL:-12}
+      PGBACKREST_PG1_HOST: postgres
+      PGBACKREST_PG1_PATH: /var/lib/postgresql/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   pgdata:
   # The append-only LLM spend ledger, which must outlive the container it is written in.
