@@ -205,14 +205,17 @@ export const lv: Messages = {
       "Uzrakstiet teikumu par to, ko vēlaties uzzināt. Jautājumi, to veidi un varianti tiks sagatavoti no tā, un katru no tiem varat mainīt redaktorā.",
     step2Title: "Publicējiet",
     step2Body:
-      "Publicēšana iesaldē aptauju kā versiju, kas nevar mainīties zem atbildētājiem. Melnraksts turpina attīstīties atsevišķi.",
+      "Publicēšana atver aptauju atbildēm un iesaldē to: jautājumi vairs nevar mainīties tiem, kas atbild. Aptauja, kurai vajadzīgi citi jautājumi, ir jauna aptauja.",
     step3Title: "Viņi atbild sarunā",
     step3Body:
       "Respondenti iziet cauri jautājumiem sarunā. Dzinējs izlemj, kas seko un kas tiek uzskatīts par atbildi, tāpēc nekas netiek izdomāts un nekas netiek izlaists.",
-    needsYou: (n: number) => `Aptaujas, kas gaida jūs: ${n} →`,
     respondBody: "Jūs gaida aptaujas.",
     respondCta: "Atbildēt uz aptauju",
-    signedOutHint: "Piesakieties lapas augšā, lai sāktu.",
+    composeTitle: "Ko vēlaties uzzināt?",
+    signInCta: "Piesakieties, lai sāktu",
+    recentTitle: "Nesen atjauninātās",
+    allSurveys: "Visas aptaujas",
+    newAuthorLead: "Jūs vēl neesat izveidojis nevienu aptauju. Lūk, kas notiek, kad to izdarīsiet.",
   },
   builder: {
     pickUser: "Piesakieties augšējā joslā.",

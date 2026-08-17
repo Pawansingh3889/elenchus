@@ -204,14 +204,17 @@ export const fil: Messages = {
       "Sumulat ng isang pangungusap tungkol sa gusto mong malaman. Mula rito ihahanda ang mga tanong, ang uri nila at ang mga pagpipilian, at mababago mo ang alinman sa editor.",
     step2Title: "I-publish",
     step2Body:
-      "Ang pag-publish ay nagpi-freeze sa survey bilang bersyon na hindi na mababago habang sumasagot ang mga tao. Patuloy namang nababago ang draft nang hiwalay.",
+      "Binubuksan ng paglalathala ang survey para sa mga sagot at kinakandado ito: hindi na mababago ang mga tanong habang sinasagutan. Ang survey na kailangan ng ibang mga tanong ay bagong survey.",
     step3Title: "Sumasagot sila sa usapan",
     step3Body:
       "Dinadaanan ng mga sumasagot ang mga tanong sa isang usapan. Ang engine ang nagpapasya kung ano ang susunod at kung ano ang binibilang na sagot, kaya walang naiimbento at walang nalalaktawan.",
-    needsYou: (n: number) => `${n} survey ang naghihintay sa iyo →`,
     respondBody: "May mga survey na naghihintay sa iyo.",
     respondCta: "Sumagot ng survey",
-    signedOutHint: "Mag-sign in sa itaas ng pahina para magsimula.",
+    composeTitle: "Ano ang gusto mong malaman?",
+    signInCta: "Mag-sign in para magsimula",
+    recentTitle: "Kamakailang na-update",
+    allSurveys: "Lahat ng survey",
+    newAuthorLead: "Wala ka pang ginawang survey. Ganito ang mangyayari kapag gumawa ka.",
   },
   builder: {
     pickUser: "Mag-sign in sa itaas.",

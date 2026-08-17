@@ -213,14 +213,17 @@ export const en = {
       "Write a sentence about what you want to know. The questions, their types and their options are drafted from it, and you can change any of them in the builder.",
     step2Title: "Publish it",
     step2Body:
-      "Publishing freezes the survey as a version that cannot change under the people answering it. The draft carries on evolving separately.",
+      "Publishing opens the survey for answers and freezes it: the questions cannot change under the people answering them. A survey that needs different questions is a new survey.",
     step3Title: "They answer by chat",
     step3Body:
       "Respondents work through the questions in a conversation. The engine decides what comes next and what counts as an answer, so nothing is invented and nothing is skipped.",
-    needsYou: (n: number) => `${n} survey${n === 1 ? "" : "s"} need${n === 1 ? "s" : ""} you →`,
     respondBody: "There are surveys waiting for you.",
     respondCta: "Answer a survey",
-    signedOutHint: "Sign in at the top of the page to start.",
+    composeTitle: "What do you want to find out?",
+    signInCta: "Sign in to start",
+    recentTitle: "Recently updated",
+    allSurveys: "All surveys",
+    newAuthorLead: "You have not made a survey yet. Here is what happens when you do.",
   },
   builder: {
     pickUser: "Sign in at the top of the page.",

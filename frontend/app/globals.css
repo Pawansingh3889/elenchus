@@ -45,6 +45,14 @@
   --err-border: rgba(176, 42, 26, 0.25);
   --ai-fill: #e8f4fd;
   --ai-border: rgba(0, 94, 184, 0.2);
+  /* The home page's own surface, and the only gradient in the app.
+     Two stops as separate opaque tokens rather than one gradient string, because that
+     is what lets check_contrast.py measure the heading against each end: text over a
+     gradient is only as readable as its worst point, and an average would pass a
+     heading that disappears at one edge. Both ends are measured, so both are pairs. */
+  --hero-from: #00417f;
+  --hero-to: #0b6fb8;
+  --on-hero: #ffffff;
   /* 14px, from the health app. Softer than the 8px this used, and the reason the
      cards there read as cards rather than as panels. */
   /* ---------------------------------------------------------------------------
@@ -171,6 +179,11 @@
     --err-border: rgba(244, 179, 163, 0.25);
     --ai-fill: #16283a;
     --ai-border: rgba(124, 196, 238, 0.22);
+    /* Darker than the light palette's, for the same reason --slab is: the light
+       theme's blues are lit to sit on white and glare on this canvas. */
+    --hero-from: #0d2947;
+    --hero-to: #17456e;
+    --on-hero: #eaf2fa;
     /* Elevation reads as light on a dark surface, not as a cast shadow. */
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
@@ -210,6 +223,9 @@
   --err-border: rgba(244, 179, 163, 0.25);
   --ai-fill: #16283a;
   --ai-border: rgba(124, 196, 238, 0.22);
+  --hero-from: #0d2947;
+  --hero-to: #17456e;
+  --on-hero: #eaf2fa;
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
   color-scheme: dark;
@@ -425,6 +441,75 @@ select {
 .app-main:has(.results-page) {
   max-width: 1280px;
 }
+
+/* ---------------------------------------------------------------------------
+   The home page, which is the one page here allowed its own voice.
+
+   Every other screen is an instrument: it reports a number or takes an edit, and it
+   uses the shared card and the shared type scale so that nothing on it competes for
+   attention with the data. Home has the opposite job. It is where an author starts a
+   survey and where a person who has never seen this service arrives, so it is the one
+   place a display-scale heading and a gradient earn their keep.
+
+   Kept to one gradient and one type step above the app's own, deliberately. The advice
+   that came with the 2026 pattern this borrows is not to stack the trends, and a home
+   page that reads as a different product from the dashboard next door would be a worse
+   answer than the flat one it replaced.
+
+   The heading measures 10.18:1 at the light end of the gradient and 5.28:1 at the dark
+   end in the light palette, 13.04:1 and 8.79:1 in the dark one, computed by
+   check_contrast.py against both stops rather than estimated.
+   --------------------------------------------------------------------------- */
+.home-hero {
+  background: linear-gradient(135deg, var(--hero-from), var(--hero-to));
+  color: var(--on-hero);
+  border-radius: 20px;
+  /* Roomier than a card, because it is a surface rather than a container of rows. */
+  padding: 28px;
+}
+/* Only where the hero paints its own text. Anything inside it that carries a Tailwind
+   colour utility keeps that colour, because inheritance loses to a direct declaration
+   whatever cascade layer the declaration is in. That is the mechanism the textarea and
+   the buttons below rely on to stay legible on their own surfaces. */
+.home-hero-sub {
+  color: var(--on-hero);
+  opacity: 0.85;
+}
+/* The one type step above the app's scale. clamp so it is a headline on a laptop and
+   still a headline, not a paragraph, on a phone held in a chill store. */
+.home-display {
+  font-size: clamp(26px, 3.6vw, 42px);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  font-weight: 650;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .home-tile {
+    transition:
+      border-color var(--dur-fast) var(--ease),
+      transform var(--dur-fast) var(--ease);
+  }
+}
+/* The hero's own call to action. The app's primary button is a mid blue, which is the
+   right weight on a white card and half disappears on a blue surface, so on the hero it
+   inverts: the heading's colour becomes the fill and the dark end of the gradient
+   becomes the label. Contrast is symmetric, so this is the pair check_contrast.py
+   already measures at 10.18:1 and 13.04:1, read the other way round. */
+.home-cta {
+  background: var(--on-hero);
+  color: var(--hero-from);
+  border-color: transparent;
+}
+.home-cta:hover:not(:disabled) {
+  opacity: 0.92;
+}
+.home-tile:hover {
+  border-color: var(--focus);
+  /* One pixel, not a lift. A tile that jumps under the cursor on a page of tiles is
+     motion for its own sake, and this page is read at a glance. */
+  transform: translateY(-1px);
+}
+
 .page {
   display: flex;
   flex-direction: column;

@@ -205,15 +205,17 @@ export const de: Messages = {
       "Schreiben Sie einen Satz darüber, was Sie wissen möchten. Fragen, Antworttypen und Optionen werden daraus entworfen, und Sie können alles im Editor ändern.",
     step2Title: "Veröffentlichen",
     step2Body:
-      "Beim Veröffentlichen wird die Umfrage als Version eingefroren, die sich unter den Antwortenden nicht mehr ändern kann. Der Entwurf entwickelt sich getrennt weiter.",
+      "Beim Veröffentlichen wird die Umfrage für Antworten geöffnet und eingefroren: Die Fragen können sich unter den Antwortenden nicht mehr ändern. Eine Umfrage, die andere Fragen braucht, ist eine neue Umfrage.",
     step3Title: "Antworten im Gespräch",
     step3Body:
       "Die Befragten gehen die Fragen im Gespräch durch. Die Engine entscheidet, was als Nächstes kommt und was als Antwort zählt, damit nichts erfunden und nichts übersprungen wird.",
-    needsYou: (n: number) =>
-      `${n} Umfrage${n === 1 ? "" : "n"} ${n === 1 ? "braucht" : "brauchen"} Sie →`,
     respondBody: "Es warten Umfragen auf Sie.",
     respondCta: "Umfrage beantworten",
-    signedOutHint: "Melden Sie sich oben an, um zu beginnen.",
+    composeTitle: "Was möchten Sie herausfinden?",
+    signInCta: "Anmelden und loslegen",
+    recentTitle: "Zuletzt aktualisiert",
+    allSurveys: "Alle Umfragen",
+    newAuthorLead: "Sie haben noch keine Umfrage erstellt. So läuft es ab, wenn Sie eine anlegen.",
   },
   builder: {
     pickUser: "Melden Sie sich oben an.",

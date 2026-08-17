@@ -205,15 +205,17 @@ export const es: Messages = {
       "Escribe una frase sobre lo que quieres saber. Las preguntas, sus tipos y sus opciones se redactan a partir de ella, y puedes cambiar cualquiera en el editor.",
     step2Title: "Publícala",
     step2Body:
-      "Publicar congela la encuesta como una versión que no puede cambiar bajo quienes la responden. El borrador sigue evolucionando por separado.",
+      "Publicar abre la encuesta a las respuestas y la congela: las preguntas no pueden cambiar bajo quienes las responden. Una encuesta que necesita otras preguntas es una encuesta nueva.",
     step3Title: "Responden conversando",
     step3Body:
       "Las personas recorren las preguntas en una conversación. El motor decide qué viene después y qué cuenta como respuesta, así no se inventa nada ni se omite nada.",
-    needsYou: (n: number) =>
-      `${n} encuesta${n === 1 ? "" : "s"} te necesita${n === 1 ? "" : "n"} →`,
     respondBody: "Tienes encuestas esperando.",
     respondCta: "Responder una encuesta",
-    signedOutHint: "Entra desde la parte superior para empezar.",
+    composeTitle: "¿Qué quieres averiguar?",
+    signInCta: "Entra para empezar",
+    recentTitle: "Actualizadas recientemente",
+    allSurveys: "Todas las encuestas",
+    newAuthorLead: "Aún no has creado ninguna encuesta. Esto es lo que ocurre cuando lo hagas.",
   },
   builder: {
     pickUser: "Entra desde la barra superior.",

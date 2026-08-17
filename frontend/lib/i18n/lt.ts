@@ -205,14 +205,17 @@ export const lt: Messages = {
       "Parašykite sakinį apie tai, ką norite sužinoti. Klausimai, jų tipai ir pasirinkimai bus parengti iš jo, o kiekvieną galėsite pakeisti redaktoriuje.",
     step2Title: "Paskelbkite",
     step2Body:
-      "Paskelbimas užšaldo apklausą kaip versiją, kuri nebegali keistis po atsakančiaisiais. Juodraštis toliau keičiasi atskirai.",
+      "Paskelbus apklausa atveriama atsakymams ir užšaldoma: klausimai nebegali pasikeisti tiems, kurie atsakinėja. Apklausa, kuriai reikia kitų klausimų, yra nauja apklausa.",
     step3Title: "Jie atsako pokalbiu",
     step3Body:
       "Respondentai pereina klausimus pokalbio metu. Variklis nusprendžia, kas toliau ir kas laikoma atsakymu, todėl niekas neišgalvojama ir niekas nepraleidžiama.",
-    needsYou: (n: number) => `Apklausos, kurios laukia jūsų: ${n} →`,
     respondBody: "Jūsų laukia apklausos.",
     respondCta: "Atsakyti į apklausą",
-    signedOutHint: "Prisijunkite puslapio viršuje, kad pradėtumėte.",
+    composeTitle: "Ką norite sužinoti?",
+    signInCta: "Prisijunkite ir pradėkite",
+    recentTitle: "Neseniai atnaujintos",
+    allSurveys: "Visos apklausos",
+    newAuthorLead: "Dar nesukūrėte nė vienos apklausos. Štai kas vyksta, kai ją sukuriate.",
   },
   builder: {
     pickUser: "Prisijunkite viršutinėje juostoje.",

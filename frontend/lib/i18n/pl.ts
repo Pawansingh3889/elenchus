@@ -205,14 +205,17 @@ export const pl: Messages = {
       "Napisz zdanie o tym, czego chcesz się dowiedzieć. Pytania, ich typy i opcje powstaną na tej podstawie, a każde z nich możesz zmienić w edytorze.",
     step2Title: "Opublikuj",
     step2Body:
-      "Publikacja zamraża ankietę jako wersję, która nie zmieni się pod osobami odpowiadającymi. Wersja robocza rozwija się dalej osobno.",
+      "Publikacja otwiera ankietę na odpowiedzi i ją zamraża: pytania nie mogą się już zmienić pod osobami odpowiadającymi. Ankieta, która wymaga innych pytań, to nowa ankieta.",
     step3Title: "Odpowiadają w rozmowie",
     step3Body:
       "Odbiorcy przechodzą przez pytania w rozmowie. Silnik decyduje, co dalej i co liczy się jako odpowiedź, więc nic nie zostaje zmyślone ani pominięte.",
-    needsYou: (n: number) => `Ankiety czekające na Ciebie: ${n} →`,
     respondBody: "Czekają na Ciebie ankiety.",
     respondCta: "Wypełnij ankietę",
-    signedOutHint: "Zaloguj się u góry strony, aby zacząć.",
+    composeTitle: "Czego chcesz się dowiedzieć?",
+    signInCta: "Zaloguj się, aby zacząć",
+    recentTitle: "Ostatnio zmienione",
+    allSurveys: "Wszystkie ankiety",
+    newAuthorLead: "Nie masz jeszcze żadnej ankiety. Oto co się stanie, gdy ją utworzysz.",
   },
   builder: {
     pickUser: "Zaloguj się na górnym pasku.",

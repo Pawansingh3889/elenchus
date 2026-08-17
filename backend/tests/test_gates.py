@@ -293,6 +293,9 @@ PALETTE = """:root {{
   --warn-text: #7a4a06;
   --err-fill: #fadbd5;
   --err-text: #8a2c18;
+  --hero-from: #00417f;
+  --hero-to: #0b6fb8;
+  --on-hero: #ffffff;
 }}
 """
 

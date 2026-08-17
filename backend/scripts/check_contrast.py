@@ -49,6 +49,13 @@ PAIRS: tuple[tuple[str, str, float, str], ...] = (
     ("warn-text", "raised", 4.5, "a flag count on a card"),
     ("focus", "raised", 3.0, "focus ring on a card"),
     ("focus", "canvas", 3.0, "focus ring on the page background"),
+    # The home page's gradient hero, measured at both ends. A gradient has no single
+    # background colour, so the honest check is the text against each stop: pass both
+    # and every point between them passes, because contrast varies monotonically
+    # between two colours the text sits over. Checking a midpoint instead would let a
+    # heading that vanishes at one edge through.
+    ("on-hero", "hero-from", 4.5, "the home heading at the light end of the hero"),
+    ("on-hero", "hero-to", 4.5, "the home heading at the dark end of the hero"),
 )
 
 TOKEN = re.compile(r"^\s*--([a-z0-9-]+):\s*(#[0-9a-fA-F]{3,8})\s*;", re.MULTILINE)

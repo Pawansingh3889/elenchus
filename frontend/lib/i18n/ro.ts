@@ -205,16 +205,19 @@ export const ro: Messages = {
       "Scrieți o frază despre ce vreți să aflați. Întrebările, tipurile și opțiunile lor sunt redactate din ea, iar pe fiecare o puteți schimba în editor.",
     step2Title: "Publicați",
     step2Body:
-      "Publicarea îngheață chestionarul ca o versiune care nu se poate schimba sub cei care răspund. Ciorna continuă să evolueze separat.",
+      "Publicarea deschide chestionarul pentru răspunsuri și îl îngheață: întrebările nu se mai pot schimba sub cei care răspund. Un chestionar care are nevoie de alte întrebări este un chestionar nou.",
     step3Title: "Răspund prin conversație",
     step3Body:
       "Respondenții parcurg întrebările într-o conversație. Motorul decide ce urmează și ce contează drept răspuns, așa că nimic nu este inventat și nimic nu este sărit.",
     // "așteaptă" is the same in the third person singular and plural, so only the noun
     // takes a plural here.
-    needsYou: (n: number) => `${n} chestionar${n === 1 ? "" : "e"} vă așteaptă →`,
     respondBody: "Vă așteaptă chestionare.",
     respondCta: "Răspundeți la un chestionar",
-    signedOutHint: "Autentifică-te în partea de sus pentru a începe.",
+    composeTitle: "Ce vrei să afli?",
+    signInCta: "Autentifică-te ca să începi",
+    recentTitle: "Actualizate recent",
+    allSurveys: "Toate chestionarele",
+    newAuthorLead: "Nu ai creat încă niciun chestionar. Iată ce se întâmplă când o vei face.",
   },
   builder: {
     pickUser: "Autentifică-te din bara de sus.",
