@@ -273,7 +273,7 @@ export const es: Messages = {
     publishTitle: (t: string) => `¿Publicar «${t}»?`,
     publishShape: (q: number, p: number) => p > 0 ? `${q} preguntas, ${p} de ellas siempre repreguntan.` : `${q} preguntas.`,
     publishFreezes:
-      "Publicar abre esta encuesta a respuestas. Las ediciones posteriores la cambian para todos, incluido quien esté a mitad de responderla.",
+      "Publicar abre esta encuesta a las respuestas y la congela: las preguntas no pueden cambiar bajo quienes las responden. Una encuesta que necesita otras preguntas es una encuesta nueva.",
     publishAgain:
       "Esta encuesta ya está abierta. Publicar de nuevo aplica sus cambios a todos, incluido quien esté a mitad de responderla.",
     tabResults: "Resultados",

@@ -273,7 +273,7 @@ export const pl: Messages = {
     publishTitle: (t: string) => `Opublikować „${t}”?`,
     publishShape: (q: number, p: number) => p > 0 ? `${q} pytań, w tym ${p} zawsze dopytuje.` : `${q} pytań.`,
     publishFreezes:
-      "Opublikowanie otwiera tę ankietę na odpowiedzi. Późniejsze zmiany zmieniają ją dla wszystkich, także dla osób w trakcie wypełniania.",
+      "Publikacja otwiera tę ankietę na odpowiedzi i ją zamraża: pytania nie mogą się już zmienić pod osobami odpowiadającymi. Ankieta, która wymaga innych pytań, to nowa ankieta.",
     publishAgain:
       "Ta ankieta jest już otwarta. Ponowna publikacja zastosuje Twoje zmiany dla wszystkich, także dla osób w trakcie wypełniania.",
     tabResults: "Wyniki",

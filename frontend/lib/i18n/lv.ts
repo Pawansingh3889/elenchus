@@ -273,7 +273,7 @@ export const lv: Messages = {
     publishTitle: (t: string) => `Publicēt “${t}”?`,
     publishShape: (q: number, p: number) => p > 0 ? `${q} jautājumi, no tiem ${p} vienmēr uzdod precizējošu jautājumu.` : `${q} jautājumi.`,
     publishFreezes:
-      "Publicējot aptauja tiek atvērta atbildēm. Vēlākas izmaiņas maina to visiem, arī tiem, kas jau atbild.",
+      "Publicēšana atver šo aptauju atbildēm un iesaldē to: jautājumi vairs nevar mainīties tiem, kas atbild. Aptauja, kurai vajadzīgi citi jautājumi, ir jauna aptauja.",
     publishAgain:
       "Šī aptauja jau ir atvērta. Publicējot atkārtoti, izmaiņas tiek piemērotas visiem, arī tiem, kas jau atbild.",
     tabResults: "Rezultāti",

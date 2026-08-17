@@ -268,7 +268,7 @@ export const de: Messages = {
     publishTitle: (t: string) => `„${t}“ veröffentlichen?`,
     publishShape: (q: number, p: number) => p > 0 ? `${q} Fragen, bei ${p} davon wird immer nachgefragt.` : `${q} Fragen.`,
     publishFreezes:
-      "Mit dem Veröffentlichen wird diese Umfrage zur Beantwortung freigegeben. Spätere Änderungen gelten für alle, auch für Personen mitten in der Beantwortung.",
+      "Beim Veröffentlichen wird die Umfrage für Antworten geöffnet und eingefroren: Die Fragen können sich unter den Antwortenden nicht mehr ändern. Eine Umfrage, die andere Fragen braucht, ist eine neue Umfrage.",
     publishAgain:
       "Diese Umfrage ist bereits offen. Erneutes Veröffentlichen wendet Ihre Änderungen auf alle an, auch auf Personen mitten in der Beantwortung.",
     tabResults: "Ergebnisse",

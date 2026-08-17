@@ -281,7 +281,7 @@ export const en = {
     publishTitle: (t: string) => `Publish “${t}”?`,
     publishShape: (q: number, p: number) => p > 0 ? `${q} questions, ${p} of them always ask a follow-up.` : `${q} questions.`,
     publishFreezes:
-      "Publishing opens this survey for answers. Later edits change it for everyone, including anyone part-way through.",
+      "Publishing opens this survey for answers and freezes it: the questions cannot change under the people answering them. A survey that needs different questions is a new survey.",
     publishAgain:
       "This survey is already open. Publishing again applies your edits to everyone, including anyone part-way through answering it.",
     tabResults: "Results",

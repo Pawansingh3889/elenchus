@@ -275,7 +275,7 @@ export const ro: Messages = {
     publishTitle: (t: string) => `Publici „${t}”?`,
     publishShape: (q: number, p: number) => p > 0 ? `${q} întrebări, dintre care ${p} pun mereu o întrebare suplimentară.` : `${q} întrebări.`,
     publishFreezes:
-      "Publicarea deschide acest chestionar pentru răspunsuri. Modificările ulterioare îl schimbă pentru toți, inclusiv pentru cine este la jumătatea completării.",
+      "Publicarea deschide acest chestionar pentru răspunsuri și îl îngheață: întrebările nu se mai pot schimba sub cei care răspund. Un chestionar care are nevoie de alte întrebări este un chestionar nou.",
     publishAgain:
       "Acest chestionar este deja deschis. Republicarea aplică modificările pentru toți, inclusiv pentru cine este la jumătatea completării.",
     tabResults: "Rezultate",

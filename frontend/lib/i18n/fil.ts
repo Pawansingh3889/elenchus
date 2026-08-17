@@ -267,7 +267,7 @@ export const fil: Messages = {
     publishTitle: (t: string) => `I-publish ang “${t}”?`,
     publishShape: (q: number, p: number) => p > 0 ? `${q} tanong, ${p} rito ay laging may follow-up.` : `${q} tanong.`,
     publishFreezes:
-      "Binubuksan ng paglalathala ang survey na ito para sagutan. Binabago ng mga susunod na pag-edit ang survey para sa lahat, pati sa mga kasalukuyang sumasagot.",
+      "Binubuksan ng paglalathala ang survey na ito para sa mga sagot at kinakandado ito: hindi na mababago ang mga tanong habang sinasagutan. Ang survey na kailangan ng ibang mga tanong ay bagong survey.",
     publishAgain:
       "Bukas na ang survey na ito. Ang muling paglalathala ay naglalapat ng iyong mga pagbabago sa lahat, pati sa mga kasalukuyang sumasagot.",
     tabResults: "Mga resulta",

@@ -273,7 +273,7 @@ export const lt: Messages = {
     publishTitle: (t: string) => `Paskelbti „${t}“?`,
     publishShape: (q: number, p: number) => p > 0 ? `${q} klausimai, iš jų ${p} visada patikslina.` : `${q} klausimai.`,
     publishFreezes:
-      "Paskelbus apklausa atidaroma atsakymams. Vėlesni pakeitimai keičia ją visiems, taip pat ir tiems, kurie jau atsakinėja.",
+      "Paskelbus ši apklausa atveriama atsakymams ir užšaldoma: klausimai nebegali pasikeisti tiems, kurie atsakinėja. Apklausa, kuriai reikia kitų klausimų, yra nauja apklausa.",
     publishAgain:
       "Ši apklausa jau atidaryta. Paskelbus dar kartą jūsų pakeitimai pritaikomi visiems, taip pat ir tiems, kurie jau atsakinėja.",
     tabResults: "Rezultatai",
