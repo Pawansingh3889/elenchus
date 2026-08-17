@@ -10,8 +10,7 @@ import { QuestionCard } from "@/components/results/QuestionCard";
 import { RecapPanel } from "@/components/results/RecapPanel";
 import { RespondentTable } from "@/components/results/RespondentTable";
 import { RunPanel } from "@/components/results/RunPanel";
-import { CompareControl } from "@/components/results/CompareControl";
-import { SliceControl } from "@/components/results/SliceControl";
+import { ControlBar } from "@/components/results/ControlBar";
 import { Stat } from "@/components/Stat";
 import { SurveyNav } from "@/components/SurveyNav";
 import { Card } from "@/components/ui/card";
@@ -59,12 +58,18 @@ function ResultsContent() {
 
   // replace, not push: opening responses one after another should not build a back
   // stack the author has to unwind to leave the page.
-  function setParam(key: string, value: string | null) {
+  //
+  // Several keys in one call, because two calls in one handler both start from the
+  // params of the current render, and the second silently undoes the first.
+  function setParams(changes: Record<string, string | null>) {
     const next = new URLSearchParams(search.toString());
-    if (value) next.set(key, value);
-    else next.delete(key);
+    for (const [key, value] of Object.entries(changes)) {
+      if (value) next.set(key, value);
+      else next.delete(key);
+    }
     router.replace(next.toString() ? `?${next}` : "?", { scroll: false });
   }
+  const setParam = (key: string, value: string | null) => setParams({ [key]: value });
 
   const compareBy = search.get("compare");
   const shown = matrix ? sliceRuns(matrix.runs, slice) : [];
@@ -126,6 +131,24 @@ function ResultsContent() {
           <header className="flex flex-wrap items-center justify-between gap-3">
             <h1 className="text-xl font-semibold">{report.title}</h1>
           </header>
+
+          {/* The slicers, above everything they act on, and sticky, so the state of the
+              page can be read from any scroll position. What every BI tool does with its
+              filter band, and for the reason they do it: a filtered number with no
+              visible filter gets quoted as the whole. */}
+          {matrix && matrix.runs.length > 0 ? (
+            <ControlBar
+              questions={matrix.questions}
+              slice={slice}
+              onSlice={(next) => setParam("slice", next ? formatSlice(next) : null)}
+              compareBy={compareBy}
+              onCompare={(next) => setParam("compare", next)}
+              onClear={() => setParams({ slice: null, compare: null })}
+              groups={groups.map((g) => g.label)}
+              showing={shown.length}
+              total={matrix.runs.length}
+            />
+          ) : null}
 
           {/* Two rates, each labelled with what it is over. They were one tile reading
               "8/8 responded" beside another reading "8 responses", which is the same
@@ -189,25 +212,6 @@ function ResultsContent() {
             runsCompleted={report.runs_completed}
             hidden={Boolean(slice)}
           />
-
-          {matrix && matrix.runs.length > 0 ? (
-            <SliceControl
-              questions={matrix.questions}
-              slice={slice}
-              onChange={(next) => setParam("slice", next ? formatSlice(next) : null)}
-              showing={shown.length}
-              total={matrix.runs.length}
-            />
-          ) : null}
-
-          {matrix && matrix.runs.length > 0 ? (
-            <CompareControl
-              questions={matrix.questions}
-              compareBy={compareBy}
-              onChange={(next) => setParam("compare", next)}
-              groups={groups.map((g) => g.label)}
-            />
-          ) : null}
 
           {openRun ? (
             <RunPanel templateId={id} runId={openRun} onClose={() => setParam("run", null)} />
