@@ -5,6 +5,185 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-08-17. The class guard reads the plainest way to write a class
+
+It never had. The guard collects the regions of a file where a class may legitimately
+appear and then pulls the quoted literals out of each one, but the `className="..."`
+branch pushed its capture group, which is the text between the quotes. A region with no
+quotes in it yields no literal, so every plain string className went uncollected from
+the day the guard was written, and only `cn()`, `cva()` and `className={...}` were ever
+checked.
+
+- **The candidate count goes from 172 to 356.** The hole surfaced when a CSS-less name
+  inside a `cn()` was rejected while the identical one in a plain string three files
+  away had been passing all along.
+- **Two dead marker classes removed rather than given a rule.** `results-controls` was a
+  hook on the sticky bar that nothing selects, in the stylesheet or anywhere else, and
+  `qcard-policy` was a hook on the builder's follow-up label that never had a rule in
+  any commit; the label is styled by `.qcard-flags label` and renders the same without
+  it.
+- **`classNamesIn` is exported and pinned by `tests/classGuard.test.ts`**, with the scan
+  behind an entry-point check so importing it does not run a second pass over the
+  codebase. A guard is the one kind of code whose failure is silent: it goes on exiting
+  0, and 0 is also what it says when it checks nothing. Watched it reject a planted
+  `inset-inline-end-3` in a plain className, exit 1.
+
+## 2026-08-17. The results page becomes something an author can read
+
+Six changes to one page, which had been a column of full-width charts with no way to
+narrow it, compare it, or tell where you were in it.
+
+- **Compare by adds the second dimension, and colour arrives with it.** A hue per option
+  was refused: a tally of options is one series, so colouring each bar would claim the
+  options differ in kind when they differ only in count. Picking a question that splits
+  the room turns "3 of 4 said yes" into "packing said yes twice, intake said yes once
+  and no once". Four hues, computed and run through the validator rather than chosen; a
+  fifth group folds into a neutral other rather than inventing a hue or borrowing the
+  amber; every bar keeps its count as text, because identity is never colour alone.
+- **A flag strip says which questions to read first.** Two kinds only, and the
+  exclusions are the design: half the room declined, or a rating averaging in the bottom
+  two steps of the app's own 1-5 scale. A number is never flagged, because a chiller at
+  6C is a chill-chain breach and six years of service is not, and a question carries no
+  safe range for this app to invent one from. A yes/no majority is never flagged,
+  because "was PPE available" answered no is bad and "did you have any problems"
+  answered no is good, and only the question text separates them. Two responses minimum.
+- **The slicers moved into one sticky bar that says what it is doing.** Slice and compare
+  used to scroll away, and a filtered number with no visible filter is how "3 of 4 said
+  yes" gets quoted as the whole survey. One band under the title now, with a chip per
+  active control, the compare legend beside the chip that created it, a live "N of M
+  responses", and Clear as a single navigation.
+- **Clicking a mark is a filter.** `?slice=` already existed, so a click on a bar, a
+  donut segment or a legend group sets it and a second click clears it. The selected
+  mark keeps its colour and the rest of that card steps back to a third opacity, on that
+  card only. Write-ins are not clickable, because one person's words are not a group,
+  and the keyboard path stays the control bar, because an SVG rectangle is not
+  focusable.
+- **The cards became a grid, and a long option list folds its zeros.** Eight questions
+  measured 4429px at 1400x900 before, five screens, with a 654px bar drawn for a count
+  of one. Two columns from lg up, each card choosing its own span from the data it
+  holds, brings that to 3219px and clipped axis labels from 1 to 0. Zero rows fold
+  behind a count past eight options, stated as "8 options nobody picked", which is
+  arguably the better way to say it; rating never folds, because its five steps are the
+  scale.
+- **A rail lists the questions, and the sticky bar publishes its own height.** Eight
+  charts with no contents list is eight charts you scroll blind. The rail marks the
+  flagged questions so it and the flag strip cannot disagree, and scroll position
+  decides which entry is current, so arriving from the rail, the strip or a pasted link
+  lights the same one. The offset everything depends on is the bar's height, which runs
+  from 61px to 101px as chips and a legend appear, so the bar measures itself and both
+  the rail's sticky top and the cards' scroll-margin read the published value. The
+  respondent table moved below the charts, and the page widened to 1280px, scoped with
+  `:has` so the rest of the app keeps its reading measure.
+
+Verified by rendering and measuring rather than by the checks, which is how three of
+these were found: grouping read `run.answers[question.id]` when answers are a list, a
+yes/no card kept drawing a donut while comparing, and the fold control was a bare
+`<button>` that the unlayered element rule dresses as a raised pill. The narrow layout
+below `lg`, where the rail is a horizontal row and does not stick, is unverified: the
+test window would not resize.
+
+## 2026-08-17. A probe that re-asks the question corrects the answer it re-asked
+
+A follow-up is a question the model wrote, so its answer belongs to no option list and
+is never counted. That rule is right, and it was wrong in one case: sometimes the probe
+is the author's question re-asked with the options spelled out, and the reply is a
+selection from the same set.
+
+- **What it cost, from a real run.** Asked where product had been above the chill
+  specification, one respondent gave a reading and a place not on the list, which became
+  a write-in of the fragment "sat on the bay"; another gave "intake", a worse spelling
+  of an option that was offered. Both were probed and both then named real locations.
+  Filed as follow-ups, those were never counted, so the chart tallied zero for "Vehicle
+  unloading at intake" while two of the three transcripts above it said otherwise.
+- **Two conditions, and they are the whole rule.** The parent's vocabulary must be
+  closed, because only then is the probe's answer a selection from the same set and only
+  then does one of the two have to be wrong; on free text a probe elaborates, and
+  replacing the answer with the elaboration would delete an answer to make room for a
+  note about it. And the probe must have answered in that vocabulary, so prose under a
+  closed parent stays a follow-up.
+- **Correction replaces rather than merges**, because what the respondent settled on is
+  the answer, and merging would leave the misparse on the chart beside the option it was
+  a worse spelling of. The row keeps its `question_text`, which since versions were
+  removed is the only record of what this person was actually asked, and the transcript
+  keeps every word.
+
+## 2026-08-17. The org chart fills out, and the People page draws who a survey reaches
+
+- **The roster the plant actually has.** Supply chain arrives two deep, manager and
+  head, because intake and dispatch are where a chill-chain problem becomes somebody
+  else's problem. A factory manager joins as executive at head, which is what makes her
+  the only person who can aim a survey at the heads of other functions. HR moves to
+  head, since the office functions are one person deep and their lead is that person,
+  and finance is a single director, deliberately alone.
+- **The seed's own invariant caught the mistake in it.** Supply chain manager is an
+  authoring band, and the test pinning "authoring bands carry a sign-in" failed until
+  Sam got one.
+- **The People page stopped promising an answer it left to the reader.** It said "who is
+  on the plant, and which surveys can reach them" above a table of jobs. There is a grid
+  now: function down, band across, people in the cells, and the chosen audience lit
+  across it, so `operatives` is one cell, `qa` is a row, `managers` is everything right
+  of a line, and `health_safety` is a function plus whoever carries the hat. The shape
+  is the explanation, where a list of names says who without saying why.
+- **Membership is never computed in the browser.** Each person arrives carrying the
+  audiences that reach them, decided by the same `in_audience` call the denominators
+  use, because a map drawn from a paraphrase of the rules drifts from them.
+- **Two numbers that were one are now separate:** how many people an audience includes,
+  and how many of those could actually receive a survey. Health and safety reaches two
+  people, one of whom has no sign-in recorded, so the page says so and names him. While
+  the floor has no way in, a reach number that ignores that overstates itself.
+
+## 2026-08-17. Publishing freezes a survey, and only an unanswered one can be deleted
+
+Asked for directly, a day after versions were removed, and the two are coherent rather
+than contradictory: versions froze a copy while the draft went on evolving, and this
+freezes the survey itself. Either way nobody's answer is re-pointed at a question they
+were not asked. A survey that needs different questions is a new survey, which also
+stops two sets of answers blending under one title.
+
+- **Editing a published survey is refused, wholly**, where the rule used to cover the
+  audience alone. Refining with the model is editing, so it is refused too, and the
+  builder stops offering Save and Publish once a survey is live rather than offering
+  buttons that can only fail.
+- **Delete is permanent and therefore narrow.** The survey and its questions go, and it
+  refuses the moment any run exists, of any status, because an abandoned
+  half-conversation is still something a person said. The gate is the run count rather
+  than the status: a draft nobody could answer and a published survey nobody did are the
+  same situation. The builder prints the count as the reason instead of showing a
+  disabled control that explains nothing.
+- **Six tests described behaviour that can no longer happen and were removed**, and five
+  more changed sides. Two of the removed ones were written the day before to pin the
+  cost of live editing, which this freeze makes impossible.
+- **Backups, on the 3-2-1-1-0 rule, since deletion is now real.** Continuous WAL
+  archiving to encrypted object storage with a lock, a pgBackRest service that is inert
+  until credentials exist, and a weekly restore test that asserts the schema matches the
+  code and that the restored tables are not empty, because an empty restore succeeds
+  quietly. `docs/BACKUP.md` says plainly that the bucket does not exist and nothing has
+  been restored yet.
+
+## 2026-08-16. A sign-in page, and pages that need you point at it
+
+Signing in was a box in the top bar, which is the right size for a development shim and
+the wrong size for the first thing a person does. There is a page now: it names the
+service, offers the providers this deployment actually has, and says who to ask when it
+will not let you in.
+
+- **It cannot create an account, deliberately.** Every right here derives from a job an
+  administrator assigns, and an account made by a first sign-in holds none: it sits in
+  no audience, can be surveyed by nobody, and widens every denominator until somebody
+  notices. An unknown address is refused with a sentence naming the fix.
+- **The callback returns people to `/signin`** rather than the landing page, since
+  somebody just turned away needs the reason beside the button they pressed. The top
+  bar's duplicate copy of that error handling is deleted: both read the same query
+  parameter and the top bar cleared it first, so the message rendered nowhere.
+- **Pages that need a caller** (dashboard, people, builder) show a prompt that links to
+  the page rather than a sentence telling the reader to find a control. A component
+  rather than a redirect, so the address they asked for survives and the back button
+  still means something.
+- **Worth knowing rather than discovering:** this serves the ~50 office accounts with a
+  provider login. The ~450 on the floor have no work email and no Microsoft account, and
+  their way in is a break-room kiosk with a works number and a PIN that does not exist
+  yet.
+
 ## 2026-08-16. Published versions are removed
 
 Asked for directly. A survey had a draft and a stack of immutable versions; it now has
