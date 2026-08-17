@@ -52,16 +52,22 @@ SEED_USERS: list[tuple[UUID, str, str, Function, Band, str | None]] = [
         UUID("00000000-0000-0000-0000-0000000000a2"),
         "arjun@elenchus.dev",
         "Arjun Author",
+        # Head of HR. The office functions are one person deep here, so their lead sits
+        # at head rather than manager, and under the seniority rule that is what lets
+        # them survey the floor at all.
         Function.hr,
-        Band.manager,
+        Band.head,
         "entra-arjun",
     ),
     (
         UUID("00000000-0000-0000-0000-0000000000a3"),
         "fatima@elenchus.dev",
         "Fatima Author",
+        # Finance, alone and at director: the one function with a single person in it,
+        # kept deliberately so the grid has a row that is one cell and the seniority
+        # rule has somebody at the top of it.
         Function.finance,
-        Band.manager,
+        Band.director,
         "entra-fatima",
     ),
     (
@@ -151,6 +157,39 @@ SEED_USERS: list[tuple[UUID, str, str, Function, Band, str | None]] = [
         Function.quality,
         Band.operative,
         None,
+    ),
+    (
+        UUID("00000000-0000-0000-0000-0000000000c5"),
+        "sam@elenchus.dev",
+        "Sam Author",
+        # Supply chain, two deep: intake and dispatch are where a chill-chain problem
+        # becomes somebody else's problem, so the function needs a ladder rather than a
+        # single contact.
+        Function.supply_chain,
+        Band.manager,
+        # An authoring band carries a sign-in, which the seed's own test pins: manager
+        # and up build surveys, and one who cannot sign in is an account that will stop
+        # working the day the shim goes.
+        "entra-sam",
+    ),
+    (
+        UUID("00000000-0000-0000-0000-0000000000c6"),
+        "priya@elenchus.dev",
+        "Priya Author",
+        Function.supply_chain,
+        Band.head,
+        "entra-priya",
+    ),
+    (
+        UUID("00000000-0000-0000-0000-0000000000c7"),
+        "marta@elenchus.dev",
+        "Marta Author",
+        # The factory manager. Executive at head: she reads every survey and edits none,
+        # and under the seniority rule she is the only person who can aim one at the
+        # heads of the other functions.
+        Function.executive,
+        Band.head,
+        "entra-marta",
     ),
 ]
 
