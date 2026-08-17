@@ -822,6 +822,108 @@ async def test_a_follow_up_that_re_asks_the_question_stays_structured(
 
     follow_ups = [a for a in run.answers if a.kind is AnswerKind.follow_up]
     assert follow_ups[0].value == {"yes_no": False}
+    # And the answer itself is what they settled on. "no actually" corrects the yes; the
+    # scripted answer is the one every tally reads, so leaving it saying yes would report
+    # the opposite of what this person told the interviewer.
+    scripted = [a for a in run.answers if a.kind is AnswerKind.scripted]
+    assert scripted[0].value == {"yes_no": False}
+
+
+# ------------------------------------------------- a probe can correct, not just add
+
+
+async def test_a_probe_that_resolves_the_option_list_corrects_the_answer(
+    session, respondent, published_multi_select
+):
+    """Found by conducting a real survey, and it made the chart contradict the transcript.
+
+    Asked where product had been above the chill spec, the respondent answered with a
+    reading and a place that is not on the option list. The engine kept the only thing it
+    could make of that, a write-in of the fragment, then probed and got the two real
+    options back. Filed as a follow-up those were never counted, so the question tallied
+    zero for "Vehicle unloading at intake" while the transcript above it said otherwise.
+    """
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published_multi_select.id, respondent)
+
+    llm = FakeLLM(
+        _record(["sat on the bay"]),
+        _follow_up("Was that during vehicle unloading, or at the intake checks?"),
+    )
+    run = await ConductEngine(session, llm=llm).handle_message(
+        run.id, "6.2 at the core on a box that had been sat on the bay", respondent
+    )
+    scripted = next(a for a in run.answers if a.kind is AnswerKind.scripted)
+    assert scripted.value == {"options": [], "other": ["sat on the bay"]}
+
+    llm = FakeLLM(
+        _record(["Vehicle unloading at intake", "Intake checks before booking in"]), _move_on()
+    )
+    run = await ConductEngine(session, llm=llm).handle_message(
+        run.id, "unloading, and the intake checks before booking in", respondent
+    )
+
+    scripted = [a for a in run.answers if a.kind is AnswerKind.scripted]
+    assert len(scripted) == 1, "correcting an answer must not create a second one"
+    # Replaced, not merged. The write-in was the engine's reading of a sentence, not an
+    # option this person chose, and merging would leave it as a row on the chart beside
+    # the option it was a worse spelling of, with no way to show it was withdrawn.
+    assert scripted[0].value == {
+        "options": ["Vehicle unloading at intake", "Intake checks before booking in"]
+    }
+    # The author's wording, not the probe's: this is the only record of what the
+    # respondent was actually asked.
+    assert scripted[0].question_text == "Where have you seen product above the chill specification?"
+    # And the exchange is still on the run, so how the answer was reached is not lost.
+    assert [a.value for a in run.answers if a.kind is AnswerKind.follow_up] == [
+        {"options": ["Vehicle unloading at intake", "Intake checks before booking in"]}
+    ]
+
+
+async def test_a_probe_answered_in_prose_leaves_the_answer_alone(
+    session, respondent, published_yes_no
+):
+    """The boundary on the other side of a closed question.
+
+    "Could you describe the issues?" is a new question however closed its parent is, and
+    its answer is prose that the option list has no room for. Correcting on it would be
+    the engine deciding a description is a better yes/no than the yes it was given.
+    """
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published_yes_no.id, respondent)
+
+    llm = FakeLLM(_record(True), _follow_up("Could you describe the issues?"))
+    run = await ConductEngine(session, llm=llm).handle_message(run.id, "yes", respondent)
+
+    llm = FakeLLM(_record("The scanner drops its connection every few hours."), _move_on())
+    run = await ConductEngine(session, llm=llm).handle_message(
+        run.id, "the scanner drops its connection every few hours", respondent
+    )
+
+    scripted = [a for a in run.answers if a.kind is AnswerKind.scripted]
+    assert scripted[0].value == {"yes_no": True}
+
+
+async def test_a_probe_on_a_text_question_adds_rather_than_corrects(session, respondent, published):
+    """Free text has no option list, so a probe there elaborates and never replaces.
+
+    Both answers are things the respondent said, and the scripted one is what they said
+    to the author's question. Overwriting it with the elaboration would delete an answer
+    to make room for a note about it.
+    """
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(published.id, respondent)
+
+    llm = FakeLLM(_record("Line lead"), _follow_up("What does that involve?"))
+    run = await ConductEngine(session, llm=llm).handle_message(run.id, "line lead", respondent)
+
+    llm = FakeLLM(_record("Running the packing line and the handover."), _move_on())
+    run = await ConductEngine(session, llm=llm).handle_message(
+        run.id, "running the packing line and the handover", respondent
+    )
+
+    scripted = [a for a in run.answers if a.kind is AnswerKind.scripted]
+    assert scripted[0].value == {"text": "Line lead"}
 
 
 async def test_the_follow_up_gate_still_refuses_nonsense(session, respondent, published_yes_no):
