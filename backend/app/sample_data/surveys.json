@@ -488,5 +488,101 @@
         "description": "Evaluating the effectiveness of shift-to-shift communication"
       }
     }
+  },
+  {
+    "key": "ai-tools-plant",
+    "template_id": "deda8e62-3176-4327-8a8e-d11f2d187108",
+    "title": "AI tools in the plant",
+    "description": "A short survey to understand how people feel about AI tools being introduced to help with their work.",
+    "created_by": "pawankapkoti3889",
+    "version": {
+      "version_id": "deda8e62-3176-4327-8a8e-d11f2d187108",
+      "number": 1,
+      "published_by": "pawankapkoti3889",
+      "definition": {
+        "title": "AI tools in the plant",
+        "description": "A short survey to understand how people feel about AI tools being introduced to help with their work.",
+        "questions": [
+          {
+            "id": "68ff63af-0f03-4b08-bde3-067560b3c3b4",
+            "text": "Have you used any AI tool at work?",
+            "options": [],
+            "position": 0,
+            "required": true,
+            "allow_other": false,
+            "answer_type": "yes_no",
+            "follow_up_policy": "never"
+          },
+          {
+            "id": "03f5dc2c-a7a2-4a05-b066-e39edbb957fb",
+            "text": "How confident do you feel using AI tools at work?",
+            "options": [],
+            "position": 1,
+            "required": true,
+            "allow_other": false,
+            "answer_type": "rating",
+            "follow_up_policy": "when_unclear"
+          },
+          {
+            "id": "e7f4cc34-365f-44c3-80fe-fbe82a4d1175",
+            "text": "Which AI tools or AI-supported systems have you used at work?",
+            "options": [
+              "Chat or question-answer tool",
+              "Translation or writing help",
+              "Production planning or scheduling tool",
+              "Quality check or inspection support",
+              "Maintenance or fault-finding support",
+              "Training or work instruction tool"
+            ],
+            "position": 2,
+            "required": false,
+            "allow_other": true,
+            "answer_type": "multi_select",
+            "follow_up_policy": "when_unclear",
+            "show_when": {
+              "question": 0,
+              "op": "is",
+              "value": "Yes"
+            }
+          },
+          {
+            "id": "e2534433-6b1f-4155-99fd-203771b1428c",
+            "text": "What worries you most about AI being used at work?",
+            "options": [
+              "It could lead to job losses",
+              "It could make wrong decisions",
+              "It could be hard to use",
+              "It could watch or track people too much",
+              "It could make work more stressful",
+              "I do not understand how it works",
+              "I am not worried about AI"
+            ],
+            "position": 3,
+            "required": true,
+            "allow_other": true,
+            "answer_type": "single_select",
+            "follow_up_policy": "always_once"
+          },
+          {
+            "id": "0a7cf98a-5569-4564-870d-574f7dda23aa",
+            "text": "What would make you more likely to use AI tools at work?",
+            "options": [
+              "Hands-on training",
+              "Clear instructions in plain language",
+              "Time to try the tool during the shift",
+              "Help from a supervisor or trainer",
+              "Proof that it saves time or makes work easier",
+              "Clear rules on what AI will and will not be used for",
+              "Knowing it will not be used to unfairly judge my work"
+            ],
+            "position": 4,
+            "required": true,
+            "allow_other": true,
+            "answer_type": "single_select",
+            "follow_up_policy": "always_once"
+          }
+        ]
+      }
+    }
   }
 ]

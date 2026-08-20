@@ -1,8 +1,8 @@
 """Curated sample dataset: realistic surveys and conducted runs, drawn from real use.
 
-The JSON files here are the committed source of truth. ``surveys.json`` holds six
-published surveys (title, description, and the frozen version definition); ``runs.json``
-holds eight conducted runs with their verbatim transcripts and recorded answers.
+The JSON files here are the committed source of truth. ``surveys.json`` holds seven
+published surveys (title, description, and the questions); ``runs.json`` holds thirteen
+conducted runs with their verbatim transcripts and recorded answers.
 
 Everything refers to seed users by key (the email local-part, e.g. ``remy``), so the
 data stays readable and portable across databases. See ``README.md`` for the shape and

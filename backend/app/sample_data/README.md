@@ -8,9 +8,8 @@ The JSON files in this directory are the committed source of truth.
 
 ## What's in it
 
-**`surveys.json`** — four published surveys, each with its title, description, author,
-and the frozen version definition (the same `{title, description, questions[]}` shape
-`publish` snapshots):
+**`surveys.json`** — seven published surveys, each with its title, description, author,
+and the questions (the shape `publish` snapshots used to freeze into a version):
 
 | Key | Title | Answer types exercised |
 | --- | --- | --- |
@@ -18,8 +17,11 @@ and the frozen version definition (the same `{title, description, questions[]}` 
 | `team-lead` | Team Lead Survey | single_select, rating, number, text |
 | `batch-code-temperature` | Batch Code and Temperature Management Survey | multi_select, single_select, number, yes_no, text |
 | `factory-floor-compliance` | Factory Floor Compliance Survey for Supervisors | mixed, with a follow-up |
+| `safety-equipment-ppe` | Safety Equipment and PPE Survey | select, text, yes_no |
+| `shift-handover` | Shift Handover Survey | rating, text, yes_no |
+| `ai-tools-plant` | AI tools in the plant | yes_no, rating, conditional multi_select, single_select with write-ins, always-once follow-ups |
 
-**`runs.json`** — four conducted runs with verbatim transcripts and recorded answers:
+**`runs.json`** — thirteen conducted runs with verbatim transcripts and recorded answers:
 
 | Run against | Respondent | Status | Notes |
 | --- | --- | --- | --- |
@@ -27,6 +29,9 @@ and the frozen version definition (the same `{title, description, questions[]}` 
 | `team-lead` | rosa | completed | one answer per type |
 | `batch-code-temperature` | ravi | completed | includes a follow-up probe |
 | `factory-floor-compliance` | ravi | in_progress | resume + follow-up coverage |
+| `safety-equipment-ppe` | rosa, ravi | completed | write-in answers |
+| `shift-handover` | remy, ravi | completed | probe drew out the scripted answer |
+| `ai-tools-plant` | rosa, ravi, remy, noor, rohan | completed | vague rating declined, conditional question skipped, rewind, off-script chat steered back, write-ins kept |
 
 Everything refers to users by **key** — the email local-part of a seed user
 (`ava`, `arjun` are authors; `rosa`, `ravi`, `remy` are respondents). The loader
