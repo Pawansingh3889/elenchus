@@ -16,7 +16,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import HTTP_201_CREATED
 
@@ -24,7 +23,7 @@ from app.access import is_admin_by_config, may_author
 from app.auth.dependencies import get_current_user, require_admin, require_author
 from app.db.session import get_session
 from app.errors import NotFoundError
-from app.seed import seed
+from app.seed import SEED_USERS, reset_demo
 from app.templates.enums import SurveyAudience
 from app.users.models import User
 from app.users.repository import UserRepository
@@ -218,7 +217,7 @@ class ResetRead(BaseModel):
 
 
 @dev_router.post("/reset", response_model=ResetRead)
-async def reset_demo(
+async def reset_endpoint(
     session: AsyncSession = Depends(get_session),
 ) -> ResetRead:
     """Wipe all data and re-seed. Demo mode only.
@@ -227,21 +226,6 @@ async def reset_demo(
     operator can restore a clean state without database access. Mounted only when
     APP_ENV=demo, which is the whole of its protection.
     """
-    # TRUNCATE CASCADE handles foreign keys in one statement, restarting identities so
-    # ids begin at 1 again. The order does not matter with CASCADE, but the tables are
-    # listed from leaf to root for readability.
-    for table in (
-        "run_messages",
-        "answers",
-        "survey_runs",
-        "survey_questions",
-        "survey_templates",
-        "account_changes",
-        "user_hats",
-        "users",
-    ):
-        await session.execute(text(f"TRUNCATE TABLE {table} RESTART IDENTITY CASCADE"))
-    await session.commit()
-    await seed()
+    await reset_demo()
     logger.info("demo reset: all data wiped and re-seeded")
-    return ResetRead(status="ok", users=15, surveys=4)
+    return ResetRead(status="ok", users=len(SEED_USERS), surveys=4)

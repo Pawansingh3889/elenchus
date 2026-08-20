@@ -29,6 +29,8 @@ the band: Rina is a shift manager and may author, whatever her surname says.
 import asyncio
 from uuid import UUID
 
+from sqlalchemy import text
+
 from app.db.session import SessionFactory
 from app.sample_data.loader import load_sample_data
 from app.users.models import Band, Function, Hat, User, UserHat
@@ -242,6 +244,37 @@ async def seed() -> None:
         f"Seeded {len(SEED_USERS)} users and {hats} new hats; "
         f"loaded {surveys_added} sample surveys and {runs_added} runs (idempotent)."
     )
+
+
+# The tables a full reset wipes, leaf to root for readability. TRUNCATE CASCADE would
+# handle foreign keys in one statement; the order is for the reader, not the database.
+RESET_TABLES: tuple[str, ...] = (
+    "run_messages",
+    "answers",
+    "survey_runs",
+    "survey_questions",
+    "survey_templates",
+    "account_changes",
+    "user_hats",
+    "users",
+)
+
+
+async def reset_demo() -> None:
+    """Wipe every table and re-seed from scratch.
+
+    The demo's whole promise is that its data is disposable: anyone who reaches the
+    deployment can read, change or delete anything in it, and a visitor who answers a
+    survey is replacing whatever a stranger wrote earlier. That promise is kept by
+    starting every boot clean, because the only reset that ever ran was the one a human
+    pressed. `reset()` leaves the ids that survive in databases seeded before 10 Aug
+    alone, because they belong to the seed that planted them.
+    """
+    async with SessionFactory() as session:
+        for table in RESET_TABLES:
+            await session.execute(text(f"TRUNCATE TABLE {table} RESTART IDENTITY CASCADE"))
+        await session.commit()
+    await seed()
 
 
 if __name__ == "__main__":
