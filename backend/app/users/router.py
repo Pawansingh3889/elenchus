@@ -23,6 +23,7 @@ from app.access import is_admin_by_config, may_author
 from app.auth.dependencies import get_current_user, require_admin, require_author
 from app.db.session import get_session
 from app.errors import NotFoundError
+from app.sample_data import SAMPLE_SURVEYS
 from app.seed import SEED_USERS, reset_demo
 from app.templates.enums import SurveyAudience
 from app.users.models import User
@@ -228,4 +229,4 @@ async def reset_endpoint(
     """
     await reset_demo()
     logger.info("demo reset: all data wiped and re-seeded")
-    return ResetRead(status="ok", users=len(SEED_USERS), surveys=4)
+    return ResetRead(status="ok", users=len(SEED_USERS), surveys=len(SAMPLE_SURVEYS))
