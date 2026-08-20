@@ -23,7 +23,7 @@ export function DemoBanner() {
   return (
     <div className="demo-banner">
       <span className="demo-banner-text">
-        This is a demo. All data is public and resets on reload.
+        This is a demo. All data is public and can be reset.
       </span>
       <button
         className="btn btn-secondary demo-banner-btn"

@@ -23,7 +23,7 @@ from app.errors import register_error_handlers
 from app.llm.router import router as llm_admin_router
 from app.runs.router import dashboard_router
 from app.runs.router import router as results_router
-from app.seed import reset_demo
+from app.seed import seed
 from app.templates.router import router as templates_router
 from app.users.router import admin_router, dev_router, me_router
 from app.users.router import directory_router as people_router
@@ -63,16 +63,16 @@ logger = logging.getLogger("app.main")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Reset the demo database on startup when APP_ENV=demo.
+    """Seed missing demo data on startup when APP_ENV=demo.
 
-    A reset rather than a seed: the demo's data is disposable by design, so the honest
-    boot state is the seed's clean state, not whatever a stranger left behind. This is
-    what the banner's "resets on reload" points at, and it is the same wipe the /reset
-    endpoint performs, so the two cannot drift apart.
+    A seed, not a reset: the demo's data is meant to survive restarts so visitors keep
+    what they built or answered. The seed is idempotent, so an existing database is left
+    alone and only genuinely missing rows are added. The /dev/reset endpoint is the
+    explicit way to wipe back to the seed's clean state.
     """
     if get_settings().app_env == "demo":
-        logger.info("demo mode: resetting data on startup")
-        await reset_demo()
+        logger.info("demo mode: seeding data on startup")
+        await seed()
     yield
 
 
