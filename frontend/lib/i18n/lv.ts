@@ -201,20 +201,6 @@ export const lv: Messages = {
     heroTitle: "Aptaujas, kas jautā kā cilvēks, nevis kā veidlapa",
     heroBody:
       "Aprakstiet, ko vēlaties uzzināt, un jautājumi tiks sagatavoti jūsu vietā. Pēc publicēšanas cilvēki atbild sarunā, nevis aizpilda lodziņus. Katra atbilde pirms saglabāšanas tiek pārbaudīta pret jautājumu.",
-    videoTitle: "Skatiet darbībā",
-    videoLabel: "Īss video par aptauju pakalpojumu darbībā",
-    videoUnsupported: "Jūsu pārlūks nevar atskaņot šo video.",
-    howTitle: "Kā tas darbojas",
-    stepNumber: (n: number) => `${n}. solis`,
-    step1Title: "Aprakstiet",
-    step1Body:
-      "Uzrakstiet teikumu par to, ko vēlaties uzzināt. Jautājumi, to veidi un varianti tiks sagatavoti no tā, un katru no tiem varat mainīt redaktorā.",
-    step2Title: "Publicējiet",
-    step2Body:
-      "Publicēšana atver aptauju atbildēm un iesaldē to: jautājumi vairs nevar mainīties tiem, kas atbild. Aptauja, kurai vajadzīgi citi jautājumi, ir jauna aptauja.",
-    step3Title: "Viņi atbild sarunā",
-    step3Body:
-      "Respondenti iziet cauri jautājumiem sarunā. Dzinējs izlemj, kas seko un kas tiek uzskatīts par atbildi, tāpēc nekas netiek izdomāts un nekas netiek izlaists.",
     respondBody: "Jūs gaida aptaujas.",
     respondCta: "Atbildēt uz aptauju",
     composeTitle: "Ko vēlaties uzzināt?",
@@ -222,6 +208,50 @@ export const lv: Messages = {
     recentTitle: "Nesen atjauninātās",
     allSurveys: "Visas aptaujas",
     newAuthorLead: "Jūs vēl neesat izveidojis nevienu aptauju. Lūk, kas notiek, kad to izdarīsiet.",
+    manualTitle: "Produkta rokasgrāmata",
+    manualSubtitle: "Viss, kas jums jāzina, četrās daļās.",
+    manualAuthorTitle: "Autorsiem",
+    manualAuthorCreate:
+      "Aprakstiet aptauju vienā teikumā. Mākslīgais intelekts sagatavo visu.",
+    manualAuthorEdit:
+      "Rediģējiet, pārķērķējiet vai mainiet jebkuru jautājumu. Iestatiet turpmāko jautājumu politiku.",
+    manualAuthorPublish:
+      "Publicēšana atver aptauju un iesaldē jautājumus respondentiem.",
+    manualAuthorResults:
+      "Rezultāti kā diagrammas. Filtrējiet pēc atbildes. Eksportējiet uz CSV.",
+    manualRespondentTitle: "Respondentiem",
+    manualRespondentOpen:
+      "Atvērtās aptaujas ir sākumlapā. Izvēlieties un sāciet.",
+    manualRespondentChat:
+      "Atbildiet sarunā. Papildu jautājumi pie neskaidrām atbildēm.",
+    manualRespondentFollowup:
+      "Papildu jautājumi ir ierobežoti katram jautājumam un izsekoti.",
+    manualRespondentComplete:
+      "Visi jautājumi atbildēti = izpilde pabeigta un saglabāta.",
+    manualAudienceTitle: "Mērķauditorijas",
+    manualAudienceWho:
+      "Vērsties pie grupas, nodaļas, līmeņa vai personas.",
+    manualAudienceReach:
+      "Dzīvais skaitlis, cik daudz auditorijā ir atbildējuši.",
+    manualAudienceAnonymous:
+      "Atbildes ir pseudonīmas. Autors redz grupu, nevis cilvēku.",
+    manualAdminTitle: "Administrēšana",
+    manualAdminUsers:
+      "Administratori pārvalda kontus un amatu piešķīrumus.",
+    manualAdminJobs:
+      "Viens amats uz cilvēku: funkcija × līmenis. Cepures pievieno šķērsojošos pienākumus.",
+    manualAdminReset:
+      "Demo režīms: Reset izdzēš visu un atkārtoti aizpilda no fixture.",
+    trustTitle: "Kāpēc Elenchus?",
+    trustPrivacyTitle: "Privātums pēc dizaina",
+    trustPrivacyBody:
+      "Atbildes ir pseudonīmas. Nav personas datu, ja vien aptauja to nepieprasa.",
+    trustTransparencyTitle: "Caurspīdīga AI",
+    trustTransparencyBody:
+      "Katrs ģenerētais jautājums ir rediģējams. Jūs redzat un apstiprināt visu.",
+    trustConversationalTitle: "Sarunvalodas dabā",
+    trustConversationalBody:
+      "Respondenti atbildē čatā, ne veidlapās. Turpinājumi noskaidro bez papildu jautājumiem.",
   },
   builder: {
     pickUser: "Piesakieties augšējā joslā.",

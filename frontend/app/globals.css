@@ -1618,6 +1618,35 @@ select.field {
 /* Asks before something that cannot be undone. Publishing freezes a version, and the
    author is usually mid-flow with the keyboard, so the dialog has to stop the page
    rather than sit on it. */
+
+/* ----------------------------------------------------------------- demo banner */
+/* Full-width bar below the top bar, visible only in demo mode. Amber palette to
+   signal caution without alarming. */
+.demo-banner {
+  background: var(--warn-fill);
+  color: var(--warn-text);
+  border-bottom: 1px solid var(--warn-border);
+  padding: 8px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: var(--text-sm);
+}
+.demo-banner-text {
+  font-weight: 600;
+}
+.demo-banner-btn {
+  font-size: var(--text-xs);
+  padding: 4px 10px;
+  min-height: auto;
+}
+.demo-banner .btn-secondary {
+  background: var(--raised);
+  border-color: var(--warn-border);
+  color: var(--warn-text);
+}
 .modal-backdrop {
   position: fixed;
   inset: 0;

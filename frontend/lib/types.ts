@@ -501,3 +501,51 @@ export interface SurveyReport {
   people_completed: number;
   questions: QuestionReport[];
 }
+
+export interface LlmModelStats {
+  model: string;
+  tier: number | null;
+  calls: number;
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
+  avg_latency_ms: number;
+  error_count: number;
+}
+
+export interface LlmRunSummary {
+  run_id: string | null;
+  model: string;
+  tier: number | null;
+  calls: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  avg_latency_ms: number;
+  error_count: number;
+  first_ts: string;
+  last_ts: string;
+  ops: string[];
+}
+
+export interface LlmReport {
+  total_entries: number;
+  total_runs: number;
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
+  total_cost_usd: number;
+  avg_latency_ms: number;
+  models: LlmModelStats[];
+  runs: LlmRunSummary[];
+}
+
+export interface LlmEntry {
+  ts: string;
+  op: string | null;
+  tier: number | null;
+  model: string | null;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  latency_ms: number | null;
+  status: number | null;
+  error: string | null;
+  cost_usd: number | null;
+}

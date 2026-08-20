@@ -165,7 +165,7 @@ class Settings(BaseSettings):
         "survey published here that does not carry its own. Never shown to respondents.",
     )
 
-    app_env: str = Field("dev", description="dev | prod")
+    app_env: str = Field("dev", description="dev | demo | prod")
     frontend_origin: str = Field(
         "http://localhost:3000", description="Allowed CORS origin for the browser app"
     )

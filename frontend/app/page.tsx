@@ -115,12 +115,6 @@ export default function Home() {
     "person",
   ];
 
-  const steps = [
-    { title: landing.step1Title, body: landing.step1Body },
-    { title: landing.step2Title, body: landing.step2Body },
-    { title: landing.step3Title, body: landing.step3Body },
-  ];
-
   // The same two lines the dashboard puts under a row, read from the same helpers, so a
   // survey cannot describe itself one way here and another way one click later.
   const reachLine = (r: DashboardRow) =>
@@ -312,49 +306,92 @@ export default function Home() {
 
       {showExplainer ? (
         <>
-          {/* The video slot, filled. `public/walkthrough.mp4` is a screencast of this app
-              being used for real: the dashboard, a survey's results and recap, then a
-              respondent answering in the chat while the engine and the model take their
-              own time. Nothing in it is staged, which is the only reason it is worth
-              1.7MB of repo weight, the cost this slot sat empty to avoid. Re-record it
-              rather than editing around it. */}
-          <section className="flex flex-col gap-2">
-            <h2 className="text-md font-semibold text-ink">{landing.videoTitle}</h2>
-            {/* Capped rather than full width. At the page's max-w-5xl a 16:9 box is over
-                500px tall, which made an empty placeholder the largest thing on the page
-                and pushed the three steps under the fold. A real video does not need to
-                be wider than this either. */}
-            <video
-              className="aspect-video w-full max-w-2xl rounded-lg border border-line bg-canvas"
-              controls
-              // Nothing is fetched until it is asked for: the file is the heaviest thing
-              // on a page whose whole job is to load fast for someone who has never been
-              // here.
-              preload="none"
-              poster="/walkthrough-poster.jpg"
-              playsInline
-              aria-label={landing.videoLabel}
-            >
-              <source src="/walkthrough.mp4" type="video/mp4" />
-              {landing.videoUnsupported}
-            </video>
+          <section className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <h2 className="text-xl font-semibold text-ink">{landing.manualTitle}</h2>
+              <p className="text-sm text-muted">{landing.manualSubtitle}</p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Card className="flex flex-col gap-3 p-5">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-highlight-soft text-sm font-semibold text-highlight">
+                    A
+                  </span>
+                  <h3 className="text-sm font-semibold text-ink">{landing.manualAuthorTitle}</h3>
+                </div>
+                <ul className="flex flex-col gap-2 text-sm text-muted">
+                  {[
+                    landing.manualAuthorCreate,
+                    landing.manualAuthorEdit,
+                    landing.manualAuthorPublish,
+                    landing.manualAuthorResults,
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-2">
+                      <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-muted/40" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+              <Card className="flex flex-col gap-3 p-5">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-ai-fill text-sm font-semibold text-accent-strong">
+                    R
+                  </span>
+                  <h3 className="text-sm font-semibold text-ink">{landing.manualRespondentTitle}</h3>
+                </div>
+                <ul className="flex flex-col gap-2 text-sm text-muted">
+                  {[
+                    landing.manualRespondentOpen,
+                    landing.manualRespondentChat,
+                    landing.manualRespondentFollowup,
+                    landing.manualRespondentComplete,
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-2">
+                      <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-muted/40" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+              <Card className="flex flex-col gap-3 p-5">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-warn-fill text-sm font-semibold text-warn-text">
+                    G
+                  </span>
+                  <h3 className="text-sm font-semibold text-ink">{landing.manualAudienceTitle}</h3>
+                </div>
+                <ul className="flex flex-col gap-2 text-sm text-muted">
+                  {[
+                    landing.manualAudienceWho,
+                    landing.manualAudienceReach,
+                    landing.manualAudienceAnonymous,
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-2">
+                      <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-muted/40" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            </div>
           </section>
 
           <section className="flex flex-col gap-3">
-            <h2 className="text-md font-semibold text-ink">{landing.howTitle}</h2>
-            {/* An ordered list, because the three are a sequence and not three features:
-                a screen reader should get "1 of 3" without the number being drawn in. */}
-            <ol className="grid gap-3 sm:grid-cols-3">
-              {steps.map((step, i) => (
-                <Card key={step.title} className="flex flex-col gap-1.5 p-4">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-                    {landing.stepNumber(i + 1)}
-                  </span>
-                  <h3 className="text-md font-semibold text-ink">{step.title}</h3>
-                  <p className="text-sm text-muted">{step.body}</p>
+            <h2 className="text-md font-semibold text-ink">{landing.trustTitle}</h2>
+            <div className="grid gap-4 sm:grid-cols-3">
+              {[
+                { icon: "🔒", title: landing.trustPrivacyTitle, body: landing.trustPrivacyBody },
+                { icon: "🔍", title: landing.trustTransparencyTitle, body: landing.trustTransparencyBody },
+                { icon: "💬", title: landing.trustConversationalTitle, body: landing.trustConversationalBody },
+              ].map((item) => (
+                <Card key={item.title} className="flex flex-col gap-2 p-5">
+                  <span className="text-2xl">{item.icon}</span>
+                  <h3 className="text-sm font-semibold text-ink">{item.title}</h3>
+                  <p className="text-sm text-muted">{item.body}</p>
                 </Card>
               ))}
-            </ol>
+            </div>
           </section>
         </>
       ) : null}

@@ -201,20 +201,6 @@ export const pl: Messages = {
     heroTitle: "Ankiety, które pytają jak człowiek, a nie jak formularz",
     heroBody:
       "Opisz, czego chcesz się dowiedzieć, a pytania zostaną przygotowane za Ciebie. Po opublikowaniu odbiorcy odpowiadają w rozmowie, zamiast wypełniać pola. Każda odpowiedź jest sprawdzana z pytaniem przed zapisaniem.",
-    videoTitle: "Zobacz, jak działa",
-    videoLabel: "Krótki film pokazujący usługę ankiet w działaniu",
-    videoUnsupported: "Twoja przeglądarka nie może odtworzyć tego filmu.",
-    howTitle: "Jak to działa",
-    stepNumber: (n: number) => `Krok ${n}`,
-    step1Title: "Opisz",
-    step1Body:
-      "Napisz zdanie o tym, czego chcesz się dowiedzieć. Pytania, ich typy i opcje powstaną na tej podstawie, a każde z nich możesz zmienić w edytorze.",
-    step2Title: "Opublikuj",
-    step2Body:
-      "Publikacja otwiera ankietę na odpowiedzi i ją zamraża: pytania nie mogą się już zmienić pod osobami odpowiadającymi. Ankieta, która wymaga innych pytań, to nowa ankieta.",
-    step3Title: "Odpowiadają w rozmowie",
-    step3Body:
-      "Odbiorcy przechodzą przez pytania w rozmowie. Silnik decyduje, co dalej i co liczy się jako odpowiedź, więc nic nie zostaje zmyślone ani pominięte.",
     respondBody: "Czekają na Ciebie ankiety.",
     respondCta: "Wypełnij ankietę",
     composeTitle: "Czego chcesz się dowiedzieć?",
@@ -222,6 +208,50 @@ export const pl: Messages = {
     recentTitle: "Ostatnio zmienione",
     allSurveys: "Wszystkie ankiety",
     newAuthorLead: "Nie masz jeszcze żadnej ankiety. Oto co się stanie, gdy ją utworzysz.",
+    manualTitle: "Podręcznik produktu",
+    manualSubtitle: "Wszystko, co musisz wiedzieć, w czterech częściach.",
+    manualAuthorTitle: "Dla autorów",
+    manualAuthorCreate:
+      "Opisz ankietę jednym zdaniem. AI przygotowuje wszystko.",
+    manualAuthorEdit:
+      "Edytuj, przestawiaj lub zmieniaj dowolne pytanie. Ustawiaj polityki follow-up.",
+    manualAuthorPublish:
+      "Publikacja otwiera ankietę i zamraża pytania dla respondentów.",
+    manualAuthorResults:
+      "Wyniki jako wykresy. Filtruj według odpowiedzi. Eksportuj do CSV.",
+    manualRespondentTitle: "Dla respondentów",
+    manualRespondentOpen:
+      "Otwarte ankiety są na stronie głównej. Wybierz i zacznij.",
+    manualRespondentChat:
+      "Odpowiadaj w rozmowie. Follow-upy przy niejasnych odpowiedziach.",
+    manualRespondentFollowup:
+      "Follow-upy są ograniczone na pytanie i śledzone przez silnik.",
+    manualRespondentComplete:
+      "Wszystkie pytania odpowiedziane = przebieg zakończony i zapisany.",
+    manualAudienceTitle: "Grupy docelowe",
+    manualAudienceWho:
+      "Kieruj do grupy, działu, poziomu lub osoby.",
+    manualAudienceReach:
+      "Liczn na żywo, ile osób z grupy odpowiedziało.",
+    manualAudienceAnonymous:
+      "Odpowiedzi są pseudonimowe. Autor widzi grupę, nie osobę.",
+    manualAdminTitle: "Administracja",
+    manualAdminUsers:
+      "Administratorzy zarządzają kontami i przypisaniami stanowisk.",
+    manualAdminJobs:
+      "Jedno stanowisko na osobę: funkcja × poziom. Kapelusze dodają obowiązki krzyżowe.",
+    manualAdminReset:
+      "Tryb demo: Reset usuwa wszystko i wczytuje z fixture.",
+    trustTitle: "Dlaczego Elenchus?",
+    trustPrivacyTitle: "Prywatność wg projektu",
+    trustPrivacyBody:
+      "Odpowiedzi są pseudonimowe. Brak danych osobowych, chyba że ankieta o nie pyta.",
+    trustTransparencyTitle: "Przejrzysta AI",
+    trustTransparencyBody:
+      "Każde wygenerowane pytanie można edytować. Widzisz i zatwierdzasz wszystko.",
+    trustConversationalTitle: "Rozmowa z natury",
+    trustConversationalBody:
+      "Respondenci odpowiadają w czacie, nie w formularzach. Doprecyzowania bez dodatkowych pytań.",
   },
   builder: {
     pickUser: "Zaloguj się na górnym pasku.",

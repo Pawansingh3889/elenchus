@@ -201,20 +201,6 @@ export const ro: Messages = {
     heroTitle: "Chestionare care întreabă ca un om, nu ca un formular",
     heroBody:
       "Descrieți ce vreți să aflați și întrebările sunt redactate pentru dumneavoastră. După publicare, oamenii răspund printr-o conversație, în loc să bifeze căsuțe. Fiecare răspuns este verificat față de întrebare înainte de a fi salvat.",
-    videoTitle: "Vedeți cum funcționează",
-    videoLabel: "Un scurt videoclip cu serviciul de chestionare în uz",
-    videoUnsupported: "Browserul dumneavoastră nu poate reda acest videoclip.",
-    howTitle: "Cum funcționează",
-    stepNumber: (n: number) => `Pasul ${n}`,
-    step1Title: "Descrieți",
-    step1Body:
-      "Scrieți o frază despre ce vreți să aflați. Întrebările, tipurile și opțiunile lor sunt redactate din ea, iar pe fiecare o puteți schimba în editor.",
-    step2Title: "Publicați",
-    step2Body:
-      "Publicarea deschide chestionarul pentru răspunsuri și îl îngheață: întrebările nu se mai pot schimba sub cei care răspund. Un chestionar care are nevoie de alte întrebări este un chestionar nou.",
-    step3Title: "Răspund prin conversație",
-    step3Body:
-      "Respondenții parcurg întrebările într-o conversație. Motorul decide ce urmează și ce contează drept răspuns, așa că nimic nu este inventat și nimic nu este sărit.",
     // "așteaptă" is the same in the third person singular and plural, so only the noun
     // takes a plural here.
     respondBody: "Vă așteaptă chestionare.",
@@ -224,6 +210,50 @@ export const ro: Messages = {
     recentTitle: "Actualizate recent",
     allSurveys: "Toate chestionarele",
     newAuthorLead: "Nu ai creat încă niciun chestionar. Iată ce se întâmplă când o vei face.",
+    manualTitle: "Manualul produsului",
+    manualSubtitle: "Tot ce trebuie să știți, în patru părți.",
+    manualAuthorTitle: "Pentru autori",
+    manualAuthorCreate:
+      "Descrieți chestionarul într-o frază. IA redactează totul.",
+    manualAuthorEdit:
+      "Editați, reordonați sau rescrieți orice întrebare. Set politicile de follow-up.",
+    manualAuthorPublish:
+      "Publicarea deschide chestionarul și îngheață întrebările pentru respondenți.",
+    manualAuthorResults:
+      "Rezultate ca diagrame. Filtrați după răspuns. Exportați în CSV.",
+    manualRespondentTitle: "Pentru respondenți",
+    manualRespondentOpen:
+      "Chestionarele deschise sunt pe pagina de pornire. Alegeți și începeți.",
+    manualRespondentChat:
+      "Răspundeți în conversație. Follow-up-uri când răspunsurile nu sunt clare.",
+    manualRespondentFollowup:
+      "Follow-up-urile sunt limitate per întrebare și urmărite de motor.",
+    manualRespondentComplete:
+      "Toate întrebările răspunse = rulare finalizată și salvată.",
+    manualAudienceTitle: "Audiențe",
+    manualAudienceWho:
+      "Vizați un grup, departament, nivel sau o singură persoană.",
+    manualAudienceReach:
+      "Număr în timp real câți din audiență au răspuns.",
+    manualAudienceAnonymous:
+      "Răspunsurile sunt pseudonime. Autorul vede grupul, nu persoana.",
+    manualAdminTitle: "Administrare",
+    manualAdminUsers:
+      "Administratorii gestionează conturile și atribuirile de post.",
+    manualAdminJobs:
+      "Un post per persoană: funcție × nivel. Pălăriile adaugă responsabilități transversale.",
+    manualAdminReset:
+      "Mod demo: Reset șterge tot și reîncarcă din fixture.",
+    trustTitle: "De ce Elenchus?",
+    trustPrivacyTitle: "Confidențialitate prin proiectare",
+    trustPrivacyBody:
+      "Răspunsurile sunt pseudonime. Fără date personale, cu excepția cazului în care sondajul întreabă explicit.",
+    trustTransparencyTitle: "AI transparent",
+    trustTransparencyBody:
+      "Fiecare întrebare generată este editabilă. Vezi și aprobi totul.",
+    trustConversationalTitle: "Conversațional prin natură",
+    trustConversationalBody:
+      "Respondenții răspund în chat, nu în formulare. Clarificări fără întrebări suplimentare.",
   },
   builder: {
     pickUser: "Autentifică-te din bara de sus.",

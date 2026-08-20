@@ -475,5 +475,401 @@
         }
       }
     ]
+  },
+  {
+    "run_id": "c1d2e3f4-a5b6-7890-cdef-123456789abc",
+    "survey_key": "safety-equipment-ppe",
+    "respondent": "rosa",
+    "status": "completed",
+    "current_question_index": 5,
+    "probes_asked": {},
+    "completed": true,
+    "messages": [
+      {
+        "role": "assistant",
+        "content": "Thanks for taking Safety Equipment and PPE Survey. Which PPE items do you use regularly?"
+      },
+      {
+        "role": "user",
+        "content": "hard hat, safety glasses, gloves, steel-toe boots"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you rate the condition of your PPE?"
+      },
+      {
+        "role": "user",
+        "content": "4"
+      },
+      {
+        "role": "assistant",
+        "content": "Are replacement PPE items readily available when needed?"
+      },
+      {
+        "role": "user",
+        "content": "Yes"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you reported any PPE issues in the last month?"
+      },
+      {
+        "role": "user",
+        "content": "No"
+      },
+      {
+        "role": "assistant",
+        "content": "Any additional safety concerns or suggestions?"
+      },
+      {
+        "role": "user",
+        "content": "need more hearing protection on the packaging line"
+      },
+      {
+        "role": "assistant",
+        "content": "That's everything — thank you, your answers are saved."
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+        "kind": "scripted",
+        "question_text": "Which PPE items do you use regularly?",
+        "value": {
+          "options": ["Hard hat", "Safety glasses", "Gloves", "Steel-toe boots"]
+        }
+      },
+      {
+        "question_id": "d4e5f6a7-b8c9-0123-defa-234567890123",
+        "kind": "scripted",
+        "question_text": "How would you rate the condition of your PPE?",
+        "value": {
+          "rating": 4
+        }
+      },
+      {
+        "question_id": "e5f6a7b8-c9d0-1234-efab-345678901234",
+        "kind": "scripted",
+        "question_text": "Are replacement PPE items readily available when needed?",
+        "value": {
+          "yes_no": true
+        }
+      },
+      {
+        "question_id": "f6a7b8c9-d0e1-2345-fabc-456789012345",
+        "kind": "scripted",
+        "question_text": "Have you reported any PPE issues in the last month?",
+        "value": {
+          "yes_no": false
+        }
+      },
+      {
+        "question_id": "a7b8c9d0-e1f2-3456-abcd-567890123456",
+        "kind": "scripted",
+        "question_text": "Any additional safety concerns or suggestions?",
+        "value": {
+          "text": "need more hearing protection on the packaging line"
+        }
+      }
+    ]
+  },
+  {
+    "run_id": "d2e3f4a5-b6c7-8901-defa-234567890bcd",
+    "survey_key": "safety-equipment-ppe",
+    "respondent": "ravi",
+    "status": "completed",
+    "current_question_index": 5,
+    "probes_asked": {},
+    "completed": true,
+    "messages": [
+      {
+        "role": "assistant",
+        "content": "Thanks for taking Safety Equipment and PPE Survey. Which PPE items do you use regularly?"
+      },
+      {
+        "role": "user",
+        "content": "gloves and hi-vis vest"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you rate the condition of your PPE?"
+      },
+      {
+        "role": "user",
+        "content": "3"
+      },
+      {
+        "role": "assistant",
+        "content": "Are replacement PPE items readily available when needed?"
+      },
+      {
+        "role": "user",
+        "content": "sometimes"
+      },
+      {
+        "role": "assistant",
+        "content": "Just to confirm - that means yes, replacements are available but not always when you need them?"
+      },
+      {
+        "role": "user",
+        "content": "yes that is right"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you reported any PPE issues in the last month?"
+      },
+      {
+        "role": "user",
+        "content": "Yes"
+      },
+      {
+        "role": "assistant",
+        "content": "Any additional safety concerns or suggestions?"
+      },
+      {
+        "role": "user",
+        "content": "gloves wear out too fast, need thicker ones"
+      },
+      {
+        "role": "assistant",
+        "content": "That's everything — thank you, your answers are saved."
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+        "kind": "scripted",
+        "question_text": "Which PPE items do you use regularly?",
+        "value": {
+          "options": ["Gloves", "Hi-vis vest"]
+        }
+      },
+      {
+        "question_id": "d4e5f6a7-b8c9-0123-defa-234567890123",
+        "kind": "scripted",
+        "question_text": "How would you rate the condition of your PPE?",
+        "value": {
+          "rating": 3
+        }
+      },
+      {
+        "question_id": "e5f6a7b8-c9d0-1234-efab-345678901234",
+        "kind": "scripted",
+        "question_text": "Are replacement PPE items readily available when needed?",
+        "value": {
+          "yes_no": true
+        }
+      },
+      {
+        "question_id": "f6a7b8c9-d0e1-2345-fabc-456789012345",
+        "kind": "scripted",
+        "question_text": "Have you reported any PPE issues in the last month?",
+        "value": {
+          "yes_no": true
+        }
+      },
+      {
+        "question_id": "a7b8c9d0-e1f2-3456-abcd-567890123456",
+        "kind": "scripted",
+        "question_text": "Any additional safety concerns or suggestions?",
+        "value": {
+          "text": "gloves wear out too fast, need thicker ones"
+        }
+      }
+    ]
+  },
+  {
+    "run_id": "e3f4a5b6-c7d8-9012-efab-345678901cde",
+    "survey_key": "shift-handover",
+    "respondent": "remy",
+    "status": "completed",
+    "current_question_index": 5,
+    "probes_asked": {},
+    "completed": true,
+    "messages": [
+      {
+        "role": "assistant",
+        "content": "Thanks for taking Shift Handover Quality Survey. How clear is the handover information you receive at shift start?"
+      },
+      {
+        "role": "user",
+        "content": "4"
+      },
+      {
+        "role": "assistant",
+        "content": "What format is your shift handover?"
+      },
+      {
+        "role": "user",
+        "content": "Combination"
+      },
+      {
+        "role": "assistant",
+        "content": "How often do you encounter issues from incomplete handovers?"
+      },
+      {
+        "role": "user",
+        "content": "Sometimes"
+      },
+      {
+        "role": "assistant",
+        "content": "What critical information is often missing from handovers?"
+      },
+      {
+        "role": "user",
+        "content": "machine settings from previous shift"
+      },
+      {
+        "role": "assistant",
+        "content": "Would a standardised handover checklist help?"
+      },
+      {
+        "role": "user",
+        "content": "Yes"
+      },
+      {
+        "role": "assistant",
+        "content": "That's everything — thank you, your answers are saved."
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "d0e1f2a3-b4c5-6789-defa-890123456789",
+        "kind": "scripted",
+        "question_text": "How clear is the handover information you receive at shift start?",
+        "value": {
+          "rating": 4
+        }
+      },
+      {
+        "question_id": "e1f2a3b4-c5d6-7890-efab-901234567890",
+        "kind": "scripted",
+        "question_text": "What format is your shift handover?",
+        "value": {
+          "option": "Combination"
+        }
+      },
+      {
+        "question_id": "f2a3b4c5-d6e7-8901-fabc-012345678901",
+        "kind": "scripted",
+        "question_text": "How often do you encounter issues from incomplete handovers?",
+        "value": {
+          "option": "Sometimes"
+        }
+      },
+      {
+        "question_id": "a3b4c5d6-e7f8-9012-abcd-123456789abc",
+        "kind": "scripted",
+        "question_text": "What critical information is often missing from handovers?",
+        "value": {
+          "text": "machine settings from previous shift"
+        }
+      },
+      {
+        "question_id": "b4c5d6e7-f8a9-0123-bcde-23456789abcd",
+        "kind": "scripted",
+        "question_text": "Would a standardised handover checklist help?",
+        "value": {
+          "yes_no": true
+        }
+      }
+    ]
+  },
+  {
+    "run_id": "f4a5b6c7-d8e9-0123-fabc-456789012def",
+    "survey_key": "shift-handover",
+    "respondent": "ravi",
+    "status": "completed",
+    "current_question_index": 5,
+    "probes_asked": {},
+    "completed": true,
+    "messages": [
+      {
+        "role": "assistant",
+        "content": "Thanks for taking Shift Handover Quality Survey. How clear is the handover information you receive at shift start?"
+      },
+      {
+        "role": "user",
+        "content": "3"
+      },
+      {
+        "role": "assistant",
+        "content": "What format is your shift handover?"
+      },
+      {
+        "role": "user",
+        "content": "Written log"
+      },
+      {
+        "role": "assistant",
+        "content": "How often do you encounter issues from incomplete handovers?"
+      },
+      {
+        "role": "user",
+        "content": "Often"
+      },
+      {
+        "role": "assistant",
+        "content": "What critical information is often missing from handovers?"
+      },
+      {
+        "role": "user",
+        "content": "safety incidents and near misses from the previous shift"
+      },
+      {
+        "role": "assistant",
+        "content": "Would a standardised handover checklist help?"
+      },
+      {
+        "role": "user",
+        "content": "Yes definitely"
+      },
+      {
+        "role": "assistant",
+        "content": "That's everything — thank you, your answers are saved."
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "d0e1f2a3-b4c5-6789-defa-890123456789",
+        "kind": "scripted",
+        "question_text": "How clear is the handover information you receive at shift start?",
+        "value": {
+          "rating": 3
+        }
+      },
+      {
+        "question_id": "e1f2a3b4-c5d6-7890-efab-901234567890",
+        "kind": "scripted",
+        "question_text": "What format is your shift handover?",
+        "value": {
+          "option": "Written log"
+        }
+      },
+      {
+        "question_id": "f2a3b4c5-d6e7-8901-fabc-012345678901",
+        "kind": "scripted",
+        "question_text": "How often do you encounter issues from incomplete handovers?",
+        "value": {
+          "option": "Often"
+        }
+      },
+      {
+        "question_id": "a3b4c5d6-e7f8-9012-abcd-123456789abc",
+        "kind": "scripted",
+        "question_text": "What critical information is often missing from handovers?",
+        "value": {
+          "text": "safety incidents and near misses from the previous shift"
+        }
+      },
+      {
+        "question_id": "b4c5d6e7-f8a9-0123-bcde-23456789abcd",
+        "kind": "scripted",
+        "question_text": "Would a standardised handover checklist help?",
+        "value": {
+          "yes_no": true
+        }
+      }
+    ]
   }
 ]

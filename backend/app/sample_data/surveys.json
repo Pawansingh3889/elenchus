@@ -334,5 +334,159 @@
         "description": "Help us understand your team's dynamics and challenges. "
       }
     }
+  },
+  {
+    "key": "safety-equipment-ppe",
+    "template_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "title": "Safety Equipment and PPE Survey",
+    "description": "Assessing the availability and condition of personal protective equipment",
+    "created_by": "hana",
+    "version": {
+      "version_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      "number": 1,
+      "published_by": "hana",
+      "definition": {
+        "title": "Safety Equipment and PPE Survey",
+        "questions": [
+          {
+            "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+            "text": "Which PPE items do you use regularly?",
+            "options": [
+              "Hard hat",
+              "Safety glasses",
+              "Gloves",
+              "Steel-toe boots",
+              "Hi-vis vest",
+              "Hearing protection"
+            ],
+            "position": 0,
+            "required": true,
+            "allow_other": true,
+            "answer_type": "multi_select",
+            "follow_up_policy": "never"
+          },
+          {
+            "id": "d4e5f6a7-b8c9-0123-defa-234567890123",
+            "text": "How would you rate the condition of your PPE?",
+            "options": [],
+            "position": 1,
+            "required": true,
+            "allow_other": false,
+            "answer_type": "rating",
+            "follow_up_policy": "never"
+          },
+          {
+            "id": "e5f6a7b8-c9d0-1234-efab-345678901234",
+            "text": "Are replacement PPE items readily available when needed?",
+            "options": [],
+            "position": 2,
+            "required": true,
+            "allow_other": false,
+            "answer_type": "yes_no",
+            "follow_up_policy": "when_unclear"
+          },
+          {
+            "id": "f6a7b8c9-d0e1-2345-fabc-456789012345",
+            "text": "Have you reported any PPE issues in the last month?",
+            "options": [],
+            "position": 3,
+            "required": true,
+            "allow_other": false,
+            "answer_type": "yes_no",
+            "follow_up_policy": "when_unclear"
+          },
+          {
+            "id": "a7b8c9d0-e1f2-3456-abcd-567890123456",
+            "text": "Any additional safety concerns or suggestions?",
+            "options": [],
+            "position": 4,
+            "required": false,
+            "allow_other": false,
+            "answer_type": "long_text",
+            "follow_up_policy": "when_unclear"
+          }
+        ],
+        "description": "Assessing the availability and condition of personal protective equipment"
+      }
+    }
+  },
+  {
+    "key": "shift-handover",
+    "template_id": "b8c9d0e1-f2a3-4567-bcde-678901234567",
+    "title": "Shift Handover Quality Survey",
+    "description": "Evaluating the effectiveness of shift-to-shift communication",
+    "created_by": "ava",
+    "version": {
+      "version_id": "c9d0e1f2-a3b4-5678-cdef-789012345678",
+      "number": 1,
+      "published_by": "ava",
+      "definition": {
+        "title": "Shift Handover Quality Survey",
+        "questions": [
+          {
+            "id": "d0e1f2a3-b4c5-6789-defa-890123456789",
+            "text": "How clear is the handover information you receive at shift start?",
+            "options": [],
+            "position": 0,
+            "required": true,
+            "allow_other": false,
+            "answer_type": "rating",
+            "follow_up_policy": "never"
+          },
+          {
+            "id": "e1f2a3b4-c5d6-7890-efab-901234567890",
+            "text": "What format is your shift handover?",
+            "options": [
+              "Written log",
+              "Verbal briefing",
+              "Digital system",
+              "Combination"
+            ],
+            "position": 1,
+            "required": true,
+            "allow_other": false,
+            "answer_type": "single_select",
+            "follow_up_policy": "never"
+          },
+          {
+            "id": "f2a3b4c5-d6e7-8901-fabc-012345678901",
+            "text": "How often do you encounter issues from incomplete handovers?",
+            "options": [
+              "Never",
+              "Rarely",
+              "Sometimes",
+              "Often",
+              "Very often"
+            ],
+            "position": 2,
+            "required": true,
+            "allow_other": false,
+            "answer_type": "single_select",
+            "follow_up_policy": "never"
+          },
+          {
+            "id": "a3b4c5d6-e7f8-9012-abcd-123456789abc",
+            "text": "What critical information is often missing from handovers?",
+            "options": [],
+            "position": 3,
+            "required": false,
+            "allow_other": false,
+            "answer_type": "long_text",
+            "follow_up_policy": "when_unclear"
+          },
+          {
+            "id": "b4c5d6e7-f8a9-0123-bcde-23456789abcd",
+            "text": "Would a standardised handover checklist help?",
+            "options": [],
+            "position": 4,
+            "required": true,
+            "allow_other": false,
+            "answer_type": "yes_no",
+            "follow_up_policy": "never"
+          }
+        ],
+        "description": "Evaluating the effectiveness of shift-to-shift communication"
+      }
+    }
   }
 ]

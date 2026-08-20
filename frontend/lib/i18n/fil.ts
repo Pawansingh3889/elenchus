@@ -200,20 +200,6 @@ export const fil: Messages = {
     heroTitle: "Mga survey na nagtatanong na parang tao, hindi parang form",
     heroBody:
       "Ilarawan kung ano ang gusto mong malaman at ihahanda ang mga tanong para sa iyo. Kapag na-publish na, sumasagot ang mga tao sa pamamagitan ng usapan sa halip na pagpuno ng mga kahon. Bawat sagot ay sinusuri laban sa tanong bago ito i-save.",
-    videoTitle: "Tingnan kung paano ito gumagana",
-    videoLabel: "Maikling video ng survey service habang ginagamit",
-    videoUnsupported: "Hindi mapatugtog ng iyong browser ang video na ito.",
-    howTitle: "Paano ito gumagana",
-    stepNumber: (n: number) => `Hakbang ${n}`,
-    step1Title: "Ilarawan",
-    step1Body:
-      "Sumulat ng isang pangungusap tungkol sa gusto mong malaman. Mula rito ihahanda ang mga tanong, ang uri nila at ang mga pagpipilian, at mababago mo ang alinman sa editor.",
-    step2Title: "I-publish",
-    step2Body:
-      "Binubuksan ng paglalathala ang survey para sa mga sagot at kinakandado ito: hindi na mababago ang mga tanong habang sinasagutan. Ang survey na kailangan ng ibang mga tanong ay bagong survey.",
-    step3Title: "Sumasagot sila sa usapan",
-    step3Body:
-      "Dinadaanan ng mga sumasagot ang mga tanong sa isang usapan. Ang engine ang nagpapasya kung ano ang susunod at kung ano ang binibilang na sagot, kaya walang naiimbento at walang nalalaktawan.",
     respondBody: "May mga survey na naghihintay sa iyo.",
     respondCta: "Sumagot ng survey",
     composeTitle: "Ano ang gusto mong malaman?",
@@ -221,6 +207,50 @@ export const fil: Messages = {
     recentTitle: "Kamakailang na-update",
     allSurveys: "Lahat ng survey",
     newAuthorLead: "Wala ka pang ginawang survey. Ganito ang mangyayari kapag gumawa ka.",
+    manualTitle: "Manwal ng produkto",
+    manualSubtitle: "Lahat ng kailangan mong malaman, sa apat na bahagi.",
+    manualAuthorTitle: "Para sa mga may-akda",
+    manualAuthorCreate:
+      "Ilarawan ang survey sa isang pangungusap. Ang AI ang naghahanda ng lahat.",
+    manualAuthorEdit:
+      "I-edit, ayusin muli, o baguhin ang anumang tanong. Itakda ang mga patakaran sa follow-up.",
+    manualAuthorPublish:
+      "Ang pag-publish ay nagbubukas ng survey at nag-freeze ng mga tanong.",
+    manualAuthorResults:
+      "Mga resulta bilang chart. Salin ayon sa sagot. I-export sa CSV.",
+    manualRespondentTitle: "Para sa mga sumasagot",
+    manualRespondentOpen:
+      "Ang mga bukas na survey ay nasa home page. Pumili at magsimula.",
+    manualRespondentChat:
+      "Sumagot sa usapan. Mga follow-up kapag hindi malinaw ang sagot.",
+    manualRespondentFollowup:
+      "Ang mga follow-up ay limitado bawat tanong at sinusubaybayan ng engine.",
+    manualRespondentComplete:
+      "Lahat ng tanong nasagot = run kumpleto at nai-save.",
+    manualAudienceTitle: "Mga audience",
+    manualAudienceWho:
+      "Layunin ang isang grupo, departamento, band, o isang tao.",
+    manualAudienceReach:
+      "Bilang nang live kung ilan sa audience ang sumagot.",
+    manualAudienceAnonymous:
+      "Ang mga sagot ay pseudonymous. Nakikita ng may-akda ang grupo, hindi ang tao.",
+    manualAdminTitle: "Administrasyon",
+    manualAdminUsers:
+      "Ang mga admin ay nagpapatakbo ng mga account at job assignment.",
+    manualAdminJobs:
+      "Isang job bawat tao: function × band. Mga hat ay nagdadagdag ng mga tungkulin.",
+    manualAdminReset:
+      "Demo mode: Reset ay nagbubura at nagre-reseed mula sa mga fixture.",
+    trustTitle: "Bakit Elenchus?",
+    trustPrivacyTitle: "Privacy by design",
+    trustPrivacyBody:
+      "Ang mga sagot ay pseudonymous. Walang personal data maliban kung ang survey ay nagtatanong nito.",
+    trustTransparencyTitle: "Transparent na AI",
+    trustTransparencyBody:
+      "Bawat tanong na ginawa ng AI ayeditable. Makikita at aaprubahan mo ang lahat.",
+    trustConversationalTitle: "Conversational by nature",
+    trustConversationalBody:
+      "Ang mga sagot ay sa chat, hindi sa form. Mga follow-up ay nagpapaliwanag nang hindi nagtatanong ng extra.",
   },
   builder: {
     pickUser: "Mag-sign in sa itaas.",
