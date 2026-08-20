@@ -193,6 +193,17 @@ SEED_USERS: list[tuple[UUID, str, str, Function, Band, str | None]] = [
         Band.head,
         "entra-marta",
     ),
+    (
+        UUID("00000000-0000-0000-0000-0000000000c8"),
+        "pawankapkoti3889@gmail.com",
+        "Pawan Kapkoti",
+        # The demo's owner. Authoring band so the walkthrough's author side has a face
+        # they can sign in with on a real address; administration comes from the
+        # ADMIN_EMAILS allowlist in the deployment's environment, never from the seed.
+        Function.production,
+        Band.manager,
+        "entra-pawan",
+    ),
 ]
 
 
