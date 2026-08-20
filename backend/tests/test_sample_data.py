@@ -132,10 +132,20 @@ async def test_replaying_a_recorded_run_reproduces_its_answers(session, seeded_u
     # data gives that person their one response to this survey, and one response per
     # person is the rule now, so starting a live run as them is refused. Who answers does
     # not change what the engine records, which is the whole of what this asserts.
+    # A survey can carry several fixture runs (safety-equipment-ppe has two), so anyone
+    # already holding a fixture run on this survey is out: starting a live run as them
+    # would be refused, and the replay would never reach the engine.
+    taken = {
+        r["respondent"]
+        for r in SAMPLE_RUNS
+        if r["survey_key"] == run["survey_key"] and r["respondent"] != run["respondent"]
+    }
     others = [
         email.split("@", 1)[0]
         for _, email, _, _, _, _ in SEED_USERS
-        if email.split("@", 1)[0] not in AUTHOR_KEYS and email.split("@", 1)[0] != run["respondent"]
+        if email.split("@", 1)[0] not in AUTHOR_KEYS
+        and email.split("@", 1)[0] != run["respondent"]
+        and email.split("@", 1)[0] not in taken
     ]
     respondent = await session.get(User, seeded_users[others[0]])
 
