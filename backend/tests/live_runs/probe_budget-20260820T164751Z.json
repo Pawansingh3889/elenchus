@@ -1,0 +1,205 @@
+{
+  "scenario": "probe_budget",
+  "captured_at": "2026-08-20T16:47:51.733702+00:00",
+  "model": "gpt-5.5",
+  "survey_title": "Handover Deep-Dive",
+  "status": "completed",
+  "respondent_messages": [
+    "it's fine i suppose",
+    "depends really",
+    "hard to put a number on it",
+    "you know how it is",
+    "not sure really",
+    "it's fine i suppose",
+    "depends really",
+    "hard to put a number on it",
+    "you know how it is",
+    "not sure really"
+  ],
+  "trace": {
+    "total": 5,
+    "positions": [
+      0,
+      0,
+      1,
+      1,
+      2,
+      2,
+      3,
+      3,
+      4,
+      4
+    ],
+    "questions": [
+      {
+        "id": "17cb9c1b-9b0c-434f-9e10-c14940a08500",
+        "position": 0,
+        "follow_up_policy": "when_unclear"
+      },
+      {
+        "id": "331a1c76-d61b-4a47-ba78-06f04901cc90",
+        "position": 1,
+        "follow_up_policy": "when_unclear"
+      },
+      {
+        "id": "3369b6d6-0873-4bb8-8ccc-835eab718d81",
+        "position": 2,
+        "follow_up_policy": "when_unclear"
+      },
+      {
+        "id": "ddae94db-8857-4b2f-9aec-591b1bc06c88",
+        "position": 3,
+        "follow_up_policy": "when_unclear"
+      },
+      {
+        "id": "7dbed6f1-ff81-4bc0-bda4-2a8ffd8bd668",
+        "position": 4,
+        "follow_up_policy": "when_unclear"
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "17cb9c1b-9b0c-434f-9e10-c14940a08500",
+        "kind": "scripted",
+        "unanswerable": true
+      },
+      {
+        "question_id": "331a1c76-d61b-4a47-ba78-06f04901cc90",
+        "kind": "scripted",
+        "unanswerable": true
+      },
+      {
+        "question_id": "3369b6d6-0873-4bb8-8ccc-835eab718d81",
+        "kind": "scripted",
+        "unanswerable": true
+      },
+      {
+        "question_id": "ddae94db-8857-4b2f-9aec-591b1bc06c88",
+        "kind": "scripted",
+        "unanswerable": true
+      },
+      {
+        "question_id": "7dbed6f1-ff81-4bc0-bda4-2a8ffd8bd668",
+        "kind": "scripted",
+        "unanswerable": true
+      }
+    ]
+  },
+  "answers": [
+    {
+      "question_text": "How would you rate the handover?",
+      "answer_type": "rating",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "depends really"
+      },
+      "said": [
+        "it's fine i suppose",
+        "depends really"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    },
+    {
+      "question_text": "What is not working about it?",
+      "answer_type": "long_text",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "you know how it is"
+      },
+      "said": [
+        "it's fine i suppose",
+        "depends really",
+        "hard to put a number on it",
+        "you know how it is"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    },
+    {
+      "question_text": "What is your role?",
+      "answer_type": "short_text",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "it's fine i suppose"
+      },
+      "said": [
+        "it's fine i suppose",
+        "depends really",
+        "hard to put a number on it",
+        "you know how it is",
+        "not sure really",
+        "it's fine i suppose"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How would you rate communication?",
+      "answer_type": "rating",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "hard to put a number on it"
+      },
+      "said": [
+        "it's fine i suppose",
+        "depends really",
+        "hard to put a number on it",
+        "you know how it is",
+        "not sure really",
+        "it's fine i suppose",
+        "depends really",
+        "hard to put a number on it"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    },
+    {
+      "question_text": "What would you change?",
+      "answer_type": "long_text",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "not sure really"
+      },
+      "said": [
+        "it's fine i suppose",
+        "depends really",
+        "hard to put a number on it",
+        "you know how it is",
+        "not sure really",
+        "it's fine i suppose",
+        "depends really",
+        "hard to put a number on it",
+        "you know how it is",
+        "not sure really"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    }
+  ]
+}
