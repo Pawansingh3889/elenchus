@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -9,7 +8,7 @@ import { SignInPrompt } from "@/components/SignInPrompt";
 import { Stat } from "@/components/Stat";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLlmReport, useLlmRunEntries, useMe } from "@/lib/queries";
+import { useLlmReport, useLlmRunEntries, useMe, useAdminHealth } from "@/lib/queries";
 import { useUserStore } from "@/lib/store";
 import type { LlmEntry, LlmModelStats, LlmRunSummary } from "@/lib/types";
 
@@ -32,100 +31,111 @@ function formatCost(usd: number): string {
 
 function tsShort(ts: string): string {
   if (!ts) return "-";
-  return new Date(ts).toLocaleTimeString();
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return ts;
+  return d.toLocaleString();
 }
 
 type SortDir = "asc" | "desc";
 
 function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
-  if (!active) return <span className="ml-1 text-muted/50">&#8597;</span>;
-  return <span className="ml-1">{dir === "asc" ? "&#9650;" : "&#9660;"}</span>;
+  return (
+    <span className={`ml-1 ${active ? "text-ink" : "text-muted"}`}>
+      {dir === "asc" ? "\u25B2" : "\u25BC"}
+    </span>
+  );
 }
 
 function modelSortKey(field: string, m: LlmModelStats): number {
   switch (field) {
-    case "calls": return m.calls;
-    case "prompt": return m.total_prompt_tokens;
-    case "completion": return m.total_completion_tokens;
-    case "latency": return m.avg_latency_ms;
-    case "errors": return m.error_count;
-    default: return 0;
+    case "model":
+      return m.model.localeCompare("");
+    case "tier":
+      return m.tier ?? 0;
+    case "calls":
+      return m.calls;
+    case "tokens":
+      return m.total_prompt_tokens + m.total_completion_tokens;
+    case "latency":
+      return m.avg_latency_ms;
+    case "errors":
+      return m.error_count;
+    default:
+      return 0;
   }
 }
 
 function runSortKey(field: string, r: LlmRunSummary): number | string {
   switch (field) {
-    case "run": return r.run_id ?? "";
-    case "model": return r.model;
-    case "calls": return r.calls;
-    case "tokens": return r.prompt_tokens + r.completion_tokens;
-    case "latency": return r.avg_latency_ms;
-    case "errors": return r.error_count;
-    case "time": return r.last_ts;
-    default: return "";
+    case "run":
+      return r.run_id ?? "";
+    case "model":
+      return r.model;
+    case "calls":
+      return r.calls;
+    case "tokens":
+      return r.prompt_tokens + r.completion_tokens;
+    case "latency":
+      return r.avg_latency_ms;
+    case "errors":
+      return r.error_count;
+    case "time":
+      return r.last_ts;
+    default:
+      return 0;
   }
 }
 
 function EntryRow({ e }: { e: LlmEntry }) {
   return (
-    <tr className="border-b border-border/50 text-xs last:border-0">
-      <td className="px-3 py-1.5 tabular-nums">{tsShort(e.ts)}</td>
-      <td className="px-3 py-1.5">{e.op ?? "-"}</td>
-      <td className="px-3 py-1.5">{e.model ?? "-"}</td>
-      <td className="px-3 py-1.5 text-right tabular-nums">{e.prompt_tokens ?? "-"}</td>
-      <td className="px-3 py-1.5 text-right tabular-nums">{e.completion_tokens ?? "-"}</td>
-      <td className="px-3 py-1.5 text-right tabular-nums">{e.latency_ms != null ? formatMs(e.latency_ms) : "-"}</td>
-      <td className="px-3 py-1.5 text-right tabular-nums">{e.cost_usd != null ? formatCost(e.cost_usd) : "-"}</td>
-      <td className="px-3 py-1.5">
-        {e.error ? (
-          <span className="text-warn-text" title={e.error}>err</span>
-        ) : (
-          <span className="text-muted">{e.status ?? "-"}</span>
-        )}
+    <tr className="border-b border-border last:border-0">
+      <td className="px-3 py-2 text-xs text-muted whitespace-nowrap">{tsShort(e.ts)}</td>
+      <td className="px-3 py-2 text-xs">{e.op ?? "-"}</td>
+      <td className="px-3 py-2 text-right tabular-nums">{e.tier ?? "-"}</td>
+      <td className="px-3 py-2 text-xs">{e.model ?? "-"}</td>
+      <td className="px-3 py-2 text-right tabular-nums">{formatTokens(e.prompt_tokens ?? 0)}</td>
+      <td className="px-3 py-2 text-right tabular-nums">{formatTokens(e.completion_tokens ?? 0)}</td>
+      <td className="px-3 py-2 text-right tabular-nums">{formatMs(e.latency_ms ?? 0)}</td>
+      <td className="px-3 py-2 text-right tabular-nums">
+        {e.status ? <span className={e.status >= 400 ? "text-warn-text" : ""}>{e.status}</span> : "-"}
       </td>
+      <td className="px-3 py-2 text-xs">
+        {e.error ? <span className="text-warn-text">{e.error}</span> : "-"}
+      </td>
+      <td className="px-3 py-2 text-right tabular-nums">{formatCost(e.cost_usd ?? 0)}</td>
     </tr>
   );
 }
 
 function ExpandedEntries({ runId }: { runId: string }) {
   const { data: entries, isLoading, error } = useLlmRunEntries(runId);
+  if (isLoading) return <tr><td colSpan={10} className="px-3 py-2"><Skeleton className="h-16 w-full" /></td></tr>;
+  if (error) return <tr><td colSpan={10} className="px-3 py-2 text-sm text-warn-text">Failed to load entries</td></tr>;
+  if (!entries || entries.length === 0) return <tr><td colSpan={10} className="px-3 py-2 text-sm text-muted">No entries for this run.</td></tr>;
+  return (
+    <>
+      {entries.map((e) => (
+        <EntryRow key={e.ts + e.op} e={e} />
+      ))}
+    </>
+  );
+}
 
-  if (isLoading) return <tr><td colSpan={8} className="px-3 py-3"><Skeleton className="h-16 w-full" /></td></tr>;
-  if (error) return <tr><td colSpan={8} className="px-3 py-3 text-sm text-warn-text">Failed to load entries</td></tr>;
-  if (!entries?.length) return <tr><td colSpan={8} className="px-3 py-3 text-sm text-muted">No entries found</td></tr>;
+function HealthCheckCard() {
+  const { data: health, isLoading, error } = useAdminHealth();
+  if (isLoading) return <Card className="p-4"><Skeleton className="h-16 w-full" /></Card>;
+  if (error) return <Card className="p-4 text-sm text-warn-text">Failed to load health</Card>;
+  if (!health) return null;
 
   return (
-    <tr>
-      <td colSpan={8} className="bg-muted/30 p-0">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs uppercase tracking-wide text-muted">
-              <th className="px-3 py-1.5">Time</th>
-              <th className="px-3 py-1.5">Op</th>
-              <th className="px-3 py-1.5">Model</th>
-              <th className="px-3 py-1.5 text-right">Prompt</th>
-              <th className="px-3 py-1.5 text-right">Completion</th>
-              <th className="px-3 py-1.5 text-right">Latency</th>
-              <th className="px-3 py-1.5 text-right">Cost</th>
-              <th className="px-3 py-1.5">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.map((e, i) => (
-              <EntryRow key={`${e.ts}-${i}`} e={e} />
-            ))}
-          </tbody>
-        </table>
-        <div className="border-t border-border/50 px-3 py-2">
-          <Link
-            href={`/admin/run/${runId}`}
-            className="text-xs text-ink underline-offset-2 hover:underline"
-          >
-            Full detail &rarr;
-          </Link>
-        </div>
-      </td>
-    </tr>
+    <Card className="flex flex-col gap-3 p-4">
+      <h2 className="text-md font-semibold">System Health</h2>
+      <div className="flex flex-wrap gap-6">
+        <Stat value={health.status === "ok" ? "Healthy" : "Degraded"} label="Status" />
+        <Stat value={health.database === "ok" ? "Database OK" : "Database unreachable"} label="Database" />
+        <Stat value={health.demo_mode ? "Demo" : "Production"} label="Environment" />
+      </div>
+    </Card>
   );
 }
 
@@ -182,13 +192,12 @@ export default function AdminPage() {
       if (!aNoRun && bNoRun) return -1;
       const av = runSortKey(runSort.field, a);
       const bv = runSortKey(runSort.field, b);
-      if (typeof av === "string" && typeof bv === "string") {
-        return runSort.dir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
-      }
-      return runSort.dir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
+      if (typeof av === "string" && typeof bv === "string") return av.localeCompare(bv);
+      if (typeof av === "number" && typeof bv === "number") return av - bv;
+      return 0;
     });
     return list;
-  }, [report, runSort, errorFilter, opFilter]);
+  }, [report, errorFilter, opFilter, runSort]);
 
   function toggleModelSort(field: string) {
     setModelSort((prev) => ({
@@ -205,50 +214,50 @@ export default function AdminPage() {
   }
 
   if (!currentUserId) return <SignInPrompt />;
-  if (!isAdmin) return <p className="p-6 text-muted">This page requires an administrator account.</p>;
+  if (me && !isAdmin) return <SignInPrompt />;
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-5 p-4">
-      {error ? <ErrorBanner error={error} /> : null}
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="text-xl font-semibold text-ink">Admin</h1>
+        <p className="text-sm text-muted">LLM usage, spend, and system health.</p>
+      </div>
 
-      {isLoading ? (
-        <div className="flex flex-col gap-3">
-          <Skeleton className="h-28 w-full" />
-          <Skeleton className="h-40 w-full" />
-          <Skeleton className="h-40 w-full" />
-        </div>
+      {error ? (
+        <ErrorBanner error={error instanceof Error ? error : "Failed to load report"} />
       ) : null}
 
-      {report ? (
-        <>
-          <Card className="flex flex-col gap-3 p-4">
-            <h1 className="text-md font-semibold">LLM Usage</h1>
-            <div className="flex flex-wrap gap-6">
-              <Stat value={report.total_entries} label="Total calls" />
-              <Stat value={report.total_runs} label="Runs" />
-              <Stat value={formatTokens(report.total_prompt_tokens)} label="Prompt tokens" />
-              <Stat value={formatTokens(report.total_completion_tokens)} label="Completion tokens" />
-              <Stat value={formatMs(report.avg_latency_ms)} label="Avg latency" />
-              <Stat value={formatCost(report.total_cost_usd)} label="Total cost" />
-            </div>
-          </Card>
+      <HealthCheckCard />
 
+      {isLoading ? (
+        <Card className="p-4"><Skeleton className="h-16 w-full" /></Card>
+      ) : report ? (
+        <>
           <section className="flex flex-col gap-2">
-            <h2 className="text-md font-semibold">By Model</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-md font-semibold">By Model</h2>
+              <div className="flex gap-4 text-xs text-muted">
+                <span>Calls: {report.total_entries}</span>
+                <span>Runs: {report.total_runs}</span>
+                <span>Cost: {formatCost(report.total_cost_usd)}</span>
+                <span>Avg latency: {formatMs(report.avg_latency_ms)}</span>
+              </div>
+            </div>
             <Card className="overflow-x-auto p-0">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
-                    <th className="px-3 py-2">Model</th>
-                    <th className="px-3 py-2 text-right">Tier</th>
-                    <th className="px-3 py-2 cursor-pointer select-none" onClick={() => toggleModelSort("calls")}>
+                    <th className="px-3 py-2 cursor-pointer select-none" onClick={() => toggleModelSort("model")}>
+                      Model<SortIcon active={modelSort.field === "model"} dir={modelSort.dir} />
+                    </th>
+                    <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleModelSort("tier")}>
+                      Tier<SortIcon active={modelSort.field === "tier"} dir={modelSort.dir} />
+                    </th>
+                    <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleModelSort("calls")}>
                       Calls<SortIcon active={modelSort.field === "calls"} dir={modelSort.dir} />
                     </th>
-                    <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleModelSort("prompt")}>
-                      Prompt<SortIcon active={modelSort.field === "prompt"} dir={modelSort.dir} />
-                    </th>
-                    <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleModelSort("completion")}>
-                      Completion<SortIcon active={modelSort.field === "completion"} dir={modelSort.dir} />
+                    <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleModelSort("tokens")}>
+                      Tokens<SortIcon active={modelSort.field === "tokens"} dir={modelSort.dir} />
                     </th>
                     <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleModelSort("latency")}>
                       Avg latency<SortIcon active={modelSort.field === "latency"} dir={modelSort.dir} />
@@ -264,15 +273,10 @@ export default function AdminPage() {
                       <td className="px-3 py-2 font-medium">{m.model}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{m.tier ?? "-"}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{m.calls}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{formatTokens(m.total_prompt_tokens)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{formatTokens(m.total_completion_tokens)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{formatTokens(m.total_prompt_tokens + m.total_completion_tokens)}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{formatMs(m.avg_latency_ms)}</td>
                       <td className="px-3 py-2 text-right tabular-nums">
-                        {m.error_count > 0 ? (
-                          <span className="text-warn-text">{m.error_count}</span>
-                        ) : (
-                          "0"
-                        )}
+                        {m.error_count > 0 ? <span className="text-warn-text">{m.error_count}</span> : "0"}
                       </td>
                     </tr>
                   ))}
@@ -363,11 +367,7 @@ export default function AdminPage() {
                           <td className="px-3 py-2 text-right tabular-nums">{formatTokens(r.prompt_tokens + r.completion_tokens)}</td>
                           <td className="px-3 py-2 text-right tabular-nums">{formatMs(r.avg_latency_ms)}</td>
                           <td className="px-3 py-2 text-right tabular-nums">
-                            {r.error_count > 0 ? (
-                              <span className="text-warn-text">{r.error_count}</span>
-                            ) : (
-                              "0"
-                            )}
+                            {r.error_count > 0 ? <span className="text-warn-text">{r.error_count}</span> : "0"}
                           </td>
                           <td className="px-3 py-2 text-xs text-muted">
                             {r.first_ts ? (

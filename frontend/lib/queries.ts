@@ -479,3 +479,13 @@ export function useResetDemo() {
     },
   });
 }
+
+export function useAdminHealth() {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["admin-health", userId],
+    queryFn: api.adminHealth,
+    enabled: !!userId,
+    refetchInterval: 30_000,
+  });
+}

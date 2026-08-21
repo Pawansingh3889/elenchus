@@ -7,6 +7,7 @@ import logging
 import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import Depends, FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,6 +16,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.dependencies import require_admin
 from app.auth.router import router as auth_router
 from app.conduct.router import router as runs_router
 from app.config import get_settings
@@ -25,6 +27,7 @@ from app.runs.router import dashboard_router
 from app.runs.router import router as results_router
 from app.seed import seed
 from app.templates.router import router as templates_router
+from app.users.models import User
 from app.users.router import admin_router, dev_router, me_router
 from app.users.router import directory_router as people_router
 from app.users.router import router as users_router
@@ -163,3 +166,40 @@ async def health(session: AsyncSession = Depends(get_session)) -> Response:
     return JSONResponse(
         content=HealthRead(status="ok", database="ok", demo_mode=is_demo).model_dump()
     )
+
+
+class AdminHealthRead(BaseModel):
+    status: str
+    database: str
+    demo_mode: bool = False
+    tiers: dict[str, dict[str, Any]]
+
+
+@app.get("/api/v1/admin/health", response_model=AdminHealthRead, tags=["meta"])
+async def admin_health(
+    _: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> AdminHealthRead:
+    """Readiness with per-tier config, admin-only."""
+    from app.config import get_settings
+
+    is_demo = get_settings().app_env == "demo"
+    db_status = "ok"
+    try:
+        await session.execute(text("SELECT 1"))
+    except Exception:  # noqa: BLE001
+        db_status = "unreachable"
+    env_settings = get_settings()
+    tiers: dict[str, dict[str, Any]] = {}
+    for idx in range(1, 5):
+        prefix = f"llm_tier{idx}"
+        tiers[str(idx)] = {
+            "enabled": getattr(env_settings, f"{prefix}_enabled"),
+            "model": getattr(env_settings, f"{prefix}_model") or None,
+            "base_url": getattr(env_settings, f"{prefix}_base_url") or None,
+            "timeout_seconds": getattr(env_settings, f"{prefix}_timeout_seconds"),
+            "prompt_cache": getattr(env_settings, f"{prefix}_prompt_cache"),
+            "max_completion_tokens": getattr(env_settings, f"{prefix}_max_completion_tokens"),
+        }
+    status = "ok" if db_status == "ok" else "degraded"
+    return AdminHealthRead(status=status, database=db_status, demo_mode=is_demo, tiers=tiers)

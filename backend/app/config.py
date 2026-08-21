@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     llm_tier1_prompt_cache: bool = Field(
         True, description="Mark the system prefix cacheable on a caching-capable provider"
     )
+    llm_tier1_max_completion_tokens: int = Field(
+        4096, gt=0, description="Default max completion tokens for tier 1 tool calls"
+    )
 
     llm_tier2_enabled: bool = Field(False, description="Enable tier 2, tried when tier 1 fails")
     llm_tier2_base_url: str = Field(
@@ -69,6 +72,9 @@ class Settings(BaseSettings):
     llm_tier2_prompt_cache: bool = Field(
         False, description="Mark the system prefix cacheable on a caching-capable provider"
     )
+    llm_tier2_max_completion_tokens: int = Field(
+        4096, gt=0, description="Default max completion tokens for tier 2 tool calls"
+    )
 
     llm_tier3_enabled: bool = Field(False, description="Enable tier 3, tried when 1 and 2 fail")
     llm_tier3_base_url: str = Field(
@@ -81,6 +87,9 @@ class Settings(BaseSettings):
     )
     llm_tier3_prompt_cache: bool = Field(
         False, description="Mark the system prefix cacheable on a caching-capable provider"
+    )
+    llm_tier3_max_completion_tokens: int = Field(
+        1024, gt=0, description="Default max completion tokens for tier 3 tool calls"
     )
 
     # Last resort, and an empty slot by default. This held a local Ollama shipped in
@@ -97,6 +106,9 @@ class Settings(BaseSettings):
     )
     llm_tier4_prompt_cache: bool = Field(
         False, description="Mark the system prefix cacheable on a caching-capable provider"
+    )
+    llm_tier4_max_completion_tokens: int = Field(
+        1024, gt=0, description="Default max completion tokens for tier 4 tool calls"
     )
 
     # What each tier costs and what is serving it, for the spend ledger. Separate from

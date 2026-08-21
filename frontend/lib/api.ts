@@ -5,6 +5,7 @@ import type {
   AccountCreate,
   AccountImpact,
   AccountWrite,
+  AdminHealthRead,
   AnswersMatrix,
   AudienceReach,
   DashboardRow,
@@ -240,4 +241,5 @@ export const api = {
     ),
   llmReport: () => request<LlmReport>("/admin/llm/report"),
   llmRunEntries: (runId: string) => request<LlmEntry[]>(`/admin/llm/run/${runId}`),
+  adminHealth: () => request<AdminHealthRead>("/admin/health"),
 };

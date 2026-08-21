@@ -41,7 +41,7 @@ class FailoverLLM:
         tool_name: str,
         tool_description: str,
         input_schema: dict[str, Any],
-        max_tokens: int = 4096,
+        max_tokens: int | None = None,
     ) -> dict[str, Any]:
         errors: list[LLMError] = []
         for tier, client in enumerate(self._clients, start=1):
@@ -65,7 +65,7 @@ class FailoverLLM:
         system: str,
         messages: list[dict[str, str]],
         tools: list[dict[str, Any]],
-        max_tokens: int = 1024,
+        max_tokens: int | None = None,
         cascade_on_no_tool_call: bool = True,
     ) -> ToolTurn:
         errors: list[LLMError] = []

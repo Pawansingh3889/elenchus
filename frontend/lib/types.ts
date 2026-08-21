@@ -559,3 +559,10 @@ export interface LlmEntry {
   error: string | null;
   cost_usd: number | null;
 }
+
+export interface AdminHealthRead {
+  status: string;
+  database: string;
+  demo_mode: boolean;
+  tiers: Record<string, Record<string, unknown>>;
+}
