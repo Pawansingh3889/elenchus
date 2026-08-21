@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -9,9 +8,9 @@ import { SignInPrompt } from "@/components/SignInPrompt";
 import { Stat } from "@/components/Stat";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLlmReport, useLlmRunEntries, useMe, useAdminHealth, useSettings, useUpdateSettings, useAuditLog, useLlmSpend, useSeedUsers, useRunSeed } from "@/lib/queries";
+import { useLlmReport, useLlmRunEntries, useMe, useAdminHealth } from "@/lib/queries";
 import { useUserStore } from "@/lib/store";
-import type { LlmDailySpend, LlmEntry, LlmModelStats, LlmRunSummary, TierConfig, SettingsRead } from "@/lib/types";
+import type { LlmEntry, LlmModelStats, LlmRunSummary } from "@/lib/types";
 
 function formatTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -32,100 +31,93 @@ function formatCost(usd: number): string {
 
 function tsShort(ts: string): string {
   if (!ts) return "-";
-  return new Date(ts).toLocaleTimeString();
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return ts;
+  return d.toLocaleString();
 }
 
 type SortDir = "asc" | "desc";
 
 function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
-  if (!active) return <span className="ml-1 text-muted/50">&#8597;</span>;
-  return <span className="ml-1">{dir === "asc" ? "&#9650;" : "&#9660;"}</span>;
+  return (
+    <span className={`ml-1 ${active ? "text-ink" : "text-muted"}`}>
+      {dir === "asc" ? "\u25B2" : "\u25BC"}
+    </span>
+  );
 }
 
 function modelSortKey(field: string, m: LlmModelStats): number {
   switch (field) {
-    case "calls": return m.calls;
-    case "prompt": return m.total_prompt_tokens;
-    case "completion": return m.total_completion_tokens;
-    case "latency": return m.avg_latency_ms;
-    case "errors": return m.error_count;
-    default: return 0;
+    case "model":
+      return m.model.localeCompare("");
+    case "tier":
+      return m.tier ?? 0;
+    case "calls":
+      return m.calls;
+    case "tokens":
+      return m.total_prompt_tokens + m.total_completion_tokens;
+    case "latency":
+      return m.avg_latency_ms;
+    case "errors":
+      return m.error_count;
+    default:
+      return 0;
   }
 }
 
 function runSortKey(field: string, r: LlmRunSummary): number | string {
   switch (field) {
-    case "run": return r.run_id ?? "";
-    case "model": return r.model;
-    case "calls": return r.calls;
-    case "tokens": return r.prompt_tokens + r.completion_tokens;
-    case "latency": return r.avg_latency_ms;
-    case "errors": return r.error_count;
-    case "time": return r.last_ts;
-    default: return "";
+    case "run":
+      return r.run_id ?? "";
+    case "model":
+      return r.model;
+    case "calls":
+      return r.calls;
+    case "tokens":
+      return r.prompt_tokens + r.completion_tokens;
+    case "latency":
+      return r.avg_latency_ms;
+    case "errors":
+      return r.error_count;
+    case "time":
+      return r.last_ts;
+    default:
+      return 0;
   }
 }
 
 function EntryRow({ e }: { e: LlmEntry }) {
   return (
-    <tr className="border-b border-border/50 text-xs last:border-0">
-      <td className="px-3 py-1.5 tabular-nums">{tsShort(e.ts)}</td>
-      <td className="px-3 py-1.5">{e.op ?? "-"}</td>
-      <td className="px-3 py-1.5">{e.model ?? "-"}</td>
-      <td className="px-3 py-1.5 text-right tabular-nums">{e.prompt_tokens ?? "-"}</td>
-      <td className="px-3 py-1.5 text-right tabular-nums">{e.completion_tokens ?? "-"}</td>
-      <td className="px-3 py-1.5 text-right tabular-nums">{e.latency_ms != null ? formatMs(e.latency_ms) : "-"}</td>
-      <td className="px-3 py-1.5 text-right tabular-nums">{e.cost_usd != null ? formatCost(e.cost_usd) : "-"}</td>
-      <td className="px-3 py-1.5">
-        {e.error ? (
-          <span className="text-warn-text" title={e.error}>err</span>
-        ) : (
-          <span className="text-muted">{e.status ?? "-"}</span>
-        )}
+    <tr className="border-b border-border last:border-0">
+      <td className="px-3 py-2 text-xs text-muted whitespace-nowrap">{tsShort(e.ts)}</td>
+      <td className="px-3 py-2 text-xs">{e.op ?? "-"}</td>
+      <td className="px-3 py-2 text-right tabular-nums">{e.tier ?? "-"}</td>
+      <td className="px-3 py-2 text-xs">{e.model ?? "-"}</td>
+      <td className="px-3 py-2 text-right tabular-nums">{formatTokens(e.prompt_tokens ?? 0)}</td>
+      <td className="px-3 py-2 text-right tabular-nums">{formatTokens(e.completion_tokens ?? 0)}</td>
+      <td className="px-3 py-2 text-right tabular-nums">{formatMs(e.latency_ms ?? 0)}</td>
+      <td className="px-3 py-2 text-right tabular-nums">
+        {e.status ? <span className={e.status >= 400 ? "text-warn-text" : ""}>{e.status}</span> : "-"}
       </td>
+      <td className="px-3 py-2 text-xs">
+        {e.error ? <span className="text-warn-text">{e.error}</span> : "-"}
+      </td>
+      <td className="px-3 py-2 text-right tabular-nums">{formatCost(e.cost_usd ?? 0)}</td>
     </tr>
   );
 }
 
 function ExpandedEntries({ runId }: { runId: string }) {
   const { data: entries, isLoading, error } = useLlmRunEntries(runId);
-
-  if (isLoading) return <tr><td colSpan={8} className="px-3 py-3"><Skeleton className="h-16 w-full" /></td></tr>;
-  if (error) return <tr><td colSpan={8} className="px-3 py-3 text-sm text-warn-text">Failed to load entries</td></tr>;
-  if (!entries?.length) return <tr><td colSpan={8} className="px-3 py-3 text-sm text-muted">No entries found</td></tr>;
-
+  if (isLoading) return <tr><td colSpan={10} className="px-3 py-2"><Skeleton className="h-16 w-full" /></td></tr>;
+  if (error) return <tr><td colSpan={10} className="px-3 py-2 text-sm text-warn-text">Failed to load entries</td></tr>;
+  if (!entries || entries.length === 0) return <tr><td colSpan={10} className="px-3 py-2 text-sm text-muted">No entries for this run.</td></tr>;
   return (
-    <tr>
-      <td colSpan={8} className="bg-muted/30 p-0">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs uppercase tracking-wide text-muted">
-              <th className="px-3 py-1.5">Time</th>
-              <th className="px-3 py-1.5">Op</th>
-              <th className="px-3 py-1.5">Model</th>
-              <th className="px-3 py-1.5 text-right">Prompt</th>
-              <th className="px-3 py-1.5 text-right">Completion</th>
-              <th className="px-3 py-1.5 text-right">Latency</th>
-              <th className="px-3 py-1.5 text-right">Cost</th>
-              <th className="px-3 py-1.5">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.map((e, i) => (
-              <EntryRow key={`${e.ts}-${i}`} e={e} />
-            ))}
-          </tbody>
-        </table>
-        <div className="border-t border-border/50 px-3 py-2">
-          <Link
-            href={`/admin/run/${runId}`}
-            className="text-xs text-ink underline-offset-2 hover:underline"
-          >
-            Full detail &rarr;
-          </Link>
-        </div>
-      </td>
-    </tr>
+    <>
+      {entries.map((e) => (
+        <EntryRow key={e.ts + e.op} e={e} />
+      ))}
+    </>
   );
 }
 
@@ -142,258 +134,6 @@ function HealthCheckCard() {
         <Stat value={health.status === "ok" ? "Healthy" : "Degraded"} label="Status" />
         <Stat value={health.database === "ok" ? "Database OK" : "Database unreachable"} label="Database" />
         <Stat value={health.demo_mode ? "Demo" : "Production"} label="Environment" />
-      </div>
-    </Card>
-  );
-}
-
-function SettingsPanel() {
-  const { data: initialSettings, isLoading } = useSettings();
-  const update = useUpdateSettings();
-  const [saving, setSaving] = useState(false);
-  const [edits, setEdits] = useState<Record<string, TierConfig>>({});
-
-  const tiers = [1, 2, 3, 4] as const;
-
-  const settings: SettingsRead = useMemo(() => ({
-    tier_config: {
-      ...(initialSettings?.tier_config ?? {}),
-      ...edits,
-    },
-  }), [initialSettings?.tier_config, edits]);
-
-  if (isLoading) return <Card className="p-4"><Skeleton className="h-48 w-full" /></Card>;
-  if (!initialSettings) return null;
-
-  async function save() {
-    setSaving(true);
-    try {
-      await update.mutateAsync({ tier_config: settings.tier_config });
-      setEdits({});
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function updateTier(tier: number, field: keyof TierConfig, value: boolean | number | null) {
-    if (!initialSettings) return;
-    setEdits((prev) => {
-      const current = { ...(initialSettings.tier_config[tier] ?? {}), ...(prev[tier] ?? {}) } as TierConfig;
-      (current as Record<keyof TierConfig, boolean | number | null>)[field] = value;
-      return { ...prev, [tier]: current };
-    });
-  }
-
-  return (
-    <Card className="flex flex-col gap-4 p-4">
-      <h2 className="text-md font-semibold">LLM Tier Settings</h2>
-      {tiers.map((tier) => {
-        const cfg = settings.tier_config[tier] ?? {};
-        return (
-          <div key={tier} className="flex flex-col gap-2 border-b border-border/50 pb-3 last:border-0 last:pb-0">
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={!!cfg.enabled}
-                  onChange={(e) => updateTier(tier, "enabled", e.target.checked)}
-                />
-                Tier {tier}
-              </label>
-            </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <label className="flex flex-col gap-1 text-xs">
-                Timeout (s)
-                <input
-                  type="number"
-                  className="field"
-                  value={cfg.timeout_seconds ?? ""}
-                  onChange={(e) => updateTier(tier, "timeout_seconds", e.target.value ? Number(e.target.value) : null)}
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-xs">
-                Max completion tokens
-                <input
-                  type="number"
-                  className="field"
-                  value={cfg.max_completion_tokens ?? ""}
-                  onChange={(e) => updateTier(tier, "max_completion_tokens", e.target.value ? Number(e.target.value) : null)}
-                />
-              </label>
-              <label className="flex items-center gap-2 text-xs">
-                <input
-                  type="checkbox"
-                  checked={cfg.prompt_cache ?? false}
-                  onChange={(e) => updateTier(tier, "prompt_cache", e.target.checked)}
-                />
-                Prompt cache
-              </label>
-            </div>
-          </div>
-        );
-      })}
-      <button
-        className="btn-primary w-auto text-sm"
-        onClick={save}
-        disabled={saving}
-      >
-        {saving ? "Saving..." : "Save settings"}
-      </button>
-    </Card>
-  );
-}
-
-function AuditLogPanel() {
-  const { data: changes, isLoading, error } = useAuditLog();
-  if (isLoading) return <Card className="p-4"><Skeleton className="h-32 w-full" /></Card>;
-  if (error) return <Card className="p-4 text-sm text-warn-text">Failed to load audit log</Card>;
-  if (!changes || changes.length === 0) return <Card className="p-4 text-sm text-muted">No account changes yet.</Card>;
-
-  return (
-    <Card className="flex flex-col gap-3 p-4">
-      <h2 className="text-md font-semibold">Audit Log</h2>
-      <div className="max-h-96 overflow-y-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
-              <th className="px-3 py-2">When</th>
-              <th className="px-3 py-2">Who</th>
-              <th className="px-3 py-2">Kind</th>
-              <th className="px-3 py-2">Before</th>
-              <th className="px-3 py-2">After</th>
-            </tr>
-          </thead>
-          <tbody>
-            {changes.slice(0, 50).map((c) => (
-              <tr key={c.id} className="border-b border-border last:border-0">
-                <td className="px-3 py-2 text-xs text-muted whitespace-nowrap">
-                  {new Date(c.changed_at).toLocaleString()}
-                </td>
-                <td className="px-3 py-2">{c.changed_by_name ?? "an administrator"}</td>
-                <td className="px-3 py-2">
-                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs ${c.kind === "created" ? "bg-green-100 text-green-800" : c.kind === "updated" ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"}`}>
-                    {c.kind}
-                  </span>
-                </td>
-                <td className="px-3 py-2 text-xs font-mono max-w-[200px] truncate" title={JSON.stringify(c.before)}>
-                  {JSON.stringify(c.before)}
-                </td>
-                <td className="px-3 py-2 text-xs font-mono max-w-[200px] truncate" title={JSON.stringify(c.after)}>
-                  {JSON.stringify(c.after)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </Card>
-  );
-}
-
-function LlmSpendPanel() {
-  const { data: spend, isLoading, error } = useLlmSpend();
-  if (isLoading) return <Card className="p-4"><Skeleton className="h-48 w-full" /></Card>;
-  if (error) return <Card className="p-4 text-sm text-warn-text">Failed to load spend</Card>;
-  if (!spend) return null;
-
-  const rows = spend.days.slice(0, 50);
-
-  return (
-    <Card className="flex flex-col gap-3 p-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-md font-semibold">LLM Spend</h2>
-        <div className="flex gap-4 text-xs text-muted">
-          <span>Total: ${spend.total_cost_usd.toFixed(4)}</span>
-          <span>Calls: {spend.total_calls}</span>
-          <span>Errors: {spend.total_errors > 0 ? <span className="text-warn-text">{spend.total_errors}</span> : 0}</span>
-        </div>
-      </div>
-      <div className="max-h-96 overflow-y-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
-              <th className="px-3 py-2">Day</th>
-              <th className="px-3 py-2">Tier</th>
-              <th className="px-3 py-2">Model</th>
-              <th className="px-3 py-2 text-right">Calls</th>
-              <th className="px-3 py-2 text-right">Cost</th>
-              <th className="px-3 py-2 text-right">Avg latency</th>
-              <th className="px-3 py-2 text-right">Errors</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row: LlmDailySpend, idx: number) => (
-              <tr key={`${row.day}-${row.tier}-${row.model}-${idx}`} className="border-b border-border last:border-0">
-                <td className="px-3 py-2 whitespace-nowrap">{row.day}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{row.tier ?? "-"}</td>
-                <td className="px-3 py-2">{row.model ?? "-"}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{row.calls}</td>
-                <td className="px-3 py-2 text-right tabular-nums">${row.total_cost_usd.toFixed(4)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">
-                  {row.calls > 0 ? `${(row.total_latency_ms / row.calls).toFixed(0)}ms` : "-"}
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums">
-                  {row.error_count > 0 ? <span className="text-warn-text">{row.error_count}</span> : "0"}
-                </td>
-              </tr>
-            ))}
-            {rows.length === 0 && (
-              <tr><td colSpan={7} className="px-3 py-4 text-center text-sm text-muted">No ledger entries yet.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </Card>
-  );
-}
-
-function SeedPanel() {
-  const { data: users, isLoading, error } = useSeedUsers();
-  const runSeed = useRunSeed();
-  const [result, setResult] = useState<string | null>(null);
-
-  async function handleRunSeed() {
-    try {
-      const res = await runSeed.mutateAsync();
-      setResult(`Seeded ${res.users} users, ${res.hats} hats, ${res.surveys} surveys.`);
-    } catch (e) {
-      setResult(e instanceof Error ? e.message : "Seed failed");
-    }
-  }
-
-  if (isLoading) return <Card className="p-4"><Skeleton className="h-32 w-full" /></Card>;
-  if (error) return <Card className="p-4 text-sm text-warn-text">Failed to load seed data</Card>;
-
-  return (
-    <Card className="flex flex-col gap-3 p-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-md font-semibold">Seed Data</h2>
-        <button className="btn-primary text-xs" onClick={handleRunSeed} disabled={runSeed.isPending}>
-          {runSeed.isPending ? "Seeding..." : "Re-run seed"}
-        </button>
-      </div>
-      {result && <p className="text-xs text-muted">{result}</p>}
-      <div className="max-h-64 overflow-y-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
-              <th className="px-3 py-2">Name</th>
-              <th className="px-3 py-2">Email</th>
-              <th className="px-3 py-2">Function</th>
-              <th className="px-3 py-2">Band</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users?.map((u) => (
-              <tr key={u.id} className="border-b border-border last:border-0">
-                <td className="px-3 py-2">{u.display_name}</td>
-                <td className="px-3 py-2 text-xs">{u.email}</td>
-                <td className="px-3 py-2">{u.function}</td>
-                <td className="px-3 py-2">{u.band}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       </div>
     </Card>
   );
@@ -452,13 +192,12 @@ export default function AdminPage() {
       if (!aNoRun && bNoRun) return -1;
       const av = runSortKey(runSort.field, a);
       const bv = runSortKey(runSort.field, b);
-      if (typeof av === "string" && typeof bv === "string") {
-        return runSort.dir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
-      }
-      return runSort.dir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
+      if (typeof av === "string" && typeof bv === "string") return av.localeCompare(bv);
+      if (typeof av === "number" && typeof bv === "number") return av - bv;
+      return 0;
     });
     return list;
-  }, [report, runSort, errorFilter, opFilter]);
+  }, [report, errorFilter, opFilter, runSort]);
 
   function toggleModelSort(field: string) {
     setModelSort((prev) => ({
@@ -475,53 +214,50 @@ export default function AdminPage() {
   }
 
   if (!currentUserId) return <SignInPrompt />;
-  if (!isAdmin) return <p className="p-6 text-muted">This page requires an administrator account.</p>;
+  if (me && !isAdmin) return <SignInPrompt />;
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-5 p-4">
-      {error ? <ErrorBanner error={error} /> : null}
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="text-xl font-semibold text-ink">Admin</h1>
+        <p className="text-sm text-muted">LLM usage, spend, and system health.</p>
+      </div>
 
-      {isLoading ? (
-        <div className="flex flex-col gap-3">
-          <Skeleton className="h-28 w-full" />
-          <Skeleton className="h-40 w-full" />
-          <Skeleton className="h-40 w-full" />
-        </div>
+      {error ? (
+        <ErrorBanner error={error instanceof Error ? error : "Failed to load report"} />
       ) : null}
 
-      {report ? (
+      <HealthCheckCard />
+
+      {isLoading ? (
+        <Card className="p-4"><Skeleton className="h-16 w-full" /></Card>
+      ) : report ? (
         <>
-          <Card className="flex flex-col gap-3 p-4">
-            <h1 className="text-md font-semibold">LLM Usage</h1>
-            <div className="flex flex-wrap gap-6">
-              <Stat value={report.total_entries} label="Total calls" />
-              <Stat value={report.total_runs} label="Runs" />
-              <Stat value={formatTokens(report.total_prompt_tokens)} label="Prompt tokens" />
-              <Stat value={formatTokens(report.total_completion_tokens)} label="Completion tokens" />
-              <Stat value={formatMs(report.avg_latency_ms)} label="Avg latency" />
-              <Stat value={formatCost(report.total_cost_usd)} label="Total cost" />
-            </div>
-          </Card>
-
-          <HealthCheckCard />
-          <SettingsPanel />
-
           <section className="flex flex-col gap-2">
-            <h2 className="text-md font-semibold">By Model</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-md font-semibold">By Model</h2>
+              <div className="flex gap-4 text-xs text-muted">
+                <span>Calls: {report.total_entries}</span>
+                <span>Runs: {report.total_runs}</span>
+                <span>Cost: {formatCost(report.total_cost_usd)}</span>
+                <span>Avg latency: {formatMs(report.avg_latency_ms)}</span>
+              </div>
+            </div>
             <Card className="overflow-x-auto p-0">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
-                    <th className="px-3 py-2">Model</th>
-                    <th className="px-3 py-2 text-right">Tier</th>
-                    <th className="px-3 py-2 cursor-pointer select-none" onClick={() => toggleModelSort("calls")}>
+                    <th className="px-3 py-2 cursor-pointer select-none" onClick={() => toggleModelSort("model")}>
+                      Model<SortIcon active={modelSort.field === "model"} dir={modelSort.dir} />
+                    </th>
+                    <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleModelSort("tier")}>
+                      Tier<SortIcon active={modelSort.field === "tier"} dir={modelSort.dir} />
+                    </th>
+                    <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleModelSort("calls")}>
                       Calls<SortIcon active={modelSort.field === "calls"} dir={modelSort.dir} />
                     </th>
-                    <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleModelSort("prompt")}>
-                      Prompt<SortIcon active={modelSort.field === "prompt"} dir={modelSort.dir} />
-                    </th>
-                    <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleModelSort("completion")}>
-                      Completion<SortIcon active={modelSort.field === "completion"} dir={modelSort.dir} />
+                    <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleModelSort("tokens")}>
+                      Tokens<SortIcon active={modelSort.field === "tokens"} dir={modelSort.dir} />
                     </th>
                     <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleModelSort("latency")}>
                       Avg latency<SortIcon active={modelSort.field === "latency"} dir={modelSort.dir} />
@@ -537,15 +273,10 @@ export default function AdminPage() {
                       <td className="px-3 py-2 font-medium">{m.model}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{m.tier ?? "-"}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{m.calls}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{formatTokens(m.total_prompt_tokens)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{formatTokens(m.total_completion_tokens)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{formatTokens(m.total_prompt_tokens + m.total_completion_tokens)}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{formatMs(m.avg_latency_ms)}</td>
                       <td className="px-3 py-2 text-right tabular-nums">
-                        {m.error_count > 0 ? (
-                          <span className="text-warn-text">{m.error_count}</span>
-                        ) : (
-                          "0"
-                        )}
+                        {m.error_count > 0 ? <span className="text-warn-text">{m.error_count}</span> : "0"}
                       </td>
                     </tr>
                   ))}
@@ -636,11 +367,7 @@ export default function AdminPage() {
                           <td className="px-3 py-2 text-right tabular-nums">{formatTokens(r.prompt_tokens + r.completion_tokens)}</td>
                           <td className="px-3 py-2 text-right tabular-nums">{formatMs(r.avg_latency_ms)}</td>
                           <td className="px-3 py-2 text-right tabular-nums">
-                            {r.error_count > 0 ? (
-                              <span className="text-warn-text">{r.error_count}</span>
-                            ) : (
-                              "0"
-                            )}
+                            {r.error_count > 0 ? <span className="text-warn-text">{r.error_count}</span> : "0"}
                           </td>
                           <td className="px-3 py-2 text-xs text-muted">
                             {r.first_ts ? (
@@ -658,9 +385,6 @@ export default function AdminPage() {
               </table>
             </Card>
           </section>
-          <AuditLogPanel />
-          <LlmSpendPanel />
-          <SeedPanel />
         </>
       ) : null}
     </div>

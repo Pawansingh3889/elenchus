@@ -2,17 +2,9 @@ import json
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 from app.config import get_settings
-from app.llm.schemas import (
-    LlmDailySpend,
-    LlmEntry,
-    LlmModelStats,
-    LlmReport,
-    LlmRunSummary,
-    LlmSpendSummary,
-)
+from app.llm.schemas import LlmEntry, LlmModelStats, LlmReport, LlmRunSummary
 
 
 @dataclass
@@ -203,81 +195,3 @@ def get_llm_run_entries(run_id: str) -> list[LlmEntry]:
                 )
             )
     return sorted(results, key=lambda x: x.ts)
-
-
-def get_llm_spend_summary() -> LlmSpendSummary:
-    path = Path(get_settings().llm_ledger_path)
-    if not path.exists():
-        return LlmSpendSummary(days=[], total_cost_usd=0.0, total_calls=0, total_errors=0)
-
-    entries = []
-    with path.open(encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                try:
-                    entries.append(json.loads(line))
-                except json.JSONDecodeError:
-                    continue
-
-    if not entries:
-        return LlmSpendSummary(days=[], total_cost_usd=0.0, total_calls=0, total_errors=0)
-
-    day_buckets: dict[tuple[str, int | None, str | None], dict[str, Any]] = {}
-    total_cost = 0.0
-    total_calls = 0
-    total_errors = 0
-
-    for e in entries:
-        ts = e.get("ts", "")
-        day = ts[:10] if ts else "unknown"
-        tier = e.get("tier")
-        model = e.get("model")
-        key = (day, tier, model)
-
-        if key not in day_buckets:
-            day_buckets[key] = {
-                "day": day,
-                "tier": tier,
-                "model": model,
-                "calls": 0,
-                "total_cost_usd": 0.0,
-                "total_latency_ms": 0,
-                "error_count": 0,
-            }
-
-        b = day_buckets[key]
-        b["calls"] += 1
-        cost = e.get("cost_usd") or 0.0
-        b["total_cost_usd"] += cost
-        b["total_latency_ms"] += e.get("latency_ms") or 0
-        if e.get("error") is not None:
-            b["error_count"] += 1
-
-        total_cost += cost
-        total_calls += 1
-        if e.get("error") is not None:
-            total_errors += 1
-
-    days = [
-        LlmDailySpend(
-            day=b["day"],
-            tier=b["tier"],
-            model=b["model"],
-            calls=b["calls"],
-            total_cost_usd=b["total_cost_usd"],
-            total_latency_ms=b["total_latency_ms"],
-            error_count=b["error_count"],
-        )
-        for b in sorted(
-            day_buckets.values(),
-            key=lambda x: (x["day"], x["tier"] or 0, x["model"] or ""),
-        )
-    ]
-
-    return LlmSpendSummary(
-        days=days,
-        total_cost_usd=total_cost,
-        total_calls=total_calls,
-        total_errors=total_errors,
-    )

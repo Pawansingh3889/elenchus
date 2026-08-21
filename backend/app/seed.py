@@ -214,7 +214,7 @@ SEED_HATS: list[tuple[UUID, tuple[Hat, ...]]] = [
 ]
 
 
-async def seed() -> tuple[int, int, int]:
+async def seed() -> None:
     async with SessionFactory() as session:
         for uid, email, name, function, band, microsoft_id in SEED_USERS:
             existing = await session.get(User, uid)
@@ -230,6 +230,11 @@ async def seed() -> tuple[int, int, int]:
                     )
                 )
             elif existing.email != email:
+                # The id is taken by somebody else. Refusing beats the alternative,
+                # which actually happened: an id reused from a retired generation of
+                # this list silently skipped the insert and then handed the impostor
+                # every group membership below, and the only symptom was two strangers
+                # gaining a group. Ids are forever; pick a fresh one.
                 raise RuntimeError(
                     f"seed id {uid} belongs to {existing.email}, not {email}; "
                     "this id was used by an earlier seed generation, so give the new "
@@ -239,6 +244,8 @@ async def seed() -> tuple[int, int, int]:
         hats = 0
         for uid, wanted in SEED_HATS:
             for hat in wanted:
+                # Keyed on the pair, so re-running adds nothing and the seed stays safe to
+                # run over a database somebody has already been using.
                 if await session.get(UserHat, (uid, hat)) is None:
                     session.add(UserHat(user_id=uid, hat=hat))
                     hats += 1
@@ -248,7 +255,6 @@ async def seed() -> tuple[int, int, int]:
         f"Seeded {len(SEED_USERS)} users and {hats} new hats; "
         f"loaded {surveys_added} sample surveys and {runs_added} runs (idempotent)."
     )
-    return len(SEED_USERS), hats, surveys_added
 
 
 # The tables a full reset wipes, leaf to root for readability. TRUNCATE CASCADE would

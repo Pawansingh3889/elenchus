@@ -26,8 +26,6 @@ from app.llm.router import router as llm_admin_router
 from app.runs.router import dashboard_router
 from app.runs.router import router as results_router
 from app.seed import seed
-from app.seed.router import router as seed_admin_router
-from app.settings.router import router as settings_admin_router
 from app.templates.router import router as templates_router
 from app.users.models import User
 from app.users.router import admin_router, dev_router, me_router
@@ -132,8 +130,6 @@ app.include_router(people_router)
 app.include_router(me_router)
 app.include_router(admin_router)
 app.include_router(llm_admin_router)
-app.include_router(settings_admin_router)
-app.include_router(seed_admin_router)
 app.include_router(templates_router)
 app.include_router(results_router)
 app.include_router(dashboard_router)

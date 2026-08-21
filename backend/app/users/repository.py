@@ -43,20 +43,6 @@ class UserRepository:
         )
         return [(change, name) for change, name in (await self.session.execute(stmt)).all()]
 
-    async def all_changes(self, limit: int = 100) -> list[tuple[AccountChange, str | None]]:
-        """Recent audit rows across every account, newest first.
-
-        Capped because the screen is a witness, not an export.
-        """
-        editor = aliased(User)
-        stmt = (
-            select(AccountChange, editor.display_name)
-            .outerjoin(editor, AccountChange.changed_by == editor.id)
-            .order_by(AccountChange.changed_at.desc(), AccountChange.id)
-            .limit(limit)
-        )
-        return [(change, name) for change, name in (await self.session.execute(stmt)).all()]
-
     async def get_by_email(self, email: str) -> User | None:
         """Exact match, because the service case-folds before it asks.
 
