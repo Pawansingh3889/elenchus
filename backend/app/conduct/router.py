@@ -99,9 +99,7 @@ async def my_unfinished_runs(
             started_at=run.started_at,
             pending_clarification=bool(run.pending_clarifications),
         )
-        for run, template_id, title, answered, total, pending in await engine.resumable(
-            answerer
-        )
+        for run, template_id, title, answered, total, pending in await engine.resumable(answerer)
     ]
 
 

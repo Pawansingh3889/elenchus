@@ -137,9 +137,6 @@ class UnitChoice:
 def unit_choices() -> list[UnitChoice]:
     """Every unit, for a grouped dropdown, in a stable dimension/label order."""
     order = ["temperature", "length", "mass", "volume"]
-    choices = [
-        UnitChoice(value=u, label=u, dimension=dim)
-        for u, (dim, _, _) in _UNITS.items()
-    ]
+    choices = [UnitChoice(value=u, label=u, dimension=dim) for u, (dim, _, _) in _UNITS.items()]
     choices.sort(key=lambda c: (order.index(c.dimension), c.label))
     return choices

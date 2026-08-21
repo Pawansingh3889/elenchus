@@ -383,11 +383,7 @@ class ConductEngine:
         if key not in by_id:
             raise NotFoundError("The survey does not contain this question.")
         flagged = next(
-            (
-                a
-                for a in run.answers
-                if str(a.question_id) == key and a.kind is AnswerKind.scripted
-            ),
+            (a for a in run.answers if str(a.question_id) == key and a.kind is AnswerKind.scripted),
             None,
         )
         if flagged is None:
@@ -942,9 +938,7 @@ def _opening_text(title: str, first: dict[str, Any]) -> str:
     return f"Thanks for taking {title}. {first['text']}"
 
 
-def _clarification_text(
-    run: SurveyRun, questions: list[dict[str, Any]], pending: list[str]
-) -> str:
+def _clarification_text(run: SurveyRun, questions: list[dict[str, Any]], pending: list[str]) -> str:
     """The one message an author's flags compose, in the run's language.
 
     An intro line and one line per pending answer, each quoting the respondent's

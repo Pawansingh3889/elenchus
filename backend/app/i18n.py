@@ -190,8 +190,7 @@ MESSAGES: dict[str, dict[str, str]] = {
             "această întrebare?"
         ),
         "es": (
-            'Respondiste "{answer}" a "{question}". ¿Esa respuesta era solo para esta '
-            "pregunta?"
+            'Respondiste "{answer}" a "{question}". ¿Esa respuesta era solo para esta ' "pregunta?"
         ),
         # Retired locales, kept for in-flight runs.
         "fr": (
@@ -199,8 +198,7 @@ MESSAGES: dict[str, dict[str, str]] = {
             "uniquement cette question ?"
         ),
         "pt": (
-            'Respondeu "{answer}" a "{question}". Essa resposta era apenas para esta '
-            "pergunta?"
+            'Respondeu "{answer}" a "{question}". Essa resposta era apenas para esta ' "pergunta?"
         ),
         "hi": (
             'आपने "{question}" का उत्तर "{answer}" दिया था। क्या वह उत्तर केवल इसी '
@@ -210,18 +208,11 @@ MESSAGES: dict[str, dict[str, str]] = {
             'আপনি "{question}"-এর উত্তরে "{answer}" দিয়েছিলেন। উত্তরটি কি শুধু এই '
             "প্রশ্নের জন্য ছিল?"
         ),
-        "he": (
-            'ענית "{answer}" על "{question}". האם התשובה הזו הייתה מיועדת רק לשאלה '
-            "הזו?"
-        ),
+        "he": ('ענית "{answer}" על "{question}". האם התשובה הזו הייתה מיועדת רק לשאלה ' "הזו?"),
         "ur": (
-            'آپ نے "{question}" کا جواب "{answer}" دیا تھا۔ کیا وہ جواب صرف اس سوال '
-            "کے لیے تھا؟"
+            'آپ نے "{question}" کا جواب "{answer}" دیا تھا۔ کیا وہ جواب صرف اس سوال ' "کے لیے تھا؟"
         ),
-        "ar": (
-            'أجبت "{answer}" على سؤال "{question}". هل كان هذا الجواب لهذا السؤال '
-            "فقط؟"
-        ),
+        "ar": ('أجبت "{answer}" على سؤال "{question}". هل كان هذا الجواب لهذا السؤال ' "فقط؟"),
     },
     "clarify_ack": {
         "en": "Thanks, noted. Your answers are saved.",
