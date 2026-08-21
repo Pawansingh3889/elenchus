@@ -15,6 +15,7 @@ import {
   useSendRunMessage,
 } from "@/lib/queries";
 import { useUserStore } from "@/lib/store";
+import type { AnswerType } from "@/lib/types";
 
 export default function RunPage() {
   const { common, run: text, respond } = useT();
@@ -28,6 +29,17 @@ export default function RunPage() {
   const [draft, setDraft] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  // A structured question with its own typed control (chips, stars, a number/date
+  // field) answers through that control alone. The free-text composer underneath it is
+  // then a second input with a second Send, and the route a numeric answer could sneak
+  // in as prose and bypass the data type. Hide it for those types; probes are open prose
+  // so they keep it, and multi_select still needs it for its write-in.
+  const SELF_CONTAINED: AnswerType[] = ["yes_no", "single_select", "rating", "number", "date"];
+  const composerHidden =
+    !!run?.current_question &&
+    !run.awaiting_follow_up &&
+    SELF_CONTAINED.includes(run.current_question.answer_type);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -136,6 +148,7 @@ export default function RunPage() {
               onAnswer={answer}
             />
           ) : null}
+          {!composerHidden && (
           <form
             className="composer"
             onSubmit={(e) => {
@@ -157,6 +170,7 @@ export default function RunPage() {
               {text.send}
             </button>
           </form>
+          )}
 
           {/* Offered next to the composer rather than on the bubble itself: what comes
               back is the last *answer*, which may span several bubbles once the engine has

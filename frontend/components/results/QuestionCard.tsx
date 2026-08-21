@@ -26,6 +26,7 @@ import { Card, CardLabel } from "@/components/ui/card";
 import { seriesColour } from "@/lib/comparison";
 import { useT } from "@/lib/i18n/useT";
 import { SLICEABLE_TYPES, type Slice } from "@/lib/slicing";
+import { unitSymbol } from "@/lib/units";
 import type { QuestionReport } from "@/lib/types";
 
 /**
@@ -227,6 +228,13 @@ export function QuestionCard({
         ) : null}
       </div>
       <h3 className="mt-1 text-md font-semibold">{question.text}</h3>
+      {question.unit ? (
+        // Plain labels: new fields, not yet in the translation catalog.
+        <p className="mt-0.5 text-xs text-muted">
+          Unit: {unitSymbol(question.unit)}
+          {question.display_unit ? ` · also ${unitSymbol(question.display_unit)}` : ""}
+        </p>
+      ) : null}
       <p className="mt-1 text-sm text-muted">
         {msg.report.answeredBy(question.answered)}
         {question.declined > 0 ? ` · ${msg.report.declinedBy(question.declined)}` : ""}

@@ -50,6 +50,12 @@ class Settings(BaseSettings):
     llm_tier1_timeout_seconds: float = Field(
         120.0, gt=0, description="Read timeout for tier 1, in seconds"
     )
+    # Opt-in prefix caching (Anthropic/OpenRouter-style `cache_control`). Off by default
+    # because OpenAI's API rejects the annotation with a 400, which would drop tier 1 from
+    # the chain; enable per tier only for a provider that honours it.
+    llm_tier1_prompt_cache: bool = Field(
+        False, description="Mark the system prefix cacheable on a caching-capable provider"
+    )
 
     llm_tier2_enabled: bool = Field(False, description="Enable tier 2, tried when tier 1 fails")
     llm_tier2_base_url: str = Field(
@@ -60,6 +66,9 @@ class Settings(BaseSettings):
     llm_tier2_timeout_seconds: float = Field(
         120.0, gt=0, description="Read timeout for tier 2, in seconds"
     )
+    llm_tier2_prompt_cache: bool = Field(
+        False, description="Mark the system prefix cacheable on a caching-capable provider"
+    )
 
     llm_tier3_enabled: bool = Field(False, description="Enable tier 3, tried when 1 and 2 fail")
     llm_tier3_base_url: str = Field(
@@ -69,6 +78,9 @@ class Settings(BaseSettings):
     llm_tier3_model: str = Field("", description="Tier 3 model id, e.g. openrouter/free")
     llm_tier3_timeout_seconds: float = Field(
         120.0, gt=0, description="Read timeout for tier 3, in seconds"
+    )
+    llm_tier3_prompt_cache: bool = Field(
+        False, description="Mark the system prefix cacheable on a caching-capable provider"
     )
 
     # Last resort, and an empty slot by default. This held a local Ollama shipped in
@@ -82,6 +94,9 @@ class Settings(BaseSettings):
     llm_tier4_model: str = Field("", description="Tier 4 model id")
     llm_tier4_timeout_seconds: float = Field(
         120.0, gt=0, description="Read timeout for tier 4, in seconds"
+    )
+    llm_tier4_prompt_cache: bool = Field(
+        False, description="Mark the system prefix cacheable on a caching-capable provider"
     )
 
     # What each tier costs and what is serving it, for the spend ledger. Separate from

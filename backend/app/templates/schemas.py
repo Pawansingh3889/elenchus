@@ -12,6 +12,7 @@ from app.templates.enums import (
     SurveyAudience,
     TemplateStatus,
 )
+from app.units import can_convert, is_known_unit
 
 SELECT_TYPES = {AnswerType.single_select, AnswerType.multi_select}
 
@@ -44,8 +45,14 @@ class QuestionInput(BaseModel):
     options: list[str] = Field(default_factory=list)
     allow_other: bool = False
     required: bool = True
-    follow_up_policy: FollowUpPolicy = FollowUpPolicy.never
+    # Default to probing when the answer is unclear: the follow-up is this product's
+    # differentiator, so a survey that omits the setting should get it, not "never".
+    follow_up_policy: FollowUpPolicy = FollowUpPolicy.when_unclear
     show_when: ShowWhen | None = None
+    # The unit a numeric answer is in, and an optional second unit to also display
+    # (e.g. °C with °F). Both nullable; most questions are not measured quantities.
+    unit: str | None = None
+    display_unit: str | None = None
 
     @field_validator("text")
     @classmethod
@@ -81,6 +88,13 @@ class QuestionInput(BaseModel):
                 raise ValueError(f"{self.answer_type.value} requires at least one option")
         elif self.options:
             raise ValueError(f"{self.answer_type.value} must not carry options")
+        if self.unit and not is_known_unit(self.unit):
+            raise ValueError(f"unknown unit {self.unit!r}")
+        if self.display_unit:
+            if not is_known_unit(self.display_unit):
+                raise ValueError(f"unknown display unit {self.display_unit!r}")
+            if not can_convert(self.unit, self.display_unit):
+                raise ValueError("display unit must share a dimension with the unit")
         return self
 
 
@@ -230,6 +244,8 @@ class QuestionRead(BaseModel):
     required: bool
     follow_up_policy: FollowUpPolicy
     show_when: ShowWhen | None = None
+    unit: str | None = None
+    display_unit: str | None = None
 
 
 class TemplateRead(BaseModel):

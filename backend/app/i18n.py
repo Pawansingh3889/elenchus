@@ -137,6 +137,110 @@ MESSAGES: dict[str, dict[str, str]] = {
             "أرقام الهوية. أعد إرسال إجابتك بدونها."
         ),
     },
+    # The author asked the respondent to confirm an answer the author flagged as out of
+    # context. These compose the one clarifying message appended to a completed run:
+    # the intro, one line per flagged answer, and a closing ack when the respondent
+    # replies. The placeholders carry the author's own words (the answer and the
+    # question text), which are never translated; only the framing sentence is.
+    "clarify_intro": {
+        "en": "The author checked your answers. One thing to confirm:",
+        "de": "Der Autor hat Ihre Antworten geprüft. Eines ist zu bestätigen:",
+        "fil": "Sinuri ng may-akda ang iyong mga sagot. Isang bagay ang kailangang kumpirmahin:",
+        "pl": "Autor sprawdził Twoje odpowiedzi. Jedna rzecz wymaga potwierdzenia:",
+        "lv": "Autors pārskatīja jūsu atbildes. Viena lieta ir jāapstiprina:",
+        "lt": "Autorius patikrino jūsų atsakymus. Vieną dalyką reikia patvirtinti:",
+        "ro": "Autorul ți-a verificat răspunsurile. Un singur lucru trebuie confirmat:",
+        "es": "El autor revisó tus respuestas. Una cosa por confirmar:",
+        # Retired locales, kept for in-flight runs.
+        "fr": "L'auteur a vérifié vos réponses. Une chose à confirmer :",
+        "pt": "O autor verificou as suas respostas. Uma coisa a confirmar:",
+        "hi": "लेखक ने आपके उत्तर जाँचे हैं। एक बात की पुष्टि करनी है:",
+        "bn": "লেখক আপনার উত্তরগুলো পরীক্ষা করেছেন। একটি বিষয় নিশ্চিত করতে হবে:",
+        "he": "המחבר בדק את תשובותיך. דבר אחד יש לאשר:",
+        "ur": "مصنف نے آپ کے جوابات چیک کیے ہیں۔ ایک بات کی تصدیق کرنی ہے:",
+        "ar": "راجع المؤلف إجاباتك. هناك شيء واحد يحتاج إلى تأكيد:",
+    },
+    "clarify_line": {
+        "en": (
+            'You answered "{answer}" to "{question}". Was that answer meant for this '
+            "question only?"
+        ),
+        "de": (
+            'Sie haben auf "{question}" mit "{answer}" geantwortet. War diese Antwort '
+            "nur für diese Frage gedacht?"
+        ),
+        "fil": (
+            'Sumagot ka ng "{answer}" sa "{question}". Para ba sa tanong na ito lamang '
+            "ang sagot na iyon?"
+        ),
+        "pl": (
+            'Odpowiedziałeś(-aś) "{answer}" na pytanie "{question}". Czy ta odpowiedź '
+            "dotyczyła wyłącznie tego pytania?"
+        ),
+        "lv": (
+            'Uz "{question}" jūs atbildējāt "{answer}". Vai šī atbilde bija paredzēta '
+            "tikai šim jautājumam?"
+        ),
+        "lt": (
+            'Į "{question}" atsakėte "{answer}". Ar šis atsakymas buvo skirtas tik '
+            "šiam klausimui?"
+        ),
+        "ro": (
+            'Ai răspuns "{answer}" la "{question}". Răspunsul respectiv era doar pentru '
+            "această întrebare?"
+        ),
+        "es": (
+            'Respondiste "{answer}" a "{question}". ¿Esa respuesta era solo para esta '
+            "pregunta?"
+        ),
+        # Retired locales, kept for in-flight runs.
+        "fr": (
+            'Vous avez répondu "{answer}" à "{question}". Cette réponse concernait-elle '
+            "uniquement cette question ?"
+        ),
+        "pt": (
+            'Respondeu "{answer}" a "{question}". Essa resposta era apenas para esta '
+            "pergunta?"
+        ),
+        "hi": (
+            'आपने "{question}" का उत्तर "{answer}" दिया था। क्या वह उत्तर केवल इसी '
+            "प्रश्न के लिए था?"
+        ),
+        "bn": (
+            'আপনি "{question}"-এর উত্তরে "{answer}" দিয়েছিলেন। উত্তরটি কি শুধু এই '
+            "প্রশ্নের জন্য ছিল?"
+        ),
+        "he": (
+            'ענית "{answer}" על "{question}". האם התשובה הזו הייתה מיועדת רק לשאלה '
+            "הזו?"
+        ),
+        "ur": (
+            'آپ نے "{question}" کا جواب "{answer}" دیا تھا۔ کیا وہ جواب صرف اس سوال '
+            "کے لیے تھا؟"
+        ),
+        "ar": (
+            'أجبت "{answer}" على سؤال "{question}". هل كان هذا الجواب لهذا السؤال '
+            "فقط؟"
+        ),
+    },
+    "clarify_ack": {
+        "en": "Thanks, noted. Your answers are saved.",
+        "de": "Danke, notiert. Ihre Antworten sind gespeichert.",
+        "fil": "Salamat, naitala na. Naka-save na ang iyong mga sagot.",
+        "pl": "Dziękujemy, odnotowano. Twoje odpowiedzi są zapisane.",
+        "lv": "Paldies, ņemts vērā. Jūsu atbildes ir saglabātas.",
+        "lt": "Ačiū, įrašyta. Jūsų atsakymai įrašyti.",
+        "ro": "Mulțumim, am notat. Răspunsurile tale sunt salvate.",
+        "es": "Gracias, anotado. Tus respuestas están guardadas.",
+        # Retired locales, kept for in-flight runs.
+        "fr": "Merci, c'est noté. Vos réponses sont enregistrées.",
+        "pt": "Obrigado, anotado. As suas respostas estão guardadas.",
+        "hi": "धन्यवाद, नोट कर लिया गया। आपके उत्तर सहेजे गए हैं।",
+        "bn": "ধন্যবাদ, নোট করা হয়েছে। আপনার উত্তর সংরক্ষিত হয়েছে।",
+        "he": "תודה, רשמתי. התשובות שלך נשמרו.",
+        "ur": "شکریہ، نوٹ کر لیا۔ آپ کے جوابات محفوظ ہو گئے۔",
+        "ar": "شكرًا، تم التدوين. تم حفظ إجاباتك.",
+    },
     "database_unavailable": {
         "en": "The service cannot reach its database right now. Please try again in a moment.",
         "de": (

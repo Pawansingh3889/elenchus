@@ -64,6 +64,13 @@ class SurveyRun(Base):
     probes_asked: Mapped[dict[str, int]] = mapped_column(
         JSONB, server_default=text("'{}'::jsonb"), default=dict
     )
+    # The question ids an author has asked this run to clarify, awaiting the
+    # respondent's reply. Empty for every run that is not waiting on one. The run's
+    # status stays ``completed`` while this is non-empty: a clarification is not a
+    # re-run, and only this list says "someone is owed one answer".
+    pending_clarifications: Mapped[list[str]] = mapped_column(
+        JSONB, server_default=text("'[]'::jsonb"), default=list
+    )
     # What this run has cost in model calls so far, accumulated turn by turn (and by its
     # AI summary, which is spent on this run as surely as any turn). Denormalised from
     # the JSONL ledger on purpose: the ledger is the record for offline analysis and is

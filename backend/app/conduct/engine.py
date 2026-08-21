@@ -14,7 +14,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import pii
-from app.access import is_admin_by_config, may_answer
+from app.access import is_admin_by_config, may_answer, may_edit
 from app.conduct.repository import RunRepository
 from app.conduct.validation import (
     AnswerValidationError,
@@ -32,6 +32,7 @@ from app.llm.factory import get_llm
 from app.llm.prompts import load_prompt
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
 from app.runs.models import REPLY_PREFIX, Answer, RunMessage, SurveyRun, add_llm_spend
+from app.runs.service import flatten_answer
 from app.templates.enums import FollowUpPolicy, TemplateStatus
 from app.templates.reading import questions_of, setting_of
 from app.templates.visibility import next_visible, remaining_possible
@@ -137,6 +138,12 @@ class ConductEngine:
         existing = await self.repo.answered_already(template_id, respondent.id)
         if existing is not None:
             if existing.status is RunStatus.completed:
+                if existing.pending_clarifications:
+                    # The author asked this run to clarify something and the reply never
+                    # came: answering it beats being refused, and it is the same
+                    # respondent and the same run, not a second one.
+                    logger.info("resumed as a clarification: run=%s", existing.id)
+                    return await self.load(existing.id, respondent)
                 raise ConflictError("You have already answered this survey.")
             return await self.load(existing.id, respondent)
 
@@ -233,7 +240,9 @@ class ConductEngine:
         remaining = remaining_possible(unanswered_from, questions, answers)
         return answered, answered + remaining
 
-    async def resumable(self, respondent: User) -> list[tuple[SurveyRun, UUID, str, int, int]]:
+    async def resumable(
+        self, respondent: User
+    ) -> list[tuple[SurveyRun, UUID, str, int, int, bool]]:
         """This respondent's unfinished runs, with the progress each one is at.
 
         access-exempt: this is ownership of a run, not visibility of a survey. A
@@ -241,13 +250,27 @@ class ConductEngine:
         check below is the whole rule and app/access has nothing to add. Whether
         this respondent could answer the survey at all was settled once, in
         start_run.
+
+        A completed run with pending clarifications counts as unfinished: it is
+        owed one answer, which is why `in_progress_for` returns it. The trailing
+        bool says which kind of unfinished it is, so the client can say "answer
+        the author's question" rather than "continue where you left off".
         """
-        out: list[tuple[SurveyRun, UUID, str, int, int]] = []
+        out: list[tuple[SurveyRun, UUID, str, int, int, bool]] = []
         for run, template_id, title in await self.repo.in_progress_for(respondent.id):
             template = await self.repo.get_template(run.template_id)
             questions = questions_of(template) if template else []
             answered, total = self.progress(run, questions)
-            out.append((run, template_id, title, answered, total))
+            out.append(
+                (
+                    run,
+                    template_id,
+                    title,
+                    answered,
+                    total,
+                    bool(run.pending_clarifications),
+                )
+            )
         return out
 
     async def handle_message(self, run_id: UUID, content: str, respondent: User) -> SurveyRun:
@@ -259,7 +282,17 @@ class ConductEngine:
         this respondent could answer the survey at all was settled once, in
         start_run.
         """
-        run, questions = await self._locked_open_run(run_id, respondent)
+        # The lock is the same serialisation `_locked_open_run` provides: one turn at a
+        # time per run, so a double-clicked send cannot read the same pending list twice
+        # and then write two replies.
+        if not await self.repo.try_lock(run_id):
+            raise ConflictError("This run is already handling a message. Try again in a moment.")
+        run = await self.load(run_id, respondent)
+        if run.status is RunStatus.completed and run.pending_clarifications:
+            return await self._clarify_turn(run, content)
+        if run.status is not RunStatus.in_progress:
+            raise ConflictError("This run is already finished.")
+        questions = await self.questions(run)
 
         # Before the message is stored and before it is sent anywhere. Both matter and
         # the ordering is the whole point: a check that ran after the model call would
@@ -298,6 +331,135 @@ class ConductEngine:
         )
         await self.session.commit()
         return await self.load(run_id, respondent)
+
+    async def request_clarification(
+        self, run_id: UUID, question_id: UUID, author: User
+    ) -> SurveyRun:
+        """Ask this run's respondent to confirm one answer the author flagged.
+
+        An author reading a completed run flags an answer that does not belong to
+        the question it was given to, and this appends one clarifying question to
+        the run's transcript. Deliberately not a re-run and not a re-opening: the
+        conversation is over, the run's status stays ``completed``, and the
+        respondent answers only if they come back. A clarification is a receipt
+        with an unanswered question on it, not a second interview.
+
+        The author's identity is checked here rather than at the door: this is the
+        write path for somebody else's survey, so the narrow rule applies. `may_edit`
+        is owner or admin, and a colleague who may read rows may not ask questions
+        on them. A client that wants to hide the button can derive the same decision
+        from who the survey belongs to; the engine is the gate either way.
+
+        One message per respondent, however many answers were flagged: the first
+        flag appends the message, and each later flag rewrites it in place to cover
+        everything pending. A respondent who never returns is owed one unanswered
+        question, not one per flag, and a respondent who does return answers them
+        all at once. Flagging the same answer twice is a no-op, which makes the
+        author's double-click harmless.
+
+        The clarifying message is composed here, not by the model. It is a sentence
+        the engine owns in the run's language, quoting the author's own question
+        text and the respondent's own answer, and neither of those goes near a
+        model: asking a respondent to confirm their own words adds a fabrication
+        surface to a sentence that has none. Nothing is charged to the run's
+        ledger, and the message carries no prompt version, which is how a reader
+        tells it apart from an interview turn.
+        """
+        run = await self.repo.get(run_id)
+        if run is None:
+            raise NotFoundError("Run not found.")
+        template = await self.repo.get_template(run.template_id)
+        if template is None:
+            raise NotFoundError("The run's survey is missing.")
+        decision = may_edit(author, template.created_by, is_admin_by_config(author))
+        if not decision:
+            raise ForbiddenError(decision.reason)
+        if run.status is not RunStatus.completed:
+            raise ConflictError("Only a completed run can be asked to clarify its answers.")
+
+        key = str(question_id)
+        questions = questions_of(template)
+        by_id = {str(q["id"]): q for q in questions}
+        if key not in by_id:
+            raise NotFoundError("The survey does not contain this question.")
+        flagged = next(
+            (
+                a
+                for a in run.answers
+                if str(a.question_id) == key and a.kind is AnswerKind.scripted
+            ),
+            None,
+        )
+        if flagged is None:
+            raise ConflictError("This question was not answered in the run.")
+
+        pending = list(run.pending_clarifications)
+        if key in pending:
+            return run
+        pending.append(key)
+        run.pending_clarifications = pending
+        text = _clarification_text(run, questions, pending)
+        if len(pending) > 1 and run.messages and run.messages[-1].role is MessageRole.assistant:
+            # The previous flag's message is the last assistant message; rewriting it
+            # in place is what keeps one respondent to one clarifying question.
+            run.messages[-1].content = text
+        else:
+            run.messages.append(RunMessage(role=MessageRole.assistant, content=text))
+        await self.session.commit()
+        return run
+
+    async def _clarify_turn(self, run: SurveyRun, content: str) -> SurveyRun:
+        """One reply to the author's clarifying question, appended to a sealed run.
+
+        This is the respondent answering the author's flag, not a turn of the
+        conversation: the run's status stays ``completed`` the whole time, so the
+        dashboards and the completion counts never move.
+
+        The reply amends each pending answer in place, because it is a correction
+        of what the author is looking at: the flagged row keeps its question, its
+        kind and its timestamp, and only its value is replaced with what the
+        respondent says on reflection. The transcript keeps the whole exchange,
+        which stays a faithful record of what was actually asked and answered.
+
+        The shape of the reply is the question's own: an option re-answered gets
+        validated as an option, anything else is kept as prose, exactly the way a
+        follow-up answer is stored mid-run. What is deliberately not re-run is the
+        grounding gate: it exists to stop the *model* inventing facts, and this
+        text is the respondent's own words by construction, so checking it against
+        the survey would be a check of nothing.
+        """
+        found = pii.problem(content)
+        if found is not None:
+            # The kind, never the value, for the same reason handle_message logs it
+            # that way: a log line quoting the number it objected to has just become
+            # the second place that number is written down.
+            logger.info("refused a clarification carrying a %s: run=%s", found, run.id)
+            raise pii.PIIInMessageError(translate("pii_in_message", run.language))
+
+        run.messages.append(RunMessage(role=MessageRole.user, content=content))
+        questions = await self.questions(run)
+        by_id = {str(q["id"]): q for q in questions}
+        for key in list(run.pending_clarifications):
+            question = by_id.get(key)
+            if question is None:
+                continue
+            answer = next(
+                (
+                    a
+                    for a in run.answers
+                    if str(a.question_id) == key and a.kind is AnswerKind.scripted
+                ),
+                None,
+            )
+            if answer is None:
+                continue
+            answer.value = _follow_up_value(question, content)
+        run.pending_clarifications = []
+        run.messages.append(
+            RunMessage(role=MessageRole.assistant, content=translate("clarify_ack", run.language))
+        )
+        await self.session.commit()
+        return run
 
     async def delete_run(self, run_id: UUID, respondent: User) -> None:
         """Erase this respondent's own run: its answers, its transcript, all of it.
@@ -778,6 +940,35 @@ def _is_uuid(value: str) -> bool:
 
 def _opening_text(title: str, first: dict[str, Any]) -> str:
     return f"Thanks for taking {title}. {first['text']}"
+
+
+def _clarification_text(
+    run: SurveyRun, questions: list[dict[str, Any]], pending: list[str]
+) -> str:
+    """The one message an author's flags compose, in the run's language.
+
+    An intro line and one line per pending answer, each quoting the respondent's
+    own words against the author's own question text. The answer is rendered the
+    way the author's results page renders it (`flatten_answer`), so the respondent
+    is asked about the same cell the author flagged. The question ids in ``pending``
+    are all scripted answers of this run; anything that no longer resolves (an
+    answer erased, a question gone from a live-edited survey) simply drops out
+    rather than naming itself to the respondent.
+    """
+    by_id = {str(q["id"]): q for q in questions}
+    values = {
+        str(a.question_id): a.value
+        for a in run.answers
+        if a.kind is AnswerKind.scripted and str(a.question_id) in pending
+    }
+    lines = [
+        translate("clarify_line", run.language).format(
+            answer=flatten_answer(values[key]), question=by_id[key]["text"]
+        )
+        for key in pending
+        if key in values and key in by_id
+    ]
+    return "\n".join([translate("clarify_intro", run.language), *lines])
 
 
 def _last_assistant(run: SurveyRun) -> str:

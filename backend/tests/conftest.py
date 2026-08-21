@@ -281,7 +281,11 @@ async def published(session, author):
                     answer_type=AnswerType.short_text,
                     follow_up_policy=FollowUpPolicy.when_unclear,
                 ),
-                QuestionInput(text="Rate your onboarding", answer_type=AnswerType.rating),
+                QuestionInput(
+                    text="Rate your onboarding",
+                    answer_type=AnswerType.rating,
+                    follow_up_policy=FollowUpPolicy.never,
+                ),
             ],
         ),
         author,

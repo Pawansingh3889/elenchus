@@ -35,6 +35,8 @@ CONTRACT = {
     "required",
     "follow_up_policy",
     "show_when",
+    "unit",
+    "display_unit",
 }
 
 
@@ -49,6 +51,8 @@ def _question(**kw: object) -> SurveyQuestion:
         "required": True,
         "follow_up_policy": FollowUpPolicy.never,
         "show_when": None,
+        "unit": None,
+        "display_unit": None,
     }
     return SurveyQuestion(**(fields | kw))
 

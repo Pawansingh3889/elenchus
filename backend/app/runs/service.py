@@ -258,6 +258,8 @@ class ResultsService:
                     text=q["text"],
                     answer_type=q["answer_type"],
                     options=q.get("options") or [],
+                    unit=q.get("unit"),
+                    display_unit=q.get("display_unit"),
                 )
                 for q in questions
             ],
@@ -386,6 +388,8 @@ def _report_question(
         # asked, and "asked and declined" is a finding.
         follow_ups=[flatten_answer(v) for v in probe_values if "unanswerable" not in v],
         probed=probed,
+        unit=question.get("unit"),
+        display_unit=question.get("display_unit"),
     )
 
 

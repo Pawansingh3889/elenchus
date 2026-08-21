@@ -96,12 +96,18 @@ class SurveyQuestion(Base):
     allow_other: Mapped[bool] = mapped_column(Boolean, default=False)
     required: Mapped[bool] = mapped_column(Boolean, default=True)
     follow_up_policy: Mapped[FollowUpPolicy] = mapped_column(
-        SAEnum(FollowUpPolicy, name="follow_up_policy"), default=FollowUpPolicy.never
+        SAEnum(FollowUpPolicy, name="follow_up_policy"), default=FollowUpPolicy.when_unclear
     )
     # {"question": <0-based position of an earlier question>, "op": "is"|"is_not",
     # "value": "..."} or NULL for always-visible. Keyed by position, not id: a draft
     # edit replaces every question row, so ids do not survive a save.
     show_when: Mapped[dict[str, Any] | None] = mapped_column(JSONB, default=None)
+    # What the number means, and an optional second unit to also display. A temperature
+    # logged in Celsius but read by someone in Fahrenheit is the case that put "the
+    # temperature question had no unit" on the list. Both nullable: most questions are not
+    # measured quantities. Currency is intentionally absent (see app/units.py).
+    unit: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
+    display_unit: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
 
     template: Mapped["SurveyTemplate"] = relationship(back_populates="questions")
 

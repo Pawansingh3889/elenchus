@@ -22,8 +22,9 @@ arriving. A recap generated from eight responses and served after twenty have la
 not stale, it is wrong, and the prose gives no sign of it. So the stored document carries
 the version and completed-run count it was made from, and anything else regenerates.
 
-**The shape is fixed, and short.** One headline, at most three findings, and a caveat
-line, chosen so every recap reads the same way and fits on a screen. The caveat is
+**The shape is fixed, and terse.** A headline of a few words, at most three findings of
+one clause each, and a caveat line, chosen so every recap reads the same way and fits
+on a screen. The caveat is
 computed from the report rather than written by the model (who answered, who answered
 an earlier version, what was mostly declined), because the one line that qualifies the
 evidence must itself be beyond question. Quotes were dropped from this recap when the
@@ -58,8 +59,14 @@ from app.users.models import User
 logger = logging.getLogger("app.runs.survey_summary")
 
 MAX_FINDINGS = 3
-PROMPT_VERSION = "summarise_survey_v2"
-VERIFY_PROMPT_VERSION = "verify_survey_summary_v2"
+PROMPT_VERSION = "summarise_survey_v3"
+VERIFY_PROMPT_VERSION = "verify_survey_summary_v3"
+
+# The caps the terse shape runs on: a punchy headline and one-clause findings. A longer
+# candidate is refused at validation, on the rule that a recap past its size was already
+# not going to be read.
+_HEADLINE_MAX = 140
+_FINDING_MAX = 160
 
 # A statement is the pattern in words. Digits in it are a number the model wrote, and
 # every number on this page is supposed to come from the report instead.
@@ -77,7 +84,7 @@ class Finding(BaseModel):
     arbitrarily.
     """
 
-    statement: str = Field(min_length=1, max_length=400)
+    statement: str = Field(min_length=1, max_length=_FINDING_MAX)
     question_position: int | None = None
 
     @field_validator("statement")
@@ -100,7 +107,7 @@ class SurveySummaryContent(BaseModel):
     run summary requires only its own: a survey answered twice by two people who ticked
     three boxes has no findings worth listing, and padding it would be invention."""
 
-    headline: str = Field(min_length=1, max_length=300)
+    headline: str = Field(min_length=1, max_length=_HEADLINE_MAX)
     findings: list[Finding] = Field(default_factory=list, max_length=MAX_FINDINGS)
 
     @field_validator("headline")
