@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     # because OpenAI's API rejects the annotation with a 400, which would drop tier 1 from
     # the chain; enable per tier only for a provider that honours it.
     llm_tier1_prompt_cache: bool = Field(
-        False, description="Mark the system prefix cacheable on a caching-capable provider"
+        True, description="Mark the system prefix cacheable on a caching-capable provider"
     )
 
     llm_tier2_enabled: bool = Field(False, description="Enable tier 2, tried when tier 1 fails")

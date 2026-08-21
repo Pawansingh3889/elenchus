@@ -195,7 +195,7 @@ export function QuestionEditor({
           {question.answer_type === "number" ? (
             <div className="qcard-row">
               <label>
-                Unit
+                {msg.builder.unit}
                 <select
                   value={question.unit ?? ""}
                   onChange={(e) => onChange({ unit: e.target.value || null })}
@@ -213,12 +213,12 @@ export function QuestionEditor({
                 </select>
               </label>
               {question.unit ? (
-                <label>
-                  Also show in
-                  <select
-                    value={question.display_unit ?? ""}
-                    onChange={(e) => onChange({ display_unit: e.target.value || null })}
-                  >
+              <label>
+                {msg.builder.displayUnit}
+                <select
+                  value={question.display_unit ?? ""}
+                  onChange={(e) => onChange({ display_unit: e.target.value || null })}
+                >
                     <option value="">—</option>
                     {(() => {
                       const dim = unitDimension(question.unit);

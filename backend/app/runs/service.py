@@ -34,6 +34,7 @@ from app.templates.models import SurveyTemplate
 from app.templates.reading import questions_of
 from app.templates.repository import TemplateRepository
 from app.templates.visibility import remaining_possible
+from app.units import can_convert, convert
 from app.users.models import User
 from app.users.repository import UserRepository
 from app.users.service import UserService
@@ -357,9 +358,18 @@ def _report_question(
         ]
     elif answer_type in ("rating", "number"):
         numbers = [v[answer_type] for v in answered if isinstance(v.get(answer_type), int | float)]
-        if numbers:
-            average = sum(numbers) / len(numbers)
-            low, high = min(numbers), max(numbers)
+        # A number question with a display unit shows its stats in that unit. Temperature is
+        # affine, so each answer is converted before averaging, never the average after:
+        # averaging Celsius then converting would put a freezer at the wrong Fahrenheit.
+        # Ratings are a 1-5 scale, not a measured quantity, so they are never converted.
+        reported = numbers
+        if answer_type == "number" and can_convert(
+            question.get("unit"), question.get("display_unit")
+        ):
+            reported = [convert(x, question["unit"], question["display_unit"]) for x in numbers]
+        if reported:
+            average = sum(reported) / len(reported)
+            low, high = min(reported), max(reported)
         if answer_type == "rating":
             # The whole 1-5 scale, so an unused end of it is visible rather than absent.
             counts = [

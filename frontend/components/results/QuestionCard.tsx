@@ -229,10 +229,13 @@ export function QuestionCard({
       </div>
       <h3 className="mt-1 text-md font-semibold">{question.text}</h3>
       {question.unit ? (
-        // Plain labels: new fields, not yet in the translation catalog.
+        // The stats below are in the display unit when one is set, so name that; the
+        // original unit the answer was logged in is worth keeping alongside.
         <p className="mt-0.5 text-xs text-muted">
-          Unit: {unitSymbol(question.unit)}
-          {question.display_unit ? ` · also ${unitSymbol(question.display_unit)}` : ""}
+          {msg.report.unit(unitSymbol(question.display_unit ?? question.unit))}
+          {question.display_unit && question.display_unit !== question.unit ? (
+            <> · {msg.report.loggedAs(unitSymbol(question.unit))}</>
+          ) : null}
         </p>
       ) : null}
       <p className="mt-1 text-sm text-muted">
