@@ -508,3 +508,42 @@ export function useUpdateSettings() {
     },
   });
 }
+
+export function useAuditLog() {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["audit-log", userId],
+    queryFn: api.auditLog,
+    enabled: !!userId,
+    staleTime: 30_000,
+  });
+}
+
+export function useLlmSpend() {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["llm-spend", userId],
+    queryFn: api.llmSpend,
+    enabled: !!userId,
+    staleTime: 30_000,
+  });
+}
+
+export function useSeedUsers() {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["seed-users", userId],
+    queryFn: api.seedUsers,
+    enabled: !!userId,
+  });
+}
+
+export function useRunSeed() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.seedRun(),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["seed-users"] });
+    },
+  });
+}

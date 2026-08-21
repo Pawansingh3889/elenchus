@@ -9,9 +9,9 @@ import { SignInPrompt } from "@/components/SignInPrompt";
 import { Stat } from "@/components/Stat";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLlmReport, useLlmRunEntries, useMe, useAdminHealth, useSettings, useUpdateSettings } from "@/lib/queries";
+import { useLlmReport, useLlmRunEntries, useMe, useAdminHealth, useSettings, useUpdateSettings, useAuditLog, useLlmSpend, useSeedUsers, useRunSeed } from "@/lib/queries";
 import { useUserStore } from "@/lib/store";
-import type { LlmEntry, LlmModelStats, LlmRunSummary, TierConfig, SettingsRead } from "@/lib/types";
+import type { LlmDailySpend, LlmEntry, LlmModelStats, LlmRunSummary, TierConfig, SettingsRead } from "@/lib/types";
 
 function formatTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -239,6 +239,162 @@ function SettingsPanel() {
       >
         {saving ? "Saving..." : "Save settings"}
       </button>
+    </Card>
+  );
+}
+
+function AuditLogPanel() {
+  const { data: changes, isLoading, error } = useAuditLog();
+  if (isLoading) return <Card className="p-4"><Skeleton className="h-32 w-full" /></Card>;
+  if (error) return <Card className="p-4 text-sm text-warn-text">Failed to load audit log</Card>;
+  if (!changes || changes.length === 0) return <Card className="p-4 text-sm text-muted">No account changes yet.</Card>;
+
+  return (
+    <Card className="flex flex-col gap-3 p-4">
+      <h2 className="text-md font-semibold">Audit Log</h2>
+      <div className="max-h-96 overflow-y-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
+              <th className="px-3 py-2">When</th>
+              <th className="px-3 py-2">Who</th>
+              <th className="px-3 py-2">Kind</th>
+              <th className="px-3 py-2">Before</th>
+              <th className="px-3 py-2">After</th>
+            </tr>
+          </thead>
+          <tbody>
+            {changes.slice(0, 50).map((c) => (
+              <tr key={c.id} className="border-b border-border last:border-0">
+                <td className="px-3 py-2 text-xs text-muted whitespace-nowrap">
+                  {new Date(c.changed_at).toLocaleString()}
+                </td>
+                <td className="px-3 py-2">{c.changed_by_name ?? "an administrator"}</td>
+                <td className="px-3 py-2">
+                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs ${c.kind === "created" ? "bg-green-100 text-green-800" : c.kind === "updated" ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"}`}>
+                    {c.kind}
+                  </span>
+                </td>
+                <td className="px-3 py-2 text-xs font-mono max-w-[200px] truncate" title={JSON.stringify(c.before)}>
+                  {JSON.stringify(c.before)}
+                </td>
+                <td className="px-3 py-2 text-xs font-mono max-w-[200px] truncate" title={JSON.stringify(c.after)}>
+                  {JSON.stringify(c.after)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
+}
+
+function LlmSpendPanel() {
+  const { data: spend, isLoading, error } = useLlmSpend();
+  if (isLoading) return <Card className="p-4"><Skeleton className="h-48 w-full" /></Card>;
+  if (error) return <Card className="p-4 text-sm text-warn-text">Failed to load spend</Card>;
+  if (!spend) return null;
+
+  const rows = spend.days.slice(0, 50);
+
+  return (
+    <Card className="flex flex-col gap-3 p-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-md font-semibold">LLM Spend</h2>
+        <div className="flex gap-4 text-xs text-muted">
+          <span>Total: ${spend.total_cost_usd.toFixed(4)}</span>
+          <span>Calls: {spend.total_calls}</span>
+          <span>Errors: {spend.total_errors > 0 ? <span className="text-warn-text">{spend.total_errors}</span> : 0}</span>
+        </div>
+      </div>
+      <div className="max-h-96 overflow-y-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
+              <th className="px-3 py-2">Day</th>
+              <th className="px-3 py-2">Tier</th>
+              <th className="px-3 py-2">Model</th>
+              <th className="px-3 py-2 text-right">Calls</th>
+              <th className="px-3 py-2 text-right">Cost</th>
+              <th className="px-3 py-2 text-right">Avg latency</th>
+              <th className="px-3 py-2 text-right">Errors</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row: LlmDailySpend, idx: number) => (
+              <tr key={`${row.day}-${row.tier}-${row.model}-${idx}`} className="border-b border-border last:border-0">
+                <td className="px-3 py-2 whitespace-nowrap">{row.day}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{row.tier ?? "-"}</td>
+                <td className="px-3 py-2">{row.model ?? "-"}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{row.calls}</td>
+                <td className="px-3 py-2 text-right tabular-nums">${row.total_cost_usd.toFixed(4)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">
+                  {row.calls > 0 ? `${(row.total_latency_ms / row.calls).toFixed(0)}ms` : "-"}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums">
+                  {row.error_count > 0 ? <span className="text-warn-text">{row.error_count}</span> : "0"}
+                </td>
+              </tr>
+            ))}
+            {rows.length === 0 && (
+              <tr><td colSpan={7} className="px-3 py-4 text-center text-sm text-muted">No ledger entries yet.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
+}
+
+function SeedPanel() {
+  const { data: users, isLoading, error } = useSeedUsers();
+  const runSeed = useRunSeed();
+  const [result, setResult] = useState<string | null>(null);
+
+  async function handleRunSeed() {
+    try {
+      const res = await runSeed.mutateAsync();
+      setResult(`Seeded ${res.users} users, ${res.hats} hats, ${res.surveys} surveys.`);
+    } catch (e) {
+      setResult(e instanceof Error ? e.message : "Seed failed");
+    }
+  }
+
+  if (isLoading) return <Card className="p-4"><Skeleton className="h-32 w-full" /></Card>;
+  if (error) return <Card className="p-4 text-sm text-warn-text">Failed to load seed data</Card>;
+
+  return (
+    <Card className="flex flex-col gap-3 p-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-md font-semibold">Seed Data</h2>
+        <button className="btn-primary text-xs" onClick={handleRunSeed} disabled={runSeed.isPending}>
+          {runSeed.isPending ? "Seeding..." : "Re-run seed"}
+        </button>
+      </div>
+      {result && <p className="text-xs text-muted">{result}</p>}
+      <div className="max-h-64 overflow-y-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
+              <th className="px-3 py-2">Name</th>
+              <th className="px-3 py-2">Email</th>
+              <th className="px-3 py-2">Function</th>
+              <th className="px-3 py-2">Band</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users?.map((u) => (
+              <tr key={u.id} className="border-b border-border last:border-0">
+                <td className="px-3 py-2">{u.display_name}</td>
+                <td className="px-3 py-2 text-xs">{u.email}</td>
+                <td className="px-3 py-2">{u.function}</td>
+                <td className="px-3 py-2">{u.band}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </Card>
   );
 }
@@ -502,6 +658,9 @@ export default function AdminPage() {
               </table>
             </Card>
           </section>
+          <AuditLogPanel />
+          <LlmSpendPanel />
+          <SeedPanel />
         </>
       ) : null}
     </div>

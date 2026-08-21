@@ -47,3 +47,20 @@ class LlmReport(BaseModel):
     avg_latency_ms: float
     models: list[LlmModelStats]
     runs: list[LlmRunSummary]
+
+
+class LlmDailySpend(BaseModel):
+    day: str
+    tier: int | None = None
+    model: str | None = None
+    calls: int = 0
+    total_cost_usd: float = 0.0
+    total_latency_ms: int = 0
+    error_count: int = 0
+
+
+class LlmSpendSummary(BaseModel):
+    days: list[LlmDailySpend]
+    total_cost_usd: float
+    total_calls: int
+    total_errors: int

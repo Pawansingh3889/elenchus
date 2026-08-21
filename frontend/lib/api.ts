@@ -2,6 +2,7 @@ import { useLocaleStore, useUserStore } from "./store";
 import type {
   Account,
   AccountChangeEntry,
+  AccountChangeRead,
   AccountCreate,
   AccountImpact,
   AccountWrite,
@@ -12,6 +13,7 @@ import type {
   GeneratedTemplate,
   LlmEntry,
   LlmReport,
+  LlmSpendSummary,
   Me,
   Person,
   Run,
@@ -19,6 +21,8 @@ import type {
   RunDetail,
   RunSummary,
   RunSummaryContent,
+  SeedRunRead,
+  SeedUserRead,
   SettingsRead,
   SettingsUpdate,
   SurveyAudience,
@@ -243,8 +247,12 @@ export const api = {
     ),
   llmReport: () => request<LlmReport>("/admin/llm/report"),
   llmRunEntries: (runId: string) => request<LlmEntry[]>(`/admin/llm/run/${runId}`),
+  llmSpend: () => request<LlmSpendSummary>("/admin/llm/spend"),
   adminHealth: () => request<AdminHealthRead>("/admin/health"),
   readSettings: () => request<SettingsRead>("/admin/settings"),
   updateSettings: (data: SettingsUpdate) =>
     request<SettingsRead>("/admin/settings", { method: "PATCH", body: JSON.stringify(data) }),
+  auditLog: () => request<AccountChangeRead[]>("/admin/audit"),
+  seedUsers: () => request<SeedUserRead[]>("/admin/seed/users"),
+  seedRun: () => request<SeedRunRead>("/admin/seed/run", { method: "POST" }),
 };

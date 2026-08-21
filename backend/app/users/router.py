@@ -211,6 +211,15 @@ async def account_history(
     return await UserService(session).history(user_id)
 
 
+@admin_router.get("/audit", response_model=list[AccountChangeRead])
+async def audit_log(
+    _: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> list[AccountChangeRead]:
+    """Recent account changes across every user, newest first."""
+    return await UserService(session).audit_log()
+
+
 class ResetRead(BaseModel):
     status: str
     users: int

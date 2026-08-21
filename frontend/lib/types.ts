@@ -581,3 +581,46 @@ export interface AdminHealthRead {
   demo_mode: boolean;
   tiers: Record<string, Record<string, unknown>>;
 }
+
+export interface AccountChangeRead {
+  id: string;
+  changed_at: string;
+  changed_by: string | null;
+  changed_by_name: string | null;
+  kind: string;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown>;
+}
+
+export interface LlmDailySpend {
+  day: string;
+  tier: number | null;
+  model: string | null;
+  calls: number;
+  total_cost_usd: number;
+  total_latency_ms: number;
+  error_count: number;
+}
+
+export interface LlmSpendSummary {
+  days: LlmDailySpend[];
+  total_cost_usd: number;
+  total_calls: number;
+  total_errors: number;
+}
+
+export interface SeedUserRead {
+  id: string;
+  email: string;
+  display_name: string;
+  function: string;
+  band: string;
+  microsoft_id: string | null;
+}
+
+export interface SeedRunRead {
+  status: string;
+  users: number;
+  hats: number;
+  surveys: number;
+}

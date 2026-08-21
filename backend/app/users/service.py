@@ -187,6 +187,21 @@ class UserService:
             for change, editor_name in await self.repo.history_for(user_id)
         ]
 
+    async def audit_log(self, limit: int = 100) -> list[AccountChangeRead]:
+        """Recent account changes across every user, for the admin audit screen."""
+        return [
+            AccountChangeRead(
+                id=change.id,
+                changed_at=change.changed_at,
+                changed_by=change.changed_by,
+                changed_by_name=editor_name,
+                kind=change.change["kind"],
+                before=change.change["before"],
+                after=change.change["after"],
+            )
+            for change, editor_name in await self.repo.all_changes(limit)
+        ]
+
     async def preview_change(self, user_id: UUID, data: AccountUpdate) -> AccountImpact:
         """What saving this edit would do to who can answer what, before it is saved.
 
