@@ -1,0 +1,245 @@
+{
+  "scenario": "evasive",
+  "captured_at": "2026-08-20T16:51:07.618210+00:00",
+  "model": "gpt-5.5",
+  "survey_title": "New Shift Handover Process Check-in",
+  "status": "completed",
+  "respondent_messages": [
+    "i sort of run the line i guess",
+    "mostly making sure the handover actually happens",
+    "honestly it's been a bit of a mess",
+    "rather not say",
+    "eleven out of five",
+    "4",
+    "yeah fine",
+    "no"
+  ],
+  "trace": {
+    "total": 5,
+    "positions": [
+      0,
+      1,
+      2,
+      2,
+      3,
+      3,
+      4,
+      4
+    ],
+    "questions": [
+      {
+        "id": "e05db6d1-389d-4958-a285-d68cce13c79c",
+        "position": 0,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "d9e99a08-76d0-49e7-a110-4471005a0044",
+        "position": 1,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "ade67702-b6de-475b-865e-18e0c688d56e",
+        "position": 2,
+        "follow_up_policy": "when_unclear"
+      },
+      {
+        "id": "2c28c05b-b612-4267-b0d0-e3dd16d759e6",
+        "position": 3,
+        "follow_up_policy": "always_once"
+      },
+      {
+        "id": "d04c4d7c-982b-458b-9efa-e474c7fbde1b",
+        "position": 4,
+        "follow_up_policy": "always_once"
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "e05db6d1-389d-4958-a285-d68cce13c79c",
+        "kind": "scripted",
+        "unanswerable": false
+      },
+      {
+        "question_id": "d9e99a08-76d0-49e7-a110-4471005a0044",
+        "kind": "scripted",
+        "unanswerable": true
+      },
+      {
+        "question_id": "ade67702-b6de-475b-865e-18e0c688d56e",
+        "kind": "scripted",
+        "unanswerable": true
+      },
+      {
+        "question_id": "2c28c05b-b612-4267-b0d0-e3dd16d759e6",
+        "kind": "scripted",
+        "unanswerable": true
+      },
+      {
+        "question_id": "d04c4d7c-982b-458b-9efa-e474c7fbde1b",
+        "kind": "scripted",
+        "unanswerable": false
+      },
+      {
+        "question_id": "d04c4d7c-982b-458b-9efa-e474c7fbde1b",
+        "kind": "follow_up",
+        "unanswerable": true
+      }
+    ]
+  },
+  "answers": [
+    {
+      "question_text": "What is your role in the warehouse?",
+      "answer_type": "single_select",
+      "options": [
+        "Warehouse operative",
+        "Forklift driver",
+        "Picker",
+        "Packer",
+        "Goods-in team member",
+        "Dispatch team member",
+        "Team leader",
+        "Supervisor"
+      ],
+      "allow_other": true,
+      "kind": "scripted",
+      "value": {
+        "other": "I sort of run the line"
+      },
+      "said": [
+        "i sort of run the line i guess"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Which shift do you usually work?",
+      "answer_type": "single_select",
+      "options": [
+        "Early shift",
+        "Late shift",
+        "Night shift",
+        "Rotating shifts",
+        "Weekend shift"
+      ],
+      "allow_other": true,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "mostly making sure the handover actually happens"
+      },
+      "said": [
+        "i sort of run the line i guess",
+        "mostly making sure the handover actually happens"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Overall, how well is the new shift handover process working?",
+      "answer_type": "rating",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "rather not say"
+      },
+      "said": [
+        "i sort of run the line i guess",
+        "mostly making sure the handover actually happens",
+        "honestly it's been a bit of a mess",
+        "rather not say"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    },
+    {
+      "question_text": "What is the one most important thing you would change about the handover process?",
+      "answer_type": "single_select",
+      "options": [
+        "Clearer information about outstanding tasks",
+        "More time for handover",
+        "Better notes or paperwork",
+        "Clearer responsibility for who gives the handover",
+        "Better update on equipment or maintenance issues",
+        "Better update on stock, orders, or priorities",
+        "Fewer interruptions during handover",
+        "More consistent handover between shifts"
+      ],
+      "allow_other": true,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "4"
+      },
+      "said": [
+        "i sort of run the line i guess",
+        "mostly making sure the handover actually happens",
+        "honestly it's been a bit of a mess",
+        "rather not say",
+        "eleven out of five",
+        "4"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Would you recommend keeping the new handover process?",
+      "answer_type": "yes_no",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "yes_no": true
+      },
+      "said": [
+        "i sort of run the line i guess",
+        "mostly making sure the handover actually happens",
+        "honestly it's been a bit of a mess",
+        "rather not say",
+        "eleven out of five",
+        "4",
+        "yeah fine"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Thanks — what’s the main reason you’d recommend keeping it?",
+      "answer_type": "yes_no",
+      "options": [],
+      "allow_other": false,
+      "kind": "follow_up",
+      "value": {
+        "unanswerable": "no"
+      },
+      "said": [
+        "i sort of run the line i guess",
+        "mostly making sure the handover actually happens",
+        "honestly it's been a bit of a mess",
+        "rather not say",
+        "eleven out of five",
+        "4",
+        "yeah fine",
+        "no"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    }
+  ]
+}

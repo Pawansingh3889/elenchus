@@ -15,6 +15,7 @@ import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import HTTP_201_CREATED
 
@@ -22,6 +23,8 @@ from app.access import is_admin_by_config, may_author
 from app.auth.dependencies import get_current_user, require_admin, require_author
 from app.db.session import get_session
 from app.errors import NotFoundError
+from app.sample_data import SAMPLE_SURVEYS
+from app.seed import SEED_USERS, reset_demo
 from app.templates.enums import SurveyAudience
 from app.users.models import User
 from app.users.repository import UserRepository
@@ -206,3 +209,24 @@ async def account_history(
 ) -> list[AccountChangeRead]:
     """Who changed this account, when, and from what to what. Append-only underneath."""
     return await UserService(session).history(user_id)
+
+
+class ResetRead(BaseModel):
+    status: str
+    users: int
+    surveys: int
+
+
+@dev_router.post("/reset", response_model=ResetRead)
+async def reset_endpoint(
+    session: AsyncSession = Depends(get_session),
+) -> ResetRead:
+    """Wipe all data and re-seed. Demo mode only.
+
+    Unauthenticated by necessity, like /dev/identify: the endpoint exists so a demo
+    operator can restore a clean state without database access. Mounted only when
+    APP_ENV=demo, which is the whole of its protection.
+    """
+    await reset_demo()
+    logger.info("demo reset: all data wiped and re-seeded")
+    return ResetRead(status="ok", users=len(SEED_USERS), surveys=len(SAMPLE_SURVEYS))

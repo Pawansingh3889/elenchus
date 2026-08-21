@@ -44,6 +44,8 @@ def _question_to_dict(question: SurveyQuestion) -> dict[str, Any]:
         "required": bool(question.required),
         "follow_up_policy": question.follow_up_policy.value,
         "show_when": question.show_when,
+        "unit": question.unit,
+        "display_unit": question.display_unit,
     }
 
 

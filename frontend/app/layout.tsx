@@ -7,6 +7,7 @@ import { TopBar } from "@/components/TopBar";
 // move. See the header of tailwind.css.
 import "./tailwind.css";
 import "./globals.css";
+import { DemoBanner } from "@/components/DemoBanner";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
@@ -25,12 +26,15 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+const isDemo = process.env.NEXT_PUBLIC_APP_ENV === "demo";
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
         <Providers>
           <TopBar />
+          {isDemo && <DemoBanner />}
           <main className="app-main">{children}</main>
         </Providers>
       </body>

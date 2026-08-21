@@ -108,6 +108,10 @@ class OpenAICompatibleLLMClient:
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
         transport: httpx.AsyncBaseTransport | None = None,
         tier: int = 0,
+        # Opt-in prefix caching. Off unless the factory enables it for a provider that
+        # honours `cache_control`; OpenAI rejects the annotation, so it must never be on
+        # for tier 1 by default.
+        prompt_cache: bool = False,
     ) -> None:
         if not base_url or not model:
             raise LLMError("This LLM tier is enabled but its base_url/model are not configured.")
@@ -121,6 +125,7 @@ class OpenAICompatibleLLMClient:
         # and 0 records honestly as "no economics configured" rather than pricing the
         # call as tier 1's.
         self._tier = tier
+        self._prompt_cache = prompt_cache
 
     async def _post(self, payload: dict[str, Any], op: str = "unknown") -> dict[str, Any]:
         """POST once, retrying the cheap transient failures, booking every attempt."""
@@ -339,6 +344,19 @@ class OpenAICompatibleLLMClient:
             for tool in tools
         ]
 
+    def _system_message(self, system: str) -> dict[str, Any]:
+        """The system message, marked cacheable when the tier opted in.
+
+        The system prompt is the large, stable prefix every turn shares, so it is the
+        natural cache breakpoint: a caching-capable provider reuses it instead of
+        re-pricing it per turn. The annotation is omitted unless `prompt_cache` is set,
+        because providers that do not understand it (notably OpenAI) answer a 400.
+        """
+        message: dict[str, Any] = {"role": "system", "content": system}
+        if self._prompt_cache:
+            message["cache_control"] = {"type": "ephemeral"}
+        return message
+
     async def tool_call(
         self,
         *,
@@ -358,7 +376,7 @@ class OpenAICompatibleLLMClient:
             # tier answers to; checked against all three on 12 Aug 2026.
             "max_completion_tokens": max_tokens,
             "messages": [
-                {"role": "system", "content": system},
+                self._system_message(system),
                 {"role": "user", "content": prompt},
             ],
             "tools": self._as_openai_tools(
@@ -393,7 +411,7 @@ class OpenAICompatibleLLMClient:
             "model": self._model,
             # The newer spelling, for the reason given in tool_call above.
             "max_completion_tokens": max_tokens,
-            "messages": [{"role": "system", "content": system}, *messages],
+            "messages": [self._system_message(system), *messages],
             "tools": self._as_openai_tools(tools),
             # "required" alone means at least one call, not exactly one. The second half
             # of "exactly" is parallel_tool_calls, and the belt for endpoints that

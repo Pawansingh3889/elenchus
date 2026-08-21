@@ -74,6 +74,12 @@ export const lt: Messages = {
     colHats: "Papildomos pareigos",
     buildsSurveys: "Kuria apklausas",
     noJob: "Be pareigų, todėl nieko negalima paklausti",
+    searchPlaceholder: "Ieškoti žmonių",
+    bandFilterLabel: "Lygis",
+    bandFilterAll: "Visi lygiai",
+    noMatches: "Niekas neatitinka.",
+    inFunction: (n: number) => `${n} ${n === 1 ? 'žmogus' : n < 10 ? 'žmonės' : 'žmonių'}`,
+    showing: (shown: number, total: number) => `Rodoma ${shown} iš ${total}`,
     readOnly: "Tik skaitymui. Pridėti ar keisti žmones gali tik administratorius.",
   },
   admin: {
@@ -195,24 +201,57 @@ export const lt: Messages = {
     heroTitle: "Apklausos, kurios klausia kaip žmogus, o ne kaip forma",
     heroBody:
       "Aprašykite, ką norite sužinoti, ir klausimai bus parengti už jus. Paskelbus žmonės atsako pokalbiu, o ne pildo laukelius. Kiekvienas atsakymas prieš išsaugant patikrinamas pagal klausimą.",
-    videoTitle: "Pažiūrėkite, kaip veikia",
-    videoLabel: "Trumpas vaizdo įrašas apie apklausų paslaugą veikiant",
-    videoUnsupported: "Jūsų naršyklė negali atkurti šio vaizdo įrašo.",
-    howTitle: "Kaip tai veikia",
-    stepNumber: (n: number) => `${n} žingsnis`,
-    step1Title: "Aprašykite",
-    step1Body:
-      "Parašykite sakinį apie tai, ką norite sužinoti. Klausimai, jų tipai ir pasirinkimai bus parengti iš jo, o kiekvieną galėsite pakeisti redaktoriuje.",
-    step2Title: "Paskelbkite",
-    step2Body:
-      "Paskelbimas užšaldo apklausą kaip versiją, kuri nebegali keistis po atsakančiaisiais. Juodraštis toliau keičiasi atskirai.",
-    step3Title: "Jie atsako pokalbiu",
-    step3Body:
-      "Respondentai pereina klausimus pokalbio metu. Variklis nusprendžia, kas toliau ir kas laikoma atsakymu, todėl niekas neišgalvojama ir niekas nepraleidžiama.",
-    needsYou: (n: number) => `Apklausos, kurios laukia jūsų: ${n} →`,
     respondBody: "Jūsų laukia apklausos.",
     respondCta: "Atsakyti į apklausą",
-    signedOutHint: "Prisijunkite puslapio viršuje, kad pradėtumėte.",
+    composeTitle: "Ką norite sužinoti?",
+    signInCta: "Prisijunkite ir pradėkite",
+    recentTitle: "Neseniai atnaujintos",
+    allSurveys: "Visos apklausos",
+    newAuthorLead: "Dar nesukūrėte nė vienos apklausos. Štai kas vyksta, kai ją sukuriate.",
+    manualTitle: "Produkto vadovas",
+    manualSubtitle: "Viskas, ką reikia žinoti, keturiose dalyse.",
+    manualAuthorTitle: "Autoriams",
+    manualAuthorCreate:
+      "Apibūdinkite apklausą vienu sakiniu. AI parengia viską.",
+    manualAuthorEdit:
+      "Redaguokite, perkelkite ar keiskite bet kurį klausimą. Nustatykite papildomų klausimų politiką.",
+    manualAuthorPublish:
+      "Paskelbimas atveria apklausą ir užšaldo klausimus respondentams.",
+    manualAuthorResults:
+      "Rezultatai kaip diagramos. Filtruokite pagal atsakymą. Eksportuokite į CSV.",
+    manualRespondentTitle: "Respondentams",
+    manualRespondentOpen:
+      "Atviros apklausos yra pradžios puslapyje. Pasirinkite ir pradėkite.",
+    manualRespondentChat:
+      "Atsakykite pokalbyje. Papildomi klausimai esant neaiškiems atsakymams.",
+    manualRespondentFollowup:
+      "Papildomi klausimai riboti kiekvienam klausimui ir sekami variklio.",
+    manualRespondentComplete:
+      "Visi klausimai atsakyti = vykdymas baigtas ir išsaugotas.",
+    manualAudienceTitle: "Tikslinės grupės",
+    manualAudienceWho:
+      "Nukreipkite į grupę, skyrių, lygį ar asmenį.",
+    manualAudienceReach:
+      "Gyvas skaičius, kiek iš auditorijos atsakė.",
+    manualAudienceAnonymous:
+      "Atsakymai yra pseudoniminiai. Autorius mato grupę, ne asmenį.",
+    manualAdminTitle: "Administravimas",
+    manualAdminUsers:
+      "Administratoriai valdo paskyras ir pareigų paskirstymą.",
+    manualAdminJobs:
+      "Vienos pareigos asmeniui: funkcija × lygis. Kepurės prideda skersines pareigas.",
+    manualAdminReset:
+      "Demo režimas: Reset ištrina viską ir atkuria iš fixture.",
+    trustTitle: "Kodėl Elenchus?",
+    trustPrivacyTitle: "Privatumas pagal dizainą",
+    trustPrivacyBody:
+      "Atsakymai yra pseudoniminiai. Jokių asmeninių duomenų, nebent apklausa to aiškiai klausia.",
+    trustTransparencyTitle: "Skaidrus AI",
+    trustTransparencyBody:
+      "Kiekvienas sugeneruotas klausimas yra redaguojamas. Matote ir patvirtinate viską.",
+    trustConversationalTitle: "Pokalbio pobūdžio",
+    trustConversationalBody:
+      "Respondentai atsako pokalbyje, ne formose. Papildomi klausimai paaiškina be papildomų klausimų.",
   },
   builder: {
     pickUser: "Prisijunkite viršutinėje juostoje.",
@@ -231,6 +270,8 @@ export const lt: Messages = {
     followUpsWhenUnclear: "Kai atsakymas neaiškus",
     followUpsAlwaysOnce: "Visada paklausti kartą",
     allowOther: "Leisti „kita“",
+    unit: "Unit",
+    displayUnit: "Also show in",
     show: "Rodyti",
     always: "visada",
     onlyIf: "tik jei…",
@@ -264,7 +305,7 @@ export const lt: Messages = {
     publishTitle: (t: string) => `Paskelbti „${t}“?`,
     publishShape: (q: number, p: number) => p > 0 ? `${q} klausimai, iš jų ${p} visada patikslina.` : `${q} klausimai.`,
     publishFreezes:
-      "Paskelbus apklausa atidaroma atsakymams. Vėlesni pakeitimai keičia ją visiems, taip pat ir tiems, kurie jau atsakinėja.",
+      "Paskelbus ši apklausa atveriama atsakymams ir užšaldoma: klausimai nebegali pasikeisti tiems, kurie atsakinėja. Apklausa, kuriai reikia kitų klausimų, yra nauja apklausa.",
     publishAgain:
       "Ši apklausa jau atidaryta. Paskelbus dar kartą jūsų pakeitimai pritaikomi visiems, taip pat ir tiems, kurie jau atsakinėja.",
     tabResults: "Rezultatai",
@@ -322,6 +363,8 @@ export const lt: Messages = {
     answeredBy: (n: number) => `${n} atsakė`,
     declinedBy: (n: number) => `${n} atsisakė`,
     average: (v: string) => `vidurkis ${v}`,
+    unit: (u: string) => `Unit: ${u}`,
+    loggedAs: (u: string) => `logged as ${u}`,
     probedBy: (n: number) => `${n} patikslinta`,
     inTheirWords: (n: number) => `Jų žodžiais (${n})`,
     whatProbesFound: (n: number) => `Ką atskleidė patikslinamieji klausimai (${n})`,

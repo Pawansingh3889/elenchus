@@ -49,6 +49,30 @@ PAIRS: tuple[tuple[str, str, float, str], ...] = (
     ("warn-text", "raised", 4.5, "a flag count on a card"),
     ("focus", "raised", 3.0, "focus ring on a card"),
     ("focus", "canvas", 3.0, "focus ring on the page background"),
+    # The home page's gradient hero, measured at both ends. A gradient has no single
+    # background colour, so the honest check is the text against each stop: pass both
+    # and every point between them passes, because contrast varies monotonically
+    # between two colours the text sits over. Checking a midpoint instead would let a
+    # heading that vanishes at one edge through.
+    ("on-hero", "hero-from", 4.5, "the home heading at the light end of the hero"),
+    ("on-hero", "hero-to", 4.5, "the home heading at the dark end of the hero"),
+    # The quieter text on the same gradient: the hero's subtitle, and the top bar's nav
+    # links and picker label once the bar took the gradient. This token exists because
+    # the first build used --on-hero at opacity 0.85 for the same job, and that resolves
+    # to 4.26:1 over the bright stop: under the floor, and this guard could not see it,
+    # because opacity is not a colour. An opaque token is one it can measure.
+    ("on-hero-muted", "hero-from", 4.5, "quiet text at the light end of the hero"),
+    ("on-hero-muted", "hero-to", 4.5, "quiet text at the dark end of the hero"),
+    # The band ramp on the People page: a count sits on every step, and the ramp crosses
+    # from dark-on-light to light-on-dark partway up, so each step carries its own text
+    # token and each is its own pair. Listed out rather than generated so a dropped step
+    # is a named failure and not a shorter loop.
+    ("on-band-1", "band-1", 4.5, "a count on the operative band"),
+    ("on-band-2", "band-2", 4.5, "a count on the line leader band"),
+    ("on-band-3", "band-3", 4.5, "a count on the supervisor band"),
+    ("on-band-4", "band-4", 4.5, "a count on the manager band"),
+    ("on-band-5", "band-5", 4.5, "a count on the head band"),
+    ("on-band-6", "band-6", 4.5, "a count on the director band"),
 )
 
 TOKEN = re.compile(r"^\s*--([a-z0-9-]+):\s*(#[0-9a-fA-F]{3,8})\s*;", re.MULTILINE)

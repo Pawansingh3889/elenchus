@@ -74,6 +74,12 @@ export const ro: Messages = {
     colHats: "Responsabilități",
     buildsSurveys: "Creează chestionare",
     noJob: "Fără post, deci nu i se poate cere nimic",
+    searchPlaceholder: "Caută persoane",
+    bandFilterLabel: "Nivel",
+    bandFilterAll: "Toate nivelurile",
+    noMatches: "Nimeni nu se potrivește.",
+    inFunction: (n: number) => `${n} ${n === 1 ? 'persoană' : 'persoane'}`,
+    showing: (shown: number, total: number) => `Se afișează ${shown} din ${total}`,
     readOnly: "Doar citire. Numai un administrator poate adăuga sau modifica persoane.",
   },
   admin: {
@@ -195,26 +201,59 @@ export const ro: Messages = {
     heroTitle: "Chestionare care întreabă ca un om, nu ca un formular",
     heroBody:
       "Descrieți ce vreți să aflați și întrebările sunt redactate pentru dumneavoastră. După publicare, oamenii răspund printr-o conversație, în loc să bifeze căsuțe. Fiecare răspuns este verificat față de întrebare înainte de a fi salvat.",
-    videoTitle: "Vedeți cum funcționează",
-    videoLabel: "Un scurt videoclip cu serviciul de chestionare în uz",
-    videoUnsupported: "Browserul dumneavoastră nu poate reda acest videoclip.",
-    howTitle: "Cum funcționează",
-    stepNumber: (n: number) => `Pasul ${n}`,
-    step1Title: "Descrieți",
-    step1Body:
-      "Scrieți o frază despre ce vreți să aflați. Întrebările, tipurile și opțiunile lor sunt redactate din ea, iar pe fiecare o puteți schimba în editor.",
-    step2Title: "Publicați",
-    step2Body:
-      "Publicarea îngheață chestionarul ca o versiune care nu se poate schimba sub cei care răspund. Ciorna continuă să evolueze separat.",
-    step3Title: "Răspund prin conversație",
-    step3Body:
-      "Respondenții parcurg întrebările într-o conversație. Motorul decide ce urmează și ce contează drept răspuns, așa că nimic nu este inventat și nimic nu este sărit.",
     // "așteaptă" is the same in the third person singular and plural, so only the noun
     // takes a plural here.
-    needsYou: (n: number) => `${n} chestionar${n === 1 ? "" : "e"} vă așteaptă →`,
     respondBody: "Vă așteaptă chestionare.",
     respondCta: "Răspundeți la un chestionar",
-    signedOutHint: "Autentifică-te în partea de sus pentru a începe.",
+    composeTitle: "Ce vrei să afli?",
+    signInCta: "Autentifică-te ca să începi",
+    recentTitle: "Actualizate recent",
+    allSurveys: "Toate chestionarele",
+    newAuthorLead: "Nu ai creat încă niciun chestionar. Iată ce se întâmplă când o vei face.",
+    manualTitle: "Manualul produsului",
+    manualSubtitle: "Tot ce trebuie să știți, în patru părți.",
+    manualAuthorTitle: "Pentru autori",
+    manualAuthorCreate:
+      "Descrieți chestionarul într-o frază. IA redactează totul.",
+    manualAuthorEdit:
+      "Editați, reordonați sau rescrieți orice întrebare. Set politicile de follow-up.",
+    manualAuthorPublish:
+      "Publicarea deschide chestionarul și îngheață întrebările pentru respondenți.",
+    manualAuthorResults:
+      "Rezultate ca diagrame. Filtrați după răspuns. Exportați în CSV.",
+    manualRespondentTitle: "Pentru respondenți",
+    manualRespondentOpen:
+      "Chestionarele deschise sunt pe pagina de pornire. Alegeți și începeți.",
+    manualRespondentChat:
+      "Răspundeți în conversație. Follow-up-uri când răspunsurile nu sunt clare.",
+    manualRespondentFollowup:
+      "Follow-up-urile sunt limitate per întrebare și urmărite de motor.",
+    manualRespondentComplete:
+      "Toate întrebările răspunse = rulare finalizată și salvată.",
+    manualAudienceTitle: "Audiențe",
+    manualAudienceWho:
+      "Vizați un grup, departament, nivel sau o singură persoană.",
+    manualAudienceReach:
+      "Număr în timp real câți din audiență au răspuns.",
+    manualAudienceAnonymous:
+      "Răspunsurile sunt pseudonime. Autorul vede grupul, nu persoana.",
+    manualAdminTitle: "Administrare",
+    manualAdminUsers:
+      "Administratorii gestionează conturile și atribuirile de post.",
+    manualAdminJobs:
+      "Un post per persoană: funcție × nivel. Pălăriile adaugă responsabilități transversale.",
+    manualAdminReset:
+      "Mod demo: Reset șterge tot și reîncarcă din fixture.",
+    trustTitle: "De ce Elenchus?",
+    trustPrivacyTitle: "Confidențialitate prin proiectare",
+    trustPrivacyBody:
+      "Răspunsurile sunt pseudonime. Fără date personale, cu excepția cazului în care sondajul întreabă explicit.",
+    trustTransparencyTitle: "AI transparent",
+    trustTransparencyBody:
+      "Fiecare întrebare generată este editabilă. Vezi și aprobi totul.",
+    trustConversationalTitle: "Conversațional prin natură",
+    trustConversationalBody:
+      "Respondenții răspund în chat, nu în formulare. Clarificări fără întrebări suplimentare.",
   },
   builder: {
     pickUser: "Autentifică-te din bara de sus.",
@@ -233,6 +272,8 @@ export const ro: Messages = {
     followUpsWhenUnclear: "Dacă răspunsul nu e clar",
     followUpsAlwaysOnce: "Întreabă mereu o dată",
     allowOther: "Permite „altceva”",
+    unit: "Unit",
+    displayUnit: "Also show in",
     show: "Afișează",
     always: "întotdeauna",
     onlyIf: "doar dacă…",
@@ -266,7 +307,7 @@ export const ro: Messages = {
     publishTitle: (t: string) => `Publici „${t}”?`,
     publishShape: (q: number, p: number) => p > 0 ? `${q} întrebări, dintre care ${p} pun mereu o întrebare suplimentară.` : `${q} întrebări.`,
     publishFreezes:
-      "Publicarea deschide acest chestionar pentru răspunsuri. Modificările ulterioare îl schimbă pentru toți, inclusiv pentru cine este la jumătatea completării.",
+      "Publicarea deschide acest chestionar pentru răspunsuri și îl îngheață: întrebările nu se mai pot schimba sub cei care răspund. Un chestionar care are nevoie de alte întrebări este un chestionar nou.",
     publishAgain:
       "Acest chestionar este deja deschis. Republicarea aplică modificările pentru toți, inclusiv pentru cine este la jumătatea completării.",
     tabResults: "Rezultate",
@@ -324,6 +365,8 @@ export const ro: Messages = {
     answeredBy: (n: number) => `${n} au răspuns`,
     declinedBy: (n: number) => `${n} au refuzat`,
     average: (v: string) => `medie ${v}`,
+    unit: (u: string) => `Unit: ${u}`,
+    loggedAs: (u: string) => `logged as ${u}`,
     probedBy: (n: number) => `${n} cu întrebări suplimentare`,
     inTheirWords: (n: number) => `În cuvintele lor (${n})`,
     whatProbesFound: (n: number) => `Ce au scos la iveală întrebările suplimentare (${n})`,

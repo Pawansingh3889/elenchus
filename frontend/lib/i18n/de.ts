@@ -75,6 +75,12 @@ export const de: Messages = {
     colHats: "Zusatzaufgaben",
     buildsSurveys: "Erstellt Umfragen",
     noJob: "Ohne Tätigkeit, kann also nichts gefragt werden",
+    searchPlaceholder: "Personen suchen",
+    bandFilterLabel: "Ebene",
+    bandFilterAll: "Alle Ebenen",
+    noMatches: "Niemand passt dazu.",
+    inFunction: (n: number) => `${n} ${n === 1 ? 'Person' : 'Personen'}`,
+    showing: (shown: number, total: number) => `${shown} von ${total} angezeigt`,
     readOnly: "Nur lesbar. Nur eine Administratorin oder ein Administrator kann Personen anlegen oder ändern.",
   },
   admin: {
@@ -195,25 +201,57 @@ export const de: Messages = {
     heroTitle: "Umfragen, die fragen wie ein Mensch, nicht wie ein Formular",
     heroBody:
       "Beschreiben Sie, was Sie herausfinden möchten, und die Fragen werden für Sie entworfen. Nach dem Veröffentlichen antworten die Befragten im Gespräch, statt Kästchen auszufüllen. Jede Antwort wird vor dem Speichern gegen die Frage geprüft.",
-    videoTitle: "In Aktion sehen",
-    videoLabel: "Ein kurzes Video des Umfragedienstes im Einsatz",
-    videoUnsupported: "Ihr Browser kann dieses Video nicht abspielen.",
-    howTitle: "So funktioniert es",
-    stepNumber: (n: number) => `Schritt ${n}`,
-    step1Title: "Beschreiben",
-    step1Body:
-      "Schreiben Sie einen Satz darüber, was Sie wissen möchten. Fragen, Antworttypen und Optionen werden daraus entworfen, und Sie können alles im Editor ändern.",
-    step2Title: "Veröffentlichen",
-    step2Body:
-      "Beim Veröffentlichen wird die Umfrage als Version eingefroren, die sich unter den Antwortenden nicht mehr ändern kann. Der Entwurf entwickelt sich getrennt weiter.",
-    step3Title: "Antworten im Gespräch",
-    step3Body:
-      "Die Befragten gehen die Fragen im Gespräch durch. Die Engine entscheidet, was als Nächstes kommt und was als Antwort zählt, damit nichts erfunden und nichts übersprungen wird.",
-    needsYou: (n: number) =>
-      `${n} Umfrage${n === 1 ? "" : "n"} ${n === 1 ? "braucht" : "brauchen"} Sie →`,
     respondBody: "Es warten Umfragen auf Sie.",
     respondCta: "Umfrage beantworten",
-    signedOutHint: "Melden Sie sich oben an, um zu beginnen.",
+    composeTitle: "Was möchten Sie herausfinden?",
+    signInCta: "Anmelden und loslegen",
+    recentTitle: "Zuletzt aktualisiert",
+    allSurveys: "Alle Umfragen",
+    newAuthorLead: "Sie haben noch keine Umfrage erstellt. So läuft es ab, wenn Sie eine anlegen.",
+    manualTitle: "Produkthandbuch",
+    manualSubtitle: "Alles, was Sie wissen müssen, in vier Teilen.",
+    manualAuthorTitle: "Für Autorinnen",
+    manualAuthorCreate:
+      "Beschreiben Sie Ihre Umfrage in einem Satz. KI entwirft Fragen, Typen und Optionen.",
+    manualAuthorEdit:
+      "Bearbeiten, umsortieren oder neu formulieren. Nachfragen-Richtlinien pro Frage festlegen.",
+    manualAuthorPublish:
+      "Veröffentlichen öffnet die Umfrage und friert die Fragen für Befragte ein.",
+    manualAuthorResults:
+      "Ergebnisse als Diagramme. Nach jeder Antwort filtern. Als CSV exportieren.",
+    manualRespondentTitle: "Für Befragte",
+    manualRespondentOpen:
+      "Offene Umfragen auf der Startseite. Eine auswählen und loslegen.",
+    manualRespondentChat:
+      "Im Gespräch antworten. Nachfragen bei unklaren Antworten.",
+    manualRespondentFollowup:
+      "Nachfragen sind pro Frage begrenzt und werden von der Engine verfolgt.",
+    manualRespondentComplete:
+      "Alle Fragen beantwortet = Durchlauf abgeschlossen und gespeichert.",
+    manualAudienceTitle: "Zielgruppen",
+    manualAudienceWho:
+      "Gruppe, Abteilung, Stufe oder Einzelperson ansprechen.",
+    manualAudienceReach:
+      "Live-Zähler, wie viele in der Zielgruppe geantwortet haben.",
+    manualAudienceAnonymous:
+      "Antworten sind pseudonym. Autorinnen sehen die Gruppe, nicht die Person.",
+    manualAdminTitle: "Verwaltung",
+    manualAdminUsers:
+      "Administratorinnen verwalten Konten und Stellen-Zuweisungen.",
+    manualAdminJobs:
+      "Eine Stelle pro Person: Funktion × Stufe. Hüte fügen Querschnittspflichten hinzu.",
+    manualAdminReset:
+      "Demo-Modus: Reset löscht alles und setzt Fixtures zurück.",
+    trustTitle: "Warum Elenchus?",
+    trustPrivacyTitle: "Privacy by Design",
+    trustPrivacyBody:
+      "Antworten sind pseudonym. Keine personenbezogenen Daten, außer die Umfrage fragt explizit danach.",
+    trustTransparencyTitle: "Transparente KI",
+    trustTransparencyBody:
+      "Jede vom Modell entworfene Frage ist editierbar. Sie sehen und genehmigen alles.",
+    trustConversationalTitle: "Gesprächsbasiert",
+    trustConversationalBody:
+      "Respondenten antworten im Chat, nicht in Formularen. Nachfragen klären ohne zusätzliche Fragen.",
   },
   builder: {
     pickUser: "Melden Sie sich oben an.",
@@ -232,6 +270,8 @@ export const de: Messages = {
     followUpsWhenUnclear: "Wenn die Antwort unklar ist",
     followUpsAlwaysOnce: "Immer einmal nachfragen",
     allowOther: "„Sonstiges“ erlauben",
+    unit: "Unit",
+    displayUnit: "Also show in",
     show: "Anzeigen",
     always: "immer",
     onlyIf: "nur wenn…",
@@ -260,7 +300,7 @@ export const de: Messages = {
     publishTitle: (t: string) => `„${t}“ veröffentlichen?`,
     publishShape: (q: number, p: number) => p > 0 ? `${q} Fragen, bei ${p} davon wird immer nachgefragt.` : `${q} Fragen.`,
     publishFreezes:
-      "Mit dem Veröffentlichen wird diese Umfrage zur Beantwortung freigegeben. Spätere Änderungen gelten für alle, auch für Personen mitten in der Beantwortung.",
+      "Beim Veröffentlichen wird die Umfrage für Antworten geöffnet und eingefroren: Die Fragen können sich unter den Antwortenden nicht mehr ändern. Eine Umfrage, die andere Fragen braucht, ist eine neue Umfrage.",
     publishAgain:
       "Diese Umfrage ist bereits offen. Erneutes Veröffentlichen wendet Ihre Änderungen auf alle an, auch auf Personen mitten in der Beantwortung.",
     tabResults: "Ergebnisse",
@@ -319,6 +359,8 @@ export const de: Messages = {
     answeredBy: (n: number) => `${n} beantwortet`,
     declinedBy: (n: number) => `${n} abgelehnt`,
     average: (v: string) => `Durchschnitt ${v}`,
+    unit: (u: string) => `Unit: ${u}`,
+    loggedAs: (u: string) => `logged as ${u}`,
     probedBy: (n: number) => `${n} nachgefragt`,
     inTheirWords: (n: number) => `In eigenen Worten (${n})`,
     whatProbesFound: (n: number) => `Was Nachfragen ergaben (${n})`,

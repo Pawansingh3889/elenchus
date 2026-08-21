@@ -9,7 +9,7 @@ from pydantic import ValidationError
 
 from app.conduct.engine import ConductEngine
 from app.runs.enums import AnswerKind, RunStatus
-from app.templates.enums import AnswerType
+from app.templates.enums import AnswerType, FollowUpPolicy
 from app.templates.schemas import QuestionInput, TemplateCreate
 from app.templates.service import TemplateService
 from app.templates.visibility import is_satisfied, next_visible, remaining_possible
@@ -230,13 +230,19 @@ async def _published(session, author):
                     text="What is your role?",
                     answer_type=AnswerType.single_select,
                     options=["Quality Manager", "Line Operator"],
+                    follow_up_policy=FollowUpPolicy.never,
                 ),
                 QuestionInput(
                     text="What quality outcomes do you own?",
                     answer_type=AnswerType.long_text,
                     show_when={"question": 0, "op": "is", "value": "Quality Manager"},
+                    follow_up_policy=FollowUpPolicy.never,
                 ),
-                QuestionInput(text="Rate your onboarding", answer_type=AnswerType.rating),
+                QuestionInput(
+                    text="Rate your onboarding",
+                    answer_type=AnswerType.rating,
+                    follow_up_policy=FollowUpPolicy.never,
+                ),
             ],
         ),
         author,

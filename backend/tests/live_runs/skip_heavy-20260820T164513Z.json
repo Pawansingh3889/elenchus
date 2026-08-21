@@ -1,0 +1,260 @@
+{
+  "scenario": "skip_heavy",
+  "captured_at": "2026-08-20T16:45:13.077862+00:00",
+  "model": "gpt-5.5",
+  "survey_title": "Onboarding Check-In",
+  "status": "completed",
+  "respondent_messages": [
+    "i'm a warehouse shift supervisor",
+    "skip",
+    "i'd rather not say",
+    "why do you need that",
+    "not comfortable sharing",
+    "next",
+    "pass",
+    "skip"
+  ],
+  "trace": {
+    "total": 7,
+    "positions": [
+      0,
+      1,
+      2,
+      3,
+      3,
+      4,
+      5,
+      6
+    ],
+    "questions": [
+      {
+        "id": "b1576c95-395c-4530-9bdd-9535655867af",
+        "position": 0,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "0303e232-0eec-421d-b7ba-1c15dbf85370",
+        "position": 1,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "15d2031c-5477-4667-9ef7-4dc951841d27",
+        "position": 2,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "4574e490-14e0-4fa2-9695-0fa76a302a5e",
+        "position": 3,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "80d96839-51ab-413d-8cd7-f1c5bd38fa9b",
+        "position": 4,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "09f2aa9e-6554-4e70-83d4-af45f6cf4634",
+        "position": 5,
+        "follow_up_policy": "when_unclear"
+      },
+      {
+        "id": "7952e897-6e8f-4df8-b216-61f8095a807d",
+        "position": 6,
+        "follow_up_policy": "never"
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "b1576c95-395c-4530-9bdd-9535655867af",
+        "kind": "scripted",
+        "unanswerable": false
+      },
+      {
+        "question_id": "0303e232-0eec-421d-b7ba-1c15dbf85370",
+        "kind": "scripted",
+        "unanswerable": true
+      },
+      {
+        "question_id": "15d2031c-5477-4667-9ef7-4dc951841d27",
+        "kind": "scripted",
+        "unanswerable": true
+      },
+      {
+        "question_id": "4574e490-14e0-4fa2-9695-0fa76a302a5e",
+        "kind": "scripted",
+        "unanswerable": true
+      },
+      {
+        "question_id": "80d96839-51ab-413d-8cd7-f1c5bd38fa9b",
+        "kind": "scripted",
+        "unanswerable": true
+      },
+      {
+        "question_id": "09f2aa9e-6554-4e70-83d4-af45f6cf4634",
+        "kind": "scripted",
+        "unanswerable": true
+      },
+      {
+        "question_id": "7952e897-6e8f-4df8-b216-61f8095a807d",
+        "kind": "scripted",
+        "unanswerable": true
+      }
+    ]
+  },
+  "answers": [
+    {
+      "question_text": "What is your role?",
+      "answer_type": "short_text",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "text": "warehouse shift supervisor"
+      },
+      "said": [
+        "i'm a warehouse shift supervisor"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How would you rate onboarding?",
+      "answer_type": "rating",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "skip"
+      },
+      "said": [
+        "i'm a warehouse shift supervisor",
+        "skip"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How many days of training?",
+      "answer_type": "number",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "i'd rather not say"
+      },
+      "said": [
+        "i'm a warehouse shift supervisor",
+        "skip",
+        "i'd rather not say"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    },
+    {
+      "question_text": "What date did you start?",
+      "answer_type": "date",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "not comfortable sharing"
+      },
+      "said": [
+        "i'm a warehouse shift supervisor",
+        "skip",
+        "i'd rather not say",
+        "why do you need that",
+        "not comfortable sharing"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Which team are you on?",
+      "answer_type": "single_select",
+      "options": [
+        "A",
+        "B"
+      ],
+      "allow_other": true,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "next"
+      },
+      "said": [
+        "i'm a warehouse shift supervisor",
+        "skip",
+        "i'd rather not say",
+        "why do you need that",
+        "not comfortable sharing",
+        "next"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    },
+    {
+      "question_text": "What would you change?",
+      "answer_type": "long_text",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "pass"
+      },
+      "said": [
+        "i'm a warehouse shift supervisor",
+        "skip",
+        "i'd rather not say",
+        "why do you need that",
+        "not comfortable sharing",
+        "next",
+        "pass"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Would you recommend us?",
+      "answer_type": "yes_no",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "skip"
+      },
+      "said": [
+        "i'm a warehouse shift supervisor",
+        "skip",
+        "i'd rather not say",
+        "why do you need that",
+        "not comfortable sharing",
+        "next",
+        "pass",
+        "skip"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    }
+  ]
+}

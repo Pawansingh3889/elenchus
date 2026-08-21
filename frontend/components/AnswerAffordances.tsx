@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { useT } from "@/lib/i18n/useT";
 import type { CurrentQuestion } from "@/lib/types";
+import { conversionLabel, unitSymbol } from "@/lib/units";
 
 /**
  * Answer controls that appear with the current question. They are shortcuts, not the
@@ -127,6 +128,12 @@ export function AnswerAffordances({
   }
 
   if (question.answer_type === "date" || question.answer_type === "number") {
+    const numeric = question.answer_type === "number";
+    const value = Number(typed);
+    const liveConversion =
+      numeric && question.unit && question.display_unit && typed.trim() !== "" && !Number.isNaN(value)
+        ? conversionLabel(value, question.unit, question.display_unit)
+        : null;
     return (
       <div className="afford-inline">
         <input
@@ -136,13 +143,17 @@ export function AnswerAffordances({
           disabled={disabled}
           onChange={(e) => setTyped(e.target.value)}
         />
+        {numeric && question.unit ? (
+          <span className="afford-hint">{unitSymbol(question.unit)}</span>
+        ) : null}
         <button
           className="btn btn-secondary"
           disabled={disabled || !typed}
           onClick={() => onAnswer(typed)}
         >
-          Send
+          {msg.run.send}
         </button>
+        {liveConversion ? <span className="afford-hint">{liveConversion}</span> : null}
       </div>
     );
   }

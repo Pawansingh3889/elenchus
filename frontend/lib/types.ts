@@ -189,6 +189,9 @@ export interface QuestionInput {
   required: boolean;
   follow_up_policy: FollowUpPolicy;
   show_when: ShowWhen | null;
+  /** The unit a numeric answer is in, and an optional second unit to also display. */
+  unit?: string | null;
+  display_unit?: string | null;
 }
 
 export interface Question extends QuestionInput {
@@ -219,6 +222,8 @@ export interface ResumableRun {
   answered: number;
   total: number;
   started_at: string;
+  /** True when an author has asked this run to clarify an answer and no reply has come. */
+  pending_clarification: boolean;
 }
 
 export interface TemplateSummary {
@@ -294,6 +299,8 @@ export interface CurrentQuestion {
   options: string[];
   allow_other: boolean;
   required: boolean;
+  unit?: string | null;
+  display_unit?: string | null;
 }
 
 export interface Run {
@@ -418,6 +425,9 @@ export interface QuestionReport {
   follow_ups: string[];
   /** Runs probed on this question, not probes asked, so it reads against `answered`. */
   probed: number;
+  /** The unit the numbers are in, and an optional second unit also shown. */
+  unit?: string | null;
+  display_unit?: string | null;
 }
 
 /** One thing the survey found. `statement` carries no figures by design: the model
@@ -500,4 +510,52 @@ export interface SurveyReport {
   people_started: number;
   people_completed: number;
   questions: QuestionReport[];
+}
+
+export interface LlmModelStats {
+  model: string;
+  tier: number | null;
+  calls: number;
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
+  avg_latency_ms: number;
+  error_count: number;
+}
+
+export interface LlmRunSummary {
+  run_id: string | null;
+  model: string;
+  tier: number | null;
+  calls: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  avg_latency_ms: number;
+  error_count: number;
+  first_ts: string;
+  last_ts: string;
+  ops: string[];
+}
+
+export interface LlmReport {
+  total_entries: number;
+  total_runs: number;
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
+  total_cost_usd: number;
+  avg_latency_ms: number;
+  models: LlmModelStats[];
+  runs: LlmRunSummary[];
+}
+
+export interface LlmEntry {
+  ts: string;
+  op: string | null;
+  tier: number | null;
+  model: string | null;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  latency_ms: number | null;
+  status: number | null;
+  error: string | null;
+  cost_usd: number | null;
 }

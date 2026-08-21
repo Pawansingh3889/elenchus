@@ -26,6 +26,7 @@ import { Card, CardLabel } from "@/components/ui/card";
 import { seriesColour } from "@/lib/comparison";
 import { useT } from "@/lib/i18n/useT";
 import { SLICEABLE_TYPES, type Slice } from "@/lib/slicing";
+import { unitSymbol } from "@/lib/units";
 import type { QuestionReport } from "@/lib/types";
 
 /**
@@ -227,6 +228,16 @@ export function QuestionCard({
         ) : null}
       </div>
       <h3 className="mt-1 text-md font-semibold">{question.text}</h3>
+      {question.unit ? (
+        // The stats below are in the display unit when one is set, so name that; the
+        // original unit the answer was logged in is worth keeping alongside.
+        <p className="mt-0.5 text-xs text-muted">
+          {msg.report.unit(unitSymbol(question.display_unit ?? question.unit))}
+          {question.display_unit && question.display_unit !== question.unit ? (
+            <> · {msg.report.loggedAs(unitSymbol(question.unit))}</>
+          ) : null}
+        </p>
+      ) : null}
       <p className="mt-1 text-sm text-muted">
         {msg.report.answeredBy(question.answered)}
         {question.declined > 0 ? ` · ${msg.report.declinedBy(question.declined)}` : ""}

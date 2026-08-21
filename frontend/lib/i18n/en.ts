@@ -82,6 +82,12 @@ export const en = {
     colHats: "Responsibilities",
     buildsSurveys: "Builds surveys",
     noJob: "No job, so cannot be asked anything",
+    searchPlaceholder: "Search people",
+    bandFilterLabel: "Band",
+    bandFilterAll: "All bands",
+    noMatches: "Nobody matches that.",
+    inFunction: (n: number) => `${n} ${n === 1 ? 'person' : 'people'}`,
+    showing: (shown: number, total: number) => `Showing ${shown} of ${total}`,
     readOnly: "Read-only. Only an administrator can add or change people.",
   },
   admin: {
@@ -203,24 +209,57 @@ export const en = {
     heroTitle: "Surveys that ask like a person, not a form",
     heroBody:
       "Describe what you want to find out and the questions get drafted for you. Publish it, and the people it is for answer by chatting rather than filling in boxes. Every answer is checked against the question before it is saved.",
-    videoTitle: "See it working",
-    videoLabel: "A short video of the survey service in use",
-    videoUnsupported: "Your browser cannot play this video.",
-    howTitle: "How it works",
-    stepNumber: (n: number) => `Step ${n}`,
-    step1Title: "Describe it",
-    step1Body:
-      "Write a sentence about what you want to know. The questions, their types and their options are drafted from it, and you can change any of them in the builder.",
-    step2Title: "Publish it",
-    step2Body:
-      "Publishing freezes the survey as a version that cannot change under the people answering it. The draft carries on evolving separately.",
-    step3Title: "They answer by chat",
-    step3Body:
-      "Respondents work through the questions in a conversation. The engine decides what comes next and what counts as an answer, so nothing is invented and nothing is skipped.",
-    needsYou: (n: number) => `${n} survey${n === 1 ? "" : "s"} need${n === 1 ? "s" : ""} you →`,
     respondBody: "There are surveys waiting for you.",
     respondCta: "Answer a survey",
-    signedOutHint: "Sign in at the top of the page to start.",
+    composeTitle: "What do you want to find out?",
+    signInCta: "Sign in to start",
+    recentTitle: "Recently updated",
+    allSurveys: "All surveys",
+    newAuthorLead: "You have not made a survey yet. Here is what happens when you do.",
+    manualTitle: "Product Manual",
+    manualSubtitle: "Everything you need to know, in four parts.",
+    manualAuthorTitle: "For Authors",
+    manualAuthorCreate:
+      "Describe your survey in one sentence. AI drafts questions, types, and options.",
+    manualAuthorEdit:
+      "Edit, reorder, or retype any question. Set follow-up policies per question.",
+    manualAuthorPublish:
+      "Publishing opens the survey and freezes the questions for respondents.",
+    manualAuthorResults:
+      "View results as charts. Slice by any answer. Export to CSV.",
+    manualRespondentTitle: "For Respondents",
+    manualRespondentOpen:
+      "Open surveys appear on your home page. Pick one to start.",
+    manualRespondentChat:
+      "Answer in a conversation. Follow-ups asked when answers are unclear.",
+    manualRespondentFollowup:
+      "Follow-ups are limited per question and tracked by the engine.",
+    manualRespondentComplete:
+      "All questions answered means the run is complete and saved.",
+    manualAudienceTitle: "Audiences",
+    manualAudienceWho:
+      "Target a group, a department, a band, or a single person.",
+    manualAudienceReach:
+      "Live count of how many in the audience have answered.",
+    manualAudienceAnonymous:
+      "Answers are pseudonymous. Authors see the group, not the person.",
+    manualAdminTitle: "Administration",
+    manualAdminUsers:
+      "Admins manage accounts and job assignments.",
+    manualAdminJobs:
+      "One job per person: function crossed with band. Hats add cross-cutting duties.",
+    manualAdminReset:
+      "Demo mode: Reset wipes all data and re-seeds from fixtures.",
+    trustTitle: "Why Elenchus?",
+    trustPrivacyTitle: "Privacy by design",
+    trustPrivacyBody:
+      "Answers are pseudonymous. No PII collected unless the survey explicitly asks.",
+    trustTransparencyTitle: "Transparent AI",
+    trustTransparencyBody:
+      "Every question the model drafts is editable. You see and approve everything.",
+    trustConversationalTitle: "Conversational by nature",
+    trustConversationalBody:
+      "Respondents answer in chat, not forms. Follow-ups clarify without extra questions.",
   },
   builder: {
     pickUser: "Sign in at the top of the page.",
@@ -239,6 +278,8 @@ export const en = {
     followUpsWhenUnclear: "If the answer is unclear",
     followUpsAlwaysOnce: "Always ask one",
     allowOther: "Allow “other”",
+    unit: "Unit",
+    displayUnit: "Also show in",
     show: "Show",
     always: "always",
     onlyIf: "only if…",
@@ -272,7 +313,7 @@ export const en = {
     publishTitle: (t: string) => `Publish “${t}”?`,
     publishShape: (q: number, p: number) => p > 0 ? `${q} questions, ${p} of them always ask a follow-up.` : `${q} questions.`,
     publishFreezes:
-      "Publishing opens this survey for answers. Later edits change it for everyone, including anyone part-way through.",
+      "Publishing opens this survey for answers and freezes it: the questions cannot change under the people answering them. A survey that needs different questions is a new survey.",
     publishAgain:
       "This survey is already open. Publishing again applies your edits to everyone, including anyone part-way through answering it.",
     tabResults: "Results",
@@ -330,6 +371,8 @@ export const en = {
     answeredBy: (n: number) => `${n} answered`,
     declinedBy: (n: number) => `${n} declined`,
     average: (v: string) => `average ${v}`,
+    unit: (u: string) => `Unit: ${u}`,
+    loggedAs: (u: string) => `logged as ${u}`,
     probedBy: (n: number) => `${n} probed`,
     inTheirWords: (n: number) => `In their words (${n})`,
     whatProbesFound: (n: number) => `What follow-ups drew out (${n})`,

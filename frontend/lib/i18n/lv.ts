@@ -74,6 +74,12 @@ export const lv: Messages = {
     colHats: "Papildu pienākumi",
     buildsSurveys: "Veido aptaujas",
     noJob: "Bez amata, tāpēc neko nevar pajautāt",
+    searchPlaceholder: "Meklēt cilvēkus",
+    bandFilterLabel: "Līmenis",
+    bandFilterAll: "Visi līmeņi",
+    noMatches: "Neviens neatbilst.",
+    inFunction: (n: number) => `${n} ${n === 1 ? 'cilvēks' : 'cilvēki'}`,
+    showing: (shown: number, total: number) => `Rāda ${shown} no ${total}`,
     readOnly: "Tikai lasāms. Pievienot vai mainīt cilvēkus var tikai administrators.",
   },
   admin: {
@@ -195,24 +201,57 @@ export const lv: Messages = {
     heroTitle: "Aptaujas, kas jautā kā cilvēks, nevis kā veidlapa",
     heroBody:
       "Aprakstiet, ko vēlaties uzzināt, un jautājumi tiks sagatavoti jūsu vietā. Pēc publicēšanas cilvēki atbild sarunā, nevis aizpilda lodziņus. Katra atbilde pirms saglabāšanas tiek pārbaudīta pret jautājumu.",
-    videoTitle: "Skatiet darbībā",
-    videoLabel: "Īss video par aptauju pakalpojumu darbībā",
-    videoUnsupported: "Jūsu pārlūks nevar atskaņot šo video.",
-    howTitle: "Kā tas darbojas",
-    stepNumber: (n: number) => `${n}. solis`,
-    step1Title: "Aprakstiet",
-    step1Body:
-      "Uzrakstiet teikumu par to, ko vēlaties uzzināt. Jautājumi, to veidi un varianti tiks sagatavoti no tā, un katru no tiem varat mainīt redaktorā.",
-    step2Title: "Publicējiet",
-    step2Body:
-      "Publicēšana iesaldē aptauju kā versiju, kas nevar mainīties zem atbildētājiem. Melnraksts turpina attīstīties atsevišķi.",
-    step3Title: "Viņi atbild sarunā",
-    step3Body:
-      "Respondenti iziet cauri jautājumiem sarunā. Dzinējs izlemj, kas seko un kas tiek uzskatīts par atbildi, tāpēc nekas netiek izdomāts un nekas netiek izlaists.",
-    needsYou: (n: number) => `Aptaujas, kas gaida jūs: ${n} →`,
     respondBody: "Jūs gaida aptaujas.",
     respondCta: "Atbildēt uz aptauju",
-    signedOutHint: "Piesakieties lapas augšā, lai sāktu.",
+    composeTitle: "Ko vēlaties uzzināt?",
+    signInCta: "Piesakieties, lai sāktu",
+    recentTitle: "Nesen atjauninātās",
+    allSurveys: "Visas aptaujas",
+    newAuthorLead: "Jūs vēl neesat izveidojis nevienu aptauju. Lūk, kas notiek, kad to izdarīsiet.",
+    manualTitle: "Produkta rokasgrāmata",
+    manualSubtitle: "Viss, kas jums jāzina, četrās daļās.",
+    manualAuthorTitle: "Autorsiem",
+    manualAuthorCreate:
+      "Aprakstiet aptauju vienā teikumā. Mākslīgais intelekts sagatavo visu.",
+    manualAuthorEdit:
+      "Rediģējiet, pārķērķējiet vai mainiet jebkuru jautājumu. Iestatiet turpmāko jautājumu politiku.",
+    manualAuthorPublish:
+      "Publicēšana atver aptauju un iesaldē jautājumus respondentiem.",
+    manualAuthorResults:
+      "Rezultāti kā diagrammas. Filtrējiet pēc atbildes. Eksportējiet uz CSV.",
+    manualRespondentTitle: "Respondentiem",
+    manualRespondentOpen:
+      "Atvērtās aptaujas ir sākumlapā. Izvēlieties un sāciet.",
+    manualRespondentChat:
+      "Atbildiet sarunā. Papildu jautājumi pie neskaidrām atbildēm.",
+    manualRespondentFollowup:
+      "Papildu jautājumi ir ierobežoti katram jautājumam un izsekoti.",
+    manualRespondentComplete:
+      "Visi jautājumi atbildēti = izpilde pabeigta un saglabāta.",
+    manualAudienceTitle: "Mērķauditorijas",
+    manualAudienceWho:
+      "Vērsties pie grupas, nodaļas, līmeņa vai personas.",
+    manualAudienceReach:
+      "Dzīvais skaitlis, cik daudz auditorijā ir atbildējuši.",
+    manualAudienceAnonymous:
+      "Atbildes ir pseudonīmas. Autors redz grupu, nevis cilvēku.",
+    manualAdminTitle: "Administrēšana",
+    manualAdminUsers:
+      "Administratori pārvalda kontus un amatu piešķīrumus.",
+    manualAdminJobs:
+      "Viens amats uz cilvēku: funkcija × līmenis. Cepures pievieno šķērsojošos pienākumus.",
+    manualAdminReset:
+      "Demo režīms: Reset izdzēš visu un atkārtoti aizpilda no fixture.",
+    trustTitle: "Kāpēc Elenchus?",
+    trustPrivacyTitle: "Privātums pēc dizaina",
+    trustPrivacyBody:
+      "Atbildes ir pseudonīmas. Nav personas datu, ja vien aptauja to nepieprasa.",
+    trustTransparencyTitle: "Caurspīdīga AI",
+    trustTransparencyBody:
+      "Katrs ģenerētais jautājums ir rediģējams. Jūs redzat un apstiprināt visu.",
+    trustConversationalTitle: "Sarunvalodas dabā",
+    trustConversationalBody:
+      "Respondenti atbildē čatā, ne veidlapās. Turpinājumi noskaidro bez papildu jautājumiem.",
   },
   builder: {
     pickUser: "Piesakieties augšējā joslā.",
@@ -231,6 +270,8 @@ export const lv: Messages = {
     followUpsWhenUnclear: "Ja atbilde nav skaidra",
     followUpsAlwaysOnce: "Vienmēr pajautāt vienu reizi",
     allowOther: "Atļaut “cits”",
+    unit: "Unit",
+    displayUnit: "Also show in",
     show: "Rādīt",
     always: "vienmēr",
     onlyIf: "tikai ja…",
@@ -264,7 +305,7 @@ export const lv: Messages = {
     publishTitle: (t: string) => `Publicēt “${t}”?`,
     publishShape: (q: number, p: number) => p > 0 ? `${q} jautājumi, no tiem ${p} vienmēr uzdod precizējošu jautājumu.` : `${q} jautājumi.`,
     publishFreezes:
-      "Publicējot aptauja tiek atvērta atbildēm. Vēlākas izmaiņas maina to visiem, arī tiem, kas jau atbild.",
+      "Publicēšana atver šo aptauju atbildēm un iesaldē to: jautājumi vairs nevar mainīties tiem, kas atbild. Aptauja, kurai vajadzīgi citi jautājumi, ir jauna aptauja.",
     publishAgain:
       "Šī aptauja jau ir atvērta. Publicējot atkārtoti, izmaiņas tiek piemērotas visiem, arī tiem, kas jau atbild.",
     tabResults: "Rezultāti",
@@ -322,6 +363,8 @@ export const lv: Messages = {
     answeredBy: (n: number) => `${n} atbildēja`,
     declinedBy: (n: number) => `${n} atteicās`,
     average: (v: string) => `vidēji ${v}`,
+    unit: (u: string) => `Unit: ${u}`,
+    loggedAs: (u: string) => `logged as ${u}`,
     probedBy: (n: number) => `${n} precizēti`,
     inTheirWords: (n: number) => `Viņu vārdiem (${n})`,
     whatProbesFound: (n: number) => `Ko atklāja precizējošie jautājumi (${n})`,

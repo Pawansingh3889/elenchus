@@ -27,6 +27,8 @@ class CurrentQuestion(BaseModel):
     options: list[str]
     allow_other: bool
     required: bool
+    unit: str | None = None
+    display_unit: str | None = None
 
 
 class RunRead(BaseModel):
@@ -57,3 +59,7 @@ class ResumableRun(BaseModel):
     answered: int
     total: int
     started_at: datetime
+    # True when the author has asked this run to clarify an answer and the
+    # respondent's reply has not come: the run is complete, and this row is an
+    # unanswered question, not an unfinished interview.
+    pending_clarification: bool

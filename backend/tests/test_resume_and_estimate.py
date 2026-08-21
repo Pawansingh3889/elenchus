@@ -118,11 +118,12 @@ async def test_an_unfinished_run_is_offered_back_to_its_respondent(
     resumable = await ConductEngine(session).resumable(respondent)
 
     assert len(resumable) == 1
-    found, template_id, title, answered, total = resumable[0]
+    found, template_id, title, answered, total, pending = resumable[0]
     assert found.id == run.id
     assert template_id == published.id
     assert title == "Onboarding check-in"
     assert (answered, total) == (1, 2)  # where they left off
+    assert pending is False
 
 
 async def test_a_finished_run_is_not_offered_again(session, author, respondent, published):

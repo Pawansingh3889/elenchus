@@ -30,6 +30,9 @@ def _client_for(settings: Settings, prefix: str, tier: int) -> OpenAICompatibleL
         # position in the chain: with tiers 1 and 3 enabled, the second client is still
         # tier 3, and pricing it as tier 2 would bill it at another provider's rate.
         tier=tier,
+        # Opt-in: only a caching-capable provider (e.g. OpenRouter/Anthropic) should set
+        # this, or OpenAI answers a 400 and drops out of the chain.
+        prompt_cache=getattr(settings, f"{prefix}_prompt_cache", False),
     )
 
 

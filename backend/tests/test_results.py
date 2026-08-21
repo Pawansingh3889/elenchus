@@ -244,6 +244,39 @@ async def test_a_declined_question_is_counted_apart_from_an_answered_one(
     assert all(c.count == 0 for c in aspects.counts)
 
 
+async def test_a_vague_rating_decline_is_counted_apart_from_answered_ratings(
+    session, author, respondent
+):
+    """The AI-adoption survey's confidence rating held two declined prose answers while
+    everyone else gave numbers. The report showed declined=2 and averaged the rest:
+    folding the declined into a low rating would drag the confidence score down with
+    answers nobody gave, and quoting the vague wording as a rating would be fabrication.
+    """
+    template = await _reportable(session, author)
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(template.id, respondent)
+    await ConductEngine(session, llm=FakeLLM(record(["Cleaning"]), move_on())).handle_message(
+        run.id, "Cleaning and drains", respondent
+    )
+    await ConductEngine(session, llm=FakeLLM(record(True), move_on())).handle_message(
+        run.id, "mostly yes", respondent
+    )
+    declining = FakeLLM(
+        ToolTurn(
+            text="No problem.",
+            tool_name="flag_unanswerable",
+            tool_input={"reason": "i guess i'm fairly confident with computers really"},
+        )
+    )
+    await ConductEngine(session, llm=declining).handle_message(
+        run.id, "i guess i'm fairly confident with computers really", respondent
+    )
+
+    rated = (await ResultsService(session).report(template.id, author)).questions[2]
+    assert (rated.answered, rated.declined) == (0, 1)
+    assert rated.average is None
+    assert rated.verbatim == []  # the vague wording is not quoted as an answer
+
+
 async def test_the_report_shows_what_a_probe_drew_out(session, author, respondent, published):
     """The report counted scripted answers and discarded every follow-up, so the part of
     the conversation an author most wants to read was visible only in the export and one

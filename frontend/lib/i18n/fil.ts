@@ -74,6 +74,12 @@ export const fil: Messages = {
     colHats: "Mga tungkulin",
     buildsSurveys: "Gumagawa ng survey",
     noJob: "Walang trabaho, kaya walang maitatanong sa kanya",
+    searchPlaceholder: "Maghanap ng tao",
+    bandFilterLabel: "Antas",
+    bandFilterAll: "Lahat ng antas",
+    noMatches: "Walang tumutugma.",
+    inFunction: (n: number) => `${n} ${n === 1 ? 'tao' : 'tao'}`,
+    showing: (shown: number, total: number) => `Ipinapakita ang ${shown} sa ${total}`,
     readOnly: "Basahin lamang. Administrador lang ang makakadagdag o makakapagbago ng tao.",
   },
   admin: {
@@ -194,24 +200,57 @@ export const fil: Messages = {
     heroTitle: "Mga survey na nagtatanong na parang tao, hindi parang form",
     heroBody:
       "Ilarawan kung ano ang gusto mong malaman at ihahanda ang mga tanong para sa iyo. Kapag na-publish na, sumasagot ang mga tao sa pamamagitan ng usapan sa halip na pagpuno ng mga kahon. Bawat sagot ay sinusuri laban sa tanong bago ito i-save.",
-    videoTitle: "Tingnan kung paano ito gumagana",
-    videoLabel: "Maikling video ng survey service habang ginagamit",
-    videoUnsupported: "Hindi mapatugtog ng iyong browser ang video na ito.",
-    howTitle: "Paano ito gumagana",
-    stepNumber: (n: number) => `Hakbang ${n}`,
-    step1Title: "Ilarawan",
-    step1Body:
-      "Sumulat ng isang pangungusap tungkol sa gusto mong malaman. Mula rito ihahanda ang mga tanong, ang uri nila at ang mga pagpipilian, at mababago mo ang alinman sa editor.",
-    step2Title: "I-publish",
-    step2Body:
-      "Ang pag-publish ay nagpi-freeze sa survey bilang bersyon na hindi na mababago habang sumasagot ang mga tao. Patuloy namang nababago ang draft nang hiwalay.",
-    step3Title: "Sumasagot sila sa usapan",
-    step3Body:
-      "Dinadaanan ng mga sumasagot ang mga tanong sa isang usapan. Ang engine ang nagpapasya kung ano ang susunod at kung ano ang binibilang na sagot, kaya walang naiimbento at walang nalalaktawan.",
-    needsYou: (n: number) => `${n} survey ang naghihintay sa iyo →`,
     respondBody: "May mga survey na naghihintay sa iyo.",
     respondCta: "Sumagot ng survey",
-    signedOutHint: "Mag-sign in sa itaas ng pahina para magsimula.",
+    composeTitle: "Ano ang gusto mong malaman?",
+    signInCta: "Mag-sign in para magsimula",
+    recentTitle: "Kamakailang na-update",
+    allSurveys: "Lahat ng survey",
+    newAuthorLead: "Wala ka pang ginawang survey. Ganito ang mangyayari kapag gumawa ka.",
+    manualTitle: "Manwal ng produkto",
+    manualSubtitle: "Lahat ng kailangan mong malaman, sa apat na bahagi.",
+    manualAuthorTitle: "Para sa mga may-akda",
+    manualAuthorCreate:
+      "Ilarawan ang survey sa isang pangungusap. Ang AI ang naghahanda ng lahat.",
+    manualAuthorEdit:
+      "I-edit, ayusin muli, o baguhin ang anumang tanong. Itakda ang mga patakaran sa follow-up.",
+    manualAuthorPublish:
+      "Ang pag-publish ay nagbubukas ng survey at nag-freeze ng mga tanong.",
+    manualAuthorResults:
+      "Mga resulta bilang chart. Salin ayon sa sagot. I-export sa CSV.",
+    manualRespondentTitle: "Para sa mga sumasagot",
+    manualRespondentOpen:
+      "Ang mga bukas na survey ay nasa home page. Pumili at magsimula.",
+    manualRespondentChat:
+      "Sumagot sa usapan. Mga follow-up kapag hindi malinaw ang sagot.",
+    manualRespondentFollowup:
+      "Ang mga follow-up ay limitado bawat tanong at sinusubaybayan ng engine.",
+    manualRespondentComplete:
+      "Lahat ng tanong nasagot = run kumpleto at nai-save.",
+    manualAudienceTitle: "Mga audience",
+    manualAudienceWho:
+      "Layunin ang isang grupo, departamento, band, o isang tao.",
+    manualAudienceReach:
+      "Bilang nang live kung ilan sa audience ang sumagot.",
+    manualAudienceAnonymous:
+      "Ang mga sagot ay pseudonymous. Nakikita ng may-akda ang grupo, hindi ang tao.",
+    manualAdminTitle: "Administrasyon",
+    manualAdminUsers:
+      "Ang mga admin ay nagpapatakbo ng mga account at job assignment.",
+    manualAdminJobs:
+      "Isang job bawat tao: function × band. Mga hat ay nagdadagdag ng mga tungkulin.",
+    manualAdminReset:
+      "Demo mode: Reset ay nagbubura at nagre-reseed mula sa mga fixture.",
+    trustTitle: "Bakit Elenchus?",
+    trustPrivacyTitle: "Privacy by design",
+    trustPrivacyBody:
+      "Ang mga sagot ay pseudonymous. Walang personal data maliban kung ang survey ay nagtatanong nito.",
+    trustTransparencyTitle: "Transparent na AI",
+    trustTransparencyBody:
+      "Bawat tanong na ginawa ng AI ayeditable. Makikita at aaprubahan mo ang lahat.",
+    trustConversationalTitle: "Conversational by nature",
+    trustConversationalBody:
+      "Ang mga sagot ay sa chat, hindi sa form. Mga follow-up ay nagpapaliwanag nang hindi nagtatanong ng extra.",
   },
   builder: {
     pickUser: "Mag-sign in sa itaas.",
@@ -230,6 +269,8 @@ export const fil: Messages = {
     followUpsWhenUnclear: "Kapag malabo ang sagot",
     followUpsAlwaysOnce: "Laging magtanong nang isa",
     allowOther: "Payagan ang «iba pa»",
+    unit: "Unit",
+    displayUnit: "Also show in",
     show: "Ipakita",
     always: "palagi",
     onlyIf: "kung lamang…",
@@ -258,7 +299,7 @@ export const fil: Messages = {
     publishTitle: (t: string) => `I-publish ang “${t}”?`,
     publishShape: (q: number, p: number) => p > 0 ? `${q} tanong, ${p} rito ay laging may follow-up.` : `${q} tanong.`,
     publishFreezes:
-      "Binubuksan ng paglalathala ang survey na ito para sagutan. Binabago ng mga susunod na pag-edit ang survey para sa lahat, pati sa mga kasalukuyang sumasagot.",
+      "Binubuksan ng paglalathala ang survey na ito para sa mga sagot at kinakandado ito: hindi na mababago ang mga tanong habang sinasagutan. Ang survey na kailangan ng ibang mga tanong ay bagong survey.",
     publishAgain:
       "Bukas na ang survey na ito. Ang muling paglalathala ay naglalapat ng iyong mga pagbabago sa lahat, pati sa mga kasalukuyang sumasagot.",
     tabResults: "Mga resulta",
@@ -316,6 +357,8 @@ export const fil: Messages = {
     answeredBy: (n: number) => `${n} ang sumagot`,
     declinedBy: (n: number) => `${n} ang tumanggi`,
     average: (v: string) => `average ${v}`,
+    unit: (u: string) => `Unit: ${u}`,
+    loggedAs: (u: string) => `logged as ${u}`,
     probedBy: (n: number) => `${n} ang sinundan`,
     inTheirWords: (n: number) => `Sa sarili nilang salita (${n})`,
     whatProbesFound: (n: number) => `Ang nakuha sa follow-up (${n})`,

@@ -343,6 +343,38 @@ async def test_declining_a_follow_up_moves_the_survey_on(session, respondent, pu
     assert declined[0].question_text == "What does that involve?"  # the probe, not the question
 
 
+async def test_a_vague_rating_is_declined_not_fabricated(session, respondent, author):
+    """Live runs of the AI-adoption survey answered the confidence rating with prose:
+    "i guess i'm fairly confident with computers really" and "i dunno maybe a seven?".
+    The model flagged the question unanswerable rather than guess a number, and the
+    engine recorded the decline word for word. A rating the respondent never gave must
+    not be invented to keep the row tidy, and the declined row must not masquerade as
+    one.
+    """
+    template = await _publish(
+        session,
+        author,
+        QuestionInput(
+            text="How confident do you feel using AI tools at work?",
+            answer_type=AnswerType.rating,
+            follow_up_policy=FollowUpPolicy.when_unclear,
+        ),
+    )
+    engine = ConductEngine(session, llm=FakeLLM())
+    run = await engine.start_run(template.id, respondent)
+
+    declining = _decline("i guess i'm fairly confident with computers really")
+    run = await ConductEngine(session, llm=FakeLLM(declining)).handle_message(
+        run.id, "i guess i'm fairly confident with computers really", respondent
+    )
+
+    assert run.status is RunStatus.completed
+    assert [a.value for a in run.answers] == [
+        {"unanswerable": "i guess i'm fairly confident with computers really"}
+    ]
+    assert all("rating" not in a.value for a in run.answers)
+
+
 async def test_only_one_answer_is_recorded_per_respondent_message(session, respondent, published):
     """Recording neither advances nor spends a probe, so repeats would spin the loop."""
     engine = ConductEngine(session, llm=FakeLLM())
@@ -1039,9 +1071,21 @@ async def test_rewind_takes_back_only_the_last_answer(session, respondent, autho
     template = await _publish(
         session,
         author,
-        QuestionInput(text="What's your role?", answer_type=AnswerType.short_text),
-        QuestionInput(text="Which site?", answer_type=AnswerType.short_text),
-        QuestionInput(text="Rate your onboarding", answer_type=AnswerType.rating),
+        QuestionInput(
+            text="What's your role?",
+            answer_type=AnswerType.short_text,
+            follow_up_policy=FollowUpPolicy.never,
+        ),
+        QuestionInput(
+            text="Which site?",
+            answer_type=AnswerType.short_text,
+            follow_up_policy=FollowUpPolicy.never,
+        ),
+        QuestionInput(
+            text="Rate your onboarding",
+            answer_type=AnswerType.rating,
+            follow_up_policy=FollowUpPolicy.never,
+        ),
     )
     engine = ConductEngine(session, llm=FakeLLM())
     run = await engine.start_run(template.id, respondent)
@@ -1072,13 +1116,22 @@ async def test_rewind_lets_a_skipped_question_come_back(session, respondent, aut
     template = await _publish(
         session,
         author,
-        QuestionInput(text="Have you been trained?", answer_type=AnswerType.yes_no),
+        QuestionInput(
+            text="Have you been trained?",
+            answer_type=AnswerType.yes_no,
+            follow_up_policy=FollowUpPolicy.never,
+        ),
         QuestionInput(
             text="What were you trained on?",
             answer_type=AnswerType.long_text,
             show_when={"question": 0, "op": "is", "value": "yes"},
+            follow_up_policy=FollowUpPolicy.never,
         ),
-        QuestionInput(text="Rate the training", answer_type=AnswerType.rating),
+        QuestionInput(
+            text="Rate the training",
+            answer_type=AnswerType.rating,
+            follow_up_policy=FollowUpPolicy.never,
+        ),
     )
     engine = ConductEngine(session, llm=FakeLLM())
     run = await engine.start_run(template.id, respondent)
@@ -1200,7 +1253,11 @@ async def test_rewind_refunds_the_next_questions_budgets_too(session, respondent
     template = await _publish(
         session,
         author,
-        QuestionInput(text="What's your role?", answer_type=AnswerType.short_text),
+        QuestionInput(
+            text="What's your role?",
+            answer_type=AnswerType.short_text,
+            follow_up_policy=FollowUpPolicy.never,
+        ),
         QuestionInput(
             text="Which systems do you use?",
             answer_type=AnswerType.short_text,
@@ -1244,8 +1301,16 @@ async def test_rewind_keeps_the_budgets_of_questions_that_keep_their_transcript(
             answer_type=AnswerType.short_text,
             follow_up_policy=FollowUpPolicy.when_unclear,
         ),
-        QuestionInput(text="Which site?", answer_type=AnswerType.short_text),
-        QuestionInput(text="Rate your onboarding", answer_type=AnswerType.rating),
+        QuestionInput(
+            text="Which site?",
+            answer_type=AnswerType.short_text,
+            follow_up_policy=FollowUpPolicy.never,
+        ),
+        QuestionInput(
+            text="Rate your onboarding",
+            answer_type=AnswerType.rating,
+            follow_up_policy=FollowUpPolicy.never,
+        ),
     )
     engine = ConductEngine(session, llm=FakeLLM())
     run = await engine.start_run(template.id, respondent)

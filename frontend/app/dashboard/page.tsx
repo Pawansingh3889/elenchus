@@ -330,7 +330,7 @@ export default function Dashboard() {
                 <span className="block text-sm text-warn-text">{why(r, attention)}</span>
               </Link>
               <div className="flex items-center gap-2">
-                {attention === "resultsReady" ? (
+                {attention === "resultsReady" || r.completed > 0 ? (
                   <Button variant="primary" size="sm" asChild>
                     <Link href={`/templates/${r.id}/results`}>{home.readResults}</Link>
                   </Button>

@@ -1,5 +1,6 @@
 import type { Messages } from "./i18n/en";
 import type { Band, Hat, JobFunction, SurveyAudience } from "./types";
+import { cn } from "./utils";
 
 /**
  * What to call an audience, in one place.
@@ -89,6 +90,39 @@ export function bandLabel(band: Messages["band"], value: Band): string {
       return band.head;
     case "director":
       return band.director;
+  }
+}
+
+/**
+ * The step of the band ramp a band paints with, as the two Tailwind classes for it.
+ *
+ * Bands are ordered, so they take an ordered scale: six lightness steps from operative to
+ * director, defined as `--band-N` and `--on-band-N` in globals.css and measured there.
+ * One place turns a band into its classes so the reach map and the person table cannot
+ * tint the same band two different ways. Each pair goes through `cn()` rather than being
+ * returned as a bare string, and that is not decoration: the class guard reads the
+ * argument lists of `cn()` and `className=` and nothing else, so a bare `return "bg-…"`
+ * here would be a class the guard never sees. Planted a `text-on-band-99` to check, and
+ * the bare form passed; the `cn()` form is rejected. A `bg-band-${n}` template would be
+ * invisible for the same reason.
+ *
+ * Exhaustive over the union for the same reason `bandLabel` is: a seventh band added to
+ * `Band` stops this compiling rather than rendering untinted.
+ */
+export function bandTint(value: Band): string {
+  switch (value) {
+    case "operative":
+      return cn("bg-band-1", "text-on-band-1");
+    case "line_leader":
+      return cn("bg-band-2", "text-on-band-2");
+    case "supervisor":
+      return cn("bg-band-3", "text-on-band-3");
+    case "manager":
+      return cn("bg-band-4", "text-on-band-4");
+    case "head":
+      return cn("bg-band-5", "text-on-band-5");
+    case "director":
+      return cn("bg-band-6", "text-on-band-6");
   }
 }
 

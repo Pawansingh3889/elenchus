@@ -3,7 +3,9 @@
 import { useState } from "react";
 
 import { Card } from "@/components/ui/card";
+import { bandTint } from "@/lib/audience";
 import { useT } from "@/lib/i18n/useT";
+import { cn } from "@/lib/utils";
 import type { Band, JobFunction, Person, SurveyAudience } from "@/lib/types";
 
 /**
@@ -141,11 +143,23 @@ export function ReachMap({ people }: { people: Person[] }) {
                         <span className="text-muted-light">-</span>
                       ) : (
                         <span
-                          className={`inline-block min-w-7 rounded-md px-2 py-0.5 tabular-nums ${
-                            lit > 0
-                              ? "bg-accent-strong font-semibold text-on-slab"
-                              : "bg-surface text-muted"
-                          }`}
+                          className={cn(
+                            // A hairline on every cell, so the ramp's first step has an
+                            // edge: its fill is one shade off the card by construction, and
+                            // a count floating on nothing reads as unstyled rather than as
+                            // the lightest rung.
+                            "inline-block min-w-7 rounded-md border border-line px-2 py-0.5 tabular-nums",
+                            // Two things a cell can say, and they never share a colour.
+                            // Its band, as a step on the neutral ramp, so seniority reads
+                            // as depth across the row. And whether the chosen audience
+                            // reaches it, in the accent blue, which on this page means
+                            // that and nothing else. A cell that is both is lit, because
+                            // the question the reader asked was "who is reached".
+                            lit > 0 ? "bg-accent-strong font-semibold text-on-slab" : bandTint(band),
+                            // Once an audience is picked, an unreached cell steps back so
+                            // the reached ones are the figure and the rest the ground.
+                            selected && lit === 0 && "opacity-45",
+                          )}
                           // The cell says how many of the people in it the audience
                           // reaches, which is the whole question on a hatted function.
                           title={here.map((p) => p.display_name).join(", ")}
