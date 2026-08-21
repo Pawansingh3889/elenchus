@@ -1,12 +1,12 @@
 """Runtime settings service and LLM factory integration."""
 
 import pytest
+from app.settings.schemas import SettingsUpdate, TierConfig
+from app.settings.service import SettingsService
 
 from app.config import Settings
 from app.llm import factory
 from app.llm.openai_compatible import OpenAICompatibleLLMClient
-from app.settings.schemas import SettingsUpdate, TierConfig
-from app.settings.service import SettingsService
 
 
 def _settings(**overrides):
