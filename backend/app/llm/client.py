@@ -61,7 +61,7 @@ class LLMProtocol(Protocol):
         tool_name: str,
         tool_description: str,
         input_schema: dict[str, Any],
-        max_tokens: int = ...,
+        max_tokens: int | None = None,
     ) -> dict[str, Any]: ...
 
     async def tool_turn(
@@ -70,11 +70,6 @@ class LLMProtocol(Protocol):
         system: str,
         messages: list[dict[str, str]],
         tools: list[dict[str, Any]],
-        max_tokens: int = ...,
-        # Whether a NoToolCallError should drop the turn to the next tier. Defaults to
-        # cascading, because that is the only recovery a caller without a retry of its
-        # own has; a caller that answers the error with a nudged retry passes False so
-        # its healthy tier is not abandoned. On the protocol rather than on FailoverLLM
-        # because callers cannot tell a chain from a single client, which is the point.
+        max_tokens: int | None = None,
         cascade_on_no_tool_call: bool = ...,
     ) -> ToolTurn: ...

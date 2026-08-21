@@ -51,18 +51,21 @@ services:
       LLM_TIER1_MODEL: ${LLM_TIER1_MODEL:-}
       LLM_TIER1_TIMEOUT_SECONDS: ${LLM_TIER1_TIMEOUT_SECONDS:-120}
       LLM_TIER1_PROMPT_CACHE: ${LLM_TIER1_PROMPT_CACHE:-false}
+      LLM_TIER1_MAX_COMPLETION_TOKENS: ${LLM_TIER1_MAX_COMPLETION_TOKENS:-4096}
       LLM_TIER2_ENABLED: ${LLM_TIER2_ENABLED:-false}
       LLM_TIER2_BASE_URL: ${LLM_TIER2_BASE_URL:-}
       LLM_TIER2_API_KEY: ${LLM_TIER2_API_KEY:-}
       LLM_TIER2_MODEL: ${LLM_TIER2_MODEL:-}
       LLM_TIER2_TIMEOUT_SECONDS: ${LLM_TIER2_TIMEOUT_SECONDS:-120}
       LLM_TIER2_PROMPT_CACHE: ${LLM_TIER2_PROMPT_CACHE:-false}
+      LLM_TIER2_MAX_COMPLETION_TOKENS: ${LLM_TIER2_MAX_COMPLETION_TOKENS:-4096}
       LLM_TIER3_ENABLED: ${LLM_TIER3_ENABLED:-false}
       LLM_TIER3_BASE_URL: ${LLM_TIER3_BASE_URL:-}
       LLM_TIER3_API_KEY: ${LLM_TIER3_API_KEY:-}
       LLM_TIER3_MODEL: ${LLM_TIER3_MODEL:-}
       LLM_TIER3_TIMEOUT_SECONDS: ${LLM_TIER3_TIMEOUT_SECONDS:-120}
       LLM_TIER3_PROMPT_CACHE: ${LLM_TIER3_PROMPT_CACHE:-false}
+      LLM_TIER3_MAX_COMPLETION_TOKENS: ${LLM_TIER3_MAX_COMPLETION_TOKENS:-1024}
       # Tier 4 is unconfigured and off. It used to run a local Ollama in this file;
       # that is gone, but the tier itself remains because it costs nothing to keep and
       # any OpenAI-compatible server can take the slot by setting these four in .env.
@@ -74,6 +77,7 @@ services:
       LLM_TIER4_MODEL: ${LLM_TIER4_MODEL:-}
       LLM_TIER4_TIMEOUT_SECONDS: ${LLM_TIER4_TIMEOUT_SECONDS:-300}
       LLM_TIER4_PROMPT_CACHE: ${LLM_TIER4_PROMPT_CACHE:-false}
+      LLM_TIER4_MAX_COMPLETION_TOKENS: ${LLM_TIER4_MAX_COMPLETION_TOKENS:-1024}
       # What each tier costs, for the spend ledger. Forwarded for the same reason the
       # connection settings above are: compose reads the root .env only to interpolate
       # ${...} here, so a variable that is not named on this list never reaches the

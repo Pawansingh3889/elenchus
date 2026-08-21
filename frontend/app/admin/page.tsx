@@ -9,9 +9,9 @@ import { SignInPrompt } from "@/components/SignInPrompt";
 import { Stat } from "@/components/Stat";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLlmReport, useLlmRunEntries, useMe } from "@/lib/queries";
+import { useLlmReport, useLlmRunEntries, useMe, useAdminHealth, useSettings, useUpdateSettings } from "@/lib/queries";
 import { useUserStore } from "@/lib/store";
-import type { LlmEntry, LlmModelStats, LlmRunSummary } from "@/lib/types";
+import type { LlmEntry, LlmModelStats, LlmRunSummary, TierConfig, SettingsRead } from "@/lib/types";
 
 function formatTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -129,6 +129,120 @@ function ExpandedEntries({ runId }: { runId: string }) {
   );
 }
 
+function HealthCheckCard() {
+  const { data: health, isLoading, error } = useAdminHealth();
+  if (isLoading) return <Card className="p-4"><Skeleton className="h-16 w-full" /></Card>;
+  if (error) return <Card className="p-4 text-sm text-warn-text">Failed to load health</Card>;
+  if (!health) return null;
+
+  return (
+    <Card className="flex flex-col gap-3 p-4">
+      <h2 className="text-md font-semibold">System Health</h2>
+      <div className="flex flex-wrap gap-6">
+        <Stat value={health.status === "ok" ? "Healthy" : "Degraded"} label="Status" />
+        <Stat value={health.database === "ok" ? "Database OK" : "Database unreachable"} label="Database" />
+        <Stat value={health.demo_mode ? "Demo" : "Production"} label="Environment" />
+      </div>
+    </Card>
+  );
+}
+
+function SettingsPanel() {
+  const { data: initialSettings, isLoading } = useSettings();
+  const update = useUpdateSettings();
+  const [saving, setSaving] = useState(false);
+  const [edits, setEdits] = useState<Record<string, TierConfig>>({});
+
+  const tiers = [1, 2, 3, 4] as const;
+
+  const settings: SettingsRead = useMemo(() => ({
+    tier_config: {
+      ...(initialSettings?.tier_config ?? {}),
+      ...edits,
+    },
+  }), [initialSettings?.tier_config, edits]);
+
+  if (isLoading) return <Card className="p-4"><Skeleton className="h-48 w-full" /></Card>;
+  if (!initialSettings) return null;
+
+  async function save() {
+    setSaving(true);
+    try {
+      await update.mutateAsync({ tier_config: settings.tier_config });
+      setEdits({});
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function updateTier(tier: number, field: keyof TierConfig, value: boolean | number | null) {
+    if (!initialSettings) return;
+    setEdits((prev) => {
+      const current = { ...(initialSettings.tier_config[tier] ?? {}), ...(prev[tier] ?? {}) } as TierConfig;
+      (current as Record<keyof TierConfig, boolean | number | null>)[field] = value;
+      return { ...prev, [tier]: current };
+    });
+  }
+
+  return (
+    <Card className="flex flex-col gap-4 p-4">
+      <h2 className="text-md font-semibold">LLM Tier Settings</h2>
+      {tiers.map((tier) => {
+        const cfg = settings.tier_config[tier] ?? {};
+        return (
+          <div key={tier} className="flex flex-col gap-2 border-b border-border/50 pb-3 last:border-0 last:pb-0">
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={!!cfg.enabled}
+                  onChange={(e) => updateTier(tier, "enabled", e.target.checked)}
+                />
+                Tier {tier}
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <label className="flex flex-col gap-1 text-xs">
+                Timeout (s)
+                <input
+                  type="number"
+                  className="field"
+                  value={cfg.timeout_seconds ?? ""}
+                  onChange={(e) => updateTier(tier, "timeout_seconds", e.target.value ? Number(e.target.value) : null)}
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-xs">
+                Max completion tokens
+                <input
+                  type="number"
+                  className="field"
+                  value={cfg.max_completion_tokens ?? ""}
+                  onChange={(e) => updateTier(tier, "max_completion_tokens", e.target.value ? Number(e.target.value) : null)}
+                />
+              </label>
+              <label className="flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={cfg.prompt_cache ?? false}
+                  onChange={(e) => updateTier(tier, "prompt_cache", e.target.checked)}
+                />
+                Prompt cache
+              </label>
+            </div>
+          </div>
+        );
+      })}
+      <button
+        className="btn-primary w-auto text-sm"
+        onClick={save}
+        disabled={saving}
+      >
+        {saving ? "Saving..." : "Save settings"}
+      </button>
+    </Card>
+  );
+}
+
 export default function AdminPage() {
   const currentUserId = useUserStore((s) => s.currentUserId);
   const { data: me } = useMe();
@@ -232,6 +346,9 @@ export default function AdminPage() {
               <Stat value={formatCost(report.total_cost_usd)} label="Total cost" />
             </div>
           </Card>
+
+          <HealthCheckCard />
+          <SettingsPanel />
 
           <section className="flex flex-col gap-2">
             <h2 className="text-md font-semibold">By Model</h2>

@@ -5,6 +5,7 @@ import type {
   AccountCreate,
   AccountImpact,
   AccountWrite,
+  AdminHealthRead,
   AnswersMatrix,
   AudienceReach,
   DashboardRow,
@@ -18,6 +19,8 @@ import type {
   RunDetail,
   RunSummary,
   RunSummaryContent,
+  SettingsRead,
+  SettingsUpdate,
   SurveyAudience,
   SurveyRecapStatus,
   SurveySummary,
@@ -240,4 +243,8 @@ export const api = {
     ),
   llmReport: () => request<LlmReport>("/admin/llm/report"),
   llmRunEntries: (runId: string) => request<LlmEntry[]>(`/admin/llm/run/${runId}`),
+  adminHealth: () => request<AdminHealthRead>("/admin/health"),
+  readSettings: () => request<SettingsRead>("/admin/settings"),
+  updateSettings: (data: SettingsUpdate) =>
+    request<SettingsRead>("/admin/settings", { method: "PATCH", body: JSON.stringify(data) }),
 };

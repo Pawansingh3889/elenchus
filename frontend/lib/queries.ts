@@ -479,3 +479,32 @@ export function useResetDemo() {
     },
   });
 }
+
+export function useAdminHealth() {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["admin-health", userId],
+    queryFn: api.adminHealth,
+    enabled: !!userId,
+    refetchInterval: 30_000,
+  });
+}
+
+export function useSettings() {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["settings", userId],
+    queryFn: api.readSettings,
+    enabled: !!userId,
+  });
+}
+
+export function useUpdateSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof api.updateSettings>[0]) => api.updateSettings(data),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["settings"] });
+    },
+  });
+}

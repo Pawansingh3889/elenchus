@@ -108,10 +108,8 @@ class OpenAICompatibleLLMClient:
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
         transport: httpx.AsyncBaseTransport | None = None,
         tier: int = 0,
-        # Opt-in prefix caching. Off unless the factory enables it for a provider that
-        # honours `cache_control`; OpenAI rejects the annotation, so it must never be on
-        # for tier 1 by default.
         prompt_cache: bool = False,
+        max_completion_tokens: int = 4096,
     ) -> None:
         if not base_url or not model:
             raise LLMError("This LLM tier is enabled but its base_url/model are not configured.")
@@ -120,12 +118,9 @@ class OpenAICompatibleLLMClient:
         self._model = model
         self._timeout = httpx.Timeout(timeout_seconds, connect=CONNECT_TIMEOUT_SECONDS)
         self._transport = transport  # injectable so tests need no network
-        # Which tier this client is in the chain, so the ledger can price the call. The
-        # factory always knows it; the default is for tests that build a client directly,
-        # and 0 records honestly as "no economics configured" rather than pricing the
-        # call as tier 1's.
         self._tier = tier
         self._prompt_cache = prompt_cache
+        self._max_completion_tokens = max_completion_tokens
 
     async def _post(self, payload: dict[str, Any], op: str = "unknown") -> dict[str, Any]:
         """POST once, retrying the cheap transient failures, booking every attempt."""
@@ -365,8 +360,9 @@ class OpenAICompatibleLLMClient:
         tool_name: str,
         tool_description: str,
         input_schema: dict[str, Any],
-        max_tokens: int = 4096,
+        max_tokens: int | None = None,
     ) -> dict[str, Any]:
+        max_tokens = max_tokens or self._max_completion_tokens
         payload = {
             "model": self._model,
             # "max_completion_tokens", not "max_tokens". The gpt-5 and o-series models
@@ -401,12 +397,13 @@ class OpenAICompatibleLLMClient:
         system: str,
         messages: list[dict[str, str]],
         tools: list[dict[str, Any]],
-        max_tokens: int = 1024,
+        max_tokens: int | None = None,
         # Accepted and ignored: one tier has nothing to cascade to, so the flag can only
         # mean something to FailoverLLM. It is on the protocol because callers are typed
         # against the protocol and cannot tell which of the two they hold.
         cascade_on_no_tool_call: bool = True,
     ) -> ToolTurn:
+        max_tokens = max_tokens or self._max_completion_tokens
         payload = {
             "model": self._model,
             # The newer spelling, for the reason given in tool_call above.

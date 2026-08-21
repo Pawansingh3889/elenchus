@@ -559,3 +559,25 @@ export interface LlmEntry {
   error: string | null;
   cost_usd: number | null;
 }
+
+export interface TierConfig {
+  enabled: boolean | null;
+  timeout_seconds: number | null;
+  prompt_cache: boolean | null;
+  max_completion_tokens: number | null;
+}
+
+export interface SettingsRead {
+  tier_config: Record<string, TierConfig>;
+}
+
+export interface SettingsUpdate {
+  tier_config: Record<string, TierConfig>;
+}
+
+export interface AdminHealthRead {
+  status: string;
+  database: string;
+  demo_mode: boolean;
+  tiers: Record<string, Record<string, unknown>>;
+}
