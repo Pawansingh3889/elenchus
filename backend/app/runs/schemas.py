@@ -189,6 +189,10 @@ class QuestionReport(BaseModel):
     # is usually longer than this number.
     follow_ups: list[str] = Field(default_factory=list)
     probed: int = 0
+    # The unit the numbers are in, and an optional second unit also shown. Currency is
+    # absent by design (app/units.py); these are pure-formula units only.
+    unit: str | None = None
+    display_unit: str | None = None
 
 
 class MatrixQuestion(BaseModel):
@@ -204,6 +208,8 @@ class MatrixQuestion(BaseModel):
     text: str
     answer_type: AnswerType
     options: list[str] = Field(default_factory=list)
+    unit: str | None = None
+    display_unit: str | None = None
 
 
 class MatrixRun(BaseModel):

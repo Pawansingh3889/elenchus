@@ -47,6 +47,8 @@ async def _to_read(engine: ConductEngine, run: SurveyRun) -> RunRead:
             options=q["options"],
             allow_other=q["allow_other"],
             required=q["required"],
+            unit=q.get("unit"),
+            display_unit=q.get("display_unit"),
         )
     answered, total = engine.progress(run, questions)
     return RunRead(
@@ -95,8 +97,11 @@ async def my_unfinished_runs(
             answered=answered,
             total=total,
             started_at=run.started_at,
+            pending_clarification=bool(run.pending_clarifications),
         )
-        for run, template_id, title, answered, total in await engine.resumable(answerer)
+        for run, template_id, title, answered, total, pending in await engine.resumable(
+            answerer
+        )
     ]
 
 

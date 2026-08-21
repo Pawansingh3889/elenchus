@@ -78,6 +78,9 @@ def _insert_survey(session: AsyncSession, survey: SurveyFixture, users: dict[str
                 allow_other=question["allow_other"],
                 required=question["required"],
                 follow_up_policy=FollowUpPolicy(question["follow_up_policy"]),
+                # None on the fixtures that predate conditions; the AI-adoption survey
+                # carries one, so the conditional question loads conditional.
+                show_when=question.get("show_when"),
             )
         )
     # Published, with the fixture's own publication details rather than a snapshot row.

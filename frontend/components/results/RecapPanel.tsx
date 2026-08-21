@@ -35,7 +35,9 @@ function RecapBody({ recap }: { recap: SurveySummary }) {
   const msg = useT();
   return (
     <>
-      <h3 className="text-lg font-semibold">{recap.headline}</h3>
+      <h3 className="text-xl font-bold leading-tight text-ink md:text-2xl">
+        {recap.headline}
+      </h3>
 
       <ul className="flex flex-col gap-2">
         {recap.findings.map((finding, i) => (

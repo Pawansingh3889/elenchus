@@ -74,6 +74,12 @@ export const pl: Messages = {
     colHats: "Obowiązki",
     buildsSurveys: "Tworzy ankiety",
     noJob: "Bez stanowiska, więc nie można o nic zapytać",
+    searchPlaceholder: "Szukaj osób",
+    bandFilterLabel: "Szczebel",
+    bandFilterAll: "Wszystkie szczeble",
+    noMatches: "Nikt nie pasuje.",
+    inFunction: (n: number) => `${n} ${n === 1 ? 'osoba' : n < 5 ? 'osoby' : 'osób'}`,
+    showing: (shown: number, total: number) => `Pokazano ${shown} z ${total}`,
     readOnly: "Tylko do odczytu. Osoby może dodawać i zmieniać wyłącznie administrator.",
   },
   admin: {
@@ -195,24 +201,57 @@ export const pl: Messages = {
     heroTitle: "Ankiety, które pytają jak człowiek, a nie jak formularz",
     heroBody:
       "Opisz, czego chcesz się dowiedzieć, a pytania zostaną przygotowane za Ciebie. Po opublikowaniu odbiorcy odpowiadają w rozmowie, zamiast wypełniać pola. Każda odpowiedź jest sprawdzana z pytaniem przed zapisaniem.",
-    videoTitle: "Zobacz, jak działa",
-    videoLabel: "Krótki film pokazujący usługę ankiet w działaniu",
-    videoUnsupported: "Twoja przeglądarka nie może odtworzyć tego filmu.",
-    howTitle: "Jak to działa",
-    stepNumber: (n: number) => `Krok ${n}`,
-    step1Title: "Opisz",
-    step1Body:
-      "Napisz zdanie o tym, czego chcesz się dowiedzieć. Pytania, ich typy i opcje powstaną na tej podstawie, a każde z nich możesz zmienić w edytorze.",
-    step2Title: "Opublikuj",
-    step2Body:
-      "Publikacja zamraża ankietę jako wersję, która nie zmieni się pod osobami odpowiadającymi. Wersja robocza rozwija się dalej osobno.",
-    step3Title: "Odpowiadają w rozmowie",
-    step3Body:
-      "Odbiorcy przechodzą przez pytania w rozmowie. Silnik decyduje, co dalej i co liczy się jako odpowiedź, więc nic nie zostaje zmyślone ani pominięte.",
-    needsYou: (n: number) => `Ankiety czekające na Ciebie: ${n} →`,
     respondBody: "Czekają na Ciebie ankiety.",
     respondCta: "Wypełnij ankietę",
-    signedOutHint: "Zaloguj się u góry strony, aby zacząć.",
+    composeTitle: "Czego chcesz się dowiedzieć?",
+    signInCta: "Zaloguj się, aby zacząć",
+    recentTitle: "Ostatnio zmienione",
+    allSurveys: "Wszystkie ankiety",
+    newAuthorLead: "Nie masz jeszcze żadnej ankiety. Oto co się stanie, gdy ją utworzysz.",
+    manualTitle: "Podręcznik produktu",
+    manualSubtitle: "Wszystko, co musisz wiedzieć, w czterech częściach.",
+    manualAuthorTitle: "Dla autorów",
+    manualAuthorCreate:
+      "Opisz ankietę jednym zdaniem. AI przygotowuje wszystko.",
+    manualAuthorEdit:
+      "Edytuj, przestawiaj lub zmieniaj dowolne pytanie. Ustawiaj polityki follow-up.",
+    manualAuthorPublish:
+      "Publikacja otwiera ankietę i zamraża pytania dla respondentów.",
+    manualAuthorResults:
+      "Wyniki jako wykresy. Filtruj według odpowiedzi. Eksportuj do CSV.",
+    manualRespondentTitle: "Dla respondentów",
+    manualRespondentOpen:
+      "Otwarte ankiety są na stronie głównej. Wybierz i zacznij.",
+    manualRespondentChat:
+      "Odpowiadaj w rozmowie. Follow-upy przy niejasnych odpowiedziach.",
+    manualRespondentFollowup:
+      "Follow-upy są ograniczone na pytanie i śledzone przez silnik.",
+    manualRespondentComplete:
+      "Wszystkie pytania odpowiedziane = przebieg zakończony i zapisany.",
+    manualAudienceTitle: "Grupy docelowe",
+    manualAudienceWho:
+      "Kieruj do grupy, działu, poziomu lub osoby.",
+    manualAudienceReach:
+      "Liczn na żywo, ile osób z grupy odpowiedziało.",
+    manualAudienceAnonymous:
+      "Odpowiedzi są pseudonimowe. Autor widzi grupę, nie osobę.",
+    manualAdminTitle: "Administracja",
+    manualAdminUsers:
+      "Administratorzy zarządzają kontami i przypisaniami stanowisk.",
+    manualAdminJobs:
+      "Jedno stanowisko na osobę: funkcja × poziom. Kapelusze dodają obowiązki krzyżowe.",
+    manualAdminReset:
+      "Tryb demo: Reset usuwa wszystko i wczytuje z fixture.",
+    trustTitle: "Dlaczego Elenchus?",
+    trustPrivacyTitle: "Prywatność wg projektu",
+    trustPrivacyBody:
+      "Odpowiedzi są pseudonimowe. Brak danych osobowych, chyba że ankieta o nie pyta.",
+    trustTransparencyTitle: "Przejrzysta AI",
+    trustTransparencyBody:
+      "Każde wygenerowane pytanie można edytować. Widzisz i zatwierdzasz wszystko.",
+    trustConversationalTitle: "Rozmowa z natury",
+    trustConversationalBody:
+      "Respondenci odpowiadają w czacie, nie w formularzach. Doprecyzowania bez dodatkowych pytań.",
   },
   builder: {
     pickUser: "Zaloguj się na górnym pasku.",
@@ -231,6 +270,8 @@ export const pl: Messages = {
     followUpsWhenUnclear: "Gdy odpowiedź jest niejasna",
     followUpsAlwaysOnce: "Zawsze dopytaj raz",
     allowOther: "Zezwalaj na „inne”",
+    unit: "Unit",
+    displayUnit: "Also show in",
     show: "Pokaż",
     always: "zawsze",
     onlyIf: "tylko jeśli…",
@@ -264,7 +305,7 @@ export const pl: Messages = {
     publishTitle: (t: string) => `Opublikować „${t}”?`,
     publishShape: (q: number, p: number) => p > 0 ? `${q} pytań, w tym ${p} zawsze dopytuje.` : `${q} pytań.`,
     publishFreezes:
-      "Opublikowanie otwiera tę ankietę na odpowiedzi. Późniejsze zmiany zmieniają ją dla wszystkich, także dla osób w trakcie wypełniania.",
+      "Publikacja otwiera tę ankietę na odpowiedzi i ją zamraża: pytania nie mogą się już zmienić pod osobami odpowiadającymi. Ankieta, która wymaga innych pytań, to nowa ankieta.",
     publishAgain:
       "Ta ankieta jest już otwarta. Ponowna publikacja zastosuje Twoje zmiany dla wszystkich, także dla osób w trakcie wypełniania.",
     tabResults: "Wyniki",
@@ -322,6 +363,8 @@ export const pl: Messages = {
     answeredBy: (n: number) => `${n} odpowiedziało`,
     declinedBy: (n: number) => `${n} odmówiło`,
     average: (v: string) => `średnia ${v}`,
+    unit: (u: string) => `Unit: ${u}`,
+    loggedAs: (u: string) => `logged as ${u}`,
     probedBy: (n: number) => `${n} dopytano`,
     inTheirWords: (n: number) => `Ich słowami (${n})`,
     whatProbesFound: (n: number) => `Co ujawniły pytania pogłębiające (${n})`,

@@ -236,11 +236,11 @@ async def test_the_recap_carries_what_wrote_it(session, author, respondent):
     written = await SurveySummaryService(session, llm=llm).summarise(template.id, author)
     read_back = await SurveySummaryService(session, llm=FakeLLM()).stored(template.id, author)
 
-    assert written.prompt_version == "summarise_survey_v2"
-    assert written.verify_prompt_version == "verify_survey_summary_v2"
+    assert written.prompt_version == "summarise_survey_v3"
+    assert written.verify_prompt_version == "verify_survey_summary_v3"
     assert read_back.recap is not None
-    assert read_back.recap.prompt_version == "summarise_survey_v2"
-    assert read_back.recap.verify_prompt_version == "verify_survey_summary_v2"
+    assert read_back.recap.prompt_version == "summarise_survey_v3"
+    assert read_back.recap.verify_prompt_version == "verify_survey_summary_v3"
 
 
 async def test_reading_a_recap_of_someone_elses_survey_is_a_404(

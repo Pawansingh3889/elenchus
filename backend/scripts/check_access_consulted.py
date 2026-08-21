@@ -55,7 +55,7 @@ GUARDED_TYPES = frozenset(
     }
 )
 
-ACCESS_RULES = frozenset({"may_answer", "may_list", "may_read_rows", "may_read_totals", "is_admin"})
+ACCESS_RULES = frozenset({"may_answer", "may_list", "may_read_rows", "may_read_totals", "is_admin", "may_edit"})
 
 EXEMPT = "access-exempt:"
 

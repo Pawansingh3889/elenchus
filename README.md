@@ -68,7 +68,7 @@ leftovers from a retired vocabulary. The ones the walkthrough uses:
 | Ravi Respondent | ravi@elenchus.dev | production / line_leader | One job only, on purpose |
 | Rohan Respondent | rohan@elenchus.dev | production / supervisor | Carries the health and safety hat |
 
-`app/seed.py` holds the full list of thirteen, with a comment on each explaining which
+`app/seed.py` holds the full list of sixteen, with a comment on each explaining which
 rule it exists to demonstrate. Nobody seeded is in IT, so nobody seeded is an
 administrator; that is deliberate.
 

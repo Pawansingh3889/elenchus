@@ -74,6 +74,12 @@ export const es: Messages = {
     colHats: "Responsabilidades",
     buildsSurveys: "Crea encuestas",
     noJob: "Sin puesto, así que no se le puede preguntar nada",
+    searchPlaceholder: "Buscar personas",
+    bandFilterLabel: "Nivel",
+    bandFilterAll: "Todos los niveles",
+    noMatches: "Nadie coincide con eso.",
+    inFunction: (n: number) => `${n} ${n === 1 ? 'persona' : 'personas'}`,
+    showing: (shown: number, total: number) => `Mostrando ${shown} de ${total}`,
     readOnly: "Solo lectura. Únicamente un administrador puede añadir o cambiar personas.",
   },
   admin: {
@@ -195,25 +201,57 @@ export const es: Messages = {
     heroTitle: "Encuestas que preguntan como una persona, no como un formulario",
     heroBody:
       "Describe qué quieres averiguar y las preguntas se redactan por ti. Al publicarla, las personas a las que va dirigida responden conversando en lugar de rellenar casillas. Cada respuesta se comprueba con la pregunta antes de guardarse.",
-    videoTitle: "Míralo en funcionamiento",
-    videoLabel: "Un vídeo breve del servicio de encuestas en uso",
-    videoUnsupported: "Su navegador no puede reproducir este vídeo.",
-    howTitle: "Cómo funciona",
-    stepNumber: (n: number) => `Paso ${n}`,
-    step1Title: "Descríbela",
-    step1Body:
-      "Escribe una frase sobre lo que quieres saber. Las preguntas, sus tipos y sus opciones se redactan a partir de ella, y puedes cambiar cualquiera en el editor.",
-    step2Title: "Publícala",
-    step2Body:
-      "Publicar congela la encuesta como una versión que no puede cambiar bajo quienes la responden. El borrador sigue evolucionando por separado.",
-    step3Title: "Responden conversando",
-    step3Body:
-      "Las personas recorren las preguntas en una conversación. El motor decide qué viene después y qué cuenta como respuesta, así no se inventa nada ni se omite nada.",
-    needsYou: (n: number) =>
-      `${n} encuesta${n === 1 ? "" : "s"} te necesita${n === 1 ? "" : "n"} →`,
     respondBody: "Tienes encuestas esperando.",
     respondCta: "Responder una encuesta",
-    signedOutHint: "Entra desde la parte superior para empezar.",
+    composeTitle: "¿Qué quieres averiguar?",
+    signInCta: "Entra para empezar",
+    recentTitle: "Actualizadas recientemente",
+    allSurveys: "Todas las encuestas",
+    newAuthorLead: "Aún no has creado ninguna encuesta. Esto es lo que ocurre cuando lo hagas.",
+    manualTitle: "Manual del producto",
+    manualSubtitle: "Todo lo que necesitas saber, en cuatro partes.",
+    manualAuthorTitle: "Para autores",
+    manualAuthorCreate:
+      "Describe tu encuesta en una frase. La IA redacta preguntas, tipos y opciones.",
+    manualAuthorEdit:
+      "Edita, reordena o reescribe cualquier pregunta. Define políticas de seguimiento.",
+    manualAuthorPublish:
+      "Publicar abre la encuesta y congela las preguntas para los encuestados.",
+    manualAuthorResults:
+      "Resultados como gráficos. Filtra por cualquier respuesta. Exporta a CSV.",
+    manualRespondentTitle: "Para encuestados",
+    manualRespondentOpen:
+      "Las encuestas abiertas aparecen en tu inicio. Elige una para empezar.",
+    manualRespondentChat:
+      "Responde en una conversación. Seguimientos cuando las respuestas no son claras.",
+    manualRespondentFollowup:
+      "Los seguimientos están limitados por pregunta y rastreados por el motor.",
+    manualRespondentComplete:
+      "Todas las preguntas respondidas = ejecución completada y guardada.",
+    manualAudienceTitle: "Audiencias",
+    manualAudienceWho:
+      "Apunta a un grupo, departamento, banda o una sola persona.",
+    manualAudienceReach:
+      "Conteo en vivo de cuántos en la audiencia han respondido.",
+    manualAudienceAnonymous:
+      "Las respuestas son seudónimas. El autor ve al grupo, no a la persona.",
+    manualAdminTitle: "Administración",
+    manualAdminUsers:
+      "Los administradores gestionan cuentas y asignaciones de puesto.",
+    manualAdminJobs:
+      "Un puesto por persona: función × banda. Sombreros añaden deberes transversales.",
+    manualAdminReset:
+      "Modo demo: Reset borra todo y recarga desde fixtures.",
+    trustTitle: "¿Por qué Elenchus?",
+    trustPrivacyTitle: "Privacidad por diseño",
+    trustPrivacyBody:
+      "Las respuestas son pseudónimas. Sin datos personales a menos que la encuesta pregunte explícitamente.",
+    trustTransparencyTitle: "IA transparente",
+    trustTransparencyBody:
+      "Cada pregunta generada es editable. Vees y apruebas todo.",
+    trustConversationalTitle: "Conversacional por naturaleza",
+    trustConversationalBody:
+      "Los encuestados responden en chat, no en formularios. Seguimientos aclaran sin preguntas extra.",
   },
   builder: {
     pickUser: "Entra desde la barra superior.",
@@ -232,6 +270,8 @@ export const es: Messages = {
     followUpsWhenUnclear: "Si la respuesta no queda clara",
     followUpsAlwaysOnce: "Preguntar siempre una vez",
     allowOther: "Permitir «otro»",
+    unit: "Unit",
+    displayUnit: "Also show in",
     show: "Mostrar",
     always: "siempre",
     onlyIf: "solo si…",
@@ -265,7 +305,7 @@ export const es: Messages = {
     publishTitle: (t: string) => `¿Publicar «${t}»?`,
     publishShape: (q: number, p: number) => p > 0 ? `${q} preguntas, ${p} de ellas siempre repreguntan.` : `${q} preguntas.`,
     publishFreezes:
-      "Publicar abre esta encuesta a respuestas. Las ediciones posteriores la cambian para todos, incluido quien esté a mitad de responderla.",
+      "Publicar abre esta encuesta a las respuestas y la congela: las preguntas no pueden cambiar bajo quienes las responden. Una encuesta que necesita otras preguntas es una encuesta nueva.",
     publishAgain:
       "Esta encuesta ya está abierta. Publicar de nuevo aplica sus cambios a todos, incluido quien esté a mitad de responderla.",
     tabResults: "Resultados",
@@ -323,6 +363,8 @@ export const es: Messages = {
     answeredBy: (n: number) => `${n} respondieron`,
     declinedBy: (n: number) => `${n} declinaron`,
     average: (v: string) => `media ${v}`,
+    unit: (u: string) => `Unit: ${u}`,
+    loggedAs: (u: string) => `logged as ${u}`,
     probedBy: (n: number) => `${n} con repregunta`,
     inTheirWords: (n: number) => `En sus palabras (${n})`,
     whatProbesFound: (n: number) => `Lo que revelaron las repreguntas (${n})`,

@@ -59,6 +59,20 @@
   --color-ai-border: var(--ai-border);
   --color-line: var(--border);
   --color-line-faint: var(--border-faint);
+  /* The band ramp and its text, so a cell can be `bg-band-3 text-on-band-3` and the
+     class guard sees a real utility rather than a name it has to take on trust. */
+  --color-band-1: var(--band-1);
+  --color-band-2: var(--band-2);
+  --color-band-3: var(--band-3);
+  --color-band-4: var(--band-4);
+  --color-band-5: var(--band-5);
+  --color-band-6: var(--band-6);
+  --color-on-band-1: var(--on-band-1);
+  --color-on-band-2: var(--on-band-2);
+  --color-on-band-3: var(--on-band-3);
+  --color-on-band-4: var(--on-band-4);
+  --color-on-band-5: var(--on-band-5);
+  --color-on-band-6: var(--on-band-6);
 
   /* The names shadcn's components ship with, pointed at the same palette, so a
      vendored component looks like this app without being rewritten. */

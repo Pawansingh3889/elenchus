@@ -1,0 +1,173 @@
+{
+  "scenario": "forced_probe",
+  "captured_at": "2026-08-20T16:39:27.115216+00:00",
+  "model": "gpt-5.5",
+  "survey_title": "Summer Heat On The Floor",
+  "status": "completed",
+  "respondent_messages": [
+    "yes",
+    "it is worst after two in the afternoon, near the ovens",
+    "days",
+    "better ventilation over the line",
+    "it is worst after two in the afternoon, near the ovens"
+  ],
+  "trace": {
+    "total": 3,
+    "positions": [
+      0,
+      0,
+      1,
+      2,
+      2
+    ],
+    "questions": [
+      {
+        "id": "174e233b-7cc6-46d2-b716-0a60d09832a2",
+        "position": 0,
+        "follow_up_policy": "always_once"
+      },
+      {
+        "id": "bc93dac5-2533-4e2b-b2fe-e19639d3abc2",
+        "position": 1,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "8c857916-522f-4c29-a622-3130a705cef1",
+        "position": 2,
+        "follow_up_policy": "always_once"
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "174e233b-7cc6-46d2-b716-0a60d09832a2",
+        "kind": "scripted",
+        "unanswerable": false
+      },
+      {
+        "question_id": "174e233b-7cc6-46d2-b716-0a60d09832a2",
+        "kind": "follow_up",
+        "unanswerable": false
+      },
+      {
+        "question_id": "bc93dac5-2533-4e2b-b2fe-e19639d3abc2",
+        "kind": "scripted",
+        "unanswerable": false
+      },
+      {
+        "question_id": "8c857916-522f-4c29-a622-3130a705cef1",
+        "kind": "scripted",
+        "unanswerable": false
+      },
+      {
+        "question_id": "8c857916-522f-4c29-a622-3130a705cef1",
+        "kind": "follow_up",
+        "unanswerable": false
+      }
+    ]
+  },
+  "answers": [
+    {
+      "question_text": "Has the heat affected your work or your health?",
+      "answer_type": "yes_no",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "yes_no": true
+      },
+      "said": [
+        "yes"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Thanks — in what way has the heat affected your work or your health?",
+      "answer_type": "yes_no",
+      "options": [],
+      "allow_other": false,
+      "kind": "follow_up",
+      "value": {
+        "text": "it is worst after two in the afternoon, near the ovens"
+      },
+      "said": [
+        "yes",
+        "it is worst after two in the afternoon, near the ovens"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Which shift do you work?",
+      "answer_type": "single_select",
+      "options": [
+        "Days",
+        "Nights"
+      ],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "option": "Days"
+      },
+      "said": [
+        "yes",
+        "it is worst after two in the afternoon, near the ovens",
+        "days"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    },
+    {
+      "question_text": "What one change would help most?",
+      "answer_type": "long_text",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "text": "better ventilation over the line"
+      },
+      "said": [
+        "yes",
+        "it is worst after two in the afternoon, near the ovens",
+        "days",
+        "better ventilation over the line"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    },
+    {
+      "question_text": "That sounds practical — what would better ventilation over the line change for you day to day?",
+      "answer_type": "long_text",
+      "options": [],
+      "allow_other": false,
+      "kind": "follow_up",
+      "value": {
+        "text": "it is worst after two in the afternoon, near the ovens"
+      },
+      "said": [
+        "yes",
+        "it is worst after two in the afternoon, near the ovens",
+        "days",
+        "better ventilation over the line",
+        "it is worst after two in the afternoon, near the ovens"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    }
+  ]
+}

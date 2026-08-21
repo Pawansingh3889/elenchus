@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import { LOCALES, isLocale, type Locale } from "@/lib/i18n";
 import { useDocumentLanguage, useT } from "@/lib/i18n/useT";
-import { useIdentify, useProviders, useSession, useUsers } from "@/lib/queries";
+import { useIdentify, useMe, useProviders, useUsers } from "@/lib/queries";
 import { useLocaleStore, useUserStore } from "@/lib/store";
 
 /**
@@ -80,14 +80,12 @@ export function TopBar() {
   const locale = useLocaleStore((s) => s.locale);
   const setLocale = useLocaleStore((s) => s.setLocale);
   const { topbar } = useT();
-  // The top bar is on every page, so it is the one place that can own the document's
-  // language and direction without a provider wrapping the tree twice.
   useDocumentLanguage();
 
-  // The nav must follow the acting user's role: Build pages are author-only on the
-  // backend, so showing the link to a respondent just leads to a 403.
   const currentUser = users?.find((u) => u.id === currentUserId);
   const isAuthor = currentUser?.may_author === true;
+  const { data: me } = useMe();
+  const isAdmin = me?.is_admin ?? false;
 
   return (
     <header className="topbar">
@@ -108,6 +106,7 @@ export function TopBar() {
             <>
               <Link href="/dashboard">{topbar.dashboard}</Link>
               <Link href="/people">{topbar.people}</Link>
+              {isAdmin ? <Link href="/admin">Admin</Link> : null}
             </>
           ) : (
             <Link href="/respond">{topbar.respond}</Link>

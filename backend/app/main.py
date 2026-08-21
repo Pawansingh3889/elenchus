@@ -5,6 +5,8 @@ Routes stay thin and delegate to services; domain routers are mounted here.
 
 import logging
 import sys
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,8 +20,10 @@ from app.conduct.router import router as runs_router
 from app.config import get_settings
 from app.db.session import get_session
 from app.errors import register_error_handlers
+from app.llm.router import router as llm_admin_router
 from app.runs.router import dashboard_router
 from app.runs.router import router as results_router
+from app.seed import seed
 from app.templates.router import router as templates_router
 from app.users.router import admin_router, dev_router, me_router
 from app.users.router import directory_router as people_router
@@ -56,7 +60,23 @@ def _configure_logging() -> None:
 _configure_logging()
 logger = logging.getLogger("app.main")
 
-app = FastAPI(title="Elenchus Survey Service", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Seed missing demo data on startup when APP_ENV=demo.
+
+    A seed, not a reset: the demo's data is meant to survive restarts so visitors keep
+    what they built or answered. The seed is idempotent, so an existing database is left
+    alone and only genuinely missing rows are added. The /dev/reset endpoint is the
+    explicit way to wipe back to the seed's clean state.
+    """
+    if get_settings().app_env == "demo":
+        logger.info("demo mode: seeding data on startup")
+        await seed()
+    yield
+
+
+app = FastAPI(title="Elenchus Survey Service", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -86,7 +106,8 @@ if get_settings().app_env != "prod":
     # Same branch, same lifetime, and the branch is doing more work here. The picker is
     # guarded and merely useless to a stranger; identify is unauthenticated by necessity,
     # because requiring a caller is the deadlock it exists to undo. Not registering it
-    # outside development is therefore the whole of its protection.
+    # outside development is therefore the whole of its protection. Demo mode mounts both
+    # so the public can sign in by email (the dev shim) and use the reset endpoint.
     app.include_router(dev_router)
 # Mounted always, unlike the dev picker above, and it is what makes that branch
 # survivable: this is how a production deployment is entered at all. An unconfigured
@@ -105,6 +126,7 @@ app.include_router(people_router)
 # route, which is a rule about the caller and holds the same in every environment.
 app.include_router(me_router)
 app.include_router(admin_router)
+app.include_router(llm_admin_router)
 app.include_router(templates_router)
 app.include_router(results_router)
 app.include_router(dashboard_router)
@@ -114,6 +136,7 @@ app.include_router(runs_router)
 class HealthRead(BaseModel):
     status: str
     database: str
+    demo_mode: bool = False
 
 
 @app.get("/api/v1/health", response_model=HealthRead, tags=["meta"])
@@ -126,12 +149,17 @@ async def health(session: AsyncSession = Depends(get_session)) -> Response:
     poll this — the demo reset and the live-conduct workflow — are waiting to find out
     whether the API can actually serve, so answer that question.
     """
+    is_demo = get_settings().app_env == "demo"
     try:
         await session.execute(text("SELECT 1"))
     except Exception as exc:  # noqa: BLE001 — any failure here means "not ready"
         logger.error("health check could not reach the database: %r", exc)
         return JSONResponse(
             status_code=503,
-            content=HealthRead(status="degraded", database="unreachable").model_dump(),
+            content=HealthRead(
+                status="degraded", database="unreachable", demo_mode=is_demo
+            ).model_dump(),
         )
-    return JSONResponse(content=HealthRead(status="ok", database="ok").model_dump())
+    return JSONResponse(
+        content=HealthRead(status="ok", database="ok", demo_mode=is_demo).model_dump()
+    )

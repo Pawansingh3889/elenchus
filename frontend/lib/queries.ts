@@ -450,3 +450,32 @@ export function useDeleteRun(id: string) {
     },
   });
 }
+
+export function useLlmReport() {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["llm-report", userId],
+    queryFn: api.llmReport,
+    enabled: !!userId,
+  });
+}
+
+export function useLlmRunEntries(runId: string | null) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["llm-run-entries", runId, userId],
+    queryFn: () => api.llmRunEntries(runId!),
+    enabled: !!userId && !!runId,
+  });
+}
+
+/** Reset the demo: wipe all data and re-seed. */
+export function useResetDemo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.resetDemo(),
+    onSuccess: () => {
+      void qc.invalidateQueries();
+    },
+  });
+}

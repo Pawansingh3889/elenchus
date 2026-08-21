@@ -1,0 +1,127 @@
+{
+  "scenario": "write_ins",
+  "captured_at": "2026-08-20T16:39:06.974925+00:00",
+  "model": "gpt-5.5",
+  "survey_title": "Commuting and Facilities Survey",
+  "status": "completed",
+  "respondent_messages": [
+    "i'm on the data science crew",
+    "mostly Tableau and a bit of Python scripting",
+    "i do nights, always have"
+  ],
+  "trace": {
+    "total": 3,
+    "positions": [
+      0,
+      1,
+      2
+    ],
+    "questions": [
+      {
+        "id": "1f97f974-c9c2-4630-93a1-cd8894622eda",
+        "position": 0,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "8fc80687-87b1-4f64-b07e-02ee2833adb4",
+        "position": 1,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "6976b66f-f471-4df5-834a-e2852f0dfcfd",
+        "position": 2,
+        "follow_up_policy": "never"
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "1f97f974-c9c2-4630-93a1-cd8894622eda",
+        "kind": "scripted",
+        "unanswerable": false
+      },
+      {
+        "question_id": "8fc80687-87b1-4f64-b07e-02ee2833adb4",
+        "kind": "scripted",
+        "unanswerable": false
+      },
+      {
+        "question_id": "6976b66f-f471-4df5-834a-e2852f0dfcfd",
+        "kind": "scripted",
+        "unanswerable": false
+      }
+    ]
+  },
+  "answers": [
+    {
+      "question_text": "Which team are you on?",
+      "answer_type": "single_select",
+      "options": [
+        "Sales",
+        "Engineering"
+      ],
+      "allow_other": true,
+      "kind": "scripted",
+      "value": {
+        "other": "data science crew"
+      },
+      "said": [
+        "i'm on the data science crew"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Which tools do you use?",
+      "answer_type": "multi_select",
+      "options": [
+        "Excel",
+        "Power BI"
+      ],
+      "allow_other": true,
+      "kind": "scripted",
+      "value": {
+        "options": [],
+        "other": [
+          "Tableau",
+          "Python scripting"
+        ]
+      },
+      "said": [
+        "i'm on the data science crew",
+        "mostly Tableau and a bit of Python scripting"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    },
+    {
+      "question_text": "Which shift do you work?",
+      "answer_type": "single_select",
+      "options": [
+        "Morning",
+        "Afternoon",
+        "Night"
+      ],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "option": "Night"
+      },
+      "said": [
+        "i'm on the data science crew",
+        "mostly Tableau and a bit of Python scripting",
+        "i do nights, always have"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    }
+  ]
+}

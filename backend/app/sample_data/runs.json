@@ -475,5 +475,1072 @@
         }
       }
     ]
+  },
+  {
+    "run_id": "c1d2e3f4-a5b6-7890-cdef-123456789abc",
+    "survey_key": "safety-equipment-ppe",
+    "respondent": "rosa",
+    "status": "completed",
+    "current_question_index": 5,
+    "probes_asked": {},
+    "completed": true,
+    "messages": [
+      {
+        "role": "assistant",
+        "content": "Thanks for taking Safety Equipment and PPE Survey. Which PPE items do you use regularly?"
+      },
+      {
+        "role": "user",
+        "content": "hard hat, safety glasses, gloves, steel-toe boots"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you rate the condition of your PPE?"
+      },
+      {
+        "role": "user",
+        "content": "4"
+      },
+      {
+        "role": "assistant",
+        "content": "Are replacement PPE items readily available when needed?"
+      },
+      {
+        "role": "user",
+        "content": "Yes"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you reported any PPE issues in the last month?"
+      },
+      {
+        "role": "user",
+        "content": "No"
+      },
+      {
+        "role": "assistant",
+        "content": "Any additional safety concerns or suggestions?"
+      },
+      {
+        "role": "user",
+        "content": "need more hearing protection on the packaging line"
+      },
+      {
+        "role": "assistant",
+        "content": "That's everything — thank you, your answers are saved."
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+        "kind": "scripted",
+        "question_text": "Which PPE items do you use regularly?",
+        "value": {
+          "options": [
+            "Hard hat",
+            "Safety glasses",
+            "Gloves",
+            "Steel-toe boots"
+          ]
+        }
+      },
+      {
+        "question_id": "d4e5f6a7-b8c9-0123-defa-234567890123",
+        "kind": "scripted",
+        "question_text": "How would you rate the condition of your PPE?",
+        "value": {
+          "rating": 4
+        }
+      },
+      {
+        "question_id": "e5f6a7b8-c9d0-1234-efab-345678901234",
+        "kind": "scripted",
+        "question_text": "Are replacement PPE items readily available when needed?",
+        "value": {
+          "yes_no": true
+        }
+      },
+      {
+        "question_id": "f6a7b8c9-d0e1-2345-fabc-456789012345",
+        "kind": "scripted",
+        "question_text": "Have you reported any PPE issues in the last month?",
+        "value": {
+          "yes_no": false
+        }
+      },
+      {
+        "question_id": "a7b8c9d0-e1f2-3456-abcd-567890123456",
+        "kind": "scripted",
+        "question_text": "Any additional safety concerns or suggestions?",
+        "value": {
+          "text": "need more hearing protection on the packaging line"
+        }
+      }
+    ]
+  },
+  {
+    "run_id": "d2e3f4a5-b6c7-8901-defa-234567890bcd",
+    "survey_key": "safety-equipment-ppe",
+    "respondent": "ravi",
+    "status": "completed",
+    "current_question_index": 5,
+    "probes_asked": {},
+    "completed": true,
+    "messages": [
+      {
+        "role": "assistant",
+        "content": "Thanks for taking Safety Equipment and PPE Survey. Which PPE items do you use regularly?"
+      },
+      {
+        "role": "user",
+        "content": "gloves and hi-vis vest"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you rate the condition of your PPE?"
+      },
+      {
+        "role": "user",
+        "content": "3"
+      },
+      {
+        "role": "assistant",
+        "content": "Are replacement PPE items readily available when needed?"
+      },
+      {
+        "role": "user",
+        "content": "sometimes"
+      },
+      {
+        "role": "assistant",
+        "content": "Just to confirm - that means yes, replacements are available but not always when you need them?"
+      },
+      {
+        "role": "user",
+        "content": "yes that is right"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you reported any PPE issues in the last month?"
+      },
+      {
+        "role": "user",
+        "content": "Yes"
+      },
+      {
+        "role": "assistant",
+        "content": "Any additional safety concerns or suggestions?"
+      },
+      {
+        "role": "user",
+        "content": "gloves wear out too fast, need thicker ones"
+      },
+      {
+        "role": "assistant",
+        "content": "That's everything — thank you, your answers are saved."
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+        "kind": "scripted",
+        "question_text": "Which PPE items do you use regularly?",
+        "value": {
+          "options": [
+            "Gloves",
+            "Hi-vis vest"
+          ]
+        }
+      },
+      {
+        "question_id": "d4e5f6a7-b8c9-0123-defa-234567890123",
+        "kind": "scripted",
+        "question_text": "How would you rate the condition of your PPE?",
+        "value": {
+          "rating": 3
+        }
+      },
+      {
+        "question_id": "e5f6a7b8-c9d0-1234-efab-345678901234",
+        "kind": "scripted",
+        "question_text": "Are replacement PPE items readily available when needed?",
+        "value": {
+          "yes_no": true
+        }
+      },
+      {
+        "question_id": "f6a7b8c9-d0e1-2345-fabc-456789012345",
+        "kind": "scripted",
+        "question_text": "Have you reported any PPE issues in the last month?",
+        "value": {
+          "yes_no": true
+        }
+      },
+      {
+        "question_id": "a7b8c9d0-e1f2-3456-abcd-567890123456",
+        "kind": "scripted",
+        "question_text": "Any additional safety concerns or suggestions?",
+        "value": {
+          "text": "gloves wear out too fast, need thicker ones"
+        }
+      }
+    ]
+  },
+  {
+    "run_id": "e3f4a5b6-c7d8-9012-efab-345678901cde",
+    "survey_key": "shift-handover",
+    "respondent": "remy",
+    "status": "completed",
+    "current_question_index": 5,
+    "probes_asked": {},
+    "completed": true,
+    "messages": [
+      {
+        "role": "assistant",
+        "content": "Thanks for taking Shift Handover Quality Survey. How clear is the handover information you receive at shift start?"
+      },
+      {
+        "role": "user",
+        "content": "4"
+      },
+      {
+        "role": "assistant",
+        "content": "What format is your shift handover?"
+      },
+      {
+        "role": "user",
+        "content": "Combination"
+      },
+      {
+        "role": "assistant",
+        "content": "How often do you encounter issues from incomplete handovers?"
+      },
+      {
+        "role": "user",
+        "content": "Sometimes"
+      },
+      {
+        "role": "assistant",
+        "content": "What critical information is often missing from handovers?"
+      },
+      {
+        "role": "user",
+        "content": "machine settings from previous shift"
+      },
+      {
+        "role": "assistant",
+        "content": "Would a standardised handover checklist help?"
+      },
+      {
+        "role": "user",
+        "content": "Yes"
+      },
+      {
+        "role": "assistant",
+        "content": "That's everything — thank you, your answers are saved."
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "d0e1f2a3-b4c5-6789-defa-890123456789",
+        "kind": "scripted",
+        "question_text": "How clear is the handover information you receive at shift start?",
+        "value": {
+          "rating": 4
+        }
+      },
+      {
+        "question_id": "e1f2a3b4-c5d6-7890-efab-901234567890",
+        "kind": "scripted",
+        "question_text": "What format is your shift handover?",
+        "value": {
+          "option": "Combination"
+        }
+      },
+      {
+        "question_id": "f2a3b4c5-d6e7-8901-fabc-012345678901",
+        "kind": "scripted",
+        "question_text": "How often do you encounter issues from incomplete handovers?",
+        "value": {
+          "option": "Sometimes"
+        }
+      },
+      {
+        "question_id": "a3b4c5d6-e7f8-9012-abcd-123456789abc",
+        "kind": "scripted",
+        "question_text": "What critical information is often missing from handovers?",
+        "value": {
+          "text": "machine settings from previous shift"
+        }
+      },
+      {
+        "question_id": "b4c5d6e7-f8a9-0123-bcde-23456789abcd",
+        "kind": "scripted",
+        "question_text": "Would a standardised handover checklist help?",
+        "value": {
+          "yes_no": true
+        }
+      }
+    ]
+  },
+  {
+    "run_id": "f4a5b6c7-d8e9-0123-fabc-456789012def",
+    "survey_key": "shift-handover",
+    "respondent": "ravi",
+    "status": "completed",
+    "current_question_index": 5,
+    "probes_asked": {},
+    "completed": true,
+    "messages": [
+      {
+        "role": "assistant",
+        "content": "Thanks for taking Shift Handover Quality Survey. How clear is the handover information you receive at shift start?"
+      },
+      {
+        "role": "user",
+        "content": "3"
+      },
+      {
+        "role": "assistant",
+        "content": "What format is your shift handover?"
+      },
+      {
+        "role": "user",
+        "content": "Written log"
+      },
+      {
+        "role": "assistant",
+        "content": "How often do you encounter issues from incomplete handovers?"
+      },
+      {
+        "role": "user",
+        "content": "Often"
+      },
+      {
+        "role": "assistant",
+        "content": "What critical information is often missing from handovers?"
+      },
+      {
+        "role": "user",
+        "content": "safety incidents and near misses from the previous shift"
+      },
+      {
+        "role": "assistant",
+        "content": "Would a standardised handover checklist help?"
+      },
+      {
+        "role": "user",
+        "content": "Yes definitely"
+      },
+      {
+        "role": "assistant",
+        "content": "That's everything — thank you, your answers are saved."
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "d0e1f2a3-b4c5-6789-defa-890123456789",
+        "kind": "scripted",
+        "question_text": "How clear is the handover information you receive at shift start?",
+        "value": {
+          "rating": 3
+        }
+      },
+      {
+        "question_id": "e1f2a3b4-c5d6-7890-efab-901234567890",
+        "kind": "scripted",
+        "question_text": "What format is your shift handover?",
+        "value": {
+          "option": "Written log"
+        }
+      },
+      {
+        "question_id": "f2a3b4c5-d6e7-8901-fabc-012345678901",
+        "kind": "scripted",
+        "question_text": "How often do you encounter issues from incomplete handovers?",
+        "value": {
+          "option": "Often"
+        }
+      },
+      {
+        "question_id": "a3b4c5d6-e7f8-9012-abcd-123456789abc",
+        "kind": "scripted",
+        "question_text": "What critical information is often missing from handovers?",
+        "value": {
+          "text": "safety incidents and near misses from the previous shift"
+        }
+      },
+      {
+        "question_id": "b4c5d6e7-f8a9-0123-bcde-23456789abcd",
+        "kind": "scripted",
+        "question_text": "Would a standardised handover checklist help?",
+        "value": {
+          "yes_no": true
+        }
+      }
+    ]
+  },
+  {
+    "run_id": "50ff8ed7-920d-4d14-930f-c4f534b65f62",
+    "survey_key": "ai-tools-plant",
+    "respondent": "rosa",
+    "status": "completed",
+    "current_question_index": 5,
+    "probes_asked": {
+      "03f5dc2c-a7a2-4a05-b066-e39edbb957fb": 1,
+      "e2534433-6b1f-4155-99fd-203771b1428c": 1,
+      "0a7cf98a-5569-4564-870d-574f7dda23aa": 1
+    },
+    "completed": true,
+    "messages": [
+      {
+        "role": "assistant",
+        "content": "Thanks for taking AI tools in the plant. Have you used any AI tool at work?"
+      },
+      {
+        "role": "user",
+        "content": "yes"
+      },
+      {
+        "role": "assistant",
+        "content": "How confident do you feel using AI tools at work?"
+      },
+      {
+        "role": "user",
+        "content": "i guess i'm fairly confident with computers really"
+      },
+      {
+        "role": "assistant",
+        "content": "That's helpful context. On a scale from 1 to 5, where 1 is not confident at all and 5 is very confident, how confident would you say you are?"
+      },
+      {
+        "role": "user",
+        "content": "i guess i'm fairly confident with computers really"
+      },
+      {
+        "role": "assistant",
+        "content": "Which AI tools or AI-supported systems have you used at work?"
+      },
+      {
+        "role": "user",
+        "content": "chat or question answer tool"
+      },
+      {
+        "role": "assistant",
+        "content": "What worries you most about AI being used at work?"
+      },
+      {
+        "role": "user",
+        "content": "i'm worried it'll take over my job one day"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand, that's a very real concern. What about AI makes you feel it could take over your job one day?"
+      },
+      {
+        "role": "user",
+        "content": "If it learns the job as fast as I did, management might not need as many of us on the line."
+      },
+      {
+        "role": "assistant",
+        "content": "What would make you more likely to use AI tools at work?"
+      },
+      {
+        "role": "user",
+        "content": "hands-on training"
+      },
+      {
+        "role": "assistant",
+        "content": "Thanks, what kind of hands-on training would be most useful for you?"
+      },
+      {
+        "role": "user",
+        "content": "A couple of sessions on the tools we'd actually use, not a whole day of theory."
+      },
+      {
+        "role": "assistant",
+        "content": "That's everything, thank you. Your answers are saved."
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "68ff63af-0f03-4b08-bde3-067560b3c3b4",
+        "kind": "scripted",
+        "question_text": "Have you used any AI tool at work?",
+        "value": {
+          "yes_no": true
+        }
+      },
+      {
+        "question_id": "03f5dc2c-a7a2-4a05-b066-e39edbb957fb",
+        "kind": "scripted",
+        "question_text": "How confident do you feel using AI tools at work?",
+        "value": {
+          "unanswerable": "i guess i'm fairly confident with computers really"
+        }
+      },
+      {
+        "question_id": "e7f4cc34-365f-44c3-80fe-fbe82a4d1175",
+        "kind": "scripted",
+        "question_text": "Which AI tools or AI-supported systems have you used at work?",
+        "value": {
+          "options": [
+            "Chat or question-answer tool"
+          ]
+        }
+      },
+      {
+        "question_id": "e2534433-6b1f-4155-99fd-203771b1428c",
+        "kind": "scripted",
+        "question_text": "What worries you most about AI being used at work?",
+        "value": {
+          "option": "It could lead to job losses"
+        }
+      },
+      {
+        "question_id": "e2534433-6b1f-4155-99fd-203771b1428c",
+        "kind": "follow_up",
+        "question_text": "What about AI makes you feel it could take over your job one day?",
+        "value": {
+          "text": "If it learns the job as fast as I did, management might not need as many of us on the line."
+        }
+      },
+      {
+        "question_id": "0a7cf98a-5569-4564-870d-574f7dda23aa",
+        "kind": "scripted",
+        "question_text": "What would make you more likely to use AI tools at work?",
+        "value": {
+          "option": "Hands-on training"
+        }
+      },
+      {
+        "question_id": "0a7cf98a-5569-4564-870d-574f7dda23aa",
+        "kind": "follow_up",
+        "question_text": "What kind of hands-on training would be most useful for you?",
+        "value": {
+          "text": "A couple of sessions on the tools we'd actually use, not a whole day of theory."
+        }
+      }
+    ]
+  },
+  {
+    "run_id": "5267d8aa-e690-44b3-a8eb-ca7ea18b8514",
+    "survey_key": "ai-tools-plant",
+    "respondent": "ravi",
+    "status": "completed",
+    "current_question_index": 5,
+    "probes_asked": {
+      "e2534433-6b1f-4155-99fd-203771b1428c": 1,
+      "0a7cf98a-5569-4564-870d-574f7dda23aa": 1
+    },
+    "completed": true,
+    "messages": [
+      {
+        "role": "assistant",
+        "content": "Thanks for taking AI tools in the plant. Have you used any AI tool at work?"
+      },
+      {
+        "role": "user",
+        "content": "no"
+      },
+      {
+        "role": "assistant",
+        "content": "How confident do you feel using AI tools at work?"
+      },
+      {
+        "role": "user",
+        "content": "5"
+      },
+      {
+        "role": "assistant",
+        "content": "What worries you most about AI being used at work?"
+      },
+      {
+        "role": "user",
+        "content": "It could watch or track people too much"
+      },
+      {
+        "role": "assistant",
+        "content": "That's a really important concern. What kind of watching or tracking would worry you most?"
+      },
+      {
+        "role": "user",
+        "content": "Cameras watching how fast I work, and the score used against me at appraisal time."
+      },
+      {
+        "role": "assistant",
+        "content": "What would make you more likely to use AI tools at work?"
+      },
+      {
+        "role": "user",
+        "content": "clear instructions in plain language"
+      },
+      {
+        "role": "assistant",
+        "content": "What would those instructions need to include to help you feel comfortable using the tools?"
+      },
+      {
+        "role": "user",
+        "content": "Plain steps for the tools on my line, and what to do when one gives an answer that looks wrong."
+      },
+      {
+        "role": "assistant",
+        "content": "That's everything, thank you. Your answers are saved."
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "68ff63af-0f03-4b08-bde3-067560b3c3b4",
+        "kind": "scripted",
+        "question_text": "Have you used any AI tool at work?",
+        "value": {
+          "yes_no": false
+        }
+      },
+      {
+        "question_id": "03f5dc2c-a7a2-4a05-b066-e39edbb957fb",
+        "kind": "scripted",
+        "question_text": "How confident do you feel using AI tools at work?",
+        "value": {
+          "rating": 5
+        }
+      },
+      {
+        "question_id": "e2534433-6b1f-4155-99fd-203771b1428c",
+        "kind": "scripted",
+        "question_text": "What worries you most about AI being used at work?",
+        "value": {
+          "option": "It could watch or track people too much"
+        }
+      },
+      {
+        "question_id": "e2534433-6b1f-4155-99fd-203771b1428c",
+        "kind": "follow_up",
+        "question_text": "What kind of watching or tracking would worry you most?",
+        "value": {
+          "text": "Cameras watching how fast I work, and the score used against me at appraisal time."
+        }
+      },
+      {
+        "question_id": "0a7cf98a-5569-4564-870d-574f7dda23aa",
+        "kind": "scripted",
+        "question_text": "What would make you more likely to use AI tools at work?",
+        "value": {
+          "option": "Clear instructions in plain language"
+        }
+      },
+      {
+        "question_id": "0a7cf98a-5569-4564-870d-574f7dda23aa",
+        "kind": "follow_up",
+        "question_text": "What would those instructions need to include to help you feel comfortable using the tools?",
+        "value": {
+          "text": "Plain steps for the tools on my line, and what to do when one gives an answer that looks wrong."
+        }
+      }
+    ]
+  },
+  {
+    "run_id": "bc5ff2d8-15e0-4ea4-bded-4f333d33ef8c",
+    "survey_key": "ai-tools-plant",
+    "respondent": "remy",
+    "status": "completed",
+    "current_question_index": 5,
+    "probes_asked": {
+      "03f5dc2c-a7a2-4a05-b066-e39edbb957fb": 2,
+      "e2534433-6b1f-4155-99fd-203771b1428c": 1,
+      "0a7cf98a-5569-4564-870d-574f7dda23aa": 1
+    },
+    "completed": true,
+    "messages": [
+      {
+        "role": "assistant",
+        "content": "Thanks for taking AI tools in the plant. Have you used any AI tool at work?"
+      },
+      {
+        "role": "user",
+        "content": "yes"
+      },
+      {
+        "role": "assistant",
+        "content": "How confident do you feel using AI tools at work?"
+      },
+      {
+        "role": "user",
+        "content": "i dunno maybe a seven?"
+      },
+      {
+        "role": "assistant",
+        "content": "Thanks, for this one please choose a number from 1 to 5, where 1 is not confident and 5 is very confident. What would you pick?"
+      },
+      {
+        "role": "user",
+        "content": "i dunno maybe a seven?"
+      },
+      {
+        "role": "assistant",
+        "content": "No problem, the scale only goes from 1 to 5. Which one of those would you choose?"
+      },
+      {
+        "role": "user",
+        "content": "i dunno maybe a seven?"
+      },
+      {
+        "role": "assistant",
+        "content": "Which AI tools or AI-supported systems have you used at work?"
+      },
+      {
+        "role": "user",
+        "content": "translation or writing help, and the quality check support"
+      },
+      {
+        "role": "assistant",
+        "content": "What worries you most about AI being used at work?"
+      },
+      {
+        "role": "user",
+        "content": "hello there"
+      },
+      {
+        "role": "assistant",
+        "content": "Hi! For this question, what worries you most about AI being used at work? For example, job losses, wrong decisions, or something else?"
+      },
+      {
+        "role": "user",
+        "content": "It could make wrong decisions"
+      },
+      {
+        "role": "assistant",
+        "content": "What would make you more likely to use AI tools at work?"
+      },
+      {
+        "role": "user",
+        "content": "time to try the tool during the shift"
+      },
+      {
+        "role": "assistant",
+        "content": "Thanks, what would make that time during the shift actually useful for you?"
+      },
+      {
+        "role": "user",
+        "content": "Enough time to try it on a real job, not a demo dataset."
+      },
+      {
+        "role": "assistant",
+        "content": "That's everything, thank you. Your answers are saved."
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "68ff63af-0f03-4b08-bde3-067560b3c3b4",
+        "kind": "scripted",
+        "question_text": "Have you used any AI tool at work?",
+        "value": {
+          "yes_no": true
+        }
+      },
+      {
+        "question_id": "03f5dc2c-a7a2-4a05-b066-e39edbb957fb",
+        "kind": "scripted",
+        "question_text": "How confident do you feel using AI tools at work?",
+        "value": {
+          "unanswerable": "i dunno maybe a seven?"
+        }
+      },
+      {
+        "question_id": "e7f4cc34-365f-44c3-80fe-fbe82a4d1175",
+        "kind": "scripted",
+        "question_text": "Which AI tools or AI-supported systems have you used at work?",
+        "value": {
+          "options": [
+            "Translation or writing help",
+            "Quality check or inspection support"
+          ]
+        }
+      },
+      {
+        "question_id": "e2534433-6b1f-4155-99fd-203771b1428c",
+        "kind": "scripted",
+        "question_text": "What worries you most about AI being used at work?",
+        "value": {
+          "option": "It could make wrong decisions"
+        }
+      },
+      {
+        "question_id": "0a7cf98a-5569-4564-870d-574f7dda23aa",
+        "kind": "scripted",
+        "question_text": "What would make you more likely to use AI tools at work?",
+        "value": {
+          "option": "Time to try the tool during the shift"
+        }
+      },
+      {
+        "question_id": "0a7cf98a-5569-4564-870d-574f7dda23aa",
+        "kind": "follow_up",
+        "question_text": "What would make that time during the shift actually useful for you?",
+        "value": {
+          "text": "Enough time to try it on a real job, not a demo dataset."
+        }
+      }
+    ]
+  },
+  {
+    "run_id": "71c81357-43f8-498f-94ba-83351dd0283e",
+    "survey_key": "ai-tools-plant",
+    "respondent": "noor",
+    "status": "completed",
+    "current_question_index": 5,
+    "probes_asked": {
+      "e2534433-6b1f-4155-99fd-203771b1428c": 1,
+      "0a7cf98a-5569-4564-870d-574f7dda23aa": 1
+    },
+    "completed": true,
+    "messages": [
+      {
+        "role": "assistant",
+        "content": "Thanks for taking AI tools in the plant. Have you used any AI tool at work?"
+      },
+      {
+        "role": "user",
+        "content": "yes"
+      },
+      {
+        "role": "assistant",
+        "content": "How confident do you feel using AI tools at work?"
+      },
+      {
+        "role": "user",
+        "content": "2"
+      },
+      {
+        "role": "assistant",
+        "content": "Which AI tools or AI-supported systems have you used at work?"
+      },
+      {
+        "role": "user",
+        "content": "the new training tool"
+      },
+      {
+        "role": "assistant",
+        "content": "What worries you most about AI being used at work?"
+      },
+      {
+        "role": "user",
+        "content": "Not worried"
+      },
+      {
+        "role": "assistant",
+        "content": "That's helpful to know. What makes you feel not worried about AI at work?"
+      },
+      {
+        "role": "user",
+        "content": "The training tool caught a labelling mistake I would have made, so I'd rather have it than not."
+      },
+      {
+        "role": "assistant",
+        "content": "What would make you more likely to use AI tools at work?"
+      },
+      {
+        "role": "user",
+        "content": "None of those really"
+      },
+      {
+        "role": "assistant",
+        "content": "That's okay, in your own words, what if anything would make you more likely to use AI tools at work?"
+      },
+      {
+        "role": "user",
+        "content": "None of those really"
+      },
+      {
+        "role": "assistant",
+        "content": "That's everything, thank you. Your answers are saved."
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "68ff63af-0f03-4b08-bde3-067560b3c3b4",
+        "kind": "scripted",
+        "question_text": "Have you used any AI tool at work?",
+        "value": {
+          "yes_no": true
+        }
+      },
+      {
+        "question_id": "03f5dc2c-a7a2-4a05-b066-e39edbb957fb",
+        "kind": "scripted",
+        "question_text": "How confident do you feel using AI tools at work?",
+        "value": {
+          "rating": 2
+        }
+      },
+      {
+        "question_id": "e7f4cc34-365f-44c3-80fe-fbe82a4d1175",
+        "kind": "scripted",
+        "question_text": "Which AI tools or AI-supported systems have you used at work?",
+        "value": {
+          "options": [
+            "Training or work instruction tool"
+          ]
+        }
+      },
+      {
+        "question_id": "e2534433-6b1f-4155-99fd-203771b1428c",
+        "kind": "scripted",
+        "question_text": "What worries you most about AI being used at work?",
+        "value": {
+          "option": "I am not worried about AI"
+        }
+      },
+      {
+        "question_id": "e2534433-6b1f-4155-99fd-203771b1428c",
+        "kind": "follow_up",
+        "question_text": "What makes you feel not worried about AI at work?",
+        "value": {
+          "text": "The training tool caught a labelling mistake I would have made, so I'd rather have it than not."
+        }
+      },
+      {
+        "question_id": "0a7cf98a-5569-4564-870d-574f7dda23aa",
+        "kind": "scripted",
+        "question_text": "What would make you more likely to use AI tools at work?",
+        "value": {
+          "unanswerable": "None of those really"
+        }
+      }
+    ]
+  },
+  {
+    "run_id": "2fe0959b-9f1c-41dc-9162-1dcbe43e116a",
+    "survey_key": "ai-tools-plant",
+    "respondent": "rohan",
+    "status": "completed",
+    "current_question_index": 5,
+    "probes_asked": {
+      "e2534433-6b1f-4155-99fd-203771b1428c": 1,
+      "0a7cf98a-5569-4564-870d-574f7dda23aa": 1
+    },
+    "completed": true,
+    "messages": [
+      {
+        "role": "assistant",
+        "content": "Thanks for taking AI tools in the plant. Have you used any AI tool at work?"
+      },
+      {
+        "role": "user",
+        "content": "yes"
+      },
+      {
+        "role": "assistant",
+        "content": "How confident do you feel using AI tools at work?"
+      },
+      {
+        "role": "user",
+        "content": "3"
+      },
+      {
+        "role": "assistant",
+        "content": "Which AI tools or AI-supported systems have you used at work?"
+      },
+      {
+        "role": "user",
+        "content": "maintenance or fault-finding support"
+      },
+      {
+        "role": "assistant",
+        "content": "What worries you most about AI being used at work?"
+      },
+      {
+        "role": "user",
+        "content": "It could be hard to use"
+      },
+      {
+        "role": "assistant",
+        "content": "Thanks, what about AI tools feels like it could be hard to use?"
+      },
+      {
+        "role": "user",
+        "content": "The screens are dense and the buttons don't say what they do."
+      },
+      {
+        "role": "assistant",
+        "content": "What would make you more likely to use AI tools at work?"
+      },
+      {
+        "role": "user",
+        "content": "help from a supervisor or trainer"
+      },
+      {
+        "role": "assistant",
+        "content": "Thanks, what kind of help from a supervisor or trainer would make the biggest difference for you?"
+      },
+      {
+        "role": "user",
+        "content": "Someone on the floor who has used it daily, not a trainer who read the manual."
+      },
+      {
+        "role": "assistant",
+        "content": "That's everything, thank you. Your answers are saved."
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "68ff63af-0f03-4b08-bde3-067560b3c3b4",
+        "kind": "scripted",
+        "question_text": "Have you used any AI tool at work?",
+        "value": {
+          "yes_no": true
+        }
+      },
+      {
+        "question_id": "03f5dc2c-a7a2-4a05-b066-e39edbb957fb",
+        "kind": "scripted",
+        "question_text": "How confident do you feel using AI tools at work?",
+        "value": {
+          "rating": 3
+        }
+      },
+      {
+        "question_id": "e7f4cc34-365f-44c3-80fe-fbe82a4d1175",
+        "kind": "scripted",
+        "question_text": "Which AI tools or AI-supported systems have you used at work?",
+        "value": {
+          "options": [
+            "Maintenance or fault-finding support"
+          ]
+        }
+      },
+      {
+        "question_id": "e2534433-6b1f-4155-99fd-203771b1428c",
+        "kind": "scripted",
+        "question_text": "What worries you most about AI being used at work?",
+        "value": {
+          "option": "It could be hard to use"
+        }
+      },
+      {
+        "question_id": "e2534433-6b1f-4155-99fd-203771b1428c",
+        "kind": "follow_up",
+        "question_text": "What about AI tools feels like it could be hard to use?",
+        "value": {
+          "text": "The screens are dense and the buttons don't say what they do."
+        }
+      },
+      {
+        "question_id": "0a7cf98a-5569-4564-870d-574f7dda23aa",
+        "kind": "scripted",
+        "question_text": "What would make you more likely to use AI tools at work?",
+        "value": {
+          "option": "Help from a supervisor or trainer"
+        }
+      },
+      {
+        "question_id": "0a7cf98a-5569-4564-870d-574f7dda23aa",
+        "kind": "follow_up",
+        "question_text": "What kind of help from a supervisor or trainer would make the biggest difference for you?",
+        "value": {
+          "text": "Someone on the floor who has used it daily, not a trainer who read the manual."
+        }
+      }
+    ]
   }
 ]

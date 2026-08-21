@@ -86,7 +86,7 @@ async def test_health_reports_the_database_it_depends_on(session):
     body = json.loads(response.body)
 
     assert response.status_code == 200
-    assert body == {"status": "ok", "database": "ok"}
+    assert body == {"status": "ok", "database": "ok", "demo_mode": False}
 
 
 async def test_health_is_degraded_when_the_database_cannot_be_reached():
@@ -101,4 +101,4 @@ async def test_health_is_degraded_when_the_database_cannot_be_reached():
     body = json.loads(response.body)
 
     assert response.status_code == 503
-    assert body == {"status": "degraded", "database": "unreachable"}
+    assert body == {"status": "degraded", "database": "unreachable", "demo_mode": False}

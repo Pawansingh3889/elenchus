@@ -9,6 +9,8 @@ import type {
   AudienceReach,
   DashboardRow,
   GeneratedTemplate,
+  LlmEntry,
+  LlmReport,
   Me,
   Person,
   Run,
@@ -188,6 +190,8 @@ export const api = {
   },
   identify: (email: string) =>
     request<User>("/dev/identify", { method: "POST", body: JSON.stringify({ email }) }),
+  /** Wipe all data and re-seed. Demo mode only. */
+  resetDemo: () => request<{ status: string; users: number; surveys: number }>("/dev/reset", { method: "POST" }),
   createAccount: (data: AccountCreate) =>
     request<Account>("/admin/users", { method: "POST", body: JSON.stringify(data) }),
   /** A full replacement, which is what makes removing a group expressible: a body that
@@ -234,4 +238,6 @@ export const api = {
       `/templates/${templateId}/runs/${runId}/summary${refresh ? "?refresh=true" : ""}`,
       { method: "POST" },
     ),
+  llmReport: () => request<LlmReport>("/admin/llm/report"),
+  llmRunEntries: (runId: string) => request<LlmEntry[]>(`/admin/llm/run/${runId}`),
 };

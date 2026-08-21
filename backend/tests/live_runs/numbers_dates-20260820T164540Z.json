@@ -1,0 +1,146 @@
+{
+  "scenario": "numbers_dates",
+  "captured_at": "2026-08-20T16:45:40.389740+00:00",
+  "model": "gpt-5.5",
+  "survey_title": "Induction Facts",
+  "status": "completed",
+  "respondent_messages": [
+    "i started on the ninth of this month",
+    "a couple, maybe three including the IT bit",
+    "somewhere around a four",
+    "eleven out of ten honestly"
+  ],
+  "trace": {
+    "total": 4,
+    "positions": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "questions": [
+      {
+        "id": "be8d0baa-08f3-4d52-8ba1-a287346cc87b",
+        "position": 0,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "25787870-0e8e-44a0-b452-9d09c37aaf09",
+        "position": 1,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "475a4757-55ef-4c28-8ac4-5276b0e594d7",
+        "position": 2,
+        "follow_up_policy": "never"
+      },
+      {
+        "id": "42d51950-117f-4650-90ba-dbbd7f25f913",
+        "position": 3,
+        "follow_up_policy": "never"
+      }
+    ],
+    "answers": [
+      {
+        "question_id": "be8d0baa-08f3-4d52-8ba1-a287346cc87b",
+        "kind": "scripted",
+        "unanswerable": false
+      },
+      {
+        "question_id": "25787870-0e8e-44a0-b452-9d09c37aaf09",
+        "kind": "scripted",
+        "unanswerable": true
+      },
+      {
+        "question_id": "475a4757-55ef-4c28-8ac4-5276b0e594d7",
+        "kind": "scripted",
+        "unanswerable": false
+      },
+      {
+        "question_id": "42d51950-117f-4650-90ba-dbbd7f25f913",
+        "kind": "scripted",
+        "unanswerable": true
+      }
+    ]
+  },
+  "answers": [
+    {
+      "question_text": "What date did you start?",
+      "answer_type": "date",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "date": "2026-08-09"
+      },
+      "said": [
+        "i started on the ninth of this month"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How many days of induction did you receive?",
+      "answer_type": "number",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "a couple, maybe three including the IT bit"
+      },
+      "said": [
+        "i started on the ninth of this month",
+        "a couple, maybe three including the IT bit"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How would you rate your first week?",
+      "answer_type": "rating",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "rating": 4
+      },
+      "said": [
+        "i started on the ninth of this month",
+        "a couple, maybe three including the IT bit",
+        "somewhere around a four"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    },
+    {
+      "question_text": "How would you rate the canteen?",
+      "answer_type": "rating",
+      "options": [],
+      "allow_other": false,
+      "kind": "scripted",
+      "value": {
+        "unanswerable": "eleven out of ten honestly"
+      },
+      "said": [
+        "i started on the ninth of this month",
+        "a couple, maybe three including the IT bit",
+        "somewhere around a four",
+        "eleven out of ten honestly"
+      ],
+      "judge": {
+        "supported": null,
+        "why": null
+      },
+      "invented": false
+    }
+  ]
+}

@@ -7,6 +7,7 @@ import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useT } from "@/lib/i18n/useT";
 import type { AnswerType, FollowUpPolicy, QuestionInput, ShowWhenOp } from "@/lib/types";
+import { unitsByDimension, unitDimension } from "@/lib/units";
 
 const SELECT_TYPES: AnswerType[] = ["single_select", "multi_select"];
 const isSelect = (t: AnswerType) => SELECT_TYPES.includes(t);
@@ -185,6 +186,54 @@ export function QuestionEditor({
               </label>
             ) : null}
           </div>
+
+          {/* A measured number is meaningless without its unit — the case that put "the
+              temperature question had no unit" on the list. Only offered for number
+              questions; the optional second unit lets an author show, say, °F alongside
+              a Celsius reading. Plain English labels: these are new fields and not yet in
+              the translation catalog. */}
+          {question.answer_type === "number" ? (
+            <div className="qcard-row">
+              <label>
+                {msg.builder.unit}
+                <select
+                  value={question.unit ?? ""}
+                  onChange={(e) => onChange({ unit: e.target.value || null })}
+                >
+                  <option value="">None</option>
+                  {Object.entries(unitsByDimension()).map(([dim, choices]) => (
+                    <optgroup key={dim} label={dim}>
+                      {choices.map((c) => (
+                        <option key={c.value} value={c.value}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </label>
+              {question.unit ? (
+              <label>
+                {msg.builder.displayUnit}
+                <select
+                  value={question.display_unit ?? ""}
+                  onChange={(e) => onChange({ display_unit: e.target.value || null })}
+                >
+                    <option value="">—</option>
+                    {(() => {
+                      const dim = unitDimension(question.unit);
+                      const choices = dim ? unitsByDimension()[dim] : [];
+                      return choices.map((c) => (
+                        <option key={c.value} value={c.value}>
+                          {c.label}
+                        </option>
+                      ));
+                    })()}
+                  </select>
+                </label>
+              ) : null}
+            </div>
+          ) : null}
 
           {/* Only questions with something before them can be conditional — the engine
               decides visibility from answers already recorded, so a condition on a later
