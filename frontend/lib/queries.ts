@@ -50,8 +50,12 @@ export function useSession() {
     retry: false,
   });
   useEffect(() => {
-    if (query.data) setCurrentUserId(query.data.id);
-  }, [query.data, setCurrentUserId]);
+    if (query.data) {
+      setCurrentUserId(query.data.id);
+    } else if (query.isFetched && !query.data) {
+      setCurrentUserId(null);
+    }
+  }, [query.data, query.isFetched, setCurrentUserId]);
   return query;
 }
 
