@@ -493,3 +493,13 @@ export function useAdminHealth() {
     refetchInterval: 30_000,
   });
 }
+
+export function useLlmLedger() {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["llm-ledger", userId],
+    queryFn: api.llmLedger,
+    enabled: !!userId,
+    refetchInterval: 15_000,
+  });
+}

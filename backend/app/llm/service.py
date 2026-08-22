@@ -4,7 +4,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from app.config import get_settings
-from app.llm.schemas import LlmEntry, LlmModelStats, LlmReport, LlmRunSummary
+from app.llm.schemas import (
+    LlmEntry,
+    LlmLedger,
+    LlmLedgerEntry,
+    LlmModelStats,
+    LlmReport,
+    LlmRunSummary,
+)
 
 
 @dataclass
@@ -205,3 +212,68 @@ def get_llm_run_entries(run_id: str) -> list[LlmEntry]:
                 )
             )
     return sorted(results, key=lambda x: x.ts)
+
+
+def get_llm_ledger() -> LlmLedger:
+    path = Path(get_settings().llm_ledger_path)
+    if not path.exists():
+        return LlmLedger(
+            entries=[],
+            total_entries=0,
+            total_prompt_tokens=0,
+            total_completion_tokens=0,
+            total_context_tokens=0,
+            total_cost_usd=0.0,
+        )
+
+    entries: list[LlmLedgerEntry] = []
+    total_prompt = 0
+    total_completion = 0
+    total_context = 0
+    total_cost = 0.0
+
+    with path.open(encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                e = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            prompt = e.get("prompt_tokens") or 0
+            completion = e.get("completion_tokens") or 0
+            context = prompt + completion
+            cost = e.get("cost_usd") or 0.0
+            total_prompt += prompt
+            total_completion += completion
+            total_context += context
+            total_cost += cost
+            entries.append(
+                LlmLedgerEntry(
+                    ts=e.get("ts", ""),
+                    run_id=e.get("run_id"),
+                    op=e.get("op"),
+                    prompt=e.get("prompt"),
+                    tier=e.get("tier"),
+                    model=e.get("model"),
+                    params_b=e.get("params_b"),
+                    local=e.get("local"),
+                    prompt_tokens=e.get("prompt_tokens"),
+                    completion_tokens=e.get("completion_tokens"),
+                    context_tokens=context,
+                    latency_ms=e.get("latency_ms"),
+                    status=e.get("status"),
+                    error=e.get("error"),
+                    cost_usd=e.get("cost_usd"),
+                )
+            )
+
+    return LlmLedger(
+        entries=sorted(entries, key=lambda x: x.ts, reverse=True),
+        total_entries=len(entries),
+        total_prompt_tokens=total_prompt,
+        total_completion_tokens=total_completion,
+        total_context_tokens=total_context,
+        total_cost_usd=total_cost,
+    )

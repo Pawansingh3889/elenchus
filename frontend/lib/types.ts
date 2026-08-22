@@ -570,3 +570,30 @@ export interface AdminHealthRead {
   demo_mode: boolean;
   tiers: Record<string, Record<string, unknown>>;
 }
+
+export interface LlmLedgerEntry {
+  ts: string;
+  run_id: string | null;
+  op: string | null;
+  prompt: string | null;
+  tier: number | null;
+  model: string | null;
+  params_b: number | null;
+  local: boolean | null;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  context_tokens: number | null;
+  latency_ms: number | null;
+  status: number | null;
+  error: string | null;
+  cost_usd: number | null;
+}
+
+export interface LlmLedger {
+  entries: LlmLedgerEntry[];
+  total_entries: number;
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
+  total_context_tokens: number;
+  total_cost_usd: number;
+}

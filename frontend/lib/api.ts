@@ -11,6 +11,7 @@ import type {
   DashboardRow,
   GeneratedTemplate,
   LlmEntry,
+  LlmLedger,
   LlmReport,
   Me,
   Person,
@@ -240,6 +241,7 @@ export const api = {
       { method: "POST" },
     ),
   llmReport: () => request<LlmReport>("/admin/llm/report"),
+  llmLedger: () => request<LlmLedger>("/admin/llm/ledger"),
   llmRunEntries: (runId: string) => request<LlmEntry[]>(`/admin/llm/run/${runId}`),
   adminHealth: () => request<AdminHealthRead>("/admin/health"),
 };
