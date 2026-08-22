@@ -50,8 +50,12 @@ export function useSession() {
     retry: false,
   });
   useEffect(() => {
-    if (query.data) setCurrentUserId(query.data.id);
-  }, [query.data, setCurrentUserId]);
+    if (query.data) {
+      setCurrentUserId(query.data.id);
+    } else if (query.isFetched && !query.data) {
+      setCurrentUserId(null);
+    }
+  }, [query.data, query.isFetched, setCurrentUserId]);
   return query;
 }
 
@@ -487,5 +491,15 @@ export function useAdminHealth() {
     queryFn: api.adminHealth,
     enabled: !!userId,
     refetchInterval: 30_000,
+  });
+}
+
+export function useLlmLedger() {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["llm-ledger", userId],
+    queryFn: api.llmLedger,
+    enabled: !!userId,
+    refetchInterval: 15_000,
   });
 }

@@ -518,6 +518,7 @@ export interface LlmModelStats {
   calls: number;
   total_prompt_tokens: number;
   total_completion_tokens: number;
+  total_context_tokens: number;
   avg_latency_ms: number;
   error_count: number;
 }
@@ -529,6 +530,7 @@ export interface LlmRunSummary {
   calls: number;
   prompt_tokens: number;
   completion_tokens: number;
+  context_tokens: number;
   avg_latency_ms: number;
   error_count: number;
   first_ts: string;
@@ -541,6 +543,7 @@ export interface LlmReport {
   total_runs: number;
   total_prompt_tokens: number;
   total_completion_tokens: number;
+  total_context_tokens: number;
   total_cost_usd: number;
   avg_latency_ms: number;
   models: LlmModelStats[];
@@ -554,6 +557,7 @@ export interface LlmEntry {
   model: string | null;
   prompt_tokens: number | null;
   completion_tokens: number | null;
+  context_tokens: number | null;
   latency_ms: number | null;
   status: number | null;
   error: string | null;
@@ -565,4 +569,31 @@ export interface AdminHealthRead {
   database: string;
   demo_mode: boolean;
   tiers: Record<string, Record<string, unknown>>;
+}
+
+export interface LlmLedgerEntry {
+  ts: string;
+  run_id: string | null;
+  op: string | null;
+  prompt: string | null;
+  tier: number | null;
+  model: string | null;
+  params_b: number | null;
+  local: boolean | null;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  context_tokens: number | null;
+  latency_ms: number | null;
+  status: number | null;
+  error: string | null;
+  cost_usd: number | null;
+}
+
+export interface LlmLedger {
+  entries: LlmLedgerEntry[];
+  total_entries: number;
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
+  total_context_tokens: number;
+  total_cost_usd: number;
 }
