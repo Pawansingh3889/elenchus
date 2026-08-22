@@ -7,6 +7,7 @@ class LlmModelStats(BaseModel):
     calls: int
     total_prompt_tokens: int
     total_completion_tokens: int
+    total_context_tokens: int
     avg_latency_ms: float
     error_count: int
 
@@ -18,6 +19,7 @@ class LlmRunSummary(BaseModel):
     calls: int
     prompt_tokens: int
     completion_tokens: int
+    context_tokens: int
     avg_latency_ms: float
     error_count: int
     first_ts: str
@@ -32,6 +34,7 @@ class LlmEntry(BaseModel):
     model: str | None = None
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
+    context_tokens: int | None = None
     latency_ms: int | None = None
     status: int | None = None
     error: str | None = None
@@ -43,6 +46,7 @@ class LlmReport(BaseModel):
     total_runs: int
     total_prompt_tokens: int
     total_completion_tokens: int
+    total_context_tokens: int
     total_cost_usd: float
     avg_latency_ms: float
     models: list[LlmModelStats]

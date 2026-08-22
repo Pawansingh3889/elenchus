@@ -54,8 +54,10 @@ function modelSortKey(field: string, m: LlmModelStats): number {
       return m.tier ?? 0;
     case "calls":
       return m.calls;
-    case "tokens":
-      return m.total_prompt_tokens + m.total_completion_tokens;
+    case "prompt_tokens":
+      return m.total_prompt_tokens;
+    case "context_tokens":
+      return m.total_context_tokens;
     case "latency":
       return m.avg_latency_ms;
     case "errors":
@@ -73,8 +75,10 @@ function runSortKey(field: string, r: LlmRunSummary): number | string {
       return r.model;
     case "calls":
       return r.calls;
-    case "tokens":
-      return r.prompt_tokens + r.completion_tokens;
+    case "prompt_tokens":
+      return r.prompt_tokens;
+    case "context_tokens":
+      return r.context_tokens;
     case "latency":
       return r.avg_latency_ms;
     case "errors":
@@ -94,7 +98,7 @@ function EntryRow({ e }: { e: LlmEntry }) {
       <td className="px-3 py-2 text-right tabular-nums">{e.tier ?? "-"}</td>
       <td className="px-3 py-2 text-xs">{e.model ?? "-"}</td>
       <td className="px-3 py-2 text-right tabular-nums">{formatTokens(e.prompt_tokens ?? 0)}</td>
-      <td className="px-3 py-2 text-right tabular-nums">{formatTokens(e.completion_tokens ?? 0)}</td>
+      <td className="px-3 py-2 text-right tabular-nums">{formatTokens(e.context_tokens ?? (e.prompt_tokens ?? 0) + (e.completion_tokens ?? 0))}</td>
       <td className="px-3 py-2 text-right tabular-nums">{formatMs(e.latency_ms ?? 0)}</td>
       <td className="px-3 py-2 text-right tabular-nums">
         {e.status ? <span className={e.status >= 400 ? "text-warn-text" : ""}>{e.status}</span> : "-"}
@@ -239,6 +243,8 @@ export default function AdminPage() {
               <div className="flex gap-4 text-xs text-muted">
                 <span>Calls: {report.total_entries}</span>
                 <span>Runs: {report.total_runs}</span>
+                <span>Prompt: {formatTokens(report.total_prompt_tokens)}</span>
+                <span>Context: {formatTokens(report.total_context_tokens)}</span>
                 <span>Cost: {formatCost(report.total_cost_usd)}</span>
                 <span>Avg latency: {formatMs(report.avg_latency_ms)}</span>
               </div>
@@ -256,8 +262,11 @@ export default function AdminPage() {
                     <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleModelSort("calls")}>
                       Calls<SortIcon active={modelSort.field === "calls"} dir={modelSort.dir} />
                     </th>
-                    <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleModelSort("tokens")}>
-                      Tokens<SortIcon active={modelSort.field === "tokens"} dir={modelSort.dir} />
+                    <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleModelSort("prompt_tokens")}>
+                      Prompt tokens<SortIcon active={modelSort.field === "prompt_tokens"} dir={modelSort.dir} />
+                    </th>
+                    <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleModelSort("context_tokens")}>
+                      Context tokens<SortIcon active={modelSort.field === "context_tokens"} dir={modelSort.dir} />
                     </th>
                     <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleModelSort("latency")}>
                       Avg latency<SortIcon active={modelSort.field === "latency"} dir={modelSort.dir} />
@@ -273,7 +282,8 @@ export default function AdminPage() {
                       <td className="px-3 py-2 font-medium">{m.model}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{m.tier ?? "-"}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{m.calls}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{formatTokens(m.total_prompt_tokens + m.total_completion_tokens)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{formatTokens(m.total_prompt_tokens)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{formatTokens(m.total_context_tokens)}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{formatMs(m.avg_latency_ms)}</td>
                       <td className="px-3 py-2 text-right tabular-nums">
                         {m.error_count > 0 ? <span className="text-warn-text">{m.error_count}</span> : "0"}
@@ -335,8 +345,11 @@ export default function AdminPage() {
                     <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleRunSort("calls")}>
                       Calls<SortIcon active={runSort.field === "calls"} dir={runSort.dir} />
                     </th>
-                    <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleRunSort("tokens")}>
-                      Tokens<SortIcon active={runSort.field === "tokens"} dir={runSort.dir} />
+                    <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleRunSort("prompt_tokens")}>
+                      Prompt<SortIcon active={runSort.field === "prompt_tokens"} dir={runSort.dir} />
+                    </th>
+                    <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleRunSort("context_tokens")}>
+                      Context<SortIcon active={runSort.field === "context_tokens"} dir={runSort.dir} />
                     </th>
                     <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleRunSort("latency")}>
                       Avg latency<SortIcon active={runSort.field === "latency"} dir={runSort.dir} />
@@ -364,7 +377,8 @@ export default function AdminPage() {
                           <td className="px-3 py-2 font-mono text-xs">{id ? id.slice(0, 12) : "no run"}</td>
                           <td className="px-3 py-2">{r.model}</td>
                           <td className="px-3 py-2 text-right tabular-nums">{r.calls}</td>
-                          <td className="px-3 py-2 text-right tabular-nums">{formatTokens(r.prompt_tokens + r.completion_tokens)}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{formatTokens(r.prompt_tokens)}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{formatTokens(r.context_tokens)}</td>
                           <td className="px-3 py-2 text-right tabular-nums">{formatMs(r.avg_latency_ms)}</td>
                           <td className="px-3 py-2 text-right tabular-nums">
                             {r.error_count > 0 ? <span className="text-warn-text">{r.error_count}</span> : "0"}

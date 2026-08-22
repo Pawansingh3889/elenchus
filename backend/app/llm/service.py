@@ -70,6 +70,7 @@ def get_llm_report() -> LlmReport:
     total_completion = 0
     total_cost = 0.0
     total_latency = 0
+    total_context = 0
 
     model_buckets: dict[tuple[str, int | None], _ModelBucket] = defaultdict(_ModelBucket)
     run_buckets: dict[str | None, _RunBucket] = defaultdict(_RunBucket)
@@ -77,6 +78,7 @@ def get_llm_report() -> LlmReport:
     for e in entries:
         prompt = e.get("prompt_tokens") or 0
         completion = e.get("completion_tokens") or 0
+        context = prompt + completion
         cost = e.get("cost_usd") or 0.0
         latency = e.get("latency_ms") or 0
         model = e.get("model", "unknown")
@@ -87,6 +89,7 @@ def get_llm_report() -> LlmReport:
 
         total_prompt += prompt
         total_completion += completion
+        total_context += context
         total_cost += cost
         total_latency += latency
 
@@ -125,6 +128,7 @@ def get_llm_report() -> LlmReport:
                 calls=b.calls,
                 total_prompt_tokens=b.prompt_tokens,
                 total_completion_tokens=b.completion_tokens,
+                total_context_tokens=b.prompt_tokens + b.completion_tokens,
                 avg_latency_ms=b.latency_ms / b.calls if b.calls else 0,
                 error_count=b.errors,
             )
@@ -142,6 +146,7 @@ def get_llm_report() -> LlmReport:
                 calls=rb.calls,
                 prompt_tokens=rb.prompt_tokens,
                 completion_tokens=rb.completion_tokens,
+                context_tokens=rb.prompt_tokens + rb.completion_tokens,
                 avg_latency_ms=rb.latency_ms / rb.calls if rb.calls else 0,
                 error_count=rb.errors,
                 first_ts=rb.first_ts,
@@ -156,6 +161,7 @@ def get_llm_report() -> LlmReport:
         total_runs=len(runs),
         total_prompt_tokens=total_prompt,
         total_completion_tokens=total_completion,
+        total_context_tokens=total_context,
         total_cost_usd=total_cost,
         avg_latency_ms=total_latency / n if n else 0,
         models=models,
@@ -188,6 +194,8 @@ def get_llm_run_entries(run_id: str) -> list[LlmEntry]:
                     model=e.get("model"),
                     prompt_tokens=e.get("prompt_tokens"),
                     completion_tokens=e.get("completion_tokens"),
+                    context_tokens=(e.get("prompt_tokens") or 0)
+                    + (e.get("completion_tokens") or 0),
                     latency_ms=e.get("latency_ms"),
                     status=e.get("status"),
                     error=e.get("error"),
