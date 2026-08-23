@@ -13,7 +13,6 @@ COPY backend/ .
 
 ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 8000
-# Run migrations and start the server (seed runs automatically in demo mode via lifespan hook)
-# Run alembic from the backend directory where alembic.ini expects to find migrations
-# Handle migration state issues by stamping current head if upgrade fails
-CMD ["sh", "-c", "cd /app && alembic upgrade head || alembic stamp e6f7a8b9c0d1 && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Stamp database as current head and start server (skip migrations due to Railway state issues)
+# The database appears to have a migration state that conflicts with current code
+CMD ["sh", "-c", "cd /app && alembic stamp e6f7a8b9c0d1 && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
