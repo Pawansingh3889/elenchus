@@ -5,7 +5,6 @@ import { Suspense, useEffect } from "react";
 
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorBanner } from "@/components/ErrorBanner";
-import { FlagStrip } from "@/components/results/FlagStrip";
 import { QuestionCard } from "@/components/results/QuestionCard";
 import { QuestionRail } from "@/components/results/QuestionRail";
 import { RecapPanel } from "@/components/results/RecapPanel";
@@ -22,7 +21,6 @@ import { useAnswersMatrix, useCurrentUser, useReport } from "@/lib/queries";
 import { formatSlice, parseSlice, sliceRuns } from "@/lib/slicing";
 import { useUserStore } from "@/lib/store";
 import { groupRuns } from "@/lib/comparison";
-import { flagsFor } from "@/lib/flags";
 import { tallyInputs, tallyQuestion } from "@/lib/tally";
 
 /**
@@ -109,8 +107,7 @@ function ResultsContent() {
   // the chart it points at does not show. Recomputed under a slice rather than kept from
   // the whole survey: while a slice is showing, every number on the page is about those
   // people, and a flag from the other group would be the one thing that is not.
-  const flags = flagsFor(questions.map((q) => q.report));
-  const flagged = new Set(flags.map((f) => f.questionId));
+  // Flags removed per user request - no "Worth a look" flags shown to authors
 
   if (!currentUserId) return <p className="p-6 text-muted">{msg.results.pickAuthor}</p>;
   if (isRespondent) return <p className="p-6 text-muted">{msg.home.goingToRespond}</p>;
@@ -181,17 +178,10 @@ function ResultsContent() {
                 how many questions are worth reading first. Absent when there are none,
                 so a clean survey does not carry a permanent "0 flagged" that trains the
                 reader to skip the row. */}
-            {flags.length > 0 ? (
-              <Stat
-                value={flags.length}
-                label={msg.report.rateFlagged}
-                of={msg.report.ofQuestions(questions.length)}
-                className="text-warn-text"
-              />
-            ) : null}
+            {/* Flags removed per user request - no "Worth a look" flags shown to authors */}
           </Card>
 
-          <FlagStrip flags={flags} />
+          {/* FlagStrip removed per user request - no "Worth a look" flags shown to authors */}
 
           {/* Said on the page rather than left in the code: those runs answered
               different questions under different ids, so counting them here would
@@ -232,7 +222,6 @@ function ResultsContent() {
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
               <QuestionRail
                 questions={questions.map(({ report: q }) => ({ id: q.id, text: q.text }))}
-                flagged={flagged}
               />
 
               <div className="flex min-w-0 flex-1 flex-col gap-4">
@@ -249,7 +238,6 @@ function ResultsContent() {
                         question={question}
                         position={i}
                         series={compareQuestion && compareQuestion.id !== question.id ? series : []}
-                        flagged={flagged.has(question.id)}
                         slice={slice}
                         onSlice={(next) => setParam("slice", next ? formatSlice(next) : null)}
                         pageComparing={Boolean(compareQuestion)}

@@ -29,10 +29,8 @@ import { cn } from "@/lib/utils";
  */
 export function QuestionRail({
   questions,
-  flagged,
 }: {
   questions: { id: string; text: string }[];
-  flagged: Set<string>;
 }) {
   const msg = useT();
   const [current, setCurrent] = useState<string | null>(questions[0]?.id ?? null);
@@ -101,11 +99,6 @@ export function QuestionRail({
           <span className="truncate lg:flex-1" title={question.text}>
             {question.text}
           </span>
-          {flagged.has(question.id) ? (
-            <span className="text-warn-text" title={msg.report.flagged} aria-hidden>
-              &#9888;
-            </span>
-          ) : null}
         </a>
       ))}
     </nav>

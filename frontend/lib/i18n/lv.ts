@@ -352,6 +352,10 @@ export const lv: Messages = {
     other: "cits…",
     yes: "Jā",
     no: "Nē",
+    skip: "Izlaist",
+    skipConfirm: "Izlaist šo jautājumu? Jūs varēsit atgriezties vēlāk.",
+    unclearConfirm: "Jūsu atbilde var būt neskaidra. Sūtīt vis vēlāk?",
+    sendAnyway: "Sūtīt vis vēlāk",
   },
   report: {
     writeIn: "(pašu vārdiem)",

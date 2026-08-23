@@ -352,6 +352,10 @@ export const pl: Messages = {
     other: "inne…",
     yes: "Tak",
     no: "Nie",
+    skip: "Pomiń",
+    skipConfirm: "Pomiń to pytanie? Możesz wrócić do niego później.",
+    unclearConfirm: "Twoja odpowiedź może być niejasna. Wysłać mimo to?",
+    sendAnyway: "Wyślij mimo to",
   },
   report: {
     writeIn: "(własna)",

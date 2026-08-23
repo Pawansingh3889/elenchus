@@ -346,6 +346,10 @@ export const fil: Messages = {
     other: "iba pa…",
     yes: "Oo",
     no: "Hindi",
+    skip: "Lampasan",
+    skipConfirm: "Lampasin ang tanong na ito? Maaari mong balikan mamaya.",
+    unclearConfirm: "Ang iyong sagot ay maaaring hindi malinaw. Ipadala pa rin?",
+    sendAnyway: "Ipadala pa rin",
   },
   report: {
     writeIn: "(sariling sagot)",

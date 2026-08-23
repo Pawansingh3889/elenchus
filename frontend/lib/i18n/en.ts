@@ -360,6 +360,10 @@ export const en = {
     other: "other…",
     yes: "Yes",
     no: "No",
+    skip: "Skip",
+    skipConfirm: "Skip this question? You can always come back to it later.",
+    unclearConfirm: "Your answer might be unclear. Send anyway?",
+    sendAnyway: "Send anyway",
   },
   report: {
     writeIn: "(write-in)",
