@@ -1,7 +1,15 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "nextjs",
-  "buildCommand": "pnpm build",
-  "installCommand": "pnpm install --frozen-lockfile",
-  "outputDirectory": ".next"
+  "services": [
+    {
+      "name": "frontend",
+      "framework": "nextjs",
+      "buildCommand": "pnpm build",
+      "installCommand": "pnpm install --frozen-lockfile",
+      "outputDirectory": ".next",
+      "env": {
+        "NEXT_PUBLIC_API_URL": "https://elenchus-production-3232.up.railway.app"
+      }
+    }
+  ]
 }
