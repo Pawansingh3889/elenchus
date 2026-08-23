@@ -5,6 +5,7 @@
     "title": "Batch Code and Temperature Management Survey",
     "description": "Understanding team lead's practices for managing batch codes and temperature",
     "created_by": "arjun",
+    "audience": "managers",
     "version": {
       "version_id": "fde71819-cc8f-4d5c-812a-8275cebc9068",
       "number": 1,
@@ -83,6 +84,7 @@
     "title": "Factory Floor Compliance Survey for Supervisors",
     "description": "Understanding Compliance on the Factory Floor",
     "created_by": "arjun",
+    "audience": "supervisors",
     "version": {
       "version_id": "df422622-99b5-473a-a12e-7e669a529c9c",
       "number": 2,
@@ -176,6 +178,7 @@
     "title": "New Hire Onboarding Survey",
     "description": "Your feedback will help us improve our onboarding process",
     "created_by": "arjun",
+    "audience": "everyone",
     "version": {
       "version_id": "1f324ad5-7d06-4bf0-8d9c-47d2863d7fb5",
       "number": 1,
@@ -254,6 +257,7 @@
     "title": "Team Lead Survey",
     "description": "Help us understand your team's dynamics and challenges. ",
     "created_by": "arjun",
+    "audience": "managers",
     "version": {
       "version_id": "72626247-563d-4f8a-8c70-ba0dea8173f3",
       "number": 1,
@@ -341,6 +345,7 @@
     "title": "Safety Equipment and PPE Survey",
     "description": "Assessing the availability and condition of personal protective equipment",
     "created_by": "hana",
+    "audience": "health_safety",
     "version": {
       "version_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
       "number": 1,
@@ -416,6 +421,7 @@
     "title": "Shift Handover Quality Survey",
     "description": "Evaluating the effectiveness of shift-to-shift communication",
     "created_by": "ava",
+    "audience": "shift_managers",
     "version": {
       "version_id": "c9d0e1f2-a3b4-5678-cdef-789012345678",
       "number": 1,
@@ -495,6 +501,7 @@
     "title": "AI tools in the plant",
     "description": "A short survey to understand how people feel about AI tools being introduced to help with their work.",
     "created_by": "pawankapkoti3889",
+    "audience": "everyone",
     "version": {
       "version_id": "deda8e62-3176-4327-8a8e-d11f2d187108",
       "number": 1,

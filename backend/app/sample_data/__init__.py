@@ -32,6 +32,7 @@ class SurveyFixture(TypedDict):
     title: str
     description: str | None
     created_by: str
+    audience: str | None
     version: VersionFixture
 
 
