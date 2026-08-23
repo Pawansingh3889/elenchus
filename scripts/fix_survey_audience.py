@@ -1,6 +1,6 @@
 """Fix missing audience field in existing sample surveys.
 
-This script directly updates the Railway database to fix the missing audience
+This script directly updates the database to fix the missing audience
 field in sample surveys that was causing them to be hidden from the dashboard.
 """
 
@@ -10,9 +10,12 @@ from pathlib import Path
 
 # Add the current directory to the path so we can import app modules
 # In Docker, we're in /app which contains the backend directory
+# In local dev, we're in the elenchus directory
 current_dir = Path(__file__).parent.parent
 if (current_dir / "app").exists():
     sys.path.insert(0, str(current_dir))
+elif (current_dir / "backend" / "app").exists():
+    sys.path.insert(0, str(current_dir / "backend"))
 
 from sqlalchemy import text
 from app.db.session import SessionFactory
