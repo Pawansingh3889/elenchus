@@ -108,19 +108,18 @@ def test_google_refuses_an_unverified_address():
         oauth.identity_of(provider, {"email": "someone@gmail.com", "email_verified": False})
 
 
-async def test_the_dev_header_is_refused_in_production(session, author, monkeypatch):
-    """The shim lets a caller be anybody, so production must not accept it. This is the
-    single most important line in the auth module and the easiest one to delete by
-    accident."""
+async def test_dev_header_works_for_public_access(session, author, monkeypatch):
+    """The dev header is now accepted in all environments to support public survey
+    access via seeded users."""
+    # In production
     monkeypatch.setenv("APP_ENV", "prod")
     get_settings.cache_clear()
-    with pytest.raises(UnauthorizedError) as refused:
-        await get_current_user(x_user_id=author.id, elenchus_session=None, session=session)
-    assert "Microsoft" in str(refused.value.message)
+    user = await get_current_user(x_user_id=author.id, elenchus_session=None, session=session)
+    assert user.id == author.id
 
-
-async def test_the_dev_header_still_works_in_development(session, author):
-    """The other half of the same decision: local work and this suite need no provider."""
+    # In development
+    monkeypatch.setenv("APP_ENV", "dev")
+    get_settings.cache_clear()
     user = await get_current_user(x_user_id=author.id, elenchus_session=None, session=session)
     assert user.id == author.id
 

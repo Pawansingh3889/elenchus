@@ -126,6 +126,8 @@ services:
     build: ./frontend
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
+      CHOKIDAR_USEPOLLING: "true"
+      CI: "true"
     depends_on:
       - backend
     ports:
@@ -134,7 +136,6 @@ services:
       # ":z" relabels the bind mount for SELinux (Fedora/RHEL + rootless Podman);
       # it is a no-op on Docker and on systems without SELinux.
       - ./frontend:/app:z
-      - /app/node_modules
     command: ["pnpm", "dev"]
 
 volumes:

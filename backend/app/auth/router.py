@@ -118,13 +118,15 @@ async def callback(
         await session.commit()
 
     response = RedirectResponse(front, status_code=307)
+    # Cross-origin (Vercel frontend → Railway backend) requires SameSite=None + Secure
+    # Lax works for same-site but blocks cross-origin fetch/XHR. In prod both are HTTPS.
     response.set_cookie(
         oauth.SESSION_COOKIE,
         oauth.sign(str(user.id), oauth.SESSION_MAX_AGE),
         max_age=oauth.SESSION_MAX_AGE,
         httponly=True,
         secure=settings.app_env == "prod",
-        samesite="lax",
+        samesite="none" if settings.app_env == "prod" else "lax",
         path="/",
     )
     response.delete_cookie(oauth.STATE_COOKIE, path="/")
@@ -135,16 +137,22 @@ async def callback(
 @router.post("/logout")
 async def logout() -> RedirectResponse:
     response = RedirectResponse(get_settings().frontend_origin.rstrip("/"), status_code=303)
-    response.delete_cookie(oauth.SESSION_COOKIE, path="/")
+    # Must match the SameSite setting used when setting the cookie
+    response.delete_cookie(
+        oauth.SESSION_COOKIE,
+        path="/",
+        secure=get_settings().app_env == "prod",
+        samesite="none" if get_settings().app_env == "prod" else "lax",
+    )
     return response
 
 
 @router.get("/me", response_model=UserRead)
-async def me(user: User = Depends(get_current_user)) -> User:
+async def me(user: User = Depends(get_current_user)) -> UserRead:
     """Who the caller is, however they got here.
 
     The browser needs this after a callback, because the session arrives as an HttpOnly
     cookie it cannot read. It answers the same for a dev-shim caller, so the frontend has
     one way to ask rather than one per sign-in method.
     """
-    return user
+    return UserRead.of(user)

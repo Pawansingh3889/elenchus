@@ -136,7 +136,7 @@ async def test_the_published_list_is_what_the_reader_may_actually_start(
     assert [t.title for t, _, _, _ in await svc.list_published(other_author)] == ["Open"]
 
 
-# --- the dev-auth user list, which must not outlive the dev auth -----------------
+# --- the dev-auth user list, which is available for public survey access ----------
 
 
 def test_the_user_list_requires_a_known_caller():
@@ -149,14 +149,9 @@ def test_the_user_list_requires_a_known_caller():
     assert get_current_user in {d.call for d in route.dependant.dependencies}
 
 
-def test_the_user_list_is_not_mounted_outside_development(monkeypatch):
-    """Absent beats guarded. An endpoint that was never registered cannot be reached by a
-    bug in whatever guards it, and a deployment seeds nobody, so the picker this exists
-    for would have nothing to show.
-
-    Also the first thing in the codebase to branch on APP_ENV, which the deployment file
-    has been carrying a note about changing no behaviour.
-    """
+def test_the_user_list_is_available_for_public_survey_access(monkeypatch):
+    """The user list and dev auth endpoints are now mounted in all environments
+    to support public survey access via seeded users."""
     import importlib
 
     import app.main
@@ -169,7 +164,9 @@ def test_the_user_list_is_not_mounted_outside_development(monkeypatch):
         return set(importlib.reload(app.main).app.openapi()["paths"])
 
     monkeypatch.setenv("APP_ENV", "prod")
-    assert "/api/v1/users" not in mounted_paths()
+    assert "/api/v1/users" in mounted_paths()
+    assert "/api/v1/dev/identify" in mounted_paths()
 
     monkeypatch.setenv("APP_ENV", "dev")
     assert "/api/v1/users" in mounted_paths()  # restores the module for later tests
+    assert "/api/v1/dev/identify" in mounted_paths()

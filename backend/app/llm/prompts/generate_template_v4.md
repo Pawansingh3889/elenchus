@@ -34,3 +34,28 @@ Rules:
     on the one or two questions the author actually wants to learn from, never on most of
     the survey, because each one adds a round trip for someone answering on their phone.
 - Write each question in clear, neutral language a respondent will readily understand.
+
+## Units (for number questions only)
+
+Valid units are: `kg`, `g`, `mg`, `t`, `lb`, `oz`, `l`, `ml`, `gal`, `m`, `cm`, `mm`, `km`, `in`, `ft`, `mi`, `C`, `F`, `K`.
+
+Rules for units:
+- Only `number` questions may have a `unit` and `display_unit`.
+- `display_unit` MUST be a different unit in the SAME DIMENSION as `unit`:
+  - Mass: `kg` ↔ `g` ↔ `mg` ↔ `t` ↔ `lb` ↔ `oz`
+  - Length: `m` ↔ `cm` ↔ `mm` ↔ `km` ↔ `in` ↔ `ft` ↔ `mi`
+  - Volume: `l` ↔ `ml` ↔ `gal`
+  - Temperature: `C` ↔ `F` ↔ `K`
+- WRONG: `unit: "kg", display_unit: "kg"` (same unit, no point)
+- WRONG: `unit: "kg", display_unit: "GBP"` (different dimension, not convertible)
+- WRONG: `display_unit: "1 = very low risk, 5 = very high risk"` (not a unit)
+- Currency is NOT supported: no `GBP`, `£`, `USD`, etc. Write the currency in the question text instead.
+- Rating questions NEVER have units.
+
+Example correct:
+- `unit: "kg", display_unit: "g"` (mass to mass)
+- `unit: "C", display_unit: "F"` (temperature to temperature)
+- `unit: "kg", display_unit: "t"` (mass to mass)
+
+Example for cost questions:
+- `answer_type: "number"`, NO unit, question text: "What was the total variance in £?"

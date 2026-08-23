@@ -14,6 +14,7 @@ const badgeVariants = cva(
         warn: "bg-warn-fill text-warn-text border-warn-border",
         danger: "bg-err-fill text-err-text border-err-border",
         solid: "bg-slab text-on-slab border-transparent",
+        outline: "border-line text-ink hover:bg-surface",
       },
     },
     defaultVariants: { variant: "neutral" },
