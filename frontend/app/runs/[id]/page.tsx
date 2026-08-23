@@ -37,9 +37,10 @@ export default function RunPage() {
   // so they keep it. multi_select uses its own Confirm button that bundles chips + write-in.
   const SELF_CONTAINED: AnswerType[] = ["yes_no", "single_select", "rating", "number", "date", "multi_select"];
   const composerHidden =
-    !!run?.current_question &&
-    !run.awaiting_follow_up &&
-    SELF_CONTAINED.includes(run.current_question.answer_type);
+    isLoading ||
+    (!!run?.current_question &&
+      !run.awaiting_follow_up &&
+      SELF_CONTAINED.includes(run.current_question.answer_type));
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });

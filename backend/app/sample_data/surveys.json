@@ -51,7 +51,9 @@
             "required": true,
             "allow_other": false,
             "answer_type": "number",
-            "follow_up_policy": "never"
+            "follow_up_policy": "never",
+            "unit": "°C",
+            "display_unit": "°F"
           },
           {
             "id": "ae878942-8de7-48b4-b939-3773b10beaba",

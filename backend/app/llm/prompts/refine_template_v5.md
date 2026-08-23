@@ -27,8 +27,9 @@ Rules:
   say". Set `allow_other` true instead.
 - Never exceed 20 questions.
 - Set `required` and `follow_up_policy` sensibly, as an original draft would. The policy
-  is `never` (no probing), `when_unclear` (probe a vague or off-list answer, the ordinary
-  choice) or `always_once` (one follow-up every time, for a question whose elaboration is
+  is `never` (no probing - ONLY for simple factual questions with no ambiguity, RARE - at most 1 per survey),
+  `when_unclear` (probe a vague or off-list answer, the DEFAULT for most questions: yes/no, single_select, multi_select, rating, number)
+  or `always_once` (one follow-up every time, for a question whose elaboration is
   the answer). Preserve what the draft already has unless the change asks otherwise: an
   author who set `always_once` meant it.
 - Write each question in clear, neutral language a respondent will readily understand.

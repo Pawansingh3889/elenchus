@@ -512,6 +512,24 @@ export interface SurveyReport {
   questions: QuestionReport[];
 }
 
+/** One respondent's participation in a survey, for the dashboard with real-time status. */
+export interface RespondentRow {
+  respondent_id: string;
+  respondent_label: string;
+  display_name: string;
+  total_runs: number;
+  completed_runs: number;
+  in_progress_runs: number;
+  abandoned_runs: number;
+  first_started_at: string;
+  last_started_at: string;
+  last_completed_at: string | null;
+  /** Real-time session status */
+  current_run_id: string | null;
+  current_status: RunStatus | null;
+  last_activity_at: string | null;
+}
+
 export interface LlmModelStats {
   model: string;
   tier: number | null;

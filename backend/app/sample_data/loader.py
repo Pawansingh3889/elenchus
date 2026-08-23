@@ -60,7 +60,7 @@ def _insert_survey(session: AsyncSession, survey: SurveyFixture, users: dict[str
     # Handle audience: convert string to enum, default to 'everyone' if not specified
     audience_str = survey.get("audience", "everyone")
     audience = SurveyAudience(audience_str) if audience_str else SurveyAudience.everyone
-    
+
     template = SurveyTemplate(
         id=UUID(survey["template_id"]),
         title=survey["title"],

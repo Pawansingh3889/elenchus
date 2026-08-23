@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+from collections.abc import AsyncGenerator
 from datetime import datetime
 from uuid import UUID
 
@@ -108,7 +109,7 @@ async def stream_respondents(
     the current respondent list when changes are detected.
     """
 
-    async def event_stream():
+    async def event_stream() -> AsyncGenerator[str, None]:
         """Generator that yields SSE events when respondent status changes."""
         from app.db.session import SessionFactory
 

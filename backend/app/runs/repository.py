@@ -143,15 +143,11 @@ class ResultsRepository:
         """
         # Aggregate respondent-level statistics
         total_runs = func.count(SurveyRun.id)
-        completed_runs = func.count(SurveyRun.id).filter(
-            SurveyRun.status == RunStatus.completed
-        )
+        completed_runs = func.count(SurveyRun.id).filter(SurveyRun.status == RunStatus.completed)
         in_progress_runs = func.count(SurveyRun.id).filter(
             SurveyRun.status == RunStatus.in_progress
         )
-        abandoned_runs = func.count(SurveyRun.id).filter(
-            SurveyRun.status == RunStatus.abandoned
-        )
+        abandoned_runs = func.count(SurveyRun.id).filter(SurveyRun.status == RunStatus.abandoned)
 
         # Get respondents with their run aggregates
         respondent_stats = (

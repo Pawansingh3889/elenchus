@@ -23,10 +23,11 @@ Rules:
 - Keep it focused: prefer 4 to 8 clear questions over a long list. Never exceed 20.
 - Set `required` true for questions core to the author's goal, false for the rest.
 - Set `follow_up_policy` on every question. It decides whether the interviewer probes:
-  - `never` for the simple factual ones. A shift, a department, a date: there is nothing
-    to draw out, and a probe there only costs the respondent time.
+  - `never` ONLY for simple factual ones with no ambiguity. A shift, a department, a date: there is nothing
+    to draw out, and a probe there only costs the respondent time. This should be RARE - at most 1 question per survey.
   - `when_unclear` where a probe helps only if the answer arrives vague or off-list.
-    This is the ordinary choice and the right default when you are unsure.
+    This is the DEFAULT for most questions (yes/no, single_select, multi_select, rating, number).
+    If you are unsure, use `when_unclear`.
   - `always_once` where the elaboration *is* the answer, so the interviewer will ask one
     follow-up every time regardless of how complete the reply looked. "Has this affected
     your work?" and "what one change would help most?" are this: the yes and the headline

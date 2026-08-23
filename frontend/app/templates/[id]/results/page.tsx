@@ -10,6 +10,7 @@ import { QuestionCard } from "@/components/results/QuestionCard";
 import { QuestionRail } from "@/components/results/QuestionRail";
 import { RecapPanel } from "@/components/results/RecapPanel";
 import { RespondentTable } from "@/components/results/RespondentTable";
+import { RespondentTracker } from "@/components/results/RespondentTracker";
 import { RunPanel } from "@/components/results/RunPanel";
 import { ControlBar } from "@/components/results/ControlBar";
 import { Stat } from "@/components/Stat";
@@ -303,6 +304,9 @@ function ResultsContent() {
                     ))}
                   </div>
                 </section>
+
+                {/* Real-time respondent tracking */}
+                <RespondentTracker templateId={id} />
 
                 {matrix && shown.length > 0 ? (
                   <RespondentTable
