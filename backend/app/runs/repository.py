@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.runs.enums import RunStatus
 from app.runs.models import SurveyRun
+from app.runs.schemas import RespondentRow
 from app.templates.models import SurveyTemplate
 from app.users.models import User
 
@@ -132,3 +133,90 @@ class ResultsRepository:
             )
         )
         return (await self.session.execute(stmt)).first()
+
+    async def respondents_for_template(self, template_id: UUID) -> list[RespondentRow]:
+        """All respondents for a survey with their participation summary and current status.
+
+        Returns one row per respondent, aggregating their runs and showing their latest
+        session status for real-time tracking. Used by the dashboard to show who is
+        currently active on a survey.
+        """
+        # Aggregate respondent-level statistics
+        total_runs = func.count(SurveyRun.id)
+        completed_runs = func.count(SurveyRun.id).filter(
+            SurveyRun.status == RunStatus.completed
+        )
+        in_progress_runs = func.count(SurveyRun.id).filter(
+            SurveyRun.status == RunStatus.in_progress
+        )
+        abandoned_runs = func.count(SurveyRun.id).filter(
+            SurveyRun.status == RunStatus.abandoned
+        )
+
+        # Get respondents with their run aggregates
+        respondent_stats = (
+            select(
+                SurveyRun.respondent_id,
+                User.display_name,
+                total_runs.label("total_runs"),
+                completed_runs.label("completed_runs"),
+                in_progress_runs.label("in_progress_runs"),
+                abandoned_runs.label("abandoned_runs"),
+                func.min(SurveyRun.started_at).label("first_started_at"),
+                func.max(SurveyRun.started_at).label("last_started_at"),
+                func.max(SurveyRun.completed_at).label("last_completed_at"),
+            )
+            .join(User, SurveyRun.respondent_id == User.id)
+            .where(SurveyRun.template_id == template_id)
+            .group_by(SurveyRun.respondent_id, User.display_name)
+            .order_by(func.min(SurveyRun.started_at), SurveyRun.respondent_id)
+        )
+
+        stats_rows = (await self.session.execute(respondent_stats)).all()
+
+        # Get respondent numbers (matching the existing respondent_numbers logic)
+        respondent_numbers = await self.respondent_numbers(template_id)
+
+        # Get current active runs for each respondent
+        active_runs_stmt = (
+            select(
+                SurveyRun.respondent_id,
+                SurveyRun.id.label("current_run_id"),
+                SurveyRun.status.label("current_status"),
+                func.max(SurveyRun.started_at).label("last_activity_at"),
+            )
+            .where(SurveyRun.template_id == template_id)
+            .where(SurveyRun.status == RunStatus.in_progress)
+            .group_by(SurveyRun.respondent_id, SurveyRun.id, SurveyRun.status)
+        )
+        active_runs = (await self.session.execute(active_runs_stmt)).all()
+        active_runs_by_respondent = {row.respondent_id: row for row in active_runs}
+
+        # Build respondent rows
+        respondents = []
+        for row in stats_rows:
+            respondent_id = row.respondent_id
+            number = respondent_numbers.get(respondent_id, 0)
+            respondent_label = f"Respondent {number}"
+
+            active_run = active_runs_by_respondent.get(respondent_id)
+
+            respondents.append(
+                RespondentRow(
+                    respondent_id=respondent_id,
+                    respondent_label=respondent_label,
+                    display_name=row.display_name,
+                    total_runs=row.total_runs,
+                    completed_runs=row.completed_runs,
+                    in_progress_runs=row.in_progress_runs,
+                    abandoned_runs=row.abandoned_runs,
+                    first_started_at=row.first_started_at,
+                    last_started_at=row.last_started_at,
+                    last_completed_at=row.last_completed_at,
+                    current_run_id=active_run.current_run_id if active_run else None,
+                    current_status=active_run.current_status if active_run else None,
+                    last_activity_at=active_run.last_activity_at if active_run else None,
+                )
+            )
+
+        return respondents

@@ -1,17 +1,31 @@
 """Results routes: an author reading responses to their survey."""
 
+import asyncio
+import json
+import logging
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import require_author
 from app.db.session import get_session
-from app.runs.schemas import AnswersMatrix, DashboardRow, RunDetail, RunSummary, SurveyReport
+from app.runs.schemas import (
+    AnswersMatrix,
+    DashboardRow,
+    RespondentRow,
+    RunDetail,
+    RunSummary,
+    SurveyReport,
+)
 from app.runs.service import ResultsService
 from app.runs.summary import RunSummaryContent, RunSummaryService
 from app.runs.survey_summary import SurveyRecapStatus, SurveySummaryRead, SurveySummaryService
 from app.users.models import User
+
+logger = logging.getLogger("app.runs.router")
 
 router = APIRouter(prefix="/api/v1/templates", tags=["results"])
 
@@ -65,6 +79,114 @@ async def answers_matrix(
     once and the client slices it.
     """
     return await ResultsService(session).answers_matrix(template_id, author)
+
+
+@router.get("/{template_id}/respondents", response_model=list[RespondentRow])
+async def list_respondents(
+    template_id: UUID,
+    author: User = Depends(require_author),
+    session: AsyncSession = Depends(get_session),
+) -> list[RespondentRow]:
+    """All respondents for a survey with their participation summary and current status.
+
+    Returns one row per respondent, aggregating their runs and showing their latest
+    session status for real-time tracking. Used by the dashboard to show who is
+    currently active on a survey.
+    """
+    return await ResultsService(session).respondents(template_id, author)
+
+
+@router.get("/{template_id}/respondents/stream")
+async def stream_respondents(
+    template_id: UUID,
+    author: User = Depends(require_author),
+) -> StreamingResponse:
+    """Real-time stream of respondent status updates using Server-Sent Events.
+
+    Polls for changes in respondent status and sends updates when respondents
+    start, complete, or abandon surveys. The client receives SSE events with
+    the current respondent list when changes are detected.
+    """
+
+    async def event_stream():
+        """Generator that yields SSE events when respondent status changes."""
+        from app.db.session import SessionFactory
+
+        last_keepalive = datetime.now()
+
+        # Get initial state
+        async with SessionFactory() as session:
+            service = ResultsService(session)
+            previous_respondents = await service.respondents(template_id, author)
+
+        # Send initial state
+        yield f"data: {json.dumps([r.model_dump() for r in previous_respondents])}\n\n"
+
+        try:
+            while True:
+                # Wait before checking for updates (poll every 2 seconds)
+                await asyncio.sleep(2)
+
+                # Get current respondent state with fresh session
+                async with SessionFactory() as session:
+                    service = ResultsService(session)
+                    current_respondents = await service.respondents(template_id, author)
+
+                # Check if anything changed
+                if _respondents_changed(previous_respondents, current_respondents):
+                    previous_respondents = current_respondents
+                    yield f"data: {json.dumps([r.model_dump() for r in current_respondents])}\n\n"
+
+                # Send a keepalive comment every 15 seconds to prevent timeout
+                now = datetime.now()
+                if (now - last_keepalive).total_seconds() > 15:
+                    yield ": keepalive\n\n"
+                    last_keepalive = now
+
+        except asyncio.CancelledError:
+            logger.info("SSE stream cancelled for template=%s", template_id)
+        except Exception as e:
+            logger.error("SSE stream error for template=%s: %s", template_id, e)
+            yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering
+        },
+    )
+
+
+def _respondents_changed(previous: list[RespondentRow], current: list[RespondentRow]) -> bool:
+    """Check if respondent status has changed since last poll."""
+    if len(previous) != len(current):
+        return True
+
+    # Compare by current status and activity timestamps
+    prev_by_id = {r.respondent_id: r for r in previous}
+    curr_by_id = {r.respondent_id: r for r in current}
+
+    for respondent_id, current_row in curr_by_id.items():
+        if respondent_id not in prev_by_id:
+            return True
+
+        prev_row = prev_by_id[respondent_id]
+
+        # Check if key fields changed
+        if (
+            prev_row.current_status != current_row.current_status
+            or prev_row.current_run_id != current_row.current_run_id
+            or prev_row.last_activity_at != current_row.last_activity_at
+            or prev_row.total_runs != current_row.total_runs
+            or prev_row.completed_runs != current_row.completed_runs
+            or prev_row.in_progress_runs != current_row.in_progress_runs
+        ):
+            return True
+
+    return False
 
 
 @router.get("/{template_id}/summary", response_model=SurveyRecapStatus)
