@@ -13,6 +13,6 @@ COPY backend/ .
 
 ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 8000
-# Stamp database as current head and start server (skip migrations due to Railway state issues)
-# The database appears to have a migration state that conflicts with current code
-CMD ["sh", "-c", "cd /app && alembic stamp e6f7a8b9c0d1 && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Start server directly (skip migrations due to Railway database state issues)
+# The database schema should already be correct from previous deployments
+CMD ["sh", "-c", "cd /app && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
