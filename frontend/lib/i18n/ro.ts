@@ -81,6 +81,16 @@ export const ro: Messages = {
     inFunction: (n: number) => `${n} ${n === 1 ? 'persoană' : 'persoane'}`,
     showing: (shown: number, total: number) => `Se afișează ${shown} din ${total}`,
     readOnly: "Doar citire. Numai un administrator poate adăuga sau modifica persoane.",
+    // Summary cards
+    summaryTitle: "Sumar",
+    summaryTotal: "Total persoane",
+    summaryAuthors: "Autori (nivel ≥ manager)",
+    summaryAdmins: "Admini (zona IT)",
+    summaryNoJob: "Fără post atribuit",
+    summaryByFunction: "După zonă",
+    summaryByBand: "După nivel",
+    summaryAudienceReach: "Acoperire audiență",
+    summaryReachTotal: "Acoperire totală",
   },
   admin: {
     addPerson: "Adaugă o persoană",
@@ -269,7 +279,7 @@ export const ro: Messages = {
     required: "Obligatorie",
     followUps: "Întrebări suplimentare",
     followUpsNever: "Niciodată",
-    followUpsWhenUnclear: "Dacă răspunsul nu e clar",
+    followUpsWhenUnclear: "Întreabă dacă răspunsul nu e clar (implicit)",
     followUpsAlwaysOnce: "Întreabă mereu o dată",
     allowOther: "Permite „altceva”",
     unit: "Unit",
@@ -320,6 +330,7 @@ export const ro: Messages = {
     goingToBuild: "Te ducem la Creează…",
     empty: "Nu s-a publicat încă nimic. Publică un șablon pentru a-l deschide aici.",
     answered: "Completat",
+    loading: "Se încarcă…",
   },
   run: {
     pickUser: "Autentifică-te din bara de sus pentru a continua acest sondaj.",

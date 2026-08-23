@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
 from app.runs.models import Answer, RunMessage, SurveyRun
 from app.sample_data import SAMPLE_RUNS, SAMPLE_SURVEYS, SURVEY_BY_KEY, RunFixture, SurveyFixture
-from app.templates.enums import AnswerType, FollowUpPolicy, TemplateStatus
+from app.templates.enums import AnswerType, FollowUpPolicy, SurveyAudience, TemplateStatus
 from app.templates.models import SurveyQuestion, SurveyTemplate
 from app.users.models import User
 
@@ -57,12 +57,17 @@ def _user(users: dict[str, UUID], key: str) -> UUID:
 
 def _insert_survey(session: AsyncSession, survey: SurveyFixture, users: dict[str, UUID]) -> None:
     definition = survey["version"]["definition"]
+    # Handle audience: convert string to enum, default to 'everyone' if not specified
+    audience_str = survey.get("audience", "everyone")
+    audience = SurveyAudience(audience_str) if audience_str else SurveyAudience.everyone
+
     template = SurveyTemplate(
         id=UUID(survey["template_id"]),
         title=survey["title"],
         description=survey["description"],
         status=TemplateStatus.published,
         created_by=_user(users, survey["created_by"]),
+        audience=audience,
     )
     # The questions come from the fixture's definition block, which is where they have
     # always lived. It used to be a frozen snapshot beside the draft; it is now simply

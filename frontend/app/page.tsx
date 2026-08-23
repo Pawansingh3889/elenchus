@@ -1,3 +1,4 @@
+// Test change for hot reload
 "use client";
 
 import Link from "next/link";
@@ -12,7 +13,7 @@ import { Card } from "@/components/ui/card";
 import { audienceLabel } from "@/lib/audience";
 import { groupForDashboard, landingFor, type Attention } from "@/lib/dashboardAttention";
 import { useT } from "@/lib/i18n/useT";
-import { useCurrentUser, useDashboard, useGenerateTemplate, useUsers } from "@/lib/queries";
+import { useCurrentUser, useDashboard, useGenerateTemplate, usePublishedSurveys, useUsers } from "@/lib/queries";
 import { useDraftNoteStore, useUserStore } from "@/lib/store";
 import type { DashboardRow, SurveyAudience } from "@/lib/types";
 
@@ -55,6 +56,7 @@ export default function Home() {
   // rather than a second request.
   const { data: users } = useUsers();
   const { data: rows } = useDashboard();
+  const { data: publishedSurveys } = usePublishedSurveys();
   const generate = useGenerateTemplate();
   const router = useRouter();
   const [prompt, setPrompt] = useState("");
@@ -303,6 +305,34 @@ export default function Home() {
       {authorHasNothing ? (
         <p className="text-md text-muted">{landing.newAuthorLead}</p>
       ) : null}
+
+      {/* Public survey links section - available to everyone */}
+      {publishedSurveys && publishedSurveys.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <h2 className="text-md font-semibold text-ink">Public Surveys</h2>
+            <Badge variant="accent">{publishedSurveys.length}</Badge>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {publishedSurveys.slice(0, 6).map((survey) => (
+              <Card key={survey.id} className="home-tile p-0">
+                <Link
+                  href={`/respond?survey=${survey.id}`}
+                  className="flex h-full flex-col gap-1 p-4 no-underline"
+                >
+                  <span className="line-clamp-2 text-md font-semibold text-ink">{survey.title}</span>
+                  <span className="text-sm text-muted">
+                    {survey.question_count} question{survey.question_count === 1 ? "" : "s"}
+                    {survey.estimated_minutes
+                      ? ` · about ${survey.estimated_minutes} min${survey.estimated_minutes === 1 ? "" : "s"}`
+                      : ""}
+                  </span>
+                </Link>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
 
       {showExplainer ? (
         <>

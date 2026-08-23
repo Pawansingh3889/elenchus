@@ -270,3 +270,22 @@ class SurveyReport(BaseModel):
     # questions, so their answers are not counted here rather than being folded in and
     # quietly changing what a number means. Named so the omission is visible.
     questions: list[QuestionReport]
+
+
+class RespondentRow(BaseModel):
+    """One respondent's participation in a survey, for the dashboard."""
+
+    respondent_id: UUID
+    respondent_label: str
+    display_name: str
+    total_runs: int
+    completed_runs: int
+    in_progress_runs: int
+    abandoned_runs: int
+    first_started_at: datetime
+    last_started_at: datetime
+    last_completed_at: datetime | None
+    # Real-time session status
+    current_run_id: UUID | None = None
+    current_status: RunStatus | None = None
+    last_activity_at: datetime | None = None

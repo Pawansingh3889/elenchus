@@ -42,9 +42,8 @@ logger = logging.getLogger("app.auth.oauth")
 
 SESSION_COOKIE = "elenchus_session"
 STATE_COOKIE = "elenchus_oauth"
-# A working day. Long enough that a shift does not have to sign in twice, short enough
-# that a browser left on the floor does not stay signed in all week.
-SESSION_MAX_AGE = 12 * 60 * 60
+# 30 days. Keeps users logged in across shifts without re-auth.
+SESSION_MAX_AGE = 30 * 24 * 60 * 60
 # The round trip to the provider and back. Minutes, not hours: this only has to survive
 # somebody typing a password.
 STATE_MAX_AGE = 10 * 60

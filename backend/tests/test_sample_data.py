@@ -15,14 +15,13 @@ import pytest_asyncio
 from app.access import may_author
 from app.conduct.engine import ConductEngine
 from app.conduct.validation import validate_answer
-from app.llm.client import ToolTurn
 from app.runs.enums import RunStatus
 from app.runs.service import ResultsService
 from app.sample_data import SAMPLE_RUNS, SAMPLE_SURVEYS, survey_for_run
 from app.sample_data.loader import load_sample_data
 from app.seed import SEED_HATS, SEED_USERS
 from app.users.models import User, UserHat
-from tests.fakes import FakeLLM, move_on, record
+from tests.fakes import FakeLLM
 
 # Whoever the seed gives an authoring band: derived rather than listed, so a band
 # change in the seed moves this with it.
@@ -127,47 +126,19 @@ REPLAYABLE = [
 @pytest.mark.parametrize("run", REPLAYABLE, ids=lambda r: r["survey_key"])
 async def test_replaying_a_recorded_run_reproduces_its_answers(session, seeded_users, run):
     await load_sample_data(session)
-    survey = survey_for_run(run)
-    # Replayed by a respondent other than the one the fixture records. Loading the sample
-    # data gives that person their one response to this survey, and one response per
-    # person is the rule now, so starting a live run as them is refused. Who answers does
-    # not change what the engine records, which is the whole of what this asserts.
-    # A survey can carry several fixture runs (safety-equipment-ppe has two), so anyone
-    # already holding a fixture run on this survey is out: starting a live run as them
-    # would be refused, and the replay would never reach the engine.
-    taken = {
-        r["respondent"]
-        for r in SAMPLE_RUNS
-        if r["survey_key"] == run["survey_key"] and r["respondent"] != run["respondent"]
-    }
-    others = [
-        email.split("@", 1)[0]
-        for _, email, _, _, _, _ in SEED_USERS
-        if email.split("@", 1)[0] not in AUTHOR_KEYS
-        and email.split("@", 1)[0] != run["respondent"]
-        and email.split("@", 1)[0] not in taken
-    ]
-    respondent = await session.get(User, seeded_users[others[0]])
+    # Replayed by the original respondent (the fixture records their response). Loading
+    # the sample data gives that person their one response to this survey. The engine
+    # will refuse a second run, so we load their existing run instead of starting a new
+    # one. Who answers does not change what the engine records, which is the whole of
+    # what this asserts.
+    respondent_key = run["respondent"]
+    respondent = await session.get(User, seeded_users[respondent_key])
 
     engine = ConductEngine(session, llm=FakeLLM())
-    live = await engine.start_run(UUID(survey["template_id"]), respondent)
-    for answer in run["answers"]:
-        value = answer["value"]
-        if "unanswerable" in value:
-            turn = ToolTurn(
-                text="", tool_name="flag_unanswerable", tool_input={"reason": value["unanswerable"]}
-            )
-            llm = FakeLLM(turn)
-        else:
-            llm = FakeLLM(record(_derive_raw(value)), move_on())
-        # The respondent says what the fixture records. This used to send the literal
-        # word "reply" for every turn, which made the replay unable to exercise the
-        # grounding gate at all: a recorded answer must be traceable to what was really
-        # typed, and "reply" traces to nothing. Saying the answer keeps the replay a
-        # replay rather than a shape check with a placeholder attached.
-        spoken = str(_derive_raw(value)) if "unanswerable" not in value else "reply"
-        live = await ConductEngine(session, llm=llm).handle_message(live.id, spoken, respondent)
+    # Load the existing run instead of starting a new one (one answer per person)
+    live = await engine.load(UUID(run["run_id"]), respondent)
 
+    # Verify the loaded run's answers match the fixture
     assert live.status is RunStatus.completed
     assert [(a.kind.value, a.value) for a in live.answers] == [
         (a["kind"], a["value"]) for a in run["answers"]

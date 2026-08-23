@@ -53,3 +53,5 @@ docker-compose.dbport.yml
 backend/.coverage
 backend/coverage.lcov
 backend/htmlcov/
+.vercel
+.env*

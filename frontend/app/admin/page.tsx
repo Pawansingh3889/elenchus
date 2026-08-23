@@ -1,5 +1,7 @@
+// TEST CHANGE
 "use client";
 
+import React from "react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -330,9 +332,10 @@ export default function AdminPage() {
       if (!aNoRun && bNoRun) return -1;
       const av = runSortKey(runSort.field, a);
       const bv = runSortKey(runSort.field, b);
-      if (typeof av === "string" && typeof bv === "string") return av.localeCompare(bv);
-      if (typeof av === "number" && typeof bv === "number") return av - bv;
-      return 0;
+      let cmp = 0;
+      if (typeof av === "string" && typeof bv === "string") cmp = av.localeCompare(bv);
+      else if (typeof av === "number" && typeof bv === "number") cmp = av - bv;
+      return runSort.dir === "desc" ? -cmp : cmp;
     });
     return list;
   }, [report, errorFilter, opFilter, runSort]);
@@ -357,7 +360,7 @@ export default function AdminPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold text-ink">Admin</h1>
+        <h1 className="text-xl font-semibold text-ink">ADMIN PAGE - TEST</h1>
         <p className="text-sm text-muted">LLM usage, spend, and system health.</p>
       </div>
 
@@ -466,73 +469,75 @@ export default function AdminPage() {
               ) : null}
             </div>
             <Card className="overflow-x-auto p-0">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
-                    <th className="px-3 py-2" />
-                    <th className="px-3 py-2 cursor-pointer select-none" onClick={() => toggleRunSort("run")}>
-                      Run<SortIcon active={runSort.field === "run"} dir={runSort.dir} />
-                    </th>
-                    <th className="px-3 py-2 cursor-pointer select-none" onClick={() => toggleRunSort("model")}>
-                      Model<SortIcon active={runSort.field === "model"} dir={runSort.dir} />
-                    </th>
-                    <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleRunSort("calls")}>
-                      Calls<SortIcon active={runSort.field === "calls"} dir={runSort.dir} />
-                    </th>
-                    <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleRunSort("prompt_tokens")}>
-                      Prompt<SortIcon active={runSort.field === "prompt_tokens"} dir={runSort.dir} />
-                    </th>
-                    <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleRunSort("context_tokens")}>
-                      Context<SortIcon active={runSort.field === "context_tokens"} dir={runSort.dir} />
-                    </th>
-                    <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleRunSort("latency")}>
-                      Avg latency<SortIcon active={runSort.field === "latency"} dir={runSort.dir} />
-                    </th>
-                    <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleRunSort("errors")}>
-                      Errors<SortIcon active={runSort.field === "errors"} dir={runSort.dir} />
-                    </th>
-                    <th className="px-3 py-2 cursor-pointer select-none" onClick={() => toggleRunSort("time")}>
-                      Time<SortIcon active={runSort.field === "time"} dir={runSort.dir} />
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedRuns.map((r) => {
-                    const id = r.run_id ?? "";
-                    const isOpen = expandedRun === id;
-                    return (
-                      <>
-                        <tr
-                          key={id || r.first_ts}
-                          className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/50"
-                          onClick={() => setExpandedRun(isOpen ? null : id || null)}
-                        >
-                          <td className="px-3 py-2 text-muted">{isOpen ? "\u25BC" : "\u25B6"}</td>
-                          <td className="px-3 py-2 font-mono text-xs">{id ? id.slice(0, 12) : "no run"}</td>
-                          <td className="px-3 py-2">{r.model}</td>
-                          <td className="px-3 py-2 text-right tabular-nums">{r.calls}</td>
-                          <td className="px-3 py-2 text-right tabular-nums">{formatTokens(r.prompt_tokens)}</td>
-                          <td className="px-3 py-2 text-right tabular-nums">{formatTokens(r.context_tokens)}</td>
-                          <td className="px-3 py-2 text-right tabular-nums">{formatMs(r.avg_latency_ms)}</td>
-                          <td className="px-3 py-2 text-right tabular-nums">
-                            {r.error_count > 0 ? <span className="text-warn-text">{r.error_count}</span> : "0"}
-                          </td>
-                          <td className="px-3 py-2 text-xs text-muted">
-                            {r.first_ts ? (
-                              r.first_ts !== r.last_ts
-                                ? `${new Date(r.first_ts).toLocaleDateString()} \u2013 ${new Date(r.last_ts).toLocaleDateString()}`
-                                : new Date(r.first_ts).toLocaleString()
-                            ) : "-"}
-                          </td>
-                        </tr>
-                        {isOpen && id ? <ExpandedEntries key={`exp-${id}`} runId={id} /> : null}
-                      </>
-                    );
-                  })}
-                </tbody>
-              </table>
+              <div className="max-h-[500px] overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-surface z-10">
+                    <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
+                      <th className="px-3 py-2" />
+                      <th className="px-3 py-2 cursor-pointer select-none" onClick={() => toggleRunSort("run")}>
+                        Run<SortIcon active={runSort.field === "run"} dir={runSort.dir} />
+                      </th>
+                      <th className="px-3 py-2 cursor-pointer select-none" onClick={() => toggleRunSort("model")}>
+                        Model<SortIcon active={runSort.field === "model"} dir={runSort.dir} />
+                      </th>
+                      <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleRunSort("calls")}>
+                        Calls<SortIcon active={runSort.field === "calls"} dir={runSort.dir} />
+                      </th>
+                      <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleRunSort("prompt_tokens")}>
+                        Prompt<SortIcon active={runSort.field === "prompt_tokens"} dir={runSort.dir} />
+                      </th>
+                      <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleRunSort("context_tokens")}>
+                        Context<SortIcon active={runSort.field === "context_tokens"} dir={runSort.dir} />
+                      </th>
+                      <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleRunSort("latency")}>
+                        Avg latency<SortIcon active={runSort.field === "latency"} dir={runSort.dir} />
+                      </th>
+                      <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => toggleRunSort("errors")}>
+                        Errors<SortIcon active={runSort.field === "errors"} dir={runSort.dir} />
+                      </th>
+                      <th className="px-3 py-2 cursor-pointer select-none" onClick={() => toggleRunSort("time")}>
+                        Time<SortIcon active={runSort.field === "time"} dir={runSort.dir} />
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedRuns.map((r, idx) => {
+                      const id = r.run_id ?? `no-run-${idx}`;
+                      const isOpen = expandedRun === id;
+                      return (
+                        <React.Fragment key={id}>
+                          <tr
+                            className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/50"
+                            onClick={() => setExpandedRun(isOpen ? null : id)}
+                          >
+                            <td className="px-3 py-2 text-muted">{isOpen ? "\u25BC" : "\u25B6"}</td>
+                            <td className="px-3 py-2 font-mono text-xs">{id.startsWith("no-run-") ? "no run" : id.slice(0, 12)}</td>
+                            <td className="px-3 py-2">{r.model}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{r.calls}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{formatTokens(r.prompt_tokens)}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{formatTokens(r.context_tokens)}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{formatMs(r.avg_latency_ms)}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">
+                              {r.error_count > 0 ? <span className="text-warn-text">{r.error_count}</span> : "0"}
+                            </td>
+                            <td className="px-3 py-2 text-xs text-muted">
+                              {r.first_ts ? (
+                                r.first_ts !== r.last_ts
+                                  ? `${new Date(r.first_ts).toLocaleDateString()} \u2013 ${new Date(r.last_ts).toLocaleDateString()}`
+                                  : new Date(r.first_ts).toLocaleString()
+                              ) : "\u2013"}
+                            </td>
+                          </tr>
+                          {isOpen && r.run_id ? <ExpandedEntries key={`exp-${r.run_id}`} runId={r.run_id} /> : null}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </Card>
-           </section>
+          </section>
+
           <TokenTransparency />
         </>
       ) : null}

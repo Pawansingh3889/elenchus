@@ -15,15 +15,16 @@ import type {
   LlmReport,
   Me,
   Person,
-  Run,
+  RespondentRow,
   ResumableRun,
+  Run,
   RunDetail,
   RunSummary,
   RunSummaryContent,
   SurveyAudience,
   SurveyRecapStatus,
-  SurveySummary,
   SurveyReport,
+  SurveySummary,
   Template,
   TemplateSummary,
   TemplateWrite,
@@ -213,6 +214,8 @@ export const api = {
   listPublished: () => request<TemplateSummary[]>("/templates/published"),
   startRun: (templateId: string) =>
     request<Run>("/runs", { method: "POST", body: JSON.stringify({ template_id: templateId }) }),
+  startRunPublic: (templateId: string) =>
+    request<Run>("/runs/public", { method: "POST", body: JSON.stringify({ template_id: templateId }) }),
   getRun: (id: string) => request<Run>(`/runs/${id}`),
   myUnfinishedRuns: () => request<ResumableRun[]>("/runs"),
   sendRunMessage: (id: string, content: string) =>
@@ -240,6 +243,16 @@ export const api = {
       `/templates/${templateId}/runs/${runId}/summary${refresh ? "?refresh=true" : ""}`,
       { method: "POST" },
     ),
+  listRespondents: (templateId: string) =>
+    request<RespondentRow[]>(`/templates/${templateId}/respondents`),
+  streamRespondents: (templateId: string) =>
+    fetch(`${BASE}/api/v1/templates/${templateId}/respondents/stream`, {
+      credentials: "include",
+      headers: { Accept: "text/event-stream" },
+    }).then((res) => {
+      if (!res.ok) throw new Error("Failed to connect to respondent stream");
+      return res;
+    }),
   llmReport: () => request<LlmReport>("/admin/llm/report"),
   llmLedger: () => request<LlmLedger>("/admin/llm/ledger"),
   llmRunEntries: (runId: string) => request<LlmEntry[]>(`/admin/llm/run/${runId}`),

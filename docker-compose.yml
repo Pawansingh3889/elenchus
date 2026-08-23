@@ -1,5 +1,9 @@
 name: elenchus
 
+# Load environment variables from .env file for docker-compose
+env_file:
+  - .env
+
 services:
   postgres:
     image: postgres:17-alpine
@@ -25,7 +29,7 @@ services:
       # Without this line the container never sees the allowlist and admin is silently
       # never granted: the setting would appear to work on the host, where the backend
       # is started with --env-file, and do nothing at all in the stack.
-      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+      ADMIN_EMAILS: ${ADMIN_EMAILS}
       # Break-time is a burst: a shift answers at once, each conversation holding a
       # connection across its LLM call. Defaults in config.py are sized for it; these
       # are forwarded so an operator's override actually reaches the container.
@@ -118,14 +122,14 @@ services:
       - ./backend:/app:z
       - /app/.venv
     command: >
-      sh -c "alembic upgrade head &&
-             python -m app.seed &&
-             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+      sh -c "uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 
   frontend:
     build: ./frontend
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
+      CHOKIDAR_USEPOLLING: "true"
+      CI: "true"
     depends_on:
       - backend
     ports:
@@ -134,7 +138,6 @@ services:
       # ":z" relabels the bind mount for SELinux (Fedora/RHEL + rootless Podman);
       # it is a no-op on Docker and on systems without SELinux.
       - ./frontend:/app:z
-      - /app/node_modules
     command: ["pnpm", "dev"]
 
 volumes:

@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Stat } from "@/components/Stat";
 import {
   Table,
   TableBody,
@@ -21,7 +22,7 @@ import {
 import { bandLabel, bandTint, functionLabel, hatLabel } from "@/lib/audience";
 import { SignInPrompt } from "@/components/SignInPrompt";
 import { useT } from "@/lib/i18n/useT";
-import { useCurrentUser, useMe, usePeople } from "@/lib/queries";
+import { useAudienceReach, useCurrentUser, useMe, usePeople } from "@/lib/queries";
 import { useUserStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import type { Band, JobFunction, Person } from "@/lib/types";
@@ -115,6 +116,43 @@ export default function People() {
   // Author-only on the server too. Sending a non-authoring caller away rather than
   // rendering the 403 they would otherwise collect on arrival.
   const isRespondent = currentUser ? !currentUser.may_author : false;
+
+  // Audience reach for the summary cards
+  const { data: audienceReach } = useAudienceReach(true);
+
+  // Compute summary stats from rows and audienceReach
+  const summary = useMemo(() => {
+    if (!rows) return null;
+    const totalPeople = rows.length;
+    const authors = rows.filter((p) => p.may_author).length;
+    const admins = rows.filter((p) => p.function === "it").length; // IT function grants admin
+    const noJob = rows.filter((p) => !p.function || !p.band).length;
+    const byFunction = new Map<JobFunction | null, number>();
+    const byBand = new Map<Band, number>();
+    const reachTotal = audienceReach ? Object.values(audienceReach).reduce((a, b) => a + b, 0) : 0;
+    
+    for (const person of rows) {
+      // By function
+      const fnKey = person.function ?? null;
+      byFunction.set(fnKey, (byFunction.get(fnKey) ?? 0) + 1);
+      // By band
+      if (person.band) {
+        byBand.set(person.band, (byBand.get(person.band) ?? 0) + 1);
+      }
+    }
+    
+    return {
+      totalPeople,
+      authors,
+      admins,
+      noJob,
+      byFunction,
+      byBand,
+      reachTotal,
+      audienceReach: audienceReach ?? {},
+    };
+  }, [rows, audienceReach]);
+
   useEffect(() => {
     if (isRespondent) router.replace("/respond");
   }, [isRespondent, router]);
@@ -138,6 +176,77 @@ export default function People() {
 
       {error ? <ErrorBanner error={error} /> : null}
       {isLoading ? <Skeleton className="h-64 w-full" /> : null}
+
+      {/* Summary cards at the top */}
+      {summary && (
+        <section className="flex flex-col gap-4">
+          <h2 className="text-md font-semibold text-ink">{people.summaryTitle}</h2>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Card className="p-4 flex flex-col gap-1">
+              <Stat value={summary.totalPeople} label={people.summaryTotal} />
+            </Card>
+            <Card className="p-4 flex flex-col gap-1">
+              <Stat value={summary.authors} label={people.summaryAuthors} />
+            </Card>
+            <Card className="p-4 flex flex-col gap-1">
+              <Stat value={summary.admins} label={people.summaryAdmins} />
+            </Card>
+            <Card className="p-4 flex flex-col gap-1">
+              <Stat value={summary.noJob} label={people.summaryNoJob} />
+            </Card>
+          </div>
+          
+          {/* By function */}
+          <Card className="p-4 flex flex-col gap-2">
+            <h3 className="text-sm font-semibold text-ink">{people.summaryByFunction}</h3>
+            <div className="flex flex-wrap gap-2">
+              {FUNCTION_ORDER.map((func) => {
+                const count = summary.byFunction.get(func) ?? 0;
+                return count > 0 ? (
+                  <Badge key={func} variant="outline" className="text-xs">
+                    {functionLabel(fn, func)}: {count}
+                  </Badge>
+                ) : null;
+              })}
+              {summary.byFunction.has(null) && (
+                <Badge key="none" variant="outline" className="text-xs text-warn-text">
+                  {people.noJob}: {summary.byFunction.get(null)}
+                </Badge>
+              )}
+            </div>
+          </Card>
+
+          {/* By band */}
+          <Card className="p-4 flex flex-col gap-2">
+            <h3 className="text-sm font-semibold text-ink">{people.summaryByBand}</h3>
+            <div className="flex flex-wrap gap-2">
+              {BAND_RANK.map((b) => {
+                const count = summary.byBand.get(b) ?? 0;
+                return count > 0 ? (
+                  <Badge key={b} variant="outline" className={cn("text-xs", bandTint(b))}>
+                    {bandLabel(band, b)}: {count}
+                  </Badge>
+                ) : null;
+              })}
+            </div>
+          </Card>
+
+          {/* Audience reach */}
+          <Card className="p-4 flex flex-col gap-2">
+            <h3 className="text-sm font-semibold text-ink">{people.summaryAudienceReach}</h3>
+            <div className="flex flex-wrap gap-2">
+              {(Object.entries(summary.audienceReach) as [string, number][]).map(([audKey, count]) => (
+                <Badge key={audKey} variant="outline" className="text-xs">
+                  {audKey}: {count}
+                </Badge>
+              ))}
+              <Badge variant="accent" className="text-xs">
+                {people.summaryReachTotal}: {summary.reachTotal}
+              </Badge>
+            </div>
+          </Card>
+        </section>
+      )}
 
       {rows ? (
         <Card className="overflow-x-auto p-0">

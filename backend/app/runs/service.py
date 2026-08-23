@@ -25,6 +25,7 @@ from app.runs.schemas import (
     MessageDetailRead,
     OptionCount,
     QuestionReport,
+    RespondentRow,
     RunDetail,
     RunSummary,
     SurveyReport,
@@ -266,6 +267,16 @@ class ResultsService:
             ],
             runs=runs,
         )
+
+    async def respondents(self, template_id: UUID, author: User) -> list[RespondentRow]:
+        """All respondents for a survey with their participation summary and current status.
+
+        Returns one row per respondent, aggregating their runs and showing their latest
+        session status for real-time tracking. Used by the dashboard to show who is
+        currently active on a survey.
+        """
+        await self._owned_or_404(template_id, author)
+        return await self.repo.respondents_for_template(template_id)
 
     async def _owned_or_404(self, template_id: UUID, author: User) -> SurveyTemplate:
         """Responses carry pseudonyms and verbatim transcripts, so they are readable by

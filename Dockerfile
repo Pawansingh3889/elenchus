@@ -13,6 +13,5 @@ COPY backend/ .
 
 ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 8000
-# Start server directly (skip migrations due to Railway database state issues)
-# The database schema should already be correct from previous deployments
-CMD ["sh", "-c", "cd /app && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Run migrations and start server (seed runs automatically in demo mode via lifespan hook)
+CMD ["sh", "-c", "cd /app && alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

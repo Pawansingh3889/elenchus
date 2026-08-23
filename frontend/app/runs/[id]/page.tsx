@@ -34,12 +34,13 @@ export default function RunPage() {
   // field) answers through that control alone. The free-text composer underneath it is
   // then a second input with a second Send, and the route a numeric answer could sneak
   // in as prose and bypass the data type. Hide it for those types; probes are open prose
-  // so they keep it, and multi_select still needs it for its write-in.
-  const SELF_CONTAINED: AnswerType[] = ["yes_no", "single_select", "rating", "number", "date"];
+  // so they keep it. multi_select uses its own Confirm button that bundles chips + write-in.
+  const SELF_CONTAINED: AnswerType[] = ["yes_no", "single_select", "rating", "number", "date", "multi_select"];
   const composerHidden =
-    !!run?.current_question &&
-    !run.awaiting_follow_up &&
-    SELF_CONTAINED.includes(run.current_question.answer_type);
+    isLoading ||
+    (!!run?.current_question &&
+      !run.awaiting_follow_up &&
+      SELF_CONTAINED.includes(run.current_question.answer_type));
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });

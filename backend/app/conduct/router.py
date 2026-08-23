@@ -31,6 +31,7 @@ from app.i18n import parse_locale
 from app.runs.models import SurveyRun
 from app.runs.schemas import AnswerRead, MessageRead
 from app.users.models import User
+from app.users.repository import UserRepository
 
 router = APIRouter(prefix="/api/v1/runs", tags=["runs"])
 
@@ -72,6 +73,27 @@ async def start_run(
     session: AsyncSession = Depends(get_session),
     accept_language: str | None = Header(default=None),
 ) -> RunRead:
+    engine = ConductEngine(session)
+    # The language is settled here, once, and stored on the run. Later turns read it
+    # from the run rather than the header, so resuming somewhere else cannot switch
+    # the interview's language halfway through.
+    run = await engine.start_run(data.template_id, answerer, language=parse_locale(accept_language))
+    return await _to_read(engine, run)
+
+
+@router.post("/public", response_model=RunRead, status_code=HTTP_201_CREATED)
+async def start_run_public(
+    data: StartRunRequest,
+    session: AsyncSession = Depends(get_session),
+    accept_language: str | None = Header(default=None),
+) -> RunRead:
+    """Start a survey run for public access using the seeded author (Ava)."""
+    users = UserRepository(session)
+    # Use the seeded author user (Ava) for public access
+    answerer = await users.get(UUID("00000000-0000-0000-0000-0000000000a1"))
+    if answerer is None:
+        raise ValueError("Seeded author user not found")
+
     engine = ConductEngine(session)
     # The language is settled here, once, and stored on the run. Later turns read it
     # from the run rather than the header, so resuming somewhere else cannot switch

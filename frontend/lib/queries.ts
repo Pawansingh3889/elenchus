@@ -8,6 +8,7 @@ import { useUserStore } from "./store";
 import type {
   AccountCreate,
   AccountWrite,
+  RespondentRow,
   RunDetail,
   SurveyAudience,
   SurveyRecapStatus,
@@ -330,6 +331,21 @@ export function useStartRun() {
   });
 }
 
+export function useStartRunPublic() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (templateId: string) => api.startRunPublic(templateId),
+    // The run just created belongs in the resumable list, and the published list now
+    // carries whether this person has answered. Neither was invalidated, so a second
+    // click within one session saw a stale page and started a second run: the client
+    // half of the duplicate-response bug the engine now refuses.
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["my-runs"] });
+      qc.invalidateQueries({ queryKey: ["published-surveys"] });
+    },
+  });
+}
+
 export function useTemplateRuns(templateId: string) {
   const userId = useUserStore((s) => s.currentUserId);
   return useQuery({
@@ -502,4 +518,73 @@ export function useLlmLedger() {
     enabled: !!userId,
     refetchInterval: 15_000,
   });
+}
+
+export function useRespondents(templateId: string) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["respondents", templateId, userId],
+    queryFn: () => api.listRespondents(templateId),
+    enabled: !!userId && !!templateId,
+    refetchInterval: 5_000, // Poll every 5 seconds as fallback
+  });
+}
+
+export function useRespondentStream(templateId: string) {
+  const userId = useUserStore((s) => s.currentUserId);
+
+  return useQuery({
+    queryKey: ["respondent-stream", templateId, userId],
+    queryFn: async () => {
+      // This query is for SSE connection management - we don't actually fetch data here
+      // The SSE connection is handled by a useEffect in the component
+      return null;
+    },
+    enabled: false, // We'll manage this manually via useEffect
+  });
+}
+
+// Hook to manage SSE connection for real-time respondent updates
+export function useRespondentStreamConnection(
+  templateId: string | null,
+  onUpdate: (respondents: RespondentRow[]) => void
+) {
+  useEffect(() => {
+    if (!templateId) return;
+
+    let eventSource: EventSource | null = null;
+
+    const connect = () => {
+      eventSource = new EventSource(
+        `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/api/v1/templates/${templateId}/respondents/stream`,
+        { withCredentials: true }  // Send cookies for auth
+      );
+
+      eventSource.onopen = () => {
+        console.log("SSE connection opened for respondents stream");
+      };
+
+      eventSource.onmessage = (event) => {
+        try {
+          const respondents = JSON.parse(event.data) as RespondentRow[];
+          onUpdate(respondents);
+        } catch (e) {
+          console.error("Failed to parse SSE message:", e);
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        console.error("SSE connection error:", error);
+        eventSource?.close();
+        // Reconnect after 5 seconds
+        setTimeout(connect, 5000);
+      };
+    };
+
+    connect();
+
+    return () => {
+      eventSource?.close();
+    };
+  }, [templateId, onUpdate]);
 }
