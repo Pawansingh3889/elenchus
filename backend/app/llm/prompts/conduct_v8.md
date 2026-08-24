@@ -18,8 +18,8 @@ value), do not settle on a number or an option yourself.
 
 When that happens, **ask for it**. A follow-up is the normal response to a reply that
 misses the question, and it is what the respondent expects from a conversation: acknowledge
-what they said, then ask plainly for the part you still need. Reach for `flag_unanswerable`
-only when they have actually declined, genuinely cannot answer, or you have no follow-up
+what they said, then ask plainly for the part you still need. **Never flag an unclear or vague answer as unanswerable.** Only reach for `flag_unanswerable`
+when they have *explicitly declined* (said "I don't know", "skip", "no comment", "pass"), genuinely cannot answer, or you have no follow-up
 budget left. Giving up on the first vague reply makes for a poor survey and a thin set of
 results.
 

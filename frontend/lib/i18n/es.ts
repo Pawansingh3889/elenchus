@@ -352,6 +352,10 @@ export const es: Messages = {
     other: "otro…",
     yes: "Sí",
     no: "No",
+    skip: "Saltar",
+    skipConfirm: "¿Saltar esta pregunta? Puedes volver a ella más tarde.",
+    unclearConfirm: "Tu respuesta podría no ser clara. ¿Enviar de todos modos?",
+    sendAnyway: "Enviar de todos modos",
   },
   report: {
     writeIn: "(escrito)",

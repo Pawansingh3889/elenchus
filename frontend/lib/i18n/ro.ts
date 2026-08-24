@@ -354,6 +354,10 @@ export const ro: Messages = {
     other: "altceva…",
     yes: "Da",
     no: "Nu",
+    skip: "Sari peste",
+    skipConfirm: "Sari peste această întrebare? Poți reveni la ea mai târziu.",
+    unclearConfirm: "Răspunsul tău ar putea fi neclar. Trimite oricum?",
+    sendAnyway: "Trimite oricum",
   },
   report: {
     writeIn: "(scris)",

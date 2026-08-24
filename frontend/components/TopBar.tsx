@@ -106,11 +106,11 @@ export function TopBar() {
             <>
               <Link href="/dashboard">{topbar.dashboard}</Link>
               <Link href="/people">{topbar.people}</Link>
-              {isAdmin ? <Link href="/admin">Admin</Link> : null}
             </>
           ) : (
             <Link href="/respond">{topbar.respond}</Link>
           )}
+          {isAdmin && <Link href="/admin">Admin</Link>}
         </nav>
       </div>
       <div className="topbar-user">

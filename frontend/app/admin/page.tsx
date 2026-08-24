@@ -1,4 +1,3 @@
-// TEST CHANGE
 "use client";
 
 import React from "react";
@@ -153,6 +152,18 @@ function TokenTransparency() {
   if (isLoading) return <Card className="p-4"><Skeleton className="h-48 w-full" /></Card>;
   if (error) return <Card className="p-4 text-sm text-warn-text">Failed to load ledger</Card>;
   if (!ledger) return null;
+  
+  // Show message if no data
+  if (ledger.total_entries === 0) {
+    return (
+      <Card className="flex flex-col gap-4 p-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-md font-semibold">Token Transparency</h2>
+        </div>
+        <p className="text-sm text-muted">No LLM activity recorded yet. Token usage data will appear here once surveys are conducted.</p>
+      </Card>
+    );
+  }
 
   const entries = ledger.entries;
   const ops = [...new Set(entries.map((e) => e.op).filter((x): x is string => !!x))].sort();
@@ -360,7 +371,7 @@ export default function AdminPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold text-ink">ADMIN PAGE - TEST</h1>
+        <h1 className="text-xl font-semibold text-ink">Admin Panel</h1>
         <p className="text-sm text-muted">LLM usage, spend, and system health.</p>
       </div>
 
@@ -374,6 +385,13 @@ export default function AdminPage() {
         <Card className="p-4"><Skeleton className="h-16 w-full" /></Card>
       ) : report ? (
         <>
+          {/* Show message if no data */}
+          {report.total_entries === 0 && (
+            <Card className="p-4 text-sm text-muted">
+              No LLM activity recorded yet. Once surveys are conducted with LLM features, usage data will appear here.
+            </Card>
+          )}
+
           <section className="flex flex-col gap-2">
             <div className="flex items-center gap-3">
               <h2 className="text-md font-semibold">By Model</h2>

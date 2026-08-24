@@ -348,6 +348,10 @@ export const de: Messages = {
     other: "Sonstiges…",
     yes: "Ja",
     no: "Nein",
+    skip: "Überspringen",
+    skipConfirm: "Diese Frage überspringen? Sie können später zurückkehren.",
+    unclearConfirm: "Ihre Antwort könnte unklar sein. Trotzdem senden?",
+    sendAnyway: "Trotzdem senden",
   },
   report: {
     writeIn: "(frei)",

@@ -13,7 +13,7 @@ import { Card } from "@/components/ui/card";
 import { audienceLabel } from "@/lib/audience";
 import { groupForDashboard, landingFor, type Attention } from "@/lib/dashboardAttention";
 import { useT } from "@/lib/i18n/useT";
-import { useCurrentUser, useDashboard, useGenerateTemplate, usePublishedSurveys, useUsers } from "@/lib/queries";
+import { useCurrentUser, useDashboard, useGenerateTemplate, useMe, usePublishedSurveys, useUsers } from "@/lib/queries";
 import { useDraftNoteStore, useUserStore } from "@/lib/store";
 import type { DashboardRow, SurveyAudience } from "@/lib/types";
 
@@ -52,6 +52,7 @@ export default function Home() {
   // already had.
   const currentUserId = useUserStore((s) => s.currentUserId);
   const currentUser = useCurrentUser();
+  const { data: me } = useMe();
   // Already fetched for the top bar's user picker, so this is the same cached query
   // rather than a second request.
   const { data: users } = useUsers();
@@ -292,9 +293,23 @@ export default function Home() {
           section, which happens whenever every survey an author has needs them: the two
           groups above were full and the only route onward had gone. */}
       {isAuthor && rows !== undefined && rows.length > 0 ? (
-        <div>
+        <div className="flex items-center gap-4">
           <Link href="/dashboard" className="text-sm text-accent-strong">
             {landing.allSurveys}
+          </Link>
+          {me?.is_admin && (
+            <Link href="/admin" className="text-sm text-accent-strong">
+              Admin Panel
+            </Link>
+          )}
+        </div>
+      ) : null}
+
+      {/* Admin link for users with admin access even if they have no surveys */}
+      {me?.is_admin && (rows === undefined || rows.length === 0) ? (
+        <div>
+          <Link href="/admin" className="text-sm text-accent-strong">
+            Admin Panel
           </Link>
         </div>
       ) : null}
@@ -305,6 +320,49 @@ export default function Home() {
       {authorHasNothing ? (
         <p className="text-md text-muted">{landing.newAuthorLead}</p>
       ) : null}
+
+      {/* About Surveys section - available to everyone */}
+      <section className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-xl font-semibold text-ink">About Surveys</h2>
+          <p className="text-sm text-muted">Learn how Elenchus surveys work and their benefits</p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Card className="flex flex-col gap-3 p-5">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-highlight-soft text-sm font-semibold text-highlight">
+                📝
+              </span>
+              <h3 className="text-sm font-semibold text-ink">AI-Powered Authoring</h3>
+            </div>
+            <p className="text-sm text-muted">
+              Describe your survey in natural language and let AI draft the questions for you. Edit and refine until it&apos;s perfect.
+            </p>
+          </Card>
+          <Card className="flex flex-col gap-3 p-5">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-ai-fill text-sm font-semibold text-accent-strong">
+                💬
+              </span>
+              <h3 className="text-sm font-semibold text-ink">Conversational Experience</h3>
+            </div>
+            <p className="text-sm text-muted">
+              Respondents answer through a chat interface that adapts to their responses, making surveys feel natural and engaging.
+            </p>
+          </Card>
+          <Card className="flex flex-col gap-3 p-5">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-warn-fill text-sm font-semibold text-warn-text">
+                📊
+              </span>
+              <h3 className="text-sm font-semibold text-ink">Smart Analytics</h3>
+            </div>
+            <p className="text-sm text-muted">
+              Get AI-powered summaries, flagged responses, and detailed insights. Slice results by any answer to understand patterns.
+            </p>
+          </Card>
+        </div>
+      </section>
 
       {/* Public survey links section - available to everyone */}
       {publishedSurveys && publishedSurveys.length > 0 && (
