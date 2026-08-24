@@ -161,8 +161,9 @@ class Settings(BaseSettings):
         description="Append-only JSONL record of every model call, for offline analysis",
     )
     # Project root for making source file paths relative in the ledger
+    # Defaults to /app in production containers (where the code is mounted in the image)
     project_root: str = Field(
-        "/home/pawansinghkapkoti/projects/elenchus",
+        "/app",
         description="Project root directory for relative source file paths in ledger",
     )
 

@@ -150,6 +150,7 @@ services:
       HARDWARE_WATTS: ${HARDWARE_WATTS:-200}
       ELECTRICITY_PRICE_PER_KWH: ${ELECTRICITY_PRICE_PER_KWH:-0.32}
       LLM_LEDGER_PATH: ${LLM_LEDGER_PATH:-var/llm_ledger.jsonl}
+      PROJECT_ROOT: ${PROJECT_ROOT:-/app}
     depends_on:
       postgres:
         condition: service_healthy
