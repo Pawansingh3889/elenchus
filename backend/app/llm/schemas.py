@@ -39,6 +39,9 @@ class LlmEntry(BaseModel):
     status: int | None = None
     error: str | None = None
     cost_usd: float | None = None
+    # Code-level transparency: where in the codebase this call originated
+    source_file: str | None = None
+    source_line: int | None = None
 
 
 class LlmReport(BaseModel):
@@ -69,6 +72,9 @@ class LlmLedgerEntry(BaseModel):
     status: int | None = None
     error: str | None = None
     cost_usd: float | None = None
+    # Code-level transparency: where in the codebase this call originated
+    source_file: str | None = None
+    source_line: int | None = None
 
 
 class LlmLedger(BaseModel):

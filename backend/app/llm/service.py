@@ -209,6 +209,8 @@ def get_llm_run_entries(run_id: str) -> list[LlmEntry]:
                     status=e.get("status"),
                     error=e.get("error"),
                     cost_usd=e.get("cost_usd"),
+                    source_file=e.get("source_file"),
+                    source_line=e.get("source_line"),
                 )
             )
     return sorted(results, key=lambda x: x.ts)
@@ -266,6 +268,8 @@ def get_llm_ledger() -> LlmLedger:
                     status=e.get("status"),
                     error=e.get("error"),
                     cost_usd=e.get("cost_usd"),
+                    source_file=e.get("source_file"),
+                    source_line=e.get("source_line"),
                 )
             )
 
