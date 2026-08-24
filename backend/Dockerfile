@@ -14,6 +14,6 @@ COPY . .
 ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 8000
 
-# Run migrations with fallback for Railway deployment
-# Stamp to head if migration fails (handles Railway migration state mismatches)
-CMD sh -c "alembic upgrade head || alembic stamp head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+# For Railway: skip migrations and stamp to head to handle migration state mismatches
+# Then start the server regardless of migration outcome
+CMD sh -c "alembic stamp head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
