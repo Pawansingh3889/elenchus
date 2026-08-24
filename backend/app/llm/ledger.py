@@ -14,6 +14,7 @@ This module owns no transport and no session. It is imported by the one client t
 own the HTTP calls, and by the conduct engine, which reads the rollup back.
 """
 
+import inspect
 import json
 import logging
 from collections.abc import Iterator
@@ -67,6 +68,8 @@ class Spend:
 _SPEND: ContextVar[Spend | None] = ContextVar("llm_spend", default=None)
 _RUN_ID: ContextVar[str | None] = ContextVar("llm_run_id", default=None)
 _PROMPT: ContextVar[str | None] = ContextVar("llm_prompt", default=None)
+_SOURCE_FILE: ContextVar[str | None] = ContextVar("llm_source_file", default=None)
+_SOURCE_LINE: ContextVar[int | None] = ContextVar("llm_source_line", default=None)
 
 
 @contextmanager
@@ -109,6 +112,56 @@ def using_prompt(name: str) -> Iterator[None]:
         yield
     finally:
         _PROMPT.reset(token)
+
+
+@contextmanager
+def from_call_site() -> Iterator[None]:
+    """Capture the source file and line number where the LLM call is made.
+
+    This provides code-level transparency for each LLM call, allowing admins to drill
+    down from token usage to the exact code location that triggered the call. This is
+    essential for debugging, optimization, and understanding which parts of the codebase
+    are driving LLM usage and costs.
+    """
+    # Get the calling frame (skip this function's frame)
+    frame = inspect.currentframe()
+    source_file = None
+    source_line = None
+
+    if frame and frame.f_back:
+        # Get the filename and line number from the caller's frame
+        filename = frame.f_back.f_code.co_filename
+        lineno = frame.f_back.f_lineno
+
+        # Make the path relative to the project root for cleaner display
+        try:
+            from app.config import get_settings
+
+            settings = get_settings()
+            project_root = getattr(settings, "project_root", None)
+
+            if project_root and filename.startswith(project_root):
+                source_file = filename[len(project_root) :].lstrip("/")
+            else:
+                # Try to make it relative to backend/ if no project root
+                if "backend/" in filename:
+                    source_file = filename.split("backend/")[-1]
+                else:
+                    # As a last resort, just use the basename
+                    source_file = filename.split("/")[-1]
+        except Exception:
+            # Fallback to basename on any error
+            source_file = filename.split("/")[-1]
+
+        source_line = lineno
+
+    file_token = _SOURCE_FILE.set(source_file)
+    line_token = _SOURCE_LINE.set(source_line)
+    try:
+        yield
+    finally:
+        _SOURCE_FILE.reset(file_token)
+        _SOURCE_LINE.reset(line_token)
 
 
 @dataclass(frozen=True)
@@ -253,6 +306,9 @@ def record(
             "status": status,
             "error": error,
             "cost_usd": cost,
+            # Code-level transparency: where in the codebase this call originated
+            "source_file": _SOURCE_FILE.get(),
+            "source_line": _SOURCE_LINE.get(),
         }
     )
 

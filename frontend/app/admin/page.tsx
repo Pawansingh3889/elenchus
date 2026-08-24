@@ -108,15 +108,22 @@ function EntryRow({ e }: { e: LlmEntry }) {
         {e.error ? <span className="text-warn-text">{e.error}</span> : "-"}
       </td>
       <td className="px-3 py-2 text-right tabular-nums">{formatCost(e.cost_usd ?? 0)}</td>
+      <td className="px-3 py-2 text-xs font-mono">
+        {"source_file" in e && e.source_file ? (
+          <span className="text-muted" title={`${e.source_file}:${e.source_line}`}>
+            {e.source_file.split('/').pop()}:{e.source_line}
+          </span>
+        ) : "-"}
+      </td>
     </tr>
   );
 }
 
 function ExpandedEntries({ runId }: { runId: string }) {
   const { data: entries, isLoading, error } = useLlmRunEntries(runId);
-  if (isLoading) return <tr><td colSpan={10} className="px-3 py-2"><Skeleton className="h-16 w-full" /></td></tr>;
-  if (error) return <tr><td colSpan={10} className="px-3 py-2 text-sm text-warn-text">Failed to load entries</td></tr>;
-  if (!entries || entries.length === 0) return <tr><td colSpan={10} className="px-3 py-2 text-sm text-muted">No entries for this run.</td></tr>;
+  if (isLoading) return <tr><td colSpan={11} className="px-3 py-2"><Skeleton className="h-16 w-full" /></td></tr>;
+  if (error) return <tr><td colSpan={11} className="px-3 py-2 text-sm text-warn-text">Failed to load entries</td></tr>;
+  if (!entries || entries.length === 0) return <tr><td colSpan={11} className="px-3 py-2 text-sm text-muted">No entries for this run.</td></tr>;
   return (
     <>
       {entries.map((e) => (
@@ -263,6 +270,7 @@ function TokenTransparency() {
               <th className="px-3 py-2 text-right">Latency</th>
               <th className="px-3 py-2 text-right">Cost</th>
               <th className="px-3 py-2 text-right">Status</th>
+              <th className="px-3 py-2">Source</th>
             </tr>
           </thead>
           <tbody>
@@ -280,6 +288,13 @@ function TokenTransparency() {
                 <td className="px-3 py-2 text-right tabular-nums">{e.cost_usd != null ? formatCost(e.cost_usd) : "-"}</td>
                 <td className="px-3 py-2 text-right tabular-nums">
                   {e.status ? <span className={e.status >= 400 ? "text-warn-text" : ""}>{e.status}</span> : "-"}
+                </td>
+                <td className="px-3 py-2 text-xs font-mono">
+                  {e.source_file ? (
+                    <span className="text-muted" title={`${e.source_file}:${e.source_line}`}>
+                      {e.source_file.split('/').pop()}:{e.source_line}
+                    </span>
+                  ) : "-"}
                 </td>
               </tr>
             ))}

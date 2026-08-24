@@ -580,6 +580,9 @@ export interface LlmEntry {
   status: number | null;
   error: string | null;
   cost_usd: number | null;
+  // Code-level transparency: where in the codebase this call originated
+  source_file?: string | null;
+  source_line?: number | null;
 }
 
 export interface AdminHealthRead {
@@ -605,6 +608,9 @@ export interface LlmLedgerEntry {
   status: number | null;
   error: string | null;
   cost_usd: number | null;
+  // Code-level transparency: where in the codebase this call originated
+  source_file: string | null;
+  source_line: number | null;
 }
 
 export interface LlmLedger {
