@@ -13,7 +13,7 @@ import { Card } from "@/components/ui/card";
 import { audienceLabel } from "@/lib/audience";
 import { groupForDashboard, landingFor, type Attention } from "@/lib/dashboardAttention";
 import { useT } from "@/lib/i18n/useT";
-import { useCurrentUser, useDashboard, useGenerateTemplate, usePublishedSurveys, useUsers } from "@/lib/queries";
+import { useCurrentUser, useDashboard, useGenerateTemplate, useMe, usePublishedSurveys, useUsers } from "@/lib/queries";
 import { useDraftNoteStore, useUserStore } from "@/lib/store";
 import type { DashboardRow, SurveyAudience } from "@/lib/types";
 
@@ -52,6 +52,7 @@ export default function Home() {
   // already had.
   const currentUserId = useUserStore((s) => s.currentUserId);
   const currentUser = useCurrentUser();
+  const { data: me } = useMe();
   // Already fetched for the top bar's user picker, so this is the same cached query
   // rather than a second request.
   const { data: users } = useUsers();
@@ -296,7 +297,7 @@ export default function Home() {
           <Link href="/dashboard" className="text-sm text-accent-strong">
             {landing.allSurveys}
           </Link>
-          {currentUser?.is_admin && (
+          {me?.is_admin && (
             <Link href="/admin" className="text-sm text-accent-strong">
               Admin Panel
             </Link>
@@ -305,7 +306,7 @@ export default function Home() {
       ) : null}
 
       {/* Admin link for users with admin access even if they have no surveys */}
-      {currentUser?.is_admin && (rows === undefined || rows.length === 0) ? (
+      {me?.is_admin && (rows === undefined || rows.length === 0) ? (
         <div>
           <Link href="/admin" className="text-sm text-accent-strong">
             Admin Panel
@@ -335,7 +336,7 @@ export default function Home() {
               <h3 className="text-sm font-semibold text-ink">AI-Powered Authoring</h3>
             </div>
             <p className="text-sm text-muted">
-              Describe your survey in natural language and let AI draft the questions for you. Edit and refine until it's perfect.
+              Describe your survey in natural language and let AI draft the questions for you. Edit and refine until it&apos;s perfect.
             </p>
           </Card>
           <Card className="flex flex-col gap-3 p-5">

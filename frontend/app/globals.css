@@ -40,6 +40,9 @@
   --warn-fill: #fffbeb;
   --warn-text: #92400e;
   --warn-border: rgba(146, 64, 14, 0.25);
+  --green-soft: #f0fdf4;
+  --green: #16a34a;
+  --border-green: rgba(22, 163, 74, 0.25);
   --err-fill: #fef2f2;
   --err-text: #b02a1a;
   --err-border: rgba(176, 42, 26, 0.25);
@@ -207,6 +210,9 @@
     --warn-fill: #3a2a0a;
     --warn-text: #f0cd8c;
     --warn-border: rgba(240, 205, 140, 0.25);
+    --green-soft: #1a2e1a;
+    --green: #22c55e;
+    --border-green: rgba(34, 197, 94, 0.25);
     --err-fill: #3a1a12;
     --err-text: #f4b3a3;
     --err-border: rgba(244, 179, 163, 0.25);
@@ -264,6 +270,9 @@
   --warn-fill: #3a2a0a;
   --warn-text: #f0cd8c;
   --warn-border: rgba(240, 205, 140, 0.25);
+  --green-soft: #1a2e1a;
+  --green: #22c55e;
+  --border-green: rgba(34, 197, 94, 0.25);
   --err-fill: #3a1a12;
   --err-text: #f4b3a3;
   --err-border: rgba(244, 179, 163, 0.25);
