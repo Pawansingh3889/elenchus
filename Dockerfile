@@ -13,5 +13,5 @@ COPY backend/ .
 
 ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 8000
-# Run migrations and start server (seed runs automatically in demo mode via lifespan hook)
-CMD ["sh", "-c", "cd /app && alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Stamp head to handle migration mismatch and start server (seed runs automatically in demo mode via lifespan hook)
+CMD ["sh", "-c", "cd /app && alembic stamp head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
