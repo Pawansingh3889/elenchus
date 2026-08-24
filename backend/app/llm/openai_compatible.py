@@ -126,7 +126,8 @@ class OpenAICompatibleLLMClient:
         """POST once, retrying the cheap transient failures, booking every attempt."""
         for attempt in range(1, MAX_ATTEMPTS + 1):
             try:
-                return await self._attempt(payload, op)
+                with ledger.from_call_site():
+                    return await self._attempt(payload, op)
             except _Transient as exc:
                 if attempt == MAX_ATTEMPTS:
                     raise exc.error from None

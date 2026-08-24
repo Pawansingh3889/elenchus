@@ -160,6 +160,12 @@ class Settings(BaseSettings):
         "var/llm_ledger.jsonl",
         description="Append-only JSONL record of every model call, for offline analysis",
     )
+    # Project root for making source file paths relative in the ledger
+    # Defaults to /app in production containers (where the code is mounted in the image)
+    project_root: str = Field(
+        "/app",
+        description="Project root directory for relative source file paths in ledger",
+    )
 
     # Comma-separated emails that get administrator rights: every survey visible, every
     # response readable. Configuration rather than a column so that granting it is not a
