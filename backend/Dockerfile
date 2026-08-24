@@ -13,4 +13,7 @@ COPY . .
 
 ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# For Railway: skip migrations and stamp to head to handle migration state mismatches
+# Then start the server regardless of migration outcome
+CMD sh -c "alembic stamp head && uvicorn app.main:app --host 0.0.0.0 --port 8000"

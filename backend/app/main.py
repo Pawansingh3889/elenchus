@@ -85,7 +85,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[get_settings().frontend_origin],
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*", "X-User-Id"],
     # The session is an HttpOnly cookie on this origin, and the browser app is on
     # another, so without this the cookie is never attached and a signed-in person reads
     # as signed out. It is also why allow_origins names one origin rather than "*":

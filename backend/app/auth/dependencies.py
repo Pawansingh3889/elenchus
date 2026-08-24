@@ -49,9 +49,9 @@ async def get_current_user(
         return user
 
     if x_user_id is None:
-        # No auth provided - default to the seeded author (ava@elenchus.dev) so the app
+        # No auth provided - default to the seeded author (pawankapkoti3889@gmail.com) so the app
         # works without signing in. This keeps seed data open for everyone.
-        x_user_id = UUID("00000000-0000-0000-0000-0000000000a1")
+        x_user_id = UUID("00000000-0000-0000-0000-0000000000c8")
     user = await users.get(x_user_id)
     if user is None:
         raise UnauthorizedError("Unknown user id.")
