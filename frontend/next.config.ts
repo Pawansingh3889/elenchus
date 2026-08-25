@@ -2,6 +2,16 @@ import type { NextConfig } from "next";
 import path from "node:path";
 
 const nextConfig: NextConfig = {
+  async rewrites() {
+    // Only set inside the monolith container (see the root Dockerfile), where uvicorn
+    // runs as a sibling process on this internal port and NEXT_PUBLIC_API_URL is empty
+    // so the browser calls this same origin. Absent here, this is a no-op: the split
+    // Vercel+Railway deployment calls Railway's public URL directly and never reaches
+    // this function's destination branch.
+    const backend = process.env.INTERNAL_BACKEND_URL;
+    if (!backend) return [];
+    return [{ source: "/api/:path*", destination: `${backend}/api/:path*` }];
+  },
   async redirects() {
     return [
       // Report was merged into Results. Temporary rather than permanent: a 308 is
