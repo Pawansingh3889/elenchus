@@ -1,4 +1,3 @@
-// Test change for hot reload
 "use client";
 
 import Link from "next/link";
@@ -238,11 +237,39 @@ export default function Home() {
             {generate.error ? <ErrorBanner error={generate.error} /> : null}
           </>
         ) : isRespondent ? (
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <h1 className="home-display max-w-prose">{landing.respondBody}</h1>
-            <Button variant="primary" className="home-cta" asChild>
-              <Link href="/respond">{landing.respondCta}</Link>
-            </Button>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <h1 className="home-display max-w-prose">{landing.respondBody}</h1>
+              <Button variant="primary" className="home-cta" asChild>
+                <Link href="/respond">{landing.respondCta}</Link>
+              </Button>
+            </div>
+            {/* The surveys themselves, not just a link to them. A respondent's whole
+                reason to be on this page is to answer something, so the hero shows what
+                that something is rather than making the CTA above the only way to find
+                out. Same cards as "Public Surveys" below, which is why that section
+                hides for a respondent: showing the same list twice teaches the reader to
+                ignore the second copy. */}
+            {publishedSurveys && publishedSurveys.length > 0 ? (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {publishedSurveys.slice(0, 6).map((survey) => (
+                  <Card key={survey.id} className="home-tile p-0">
+                    <Link
+                      href={`/respond?survey=${survey.id}`}
+                      className="flex h-full flex-col gap-1 p-4 no-underline"
+                    >
+                      <span className="line-clamp-2 text-md font-semibold text-ink">{survey.title}</span>
+                      <span className="text-sm text-muted">
+                        {survey.question_count} question{survey.question_count === 1 ? "" : "s"}
+                        {survey.estimated_minutes
+                          ? ` · about ${survey.estimated_minutes} min${survey.estimated_minutes === 1 ? "" : "s"}`
+                          : ""}
+                      </span>
+                    </Link>
+                  </Card>
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : (
           <div className="flex flex-col gap-3">
@@ -364,8 +391,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Public survey links section - available to everyone */}
-      {publishedSurveys && publishedSurveys.length > 0 && (
+      {/* Public survey links section - available to everyone except a respondent, who
+          already sees this same list in the hero above. */}
+      {!isRespondent && publishedSurveys && publishedSurveys.length > 0 && (
         <section className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
             <h2 className="text-md font-semibold text-ink">Public Surveys</h2>
