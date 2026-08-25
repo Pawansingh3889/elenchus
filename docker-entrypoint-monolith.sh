@@ -38,3 +38,4 @@ code=$?
 kill -TERM "$backend_pid" "$frontend_pid" 2>/dev/null
 wait
 exit "$code"
+
