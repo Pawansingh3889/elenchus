@@ -186,9 +186,19 @@ export const api = {
    *
    *  A 401 here is an answer, not a failure: the browser cannot read an HttpOnly cookie,
    *  so asking the server is the only way to tell a signed-in visitor from a signed-out
-   *  one, and "nobody" has to come back as a value rather than as a thrown error. */
+   *  one, and "nobody" has to come back as a value rather than as a thrown error.
+   *
+   *  Sends X-User-Id like every other call, which `request` does and this one used not
+   *  to: without it, a cookie-less browser always resolved through the server's own
+   *  "nobody sent an id" default, which meant the picker in the top bar could set the
+   *  store and watch it get overwritten back to that default on the next render. The
+   *  cookie still wins when one is present, exactly as before; this only changes what
+   *  the server sees when there isn't one. */
   session: async (): Promise<User | null> => {
-    const res = await fetch(`${BASE}/api/v1/auth/me`, { credentials: "include" });
+    const userId = useUserStore.getState().currentUserId;
+    const headers: Record<string, string> = {};
+    if (userId) headers["X-User-Id"] = userId;
+    const res = await fetch(`${BASE}/api/v1/auth/me`, { headers, credentials: "include" });
     return res.ok ? ((await res.json()) as User) : null;
   },
   identify: (email: string) =>
