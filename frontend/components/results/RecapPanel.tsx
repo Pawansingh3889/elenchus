@@ -31,6 +31,36 @@ import type { SurveySummary } from "@/lib/types";
  * prose with no digits in it, which the API enforces, and the tally beside it is the
  * question's own. So the words can be arguable and the numbers cannot be wrong.
  */
+function FindingList({ items }: { items: SurveySummary["findings"] }) {
+  const msg = useT();
+  return (
+    <ul className="flex flex-col gap-2">
+      {items.map((item, i) => (
+        <li key={i} className="flex flex-col">
+          <span className="text-ink">{item.statement}</span>
+          <span className="text-sm text-muted">
+            {item.question_text
+              ? msg.report.fromQuestion((item.question_position ?? 0) + 1, item.question_text)
+              : null}
+            {item.counts.length > 0 ? (
+              <>
+                {" "}
+                {item.counts
+                  .filter((c) => c.count > 0)
+                  .map((c) => `${c.label} ${c.count}`)
+                  .join(" · ")}
+                {item.average !== null
+                  ? ` · ${msg.report.average(item.average.toFixed(1))}`
+                  : ""}
+              </>
+            ) : null}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function RecapBody({ recap }: { recap: SurveySummary }) {
   const msg = useT();
   return (
@@ -39,33 +69,19 @@ function RecapBody({ recap }: { recap: SurveySummary }) {
         {recap.headline}
       </h3>
 
-      <ul className="flex flex-col gap-2">
-        {recap.findings.map((finding, i) => (
-          <li key={i} className="flex flex-col">
-            <span className="text-ink">{finding.statement}</span>
-            <span className="text-sm text-muted">
-              {finding.question_text
-                ? msg.report.fromQuestion(
-                    (finding.question_position ?? 0) + 1,
-                    finding.question_text,
-                  )
-                : null}
-              {finding.counts.length > 0 ? (
-                <>
-                  {" "}
-                  {finding.counts
-                    .filter((c) => c.count > 0)
-                    .map((c) => `${c.label} ${c.count}`)
-                    .join(" · ")}
-                  {finding.average !== null
-                    ? ` · ${msg.report.average(finding.average.toFixed(1))}`
-                    : ""}
-                </>
-              ) : null}
-            </span>
-          </li>
-        ))}
-      </ul>
+      <FindingList items={recap.findings} />
+
+      {/* A respondent's own proposal, not the model's idea of one: grounded and
+          verified the same way findings are, and just as often empty, because most
+          responses name a problem without naming a fix for it. Its own heading keeps it
+          from reading as a fourth finding, which it is not — it answers "what should
+          change", not "what did we find". */}
+      {recap.suggestions.length > 0 ? (
+        <div className="flex flex-col gap-2">
+          <CardLabel>{msg.report.recapSuggestions}</CardLabel>
+          <FindingList items={recap.suggestions} />
+        </div>
+      ) : null}
 
       {/* The evidence line. Computed on the server from the report, so the one line
           that qualifies the findings above is never the model's to get wrong. */}

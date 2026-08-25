@@ -2,8 +2,10 @@
 
 The per-run summary's tests cover the gates it shares. What is tested here is what is
 different: that the model never supplies a number, that the shape is fixed at a
-headline, three findings and an engine-written caveat, and that a cache describing a
-moving set of responses does not go on being served after they move.
+headline, three findings, three suggestions, and an engine-written caveat, that a
+suggestion is grounded in what a respondent proposed rather than the model's own advice,
+and that a cache describing a moving set of responses does not go on being served after
+they move.
 """
 
 import pytest
@@ -56,6 +58,18 @@ def _finding_refused(*indices: int) -> ToolTurn:
             "headline_supported": True,
             "unsupported_findings": list(indices),
             "problems": ["finding says most, but the tally does not show most"],
+        },
+    )
+
+
+def _suggestion_refused(*indices: int) -> ToolTurn:
+    return ToolTurn(
+        text="",
+        tool_name="report_verdict",
+        tool_input={
+            "headline_supported": True,
+            "unsupported_suggestions": list(indices),
+            "problems": ["suggestion recommends something no respondent proposed"],
         },
     )
 
@@ -236,11 +250,11 @@ async def test_the_recap_carries_what_wrote_it(session, author, respondent):
     written = await SurveySummaryService(session, llm=llm).summarise(template.id, author)
     read_back = await SurveySummaryService(session, llm=FakeLLM()).stored(template.id, author)
 
-    assert written.prompt_version == "summarise_survey_v3"
-    assert written.verify_prompt_version == "verify_survey_summary_v3"
+    assert written.prompt_version == "summarise_survey_v4"
+    assert written.verify_prompt_version == "verify_survey_summary_v4"
     assert read_back.recap is not None
-    assert read_back.recap.prompt_version == "summarise_survey_v3"
-    assert read_back.recap.verify_prompt_version == "verify_survey_summary_v3"
+    assert read_back.recap.prompt_version == "summarise_survey_v4"
+    assert read_back.recap.verify_prompt_version == "verify_survey_summary_v4"
 
 
 async def test_reading_a_recap_of_someone_elses_survey_is_a_404(
@@ -347,6 +361,87 @@ async def test_findings_past_the_cap_are_trimmed_rather_than_refused(session, au
     recap = await SurveySummaryService(session, llm=llm).summarise(template.id, author)
 
     assert len(recap.findings) == 3
+    assert llm.calls == 2  # no schema retry was needed
+
+
+async def test_a_suggestion_is_recapped_with_the_real_counts(session, author, respondent):
+    """`suggestions` gets the same treatment as `findings`: the model names the pattern
+    and the question it draws on, the tally beside it comes from the database."""
+    template = await _surveyed(session, author, respondent)
+    llm = FakeLLM(
+        _recap(
+            suggestions=[
+                {"statement": "Log every stoppage at the guillotine", "question_position": 0}
+            ]
+        ),
+        _faithful(),
+    )
+
+    recap = await SurveySummaryService(session, llm=llm).summarise(template.id, author)
+
+    assert len(recap.suggestions) == 1
+    suggestion = recap.suggestions[0]
+    assert suggestion.statement == "Log every stoppage at the guillotine"
+    assert suggestion.question_text == "Which machine stops most often?"
+    assert suggestion.answered == 1
+
+
+async def test_a_suggestion_carrying_a_figure_is_refused(session, author, respondent):
+    """A suggestion shares `Finding`'s no-digits rule: a fix stated as a number is a
+    number nobody checked, exactly the failure mode `findings` is built to refuse."""
+    template = await _surveyed(session, author, respondent)
+    bad = _recap(
+        suggestions=[{"statement": "Check the guillotine every 2 hours", "question_position": 0}]
+    )
+    llm = FakeLLM(bad, _recap(), _faithful())
+
+    recap = await SurveySummaryService(session, llm=llm).summarise(template.id, author)
+
+    assert "figures" in llm.messages_seen[1][-1]["content"]
+    assert all(not any(ch.isdigit() for ch in s.statement) for s in recap.suggestions)
+
+
+async def test_a_suggestion_the_checker_will_not_stand_behind_is_dropped(
+    session, author, respondent
+):
+    """The same independence `findings` gets: a suggestion nobody actually proposed is
+    dropped on its own rather than voiding a recap that is otherwise sound."""
+    template = await _surveyed(session, author, respondent)
+    llm = FakeLLM(
+        _recap(
+            suggestions=[
+                {"statement": "Log every stoppage", "question_position": 0},
+                {"statement": "Buy a new guillotine", "question_position": 0},
+            ]
+        ),
+        _suggestion_refused(1),
+        _recap(
+            suggestions=[
+                {"statement": "Log every stoppage", "question_position": 0},
+                {"statement": "Buy a new guillotine", "question_position": 0},
+            ]
+        ),
+        _suggestion_refused(1),
+    )
+
+    recap = await SurveySummaryService(session, llm=llm).summarise(template.id, author)
+
+    assert [s.statement for s in recap.suggestions] == ["Log every stoppage"]
+    assert recap.headline  # the rest of it stands
+
+
+async def test_suggestions_past_the_cap_are_trimmed_rather_than_refused(
+    session, author, respondent
+):
+    """Findings and suggestions are capped independently, on the same trim-the-tail
+    rule: an over-long list past its cap loses only its tail, not the whole recap."""
+    template = await _surveyed(session, author, respondent)
+    suggestion = {"statement": "Log every stoppage at the guillotine", "question_position": 0}
+    llm = FakeLLM(_recap(suggestions=[suggestion] * 8), _faithful())
+
+    recap = await SurveySummaryService(session, llm=llm).summarise(template.id, author)
+
+    assert len(recap.suggestions) == 3
     assert llm.calls == 2  # no schema retry was needed
 
 

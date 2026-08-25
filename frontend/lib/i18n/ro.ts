@@ -395,6 +395,7 @@ export const ro: Messages = {
     recapWrittenBy: (prompt: string, model: string) => `Scris de ${prompt} pe ${model}`,
     recapHiddenWhileSliced: "Rezumatul descrie toate răspunsurile, așa că este ascuns cât timp există un filtru.",
     recapOutdatedBody: "Un rezumat a fost scris mai devreme, dar nu mai corespunde acestor rezultate. Scrie-l din nou pentru a-l actualiza.",
+    recapSuggestions: "Ce au propus respondenții",
   },
   results: {
     title: "Răspunsuri",
