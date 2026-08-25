@@ -3,19 +3,13 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import {
-  useCurrentUser,
-  useMyUnfinishedRuns,
-  usePublishedSurveys,
-  useStartRun,
-} from "@/lib/queries";
+import { useMyUnfinishedRuns, usePublishedSurveys, useStartRun } from "@/lib/queries";
 import { useT } from "@/lib/i18n/useT";
 import { useUserStore } from "@/lib/store";
 
 export default function RespondPage() {
   const { common, respond } = useT();
   const currentUserId = useUserStore((s) => s.currentUserId);
-  const currentUser = useCurrentUser();
   const { data: surveys, isLoading, error } = usePublishedSurveys();
   const start = useStartRun();
   const { data: unfinished } = useMyUnfinishedRuns();
@@ -55,13 +49,6 @@ export default function RespondPage() {
     }
   }, [publicSurveyId, isPublicMode, start, router]);
 
-  // Taking a survey is respondent-only (the backend refuses authors); send authors
-  // back to Build rather than let them start a run under their own name.
-  const isAuthor = currentUser?.may_author === true;
-  useEffect(() => {
-    if (isAuthor && !isPublicMode) router.replace("/");
-  }, [isAuthor, router, isPublicMode]);
-
   // In public mode, show loading state
   if (isPublicMode) {
     return (
@@ -77,10 +64,14 @@ export default function RespondPage() {
   if (!currentUserId) {
     return <div className="empty">{respond.pickUser}</div>;
   }
-  if (isAuthor) {
-    return <div className="empty">{respond.goingToBuild}</div>;
-  }
 
+  // Not gated on may_author: an author can be the named audience of their own
+  // "person" survey (the attributable-answer warning in the composer exists for
+  // exactly this case), and usePublishedSurveys already filters through may_answer
+  // server-side. Blocking every author here regardless was a second, coarser copy
+  // of that same question, which backend/app/conduct/router.py's own docstring
+  // says deliberately not to keep: an author with nothing to answer just sees the
+  // empty state below, same as anyone else.
   return (
     <div className="page">
       <div className="page-head">

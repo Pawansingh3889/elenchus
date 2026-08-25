@@ -7,21 +7,14 @@ import { AnswerAffordances } from "@/components/AnswerAffordances";
 import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
 import { Transcript } from "@/components/Transcript";
 import { useT } from "@/lib/i18n/useT";
-import {
-  useCurrentUser,
-  useDeleteRun,
-  useRewindRun,
-  useRun,
-  useSendRunMessage,
-} from "@/lib/queries";
+import { useDeleteRun, useRewindRun, useRun, useSendRunMessage } from "@/lib/queries";
 import { useUserStore } from "@/lib/store";
 import type { AnswerType } from "@/lib/types";
 
 export default function RunPage() {
-  const { common, run: text, respond } = useT();
+  const { common, run: text } = useT();
   const { id } = useParams<{ id: string }>();
   const currentUserId = useUserStore((s) => s.currentUserId);
-  const currentUser = useCurrentUser();
   const { data: run, isLoading, error } = useRun(id);
   const send = useSendRunMessage(id);
   const rewind = useRewindRun(id);
@@ -46,18 +39,13 @@ export default function RunPage() {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [run?.messages.length, send.isPending]);
 
-  // Conducting is respondent-only; an author following a run link is sent to Build.
-  const isAuthor = currentUser?.may_author === true;
-  useEffect(() => {
-    if (isAuthor) router.replace("/");
-  }, [isAuthor, router]);
-
   if (!currentUserId) {
     return <div className="empty">{text.pickUser}</div>;
   }
-  if (isAuthor) {
-    return <div className="empty">{respond.goingToBuild}</div>;
-  }
+  // Not gated on may_author: an author can be the named audience of their own
+  // "person" survey, and the backend's own may_answer check (asked when the run
+  // was started, and again on every message) is the one place this question gets
+  // answered. See frontend/app/respond/page.tsx for the fuller note.
   if (isLoading) return <div className="muted">{common.loading}</div>;
   if (error) return <div className="error-text">{(error as Error).message}</div>;
   if (!run) return null;
