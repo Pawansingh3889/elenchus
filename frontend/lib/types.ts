@@ -556,6 +556,17 @@ export interface LlmRunSummary {
   ops: string[];
 }
 
+export interface LlmOpStats {
+  op: string;
+  calls: number;
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
+  total_context_tokens: number;
+  avg_latency_ms: number;
+  error_count: number;
+  source_files: string[];
+}
+
 export interface LlmReport {
   total_entries: number;
   total_runs: number;
@@ -566,6 +577,26 @@ export interface LlmReport {
   avg_latency_ms: number;
   models: LlmModelStats[];
   runs: LlmRunSummary[];
+  ops: LlmOpStats[];
+}
+
+/** The judge's verdicts on the captured live-run corpus (backend/tests/live_runs/),
+ *  not live production traffic. See app.llm.eval_corpus on the backend. */
+export interface EvalAnswerTypeStats {
+  answer_type: string;
+  total_answers: number;
+  judged: number;
+  flagged: number;
+  known_inventions: number;
+}
+
+export interface EvalAccuracyReport {
+  total_fixtures: number;
+  total_answers: number;
+  judged: number;
+  flagged: number;
+  known_inventions: number;
+  by_answer_type: EvalAnswerTypeStats[];
 }
 
 export interface LlmEntry {

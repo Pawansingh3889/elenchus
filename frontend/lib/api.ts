@@ -9,6 +9,7 @@ import type {
   AnswersMatrix,
   AudienceReach,
   DashboardRow,
+  EvalAccuracyReport,
   GeneratedTemplate,
   LlmEntry,
   LlmLedger,
@@ -264,5 +265,6 @@ export const api = {
   llmReport: () => request<LlmReport>("/admin/llm/report"),
   llmLedger: () => request<LlmLedger>("/admin/llm/ledger"),
   llmRunEntries: (runId: string) => request<LlmEntry[]>(`/admin/llm/run/${runId}`),
+  llmEvalAccuracy: () => request<EvalAccuracyReport>("/admin/llm/eval-accuracy"),
   adminHealth: () => request<AdminHealthRead>("/admin/health"),
 };

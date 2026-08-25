@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Path
 
 from app.auth.dependencies import require_admin
-from app.llm.schemas import LlmEntry, LlmLedger, LlmReport
+from app.llm.eval_corpus import get_eval_accuracy_report
+from app.llm.schemas import EvalAccuracyReport, LlmEntry, LlmLedger, LlmReport
 from app.llm.service import get_llm_ledger, get_llm_report, get_llm_run_entries
 from app.users.models import User
 
@@ -13,6 +14,15 @@ async def llm_report(
     _: User = Depends(require_admin),
 ) -> LlmReport:
     return get_llm_report()
+
+
+@router.get("/eval-accuracy", response_model=EvalAccuracyReport)
+async def llm_eval_accuracy(
+    _: User = Depends(require_admin),
+) -> EvalAccuracyReport:
+    """The judge's verdicts on the captured live-run corpus, not live production
+    traffic. See app.llm.eval_corpus for what that distinction means."""
+    return get_eval_accuracy_report()
 
 
 @router.get("/ledger", response_model=LlmLedger)

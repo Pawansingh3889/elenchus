@@ -9,7 +9,7 @@ import { SignInPrompt } from "@/components/SignInPrompt";
 import { Stat } from "@/components/Stat";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLlmReport, useLlmLedger, useLlmRunEntries, useMe, useAdminHealth } from "@/lib/queries";
+import { useLlmReport, useLlmLedger, useLlmRunEntries, useLlmEvalAccuracy, useMe, useAdminHealth } from "@/lib/queries";
 import { useUserStore } from "@/lib/store";
 import type { LlmEntry, LlmModelStats, LlmRunSummary } from "@/lib/types";
 
@@ -147,6 +147,76 @@ function HealthCheckCard() {
         <Stat value={health.database === "ok" ? "Database OK" : "Database unreachable"} label="Database" />
         <Stat value={health.demo_mode ? "Demo" : "Production"} label="Environment" />
       </div>
+    </Card>
+  );
+}
+
+function AnswerAccuracy() {
+  const { data: report, isLoading, error } = useLlmEvalAccuracy();
+
+  if (isLoading) return <Card className="p-4"><Skeleton className="h-32 w-full" /></Card>;
+  if (error) return <Card className="p-4 text-sm text-warn-text">Failed to load eval corpus</Card>;
+  if (!report) return null;
+
+  if (report.total_fixtures === 0) {
+    return (
+      <Card className="flex flex-col gap-4 p-4">
+        <h2 className="text-md font-semibold">Answer Accuracy</h2>
+        <p className="text-sm text-muted">No captured conversations in backend/tests/live_runs/ yet.</p>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="flex flex-col gap-4 p-4">
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-3">
+          <h2 className="text-md font-semibold">Answer Accuracy</h2>
+          <div className="flex gap-4 text-xs text-muted">
+            <span>Fixtures: {report.total_fixtures}</span>
+            <span>Answers: {report.total_answers}</span>
+            <span>Judged: {report.judged}</span>
+            <span>Flagged: {report.flagged}</span>
+            <span>Known inventions: {report.known_inventions}</span>
+          </div>
+        </div>
+        {/* Said plainly rather than left to be inferred from the numbers alone: this
+            is the same offline corpus scripts/eval_report.py ratchets at gate time,
+            not a live measurement of what today's respondents were told. */}
+        <p className="text-xs text-muted">
+          The judge&apos;s verdicts on the captured conversation corpus, not live production traffic.
+        </p>
+      </div>
+      <Card className="overflow-x-auto p-0">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
+              <th className="px-3 py-2">Answer type</th>
+              <th className="px-3 py-2 text-right">Answers</th>
+              <th className="px-3 py-2 text-right">Judged</th>
+              <th className="px-3 py-2 text-right">Flagged</th>
+              <th className="px-3 py-2 text-right">Flag rate</th>
+              <th className="px-3 py-2 text-right">Known inventions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {report.by_answer_type.map((s) => (
+              <tr key={s.answer_type} className="border-b border-border last:border-0">
+                <td className="px-3 py-2 font-medium">{s.answer_type}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{s.total_answers}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{s.judged}</td>
+                <td className="px-3 py-2 text-right tabular-nums">
+                  {s.flagged > 0 ? <span className="text-warn-text">{s.flagged}</span> : "0"}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums">
+                  {s.judged > 0 ? `${Math.round((s.flagged / s.judged) * 100)}%` : "-"}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums">{s.known_inventions}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
     </Card>
   );
 }
@@ -465,6 +535,53 @@ export default function AdminPage() {
             </Card>
           </section>
 
+          {/* Spend by kind of call rather than by run: an author cannot see whether
+              generating drafts or conducting conversations costs more from the Runs
+              table below, since one run mixes several ops. This sums each op across
+              every run instead, with the call sites that logged it so a spike traces
+              back to code rather than only to a label. */}
+          <section className="flex flex-col gap-2">
+            <div className="flex items-center gap-3">
+              <h2 className="text-md font-semibold">By Operation</h2>
+            </div>
+            {report.ops.length === 0 ? (
+              <Card className="p-4 text-sm text-muted">No ledger entry has recorded an op yet.</Card>
+            ) : (
+              <Card className="overflow-x-auto p-0">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
+                      <th className="px-3 py-2">Op</th>
+                      <th className="px-3 py-2 text-right">Calls</th>
+                      <th className="px-3 py-2 text-right">Prompt tokens</th>
+                      <th className="px-3 py-2 text-right">Context tokens</th>
+                      <th className="px-3 py-2 text-right">Avg latency</th>
+                      <th className="px-3 py-2 text-right">Errors</th>
+                      <th className="px-3 py-2">Source</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {report.ops.map((o) => (
+                      <tr key={o.op} className="border-b border-border last:border-0">
+                        <td className="px-3 py-2 font-medium">{o.op}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{o.calls}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{formatTokens(o.total_prompt_tokens)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{formatTokens(o.total_context_tokens)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{formatMs(o.avg_latency_ms)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">
+                          {o.error_count > 0 ? <span className="text-warn-text">{o.error_count}</span> : "0"}
+                        </td>
+                        <td className="px-3 py-2 font-mono text-xs text-muted">
+                          {o.source_files.length > 0 ? o.source_files.join(", ") : "-"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Card>
+            )}
+          </section>
+
           <section className="flex flex-col gap-2">
             <div className="flex items-center gap-3">
               <h2 className="text-md font-semibold">Runs</h2>
@@ -572,6 +689,7 @@ export default function AdminPage() {
           </section>
 
           <TokenTransparency />
+          <AnswerAccuracy />
         </>
       ) : null}
     </div>

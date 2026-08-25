@@ -465,6 +465,17 @@ export function useLlmReport() {
   });
 }
 
+/** The judge's verdicts on the captured live-run corpus, not live production
+ *  traffic. See EvalAccuracyReport for what that distinction means. */
+export function useLlmEvalAccuracy() {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["llm-eval-accuracy", userId],
+    queryFn: api.llmEvalAccuracy,
+    enabled: !!userId,
+  });
+}
+
 export function useLlmRunEntries(runId: string | null) {
   const userId = useUserStore((s) => s.currentUserId);
   return useQuery({

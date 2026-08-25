@@ -9,6 +9,7 @@ from app.llm.schemas import (
     LlmLedger,
     LlmLedgerEntry,
     LlmModelStats,
+    LlmOpStats,
     LlmReport,
     LlmRunSummary,
 )
@@ -21,6 +22,16 @@ class _ModelBucket:
     completion_tokens: int = 0
     latency_ms: int = 0
     errors: int = 0
+
+
+@dataclass
+class _OpBucket:
+    calls: int = 0
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    latency_ms: int = 0
+    errors: int = 0
+    source_files: set[str] = field(default_factory=set)
 
 
 @dataclass
@@ -50,6 +61,7 @@ def get_llm_report() -> LlmReport:
             avg_latency_ms=0.0,
             models=[],
             runs=[],
+            ops=[],
         )
 
     entries = []
@@ -73,6 +85,7 @@ def get_llm_report() -> LlmReport:
             avg_latency_ms=0.0,
             models=[],
             runs=[],
+            ops=[],
         )
 
     total_prompt = 0
@@ -83,6 +96,7 @@ def get_llm_report() -> LlmReport:
 
     model_buckets: dict[tuple[str, int | None], _ModelBucket] = defaultdict(_ModelBucket)
     run_buckets: dict[str | None, _RunBucket] = defaultdict(_RunBucket)
+    op_buckets: dict[str, _OpBucket] = defaultdict(_OpBucket)
 
     for e in entries:
         prompt = e.get("prompt_tokens") or 0
@@ -123,6 +137,16 @@ def get_llm_report() -> LlmReport:
         op = e.get("op")
         if op:
             r.ops.add(op)
+            ob = op_buckets[op]
+            ob.calls += 1
+            ob.prompt_tokens += prompt
+            ob.completion_tokens += completion
+            ob.latency_ms += latency
+            if has_error:
+                ob.errors += 1
+            source_file = e.get("source_file")
+            if source_file:
+                ob.source_files.add(source_file)
         if not r.first_ts or ts < r.first_ts:
             r.first_ts = ts
         if not r.last_ts or ts > r.last_ts:
@@ -164,6 +188,21 @@ def get_llm_report() -> LlmReport:
             )
         )
 
+    ops = []
+    for op, ob in sorted(op_buckets.items(), key=lambda x: -x[1].calls):
+        ops.append(
+            LlmOpStats(
+                op=op,
+                calls=ob.calls,
+                total_prompt_tokens=ob.prompt_tokens,
+                total_completion_tokens=ob.completion_tokens,
+                total_context_tokens=ob.prompt_tokens + ob.completion_tokens,
+                avg_latency_ms=ob.latency_ms / ob.calls if ob.calls else 0,
+                error_count=ob.errors,
+                source_files=sorted(ob.source_files),
+            )
+        )
+
     n = len(entries)
     return LlmReport(
         total_entries=n,
@@ -175,6 +214,7 @@ def get_llm_report() -> LlmReport:
         avg_latency_ms=total_latency / n if n else 0,
         models=models,
         runs=runs,
+        ops=ops,
     )
 
 
