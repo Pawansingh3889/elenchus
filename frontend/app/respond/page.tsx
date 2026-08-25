@@ -8,7 +8,6 @@ import {
   useMyUnfinishedRuns,
   usePublishedSurveys,
   useStartRun,
-  useStartRunPublic,
 } from "@/lib/queries";
 import { useT } from "@/lib/i18n/useT";
 import { useUserStore } from "@/lib/store";
@@ -19,7 +18,6 @@ export default function RespondPage() {
   const currentUser = useCurrentUser();
   const { data: surveys, isLoading, error } = usePublishedSurveys();
   const start = useStartRun();
-  const startPublic = useStartRunPublic();
   const { data: unfinished } = useMyUnfinishedRuns();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -36,20 +34,26 @@ export default function RespondPage() {
     }
   }, [publicRunId, router]);
 
-  // If there's a public survey link, auto-start a run
+  // If there's a public survey link, auto-start a run under whoever get_current_user
+  // actually resolves: the signed-in respondent if there is one, the server's own
+  // anonymous-caller default otherwise. This used to go through a dedicated "public"
+  // endpoint that hardcoded a seeded author as the respondent regardless of who was
+  // signed in, so a real respondent opening a survey card here started a run
+  // attributed to that seeded author instead of themselves, and their own browser
+  // then refused to let them into a run that was not theirs.
   useEffect(() => {
     if (publicSurveyId && !isPublicMode) {
       // Use a small timeout to avoid synchronous state update in effect
       setTimeout(() => setIsPublicMode(true), 0);
-      startPublic.mutate(publicSurveyId, {
+      start.mutate(publicSurveyId, {
         onSuccess: (run) => router.push(`/runs/${run.id}`),
         onError: (error) => {
-          console.error("Failed to start public survey:", error);
+          console.error("Failed to start survey:", error);
           setIsPublicMode(false);
         },
       });
     }
-  }, [publicSurveyId, isPublicMode, startPublic, router]);
+  }, [publicSurveyId, isPublicMode, start, router]);
 
   // Taking a survey is respondent-only (the backend refuses authors); send authors
   // back to Build rather than let them start a run under their own name.

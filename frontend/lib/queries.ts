@@ -331,21 +331,6 @@ export function useStartRun() {
   });
 }
 
-export function useStartRunPublic() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (templateId: string) => api.startRunPublic(templateId),
-    // The run just created belongs in the resumable list, and the published list now
-    // carries whether this person has answered. Neither was invalidated, so a second
-    // click within one session saw a stale page and started a second run: the client
-    // half of the duplicate-response bug the engine now refuses.
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: ["my-runs"] });
-      qc.invalidateQueries({ queryKey: ["published-surveys"] });
-    },
-  });
-}
-
 export function useTemplateRuns(templateId: string) {
   const userId = useUserStore((s) => s.currentUserId);
   return useQuery({

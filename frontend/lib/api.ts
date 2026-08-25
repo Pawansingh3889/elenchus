@@ -224,8 +224,6 @@ export const api = {
   listPublished: () => request<TemplateSummary[]>("/templates/published"),
   startRun: (templateId: string) =>
     request<Run>("/runs", { method: "POST", body: JSON.stringify({ template_id: templateId }) }),
-  startRunPublic: (templateId: string) =>
-    request<Run>("/runs/public", { method: "POST", body: JSON.stringify({ template_id: templateId }) }),
   getRun: (id: string) => request<Run>(`/runs/${id}`),
   myUnfinishedRuns: () => request<ResumableRun[]>("/runs"),
   sendRunMessage: (id: string, content: string) =>
