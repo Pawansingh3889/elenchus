@@ -268,3 +268,4 @@ export const api = {
   llmEvalAccuracy: () => request<EvalAccuracyReport>("/admin/llm/eval-accuracy"),
   adminHealth: () => request<AdminHealthRead>("/admin/health"),
 };
+
