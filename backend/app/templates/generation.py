@@ -29,14 +29,14 @@ from app.users.models import User
 
 logger = logging.getLogger("app.templates.generation")
 
-MAX_GENERATED_QUESTIONS = 20
+MAX_GENERATED_QUESTIONS = 25
 
 # The two prompts this module drafts under. Named constants rather than the literals they
 # used to be at the call sites, so the ledger can record which one asked for a draft: `op`
 # says "tool_turn" for both, and a generate and a refine are not the same call to anyone
 # reading the file later. `check_prompts_versioned.py` knows both names.
-GENERATE_PROMPT_VERSION = "generate_template_v4"
-REFINE_PROMPT_VERSION = "refine_template_v5"
+GENERATE_PROMPT_VERSION = "generate_template_v5"
+REFINE_PROMPT_VERSION = "refine_template_v6"
 
 # What the model may draft. Free text is excluded, always: a drafted survey is conducted
 # by an interviewer that has to judge whether a reply answered the question, and an open
@@ -82,8 +82,8 @@ def _tool(expected_count: int | None = None) -> dict[str, Any]:
     return {"name": _TOOL_NAME, "description": _TOOL_DESCRIPTION, "input_schema": schema}
 
 
-# Word numbers a brief plausibly writes a count in. Stops at twenty, which is also
-# MAX_GENERATED_QUESTIONS: past that, people write digits.
+# Word numbers a brief plausibly writes a count in. Stops at twenty regardless of where
+# MAX_GENERATED_QUESTIONS sits: past twenty, people write digits, not "twenty-five".
 _WORD_NUMBERS: dict[str, int] = {
     w: n
     for n, w in enumerate(
