@@ -221,6 +221,92 @@ function AnswerAccuracy() {
   );
 }
 
+/** Which family of work a versioned prompt name belongs to, for latency comparison.
+ *  Matched on the stable base every prompt in that family shares (`conduct_v8`,
+ *  `summarise_survey_v4`, `verify_run_v1`, `generate_template_v5`...), so a version
+ *  bump needs no update here. `null` is a call nothing wrapped in `using_prompt`,
+ *  which every real feature does; seeing it land in "Other" is itself worth noticing. */
+type LatencyCategory = "Survey" | "Summarization" | "Generation" | "Other";
+
+function categoryForPrompt(prompt: string | null): LatencyCategory {
+  if (!prompt) return "Other";
+  if (prompt.startsWith("conduct_")) return "Survey";
+  if (prompt.startsWith("summarise_") || prompt.startsWith("verify_")) return "Summarization";
+  if (prompt.startsWith("generate_template") || prompt.startsWith("refine_template")) return "Generation";
+  return "Other";
+}
+
+/**
+ * Latency by kind of work, not blended into one average.
+ *
+ * The report's own "Avg latency" figure sums every call site into one number, and that
+ * number answers no question an author actually has: conducting one turn of a
+ * respondent's conversation and summarising a whole survey's worth of answers are
+ * different jobs with different costs, and a slow summariser reads as a fast one the
+ * moment it is averaged against a hundred quick conduct turns. Grouping by which
+ * prompt drove the call (the same signal `TokenTransparency` already keys on for
+ * tokens) is what tells those apart, so this reads the same ledger and asks it the
+ * latency question instead of the token one.
+ *
+ * A fixed category order, not sorted by call count: these numbers are meant to be
+ * compared side by side every time the page loads, and a ranking that reshuffles with
+ * traffic would turn "is summarising slower" into a search instead of a glance.
+ */
+function LatencyTransparency() {
+  const { data: ledger, isLoading, error } = useLlmLedger();
+
+  if (isLoading) return <Card className="p-4"><Skeleton className="h-24 w-full" /></Card>;
+  if (error) return <Card className="p-4 text-sm text-warn-text">Failed to load ledger</Card>;
+  if (!ledger) return null;
+
+  if (ledger.total_entries === 0) {
+    return (
+      <Card className="flex flex-col gap-4 p-4">
+        <h2 className="text-md font-semibold">Latency Transparency</h2>
+        <p className="text-sm text-muted">
+          No LLM activity recorded yet. Latency by kind of call will appear here once surveys are conducted.
+        </p>
+      </Card>
+    );
+  }
+
+  const byCategory = new Map<LatencyCategory, { calls: number; totalLatencyMs: number }>();
+  for (const e of ledger.entries) {
+    const category = categoryForPrompt(e.prompt);
+    const b = byCategory.get(category) ?? { calls: 0, totalLatencyMs: 0 };
+    b.calls += 1;
+    b.totalLatencyMs += e.latency_ms ?? 0;
+    byCategory.set(category, b);
+  }
+
+  const rows = (["Survey", "Summarization", "Generation", "Other"] as const)
+    .map((category) => ({ category, ...(byCategory.get(category) ?? { calls: 0, totalLatencyMs: 0 }) }))
+    .filter((r) => r.calls > 0);
+
+  return (
+    <Card className="flex flex-col gap-4 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-md font-semibold">Latency Transparency</h2>
+        <p className="text-xs text-muted">
+          Conducting a survey turn and summarising one are timed separately: the second
+          reads a whole transcript, and blended into one average it would hide behind
+          the first.
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-8">
+        {rows.map((r) => (
+          <Stat
+            key={r.category}
+            value={formatMs(r.calls ? r.totalLatencyMs / r.calls : 0)}
+            label={`${r.category} avg latency`}
+            of={`${r.calls} call${r.calls === 1 ? "" : "s"}`}
+          />
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 function TokenTransparency() {
   const { data: ledger, isLoading, error } = useLlmLedger();
   const [filterOp, setFilterOp] = useState<string>("all");
@@ -688,6 +774,7 @@ export default function AdminPage() {
             </Card>
           </section>
 
+          <LatencyTransparency />
           <TokenTransparency />
           <AnswerAccuracy />
         </>
