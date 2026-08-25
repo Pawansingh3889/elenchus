@@ -90,6 +90,7 @@ test("a generated recap lands on the key the page reads", async () => {
   const summary: SurveySummary = {
     headline: "The line stops most often at the guillotine.",
     findings: [],
+    suggestions: [],
     caveat: "3 of 8 answered.",
     runs_included: 3,
     generated_at: "2026-08-12T00:00:00Z",

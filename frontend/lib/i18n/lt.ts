@@ -393,6 +393,7 @@ export const lt: Messages = {
     recapWrittenBy: (prompt: string, model: string) => `Parašė ${prompt} su ${model}`,
     recapHiddenWhileSliced: "Santrauka aprašo visus atsakymus, todėl taikant filtrą ji paslėpta.",
     recapOutdatedBody: "Santrauka jau buvo parašyta, bet ji nebeatitinka šių rezultatų. Parašyk iš naujo, kad atnaujintum.",
+    recapSuggestions: "Ką pasiūlė respondentai",
   },
   results: {
     title: "Atsakymai",

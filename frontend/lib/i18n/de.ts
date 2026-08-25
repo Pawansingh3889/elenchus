@@ -389,6 +389,7 @@ export const de: Messages = {
     recapWrittenBy: (prompt: string, model: string) => `Geschrieben von ${prompt} auf ${model}`,
     recapHiddenWhileSliced: "Die Zusammenfassung beschreibt alle Antworten und ist daher ausgeblendet, solange ein Filter aktiv ist.",
     recapOutdatedBody: "Es gab schon eine Zusammenfassung, aber sie passt nicht mehr zu diesen Ergebnissen. Neu schreiben, um sie zu aktualisieren.",
+    recapSuggestions: "Was die Befragten vorgeschlagen haben",
   },
   results: {
     title: "Antworten",

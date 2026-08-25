@@ -443,11 +443,18 @@ export interface SurveyFinding {
 }
 
 /** The recap of a whole survey: a fixed short shape, one headline, at most three
- *  findings, and a caveat line. `runs_included` is what it was written from, shown on
- *  the page because a recap is only true of the responses it read. */
+ *  findings, at most three suggestions, and a caveat line. `runs_included` is what it
+ *  was written from, shown on the page because a recap is only true of the responses it
+ *  read. */
 export interface SurveySummary {
   headline: string;
   findings: SurveyFinding[];
+  /** What a respondent proposed doing about it, not the model's own idea of a fix.
+   *  Same shape and same grounding as `findings`: no figures, and a suggestion the
+   *  verifier could not trace to something a respondent actually wrote is dropped
+   *  before it reaches here. Empty when nobody proposed anything, which is correct
+   *  rather than a gap to fill. */
+  suggestions: SurveyFinding[];
   /** The evidence line, computed server-side from the report (who answered, earlier
    *  versions, mostly-declined questions). Engine numbers, never model prose. */
   caveat: string;

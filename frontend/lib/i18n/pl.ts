@@ -393,6 +393,7 @@ export const pl: Messages = {
     recapWrittenBy: (prompt: string, model: string) => `Napisane przez ${prompt} na ${model}`,
     recapHiddenWhileSliced: "Podsumowanie opisuje wszystkie odpowiedzi, więc jest ukryte przy aktywnym filtrze.",
     recapOutdatedBody: "Podsumowanie już powstało, ale nie pasuje już do tych wyników. Napisz je ponownie, aby je zaktualizować.",
+    recapSuggestions: "Co zaproponowali respondenci",
   },
   results: {
     title: "Odpowiedzi",

@@ -401,6 +401,7 @@ export const en = {
     recapWrittenBy: (prompt: string, model: string) => `Written by ${prompt} on ${model}`,
     recapHiddenWhileSliced: "The recap describes every response, so it is hidden while a slice is showing.",
     recapOutdatedBody: "A recap was written earlier, but it no longer matches these results. Write it again to bring it up to date.",
+    recapSuggestions: "What respondents proposed",
   },
   results: {
     title: "Responses",

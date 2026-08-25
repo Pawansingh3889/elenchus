@@ -387,6 +387,7 @@ export const fil: Messages = {
     recapWrittenBy: (prompt: string, model: string) => `Isinulat ng ${prompt} sa ${model}`,
     recapHiddenWhileSliced: "Inilalarawan ng buod ang lahat ng sagot, kaya nakatago ito habang may aktibong salain.",
     recapOutdatedBody: "May naisulat nang buod, pero hindi na ito tugma sa mga resultang ito. Isulat muli para ma-update.",
+    recapSuggestions: "Ang iminungkahi ng mga sumagot",
   },
   results: {
     title: "Mga sagot",

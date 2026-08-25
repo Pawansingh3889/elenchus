@@ -23,13 +23,22 @@ not stale, it is wrong, and the prose gives no sign of it. So the stored documen
 the version and completed-run count it was made from, and anything else regenerates.
 
 **The shape is fixed, and terse.** A headline of a few words, at most three findings of
-one clause each, and a caveat line, chosen so every recap reads the same way and fits
-on a screen. The caveat is
+one clause each, at most three suggestions of one clause each, and a caveat line, chosen
+so every recap reads the same way and fits on a screen. The caveat is
 computed from the report rather than written by the model (who answered, who answered
 an earlier version, what was mostly declined), because the one line that qualifies the
 evidence must itself be beyond question. Quotes were dropped from this recap when the
 shape was fixed: the per-run summary keeps its verbatim quotes, and the report's own
 question cards carry every answer in full, so nothing became unreadable.
+
+**A suggestion is something a respondent proposed, not something the model would
+propose.** Added after an author asked the recap to "also give a solution": a finding
+that names a control gap invites the model to recommend a fix, and a recommendation
+that sounds sensible is not evidence that anyone in the results asked for it. So
+`suggestions` is grounded exactly like `findings` (no figures, a `question_position` a
+tally can attach to) and checked exactly as hard: the verifier's job is to catch the
+model's own good idea dressed up as something a respondent said, the same failure mode
+the conduct engine's grounding gate exists to catch on individual answers, one layer up.
 """
 
 import json
@@ -59,8 +68,9 @@ from app.users.models import User
 logger = logging.getLogger("app.runs.survey_summary")
 
 MAX_FINDINGS = 3
-PROMPT_VERSION = "summarise_survey_v3"
-VERIFY_PROMPT_VERSION = "verify_survey_summary_v3"
+MAX_SUGGESTIONS = 3
+PROMPT_VERSION = "summarise_survey_v4"
+VERIFY_PROMPT_VERSION = "verify_survey_summary_v4"
 
 # The caps the terse shape runs on: a punchy headline and one-clause findings. A longer
 # candidate is refused at validation, on the rule that a recap past its size was already
@@ -105,10 +115,20 @@ class Finding(BaseModel):
 class SurveySummaryContent(BaseModel):
     """What the model returns. Only the headline is required, for the same reason the
     run summary requires only its own: a survey answered twice by two people who ticked
-    three boxes has no findings worth listing, and padding it would be invention."""
+    three boxes has no findings worth listing, and padding it would be invention.
+
+    ``suggestions`` is a second, separate list rather than a fourth finding slot, because
+    the two answer different questions and a reader wants to find each in the same place
+    every time: a finding says what the results show, a suggestion says what a respondent
+    proposed doing about it. It shares `Finding`'s shape, and the same grounding: a
+    suggestion is something a respondent's own words asked for or proposed, never the
+    model's idea of a sensible fix for the problem a finding names. The write-up and the
+    verifier are both told that difference explicitly, because a plausible fix nobody
+    actually raised is invention wearing a finding's clothes."""
 
     headline: str = Field(min_length=1, max_length=_HEADLINE_MAX)
     findings: list[Finding] = Field(default_factory=list, max_length=MAX_FINDINGS)
+    suggestions: list[Finding] = Field(default_factory=list, max_length=MAX_SUGGESTIONS)
 
     @field_validator("headline")
     @classmethod
@@ -131,6 +151,7 @@ class FindingRead(Finding):
 class SurveySummaryRead(BaseModel):
     headline: str
     findings: list[FindingRead]
+    suggestions: list[FindingRead] = Field(default_factory=list)
     # The evidence line, computed from the report at generation time and stored with
     # the recap. Engine numbers only: the one line that qualifies everything above it
     # must not itself be a model's claim.
@@ -192,6 +213,11 @@ class SurveyVerdict(BaseModel):
 
     headline_supported: bool = True
     unsupported_findings: list[int] = Field(default_factory=list)
+    # A suggestion fails differently from a finding: not because the tally disagrees
+    # with it (a suggestion carries no tally to disagree with) but because nobody in the
+    # results actually proposed it. Named separately so that fault is reported and
+    # dropped the same way an unsupported finding is, rather than sinking the headline.
+    unsupported_suggestions: list[int] = Field(default_factory=list)
     problems: list[str] = Field(default_factory=list, max_length=8)
 
     @field_validator("problems")
@@ -201,7 +227,11 @@ class SurveyVerdict(BaseModel):
 
     @property
     def clean(self) -> bool:
-        return self.headline_supported and not self.unsupported_findings
+        return (
+            self.headline_supported
+            and not self.unsupported_findings
+            and not self.unsupported_suggestions
+        )
 
 
 _VERIFY_TOOL: dict[str, Any] = {
@@ -346,6 +376,26 @@ class SurveySummaryService:
                 update={"findings": [f for i, f in enumerate(content.findings) if i not in keep]}
             )
 
+        # Same rule, same reason, for the second list: a suggestion nobody actually
+        # raised is invention sitting next to real findings, and it is dropped on its
+        # own rather than voiding the recap it sits beside.
+        dropped_suggestions = sorted(
+            {i for i in verdict.unsupported_suggestions if 0 <= i < len(content.suggestions)}
+        )
+        if dropped_suggestions:
+            logger.warning(
+                "dropped unsupported suggestions: template=%s indices=%r problems=%r",
+                template_id,
+                dropped_suggestions,
+                verdict.problems,
+            )
+            keep = set(dropped_suggestions)
+            content = content.model_copy(
+                update={
+                    "suggestions": [s for i, s in enumerate(content.suggestions) if i not in keep]
+                }
+            )
+
         document = {
             **content.model_dump(),
             # Computed here and stored with the recap: the numbers it states cannot
@@ -464,7 +514,7 @@ class SurveySummaryService:
                 max_tokens=1024,
             )
         raw = dict(turn.tool_input)
-        for key in ("problems", "unsupported_findings"):
+        for key in ("problems", "unsupported_findings", "unsupported_suggestions"):
             if key in raw:
                 raw[key] = decode_stringified(raw[key], list)
         try:
@@ -494,51 +544,82 @@ def _caveat(report: SurveyReport) -> str:
 
 
 def _decode_stringified_fields(raw: dict[str, Any]) -> dict[str, Any]:
-    """Undo one JSON-encoding of the list field, the small-model slip the generation
+    """Undo one JSON-encoding of each list field, the small-model slip the generation
     path already handles. A right answer wrapped in a string is a serialization
     artifact, not a content problem, and burning the retry on it helps nobody."""
     out = dict(raw)
-    if "findings" in out:
-        out["findings"] = decode_stringified(out["findings"], list)
+    for key in ("findings", "suggestions"):
+        if key in out:
+            out[key] = decode_stringified(out[key], list)
     return out
 
 
 def _within_caps(raw: dict[str, Any]) -> dict[str, Any]:
-    """Trim an over-long findings list to its cap instead of losing the recap over it.
+    """Trim an over-long list to its cap instead of losing the recap over it.
 
     A live run threw away a sound recap twice because the model returned one item more
     than a cap allowed, so the author was told the assistant was unavailable when
     nothing was unavailable. Dropping rather than refusing is the rule this file
     already follows for a finding the checker will not stand behind; an item past the
     cap is a weaker fault than that. Only the tail is cut, so the model's own ordering
-    decides what survives, which is the same order the page would have shown.
+    decides what survives, which is the same order the page would have shown. Findings
+    and suggestions are capped independently, so a survey rich in one is not starved of
+    the other.
     """
-    items = raw.get("findings")
-    if isinstance(items, list) and len(items) > MAX_FINDINGS:
-        logger.warning("recap findings over cap, trimming %d to %d", len(items), MAX_FINDINGS)
-        raw = {**raw, "findings": items[:MAX_FINDINGS]}
-    return raw
+    out = dict(raw)
+    for key, cap in (("findings", MAX_FINDINGS), ("suggestions", MAX_SUGGESTIONS)):
+        items = out.get(key)
+        if isinstance(items, list) and len(items) > cap:
+            logger.warning("recap %s over cap, trimming %d to %d", key, len(items), cap)
+            out[key] = items[:cap]
+    return out
 
 
 def _without_unknown_questions(raw: dict[str, Any], report: SurveyReport) -> dict[str, Any]:
-    """Unpoint any finding aimed at a question that does not exist.
+    """Unpoint any finding or suggestion aimed at a question that does not exist.
 
     Unpointed rather than dropped: the statement may be a real pattern and only the
-    reference wrong, and a finding with no tally beside it is still readable. Attaching
+    reference wrong, and an item with no tally beside it is still readable. Attaching
     the wrong question's counts to it would not be.
     """
-    findings = raw.get("findings")
-    if not isinstance(findings, list) or not findings:
-        return raw
     positions = {q.position for q in report.questions}
-    out: list[Any] = []
-    for finding in findings:
-        if isinstance(finding, dict) and finding.get("question_position") not in positions:
-            if finding.get("question_position") is not None:
-                logger.warning("finding pointed at no such question: %r", finding)
-            finding = {**finding, "question_position": None}
-        out.append(finding)
-    return {**raw, "findings": out}
+    out = dict(raw)
+    for key in ("findings", "suggestions"):
+        items = out.get(key)
+        if not isinstance(items, list) or not items:
+            continue
+        fixed: list[Any] = []
+        for item in items:
+            if isinstance(item, dict) and item.get("question_position") not in positions:
+                if item.get("question_position") is not None:
+                    logger.warning("%s pointed at no such question: %r", key, item)
+                item = {**item, "question_position": None}
+            fixed.append(item)
+        out[key] = fixed
+    return out
+
+
+def _attach_numbers(items: list[Finding], by_position: dict[int, Any]) -> list[FindingRead]:
+    """Attach the real tallies to one list (findings, or suggestions). This is the
+    whole point of `question_position`: the model said what the pattern is, and the
+    numbers beside it come from the database."""
+    out = []
+    for item in items:
+        # `is None`, not `or`: position 0 is the first question and it is falsy, so the
+        # short form silently unpointed every item about it.
+        position = item.question_position
+        question = None if position is None else by_position.get(position)
+        out.append(
+            FindingRead(
+                statement=item.statement,
+                question_position=item.question_position,
+                question_text=question.text if question else None,
+                answered=question.answered if question else None,
+                counts=[c.model_dump() for c in question.counts] if question else [],
+                average=question.average if question else None,
+            )
+        )
+    return out
 
 
 def _with_numbers(
@@ -547,25 +628,10 @@ def _with_numbers(
     """Attach the real tallies. This is the whole point of `question_position`: the model
     said what the pattern is, and the numbers beside it come from the database."""
     by_position = {q.position: q for q in report.questions}
-    findings = []
-    for finding in content.findings:
-        # `is None`, not `or`: position 0 is the first question and it is falsy, so the
-        # short form silently unpointed every finding about it.
-        position = finding.question_position
-        question = None if position is None else by_position.get(position)
-        findings.append(
-            FindingRead(
-                statement=finding.statement,
-                question_position=finding.question_position,
-                question_text=question.text if question else None,
-                answered=question.answered if question else None,
-                counts=[c.model_dump() for c in question.counts] if question else [],
-                average=question.average if question else None,
-            )
-        )
     return SurveySummaryRead(
         headline=content.headline,
-        findings=findings,
+        findings=_attach_numbers(content.findings, by_position),
+        suggestions=_attach_numbers(content.suggestions, by_position),
         # Required, not defaulted: every document written under PROMPT_VERSION carries
         # one, and `_reusable` refuses older documents before they reach here.
         caveat=str(document["caveat"]),
