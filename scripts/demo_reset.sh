@@ -1,10 +1,17 @@
 #!/usr/bin/env bash
 # Reset the stack to a known demo state, in about a minute.
 #
-# Leaves the database holding: the versioning walkthrough (one survey published
-# twice, with a respondent part-way through version 1), a survey demonstrating
-# conditional visibility with a completed run that skipped a question, and the
-# curated sample dataset the seed loads. Safe to re-run.
+# Leaves the database holding: a published survey with a respondent part-way
+# through it, the refusal you get for trying to edit a published survey, a survey
+# demonstrating conditional visibility with a completed run that skipped a
+# question, and the curated sample dataset the seed loads. Safe to re-run.
+#
+# This used to walk through versioning: publish, edit, publish again, and show an
+# in-flight run still being asked the questions it started on. Versions were
+# removed on 16 Aug 2026 and publishing became a freeze on 17 Aug, so that walk
+# now describes a product that does not exist. Worse, it did not fail politely:
+# the edit returns 409, `curl -sf` exits non-zero, and `set -e` killed the script
+# half way, leaving a demo that looked built and was not.
 #
 #   ./scripts/demo_reset.sh            wipe the volume and bring the whole stack up
 #   ./scripts/demo_reset.sh --db-only  wipe only the database, leave servers running
@@ -34,8 +41,16 @@ id_of() { python3 -c "import sys,json;print(json.load(sys.stdin)['id'])"; }
 if [[ "$DB_ONLY" == "--db-only" ]]; then
   say "Wiping the database (leaving your servers alone)"
   # `compose ps -q` returns nothing under podman-compose, so find it by name instead.
-  PG=$($RUNTIME ps --format '{{.Names}}' 2>/dev/null | grep -m1 postgres || true)
-  [[ -n "$PG" ]] || { echo "postgres is not running; start it first" >&2; exit 1; }
+  # Anchored on this project's compose name rather than a bare `grep postgres`: the next
+  # line is a DROP DATABASE, and matching any running container with "postgres" in its
+  # name means a second project's database is one naming coincidence away from being the
+  # one that gets rebuilt. A destructive command should name its target.
+  PG=$($RUNTIME ps --format '{{.Names}}' 2>/dev/null | grep -m1 -E '^elenchus[-_]postgres' || true)
+  [[ -n "$PG" ]] || {
+    echo "this project's postgres is not running (expected a container named" >&2
+    echo "elenchus_postgres_1 or elenchus-postgres-1); start it with 'make stack-up'" >&2
+    exit 1
+  }
   $RUNTIME exec "$PG" psql -U elenchus -d postgres \
     -c "DROP DATABASE IF EXISTS elenchus WITH (FORCE);" -c "CREATE DATABASE elenchus;" >/dev/null
   ( cd backend
@@ -54,7 +69,7 @@ fi
 
 until curl -sf "$API/health" >/dev/null 2>&1; do sleep 1; done
 
-say "Publishing version 1 of the survey"
+say "Publishing a survey"
 TEMPLATE=$(post "$API/templates" "$AVA" '{
   "title": "Onboarding check-in",
   "description": "How the first few weeks went.",
@@ -64,30 +79,33 @@ TEMPLATE=$(post "$API/templates" "$AVA" '{
     {"text":"Which shift do you usually work?","answer_type":"single_select","options":["Days","Nights","Rotating"],"allow_other":true,"required":true,"allow_follow_ups":false}
   ]}' | id_of)
 post "$API/templates/$TEMPLATE/publish" "$AVA" >/dev/null
-echo "  $TEMPLATE published as v1 (3 questions)"
+echo "  $TEMPLATE published (3 questions)"
 
-say "A respondent starts answering v1"
+say "A respondent starts answering it"
 RUN=$(post "$API/runs" "$ROSA" "{\"template_id\":\"$TEMPLATE\"}" | id_of)
-echo "  run $RUN open on v1 — shows as Continue on Rosa's home"
+echo "  run $RUN open, shows as Continue on Rosa's home"
 
-say "The author rewrites the survey and publishes v2"
-curl -sf -X PUT "$API/templates/$TEMPLATE" -H "X-User-Id: $AVA" -H 'Content-Type: application/json' --data '{
+# Deliberately expects a refusal, so it cannot use `post`: that is `curl -sf`, which
+# exits non-zero on a 4xx and would take `set -e` with it. The point of showing it at
+# all is that the rule is the demo. Nobody's answer can be re-pointed at a question they
+# were not asked, so the survey Rosa is part-way through cannot change under her.
+say "The author tries to rewrite it, and cannot"
+EDIT=$(curl -s -o /tmp/demo_edit.$$ -w '%{http_code}' -X PUT "$API/templates/$TEMPLATE" \
+  -H "X-User-Id: $AVA" -H 'Content-Type: application/json' --data '{
   "title": "Onboarding check-in",
   "description": "How the first few weeks went.",
+  "audience": "everyone",
   "questions": [
     {"text":"What is your role?","answer_type":"short_text","options":[],"allow_other":false,"required":true,"allow_follow_ups":true},
     {"text":"Would you recommend the onboarding to a new starter?","answer_type":"yes_no","options":[],"allow_other":false,"required":true,"allow_follow_ups":false}
-  ]}' >/dev/null
-VERSION=$(post "$API/templates/$TEMPLATE/publish" "$AVA" | python3 -c "import sys,json;print(json.load(sys.stdin)['version'])")
-echo "  published as v$VERSION (2 questions, one of them new)"
-
-say "The in-flight run is untouched by the republish"
-curl -sf "$API/runs/$RUN" -H "X-User-Id: $ROSA" | python3 -c "
-import sys, json
-d = json.load(sys.stdin)
-print('  still asking:', d['current_question']['text'])
-print('  still counting:', d['total'], 'questions (v1), not 2 (v2)')
-"
+  ]}')
+if [[ "$EDIT" == "409" ]]; then
+  python3 -c "import sys,json;print('  refused:', json.load(open(sys.argv[1]))['error']['message'])" "/tmp/demo_edit.$$"
+else
+  echo "  UNEXPECTED: editing a published survey answered $EDIT, not 409" >&2
+  cat "/tmp/demo_edit.$$" >&2
+fi
+rm -f "/tmp/demo_edit.$$"
 
 say "A survey whose second question only applies to some respondents"
 COND=$(post "$API/templates" "$AVA" '{
@@ -110,22 +128,32 @@ if CRUN=$(post "$API/runs" "$REMY" "{\"template_id\":\"$COND\"}" | id_of 2>/dev/
     post "$API/runs/$CRUN/messages" "$REMY" "{\"content\":\"$msg\"}" >/dev/null 2>&1 || {
       echo "  (no working LLM configured — skipping this run)"; break; }
   done
+  # respondent_label, not respondent_name: answers became anonymous on 12 Aug 2026 and
+  # the field carries a pseudonym now. The old name sat behind `2>/dev/null || true`, so
+  # the KeyError it raised printed nothing whatsoever and this section simply looked like
+  # it had found nothing to report. A shape change should be noisy, so the error is
+  # visible and only the exit status is forgiven.
   curl -sf "$API/templates/$COND/runs" -H "X-User-Id: $AVA" | python3 -c "
 import sys, json
 runs = json.load(sys.stdin)
+if not runs:
+    print('  (no run recorded: this one needs a working LLM tier)')
 for r in runs:
-    print(f\"  {r['respondent_name']} finished at {r['answered']} of {r['total']} — the conditional question was skipped\")
-" 2>/dev/null || true
+    print(f\"  {r['respondent_label']} finished at {r['answered']} of {r['total']}, so the conditional question was skipped\")
+" || echo "  (could not read the run list, see the error above)" >&2
 fi
 
 cat <<EOF
 
 Ready. The AI summary is deliberately left ungenerated so it can be run live.
 
-  Author      http://localhost:3000                              pick Ava Author
+Sign in at http://localhost:3000/signin by typing the address. It used to be a
+picker in the top bar; that became a page, and an address is what it asks for.
+
+  Author      http://localhost:3000                              ava@elenchus.dev
   Builder     http://localhost:3000/templates/$COND
   Results     http://localhost:3000/templates/$COND/results
-  Respondent  http://localhost:3000/respond                      pick Rosa Respondent
+  Respondent  http://localhost:3000/respond                      rosa@elenchus.dev
   Continue    http://localhost:3000/runs/$RUN
 
   To show a follow-up firing, answer "What is your role?" vaguely
