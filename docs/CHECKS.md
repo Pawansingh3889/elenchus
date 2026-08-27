@@ -223,8 +223,26 @@ make setup                    # uv sync + pnpm install
 make clean                    # remove caches
 ./scripts/demo_reset.sh       # wipe and rebuild a known demo state
 ./scripts/demo_reset.sh --db-only   # same, but leave the servers running
-./scripts/decrypt-env.sh      # regenerate .env from .env.encrypted (needs the age key)
 ```
+
+### Where the secrets are
+
+There is no encrypted bundle in the repo. A sops-encrypted `.env.encrypted` lived here
+until 27 Aug 2026, when it was retired: it was written on 26 July, still carried
+`ANTHROPIC_*` and `LLM_BACKUP_*`, and had described a configuration the app stopped
+reading on 6 Aug. Decrypting it produced a `.env` with no LLM tier configured at all,
+and nobody noticed for three weeks, which is the fair measure of how much it was used.
+
+Secrets live where they are read from, and `.env.example` documents every variable:
+
+```bash
+railway variables             # the backend's live values, including LLM_TIER1_API_KEY
+```
+
+The frontend's `NEXT_PUBLIC_API_URL` is set in the Vercel dashboard, not in the repo.
+For a local `.env`, copy `.env.example` and take the tier key from `railway variables`.
+Note that `DATABASE_URL` there is the production database: point local at the compose
+Postgres instead.
 
 ---
 
