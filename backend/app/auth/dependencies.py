@@ -49,9 +49,20 @@ async def get_current_user(
         return user
 
     if x_user_id is None:
-        # No auth provided - default to the seeded author (pawankapkoti3889@gmail.com) so the app
-        # works without signing in. This keeps seed data open for everyone.
-        x_user_id = UUID("00000000-0000-0000-0000-0000000000c8")
+        # No cookie and no header is nobody, and nobody is a 401.
+        #
+        # This branch used to substitute a hardcoded seeded id so the deployed app could
+        # be clicked through without signing in. That id belonged to the account whose
+        # address is also ADMIN_EMAILS, so every anonymous request arrived as an
+        # administrator: /api/v1/me answered "is_admin": true to a stranger, the user
+        # list handed out every id, and the admin surface answered without a credential.
+        # It was added on 24 Aug 2026 by a commit about Railway migrations and CORS,
+        # which is how a change to the authentication seam came to be reviewed as a
+        # deployment fix.
+        #
+        # A caller with no credential is exactly the "missing required data" that this
+        # project refuses to shrug at, so it fails loudly here instead.
+        raise UnauthorizedError("Sign in to continue.")
     user = await users.get(x_user_id)
     if user is None:
         raise UnauthorizedError("Unknown user id.")

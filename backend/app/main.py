@@ -104,14 +104,19 @@ register_error_handlers(app)
 # This is also the first thing in the codebase that branches on APP_ENV. The deployment
 # file has been carrying a note that setting it changes no behaviour; that stops being
 # true here.
-# We now mount the dev router in all environments for public survey access.
-app.include_router(users_router)
-# Same branch, same lifetime, and the branch is doing more work here. The picker is
-# guarded and merely useless to a stranger; identify is unauthenticated by necessity,
-# because requiring a caller is the deadlock it exists to undo. Not registering it
-# outside development is therefore the whole of its protection. Demo mode mounts both
-# so the public can sign in by email (the dev shim) and use the reset endpoint.
-app.include_router(dev_router)
+#
+# The branch was deleted on 23 Aug 2026 and replaced with an unconditional mount and the
+# line "we now mount the dev router in all environments for public survey access", while
+# every comment around it went on describing the guard. It is restored. Demo is on the
+# permissive side of it deliberately: a public demo wants visitors to sign in by address
+# and to press reset, and its data is seeded personas. Production is not.
+if get_settings().app_env != "prod":
+    app.include_router(users_router)
+    # Same branch, same lifetime, and the branch is doing more work here. The picker is
+    # guarded and merely useless to a stranger; identify is unauthenticated by necessity,
+    # because requiring a caller is the deadlock it exists to undo. Not registering it
+    # outside development is therefore the whole of its protection.
+    app.include_router(dev_router)
 # Mounted always, unlike the dev picker above, and it is what makes that branch
 # survivable: this is how a production deployment is entered at all. An unconfigured
 # provider answers that it is unconfigured rather than 404ing as though sign-in did not

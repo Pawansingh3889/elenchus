@@ -18,6 +18,7 @@ from pydantic import ValidationError as PydanticValidationError
 
 from app.access import in_audience, may_author
 from app.auth.dependencies import require_admin
+from app.config import get_settings
 from app.errors import ConflictError, ForbiddenError, NotFoundError
 from app.templates.enums import SurveyAudience, TemplateStatus
 from app.templates.models import SurveyTemplate
@@ -355,6 +356,43 @@ def test_identify_is_not_mounted_in_production():
     # way to create an account and no way to know whether it is talking to an admin.
     assert "/api/v1/admin/users" in paths
     assert "/api/v1/me" in paths
+
+
+def test_the_dev_surface_is_absent_when_the_app_is_built_for_production(monkeypatch):
+    """The half the test above never checked, which is the half that matters.
+
+    Its predecessor asserted only that the routes are mounted here, where APP_ENV is dev.
+    That passes whether the branch exists or not, so when the branch was deleted on
+    23 Aug 2026 and both routers became unconditional, nothing failed and the drift
+    reached a public deployment. A guard nobody has watched reject anything is
+    decoration, so this builds the app as production actually builds it and reads the
+    route table back.
+    """
+    import importlib
+
+    import app.main
+
+    monkeypatch.setenv("APP_ENV", "prod")
+    get_settings.cache_clear()
+    try:
+        production = importlib.reload(app.main)
+        paths = production.app.openapi()["paths"]
+        assert "/api/v1/dev/identify" not in paths, (
+            "identify is unauthenticated by necessity and its mount is the whole of its "
+            "protection; in production it must not be registered at all"
+        )
+        assert "/api/v1/dev/reset" not in paths, "production must not expose a database wipe"
+        assert "/api/v1/users" not in paths, (
+            "under the header shim a user id is a credential, so the list is the whole " "keyring"
+        )
+        # The pair that must survive the branch: without them a production deployment
+        # cannot be entered or administered at all.
+        assert "/api/v1/me" in paths
+        assert "/api/v1/auth/me" in paths
+    finally:
+        monkeypatch.undo()
+        get_settings.cache_clear()
+        importlib.reload(app.main)
 
 
 # --- what the screens read ---------------------------------------------------------
