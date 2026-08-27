@@ -53,6 +53,11 @@ docker-compose.dbport.yml
 backend/.coverage
 backend/coverage.lcov
 backend/htmlcov/
-.vercel
-.env*
+
+# Deploy CLI scratch: project linkage written by `vercel link` / `railway link`,
+# machine-local and not shared.
+.vercel/
+.railway/
+
+# aider's session history and symbol cache.
 .aider*
