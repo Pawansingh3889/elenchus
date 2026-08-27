@@ -1,19 +1,25 @@
-export type AnswerType =
-  | "single_select"
-  | "multi_select"
-  | "yes_no"
-  | "short_text"
-  | "long_text"
-  | "rating"
-  | "number"
-  | "date";
+/**
+ * Shapes that are validated at runtime live in `schemas.ts` and are inferred from the
+ * zod schema there, so there is one definition rather than a type here and a checker
+ * elsewhere quietly disagreeing with it. They are re-exported so every existing import
+ * of them keeps working unchanged.
+ */
+import type { AnswerType, OptionCount, TemplateStatus } from "./schemas";
+
+export type {
+  AnswerType,
+  TemplateStatus,
+  OptionCount,
+  QuestionReport,
+  SurveyReport,
+  DashboardRow,
+} from "./schemas";
 
 /** Whether the interviewer probes this question, and how hard. `when_unclear` is what
  *  the old `allow_follow_ups` boolean bought; `always_once` is the one it could not say,
  *  and the engine enforces it by withholding the ways past the question. */
 export type FollowUpPolicy = "never" | "when_unclear" | "always_once";
 
-export type TemplateStatus = "draft" | "published" | "closed" | "archived";
 /** Who a survey is for: everyone with a job, one slice of the org chart, or one named
  *  person. Membership is derived server-side from each person's job, never stored.
  *  `person` carries its target in `audience_user_id`; the two only mean anything
@@ -360,75 +366,10 @@ export interface RunDetail {
   summary: StoredRunSummary | null;
 }
 
-/** One survey on the author's dashboard: what it is, and how it is going.
- *  completion_rate is null rather than 0 when nobody has started, because zero would
- *  read as everyone abandoning. */
-export interface DashboardRow {
-  id: string;
-  title: string;
-  status: TemplateStatus;
-  updated_at: string;
-  closed_at: string | null;
-  started: number;
-  completed: number;
-  in_progress: number;
-  abandoned: number;
-  /** People rather than runs: how many this survey is for, and how many of them have
-   *  opened and finished it. Kept beside the run counts rather than replacing them,
-   *  because "how is this going" and "how many of the people it was for have answered"
-   *  are different questions. */
-  reach: number;
-  people_started: number;
-  people_completed: number;
-  last_started_at: string | null;
-  last_completed_at: string | null;
-  completion_rate: number | null;
-  /** Of the people this survey is for, how many finished. Null when it is aimed at
-   *  nobody. Can exceed 1: an author testing their own survey answers it without being
-   *  in its audience, which is reported rather than hidden. */
-  response_rate: number | null;
-}
 
 /** One row of a select question's tally. `label` is the option as the author wrote it,
  *  or the respondent's own words for a write-in. */
-export interface OptionCount {
-  label: string;
-  count: number;
-  write_in: boolean;
-}
 
-/** One question, as the whole survey answered it. `answered` and `declined` are apart
- *  because a question everyone skipped and one nobody reached are different findings. */
-export interface QuestionReport {
-  id: string;
-  position: number;
-  text: string;
-  answer_type: AnswerType;
-  answered: number;
-  declined: number;
-  counts: OptionCount[];
-  /** Every pick, across everyone who answered. Equals `answered` on every type where one
-   *  person makes one choice, and does not on a multi-select: three people picking two
-   *  options each is six selections from three people. `answered` is the denominator for
-   *  "what share of people said this", `selections` for "what share of the picks". */
-  selections: number;
-  /** Ratings and numbers only. Null when nobody answered, not 0. */
-  average: number | null;
-  /** The spread, for the same two types. An average alone hides whether everyone said
-   *  twenty or half said five and half said forty. */
-  low: number | null;
-  high: number | null;
-  /** Free text and write-ins, verbatim and in full. Counted on the page, shown on click. */
-  verbatim: string[];
-  /** What the probes drew out. Never in `counts` or `average`: a follow-up answers a
-   *  question the model wrote, so it belongs to no option list and no scale. */
-  follow_ups: string[];
-  /** Runs probed on this question, not probes asked, so it reads against `answered`. */
-  probed: number;
-  /** The unit the numbers are in, and an optional second unit also shown. */
-  unit?: string | null;
-  display_unit?: string | null;
-}
 
 /** One thing the survey found. `statement` carries no figures by design: the model
  *  names the pattern, and the counts beside it are attached from the report, so a
@@ -508,16 +449,6 @@ export interface AnswersMatrix {
   runs: MatrixRun[];
 }
 
-export interface SurveyReport {
-  template_id: string;
-  title: string;
-  runs_total: number;
-  runs_completed: number;
-  reach: number;
-  people_started: number;
-  people_completed: number;
-  questions: QuestionReport[];
-}
 
 /** One respondent's participation in a survey, for the dashboard with real-time status. */
 export interface RespondentRow {

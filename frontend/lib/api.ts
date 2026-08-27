@@ -1,3 +1,6 @@
+import { z, type ZodType } from "zod";
+
+import { dashboardSchema, surveyReportSchema } from "./schemas";
 import { useLocaleStore, useUserStore } from "./store";
 import type {
   Account,
@@ -8,7 +11,6 @@ import type {
   AdminHealthRead,
   AnswersMatrix,
   AudienceReach,
-  DashboardRow,
   EvalAccuracyReport,
   GeneratedTemplate,
   LlmEntry,
@@ -24,7 +26,6 @@ import type {
   RunSummaryContent,
   SurveyAudience,
   SurveyRecapStatus,
-  SurveyReport,
   SurveySummary,
   Template,
   TemplateSummary,
@@ -116,6 +117,38 @@ function errorDetail(body: unknown, fallback: string): { message: string; questi
   return { message: fallback, questions: [] };
 }
 
+/**
+ * Thrown when the server answered successfully but not in the shape this app renders.
+ *
+ * Separate from ApiError on purpose: an ApiError means the request was refused and the
+ * message belongs to the person, while this means the contract broke and the message
+ * belongs to whoever is going to fix it. Carries the failing field paths, because
+ * "expected number, received string at questions.3.average" is a bug report and
+ * "invalid response" is not.
+ */
+export class ApiContractError extends Error {
+  readonly status = 200;
+  readonly issues: string[];
+
+  constructor(path: string, issues: string[]) {
+    super(`${path} answered in an unexpected shape: ${issues.join("; ")}`);
+    this.name = "ApiContractError";
+    this.issues = issues;
+  }
+}
+
+/** Validate a parsed body against the schema for this endpoint, or throw loudly. */
+function parseBody<S extends ZodType>(path: string, schema: S, body: unknown): z.infer<S> {
+  const result = schema.safeParse(body);
+  if (result.success) return result.data;
+  // Cap the list: a wholesale shape change produces an issue per field, and thirty of
+  // them in one message helps nobody read the first three.
+  const issues = result.error.issues
+    .slice(0, 5)
+    .map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`);
+  throw new ApiContractError(path, issues);
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const userId = useUserStore.getState().currentUserId;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -146,10 +179,25 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
+/**
+ * `request`, with the response validated before it is handed back.
+ *
+ * The plain `request` above still casts, which is what every endpoint not yet given a
+ * schema uses. Prefer this one: a cast is a claim nobody checks, and the fields this
+ * app turns into figures on a page are exactly the ones worth checking.
+ */
+async function requestParsed<S extends ZodType>(
+  path: string,
+  schema: S,
+  init?: RequestInit,
+): Promise<z.infer<S>> {
+  return parseBody(path, schema, await request<unknown>(path, init));
+}
+
 export const api = {
   listUsers: () => request<User[]>("/users"),
-  dashboard: () => request<DashboardRow[]>("/dashboard"),
-  report: (id: string) => request<SurveyReport>(`/templates/${id}/report`),
+  dashboard: () => requestParsed("/dashboard", dashboardSchema),
+  report: (id: string) => requestParsed(`/templates/${id}/report`, surveyReportSchema),
   getTemplate: (id: string) => request<Template>(`/templates/${id}`),
   createTemplate: (data: TemplateWrite) =>
     request<Template>("/templates", { method: "POST", body: JSON.stringify(data) }),
