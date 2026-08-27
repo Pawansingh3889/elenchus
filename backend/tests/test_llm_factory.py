@@ -18,7 +18,14 @@ from app.llm.openai_compatible import OpenAICompatibleLLMClient
 def _settings(**overrides: Any) -> Settings:
     values: dict[str, Any] = {"database_url": "postgresql+asyncpg://user:pass@localhost/db"}
     values.update(overrides)
-    return Settings(**values)
+    # _env_file=None is what makes the docstring above true. Keyword arguments override
+    # only the keys they name, so without this Settings still reads backend/.env and any
+    # LLM_TIER* the developer keeps there leaks into a test that means to describe a
+    # machine with no tiers at all. Three tests here inverted on 27 Aug 2026 the moment a
+    # real tier 1 key was put in that file for local work: "no configured tier fails
+    # loudly" found a configured tier and did not raise. CI never saw it, because CI has
+    # no .env, which is the worst shape for a failure to have.
+    return Settings(_env_file=None, **values)
 
 
 _OPENAI = {

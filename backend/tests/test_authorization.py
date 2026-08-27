@@ -9,7 +9,7 @@ import pytest
 
 from app.auth.dependencies import get_current_user, require_author
 from app.conduct.engine import ConductEngine
-from app.errors import ForbiddenError, NotFoundError
+from app.errors import ForbiddenError, NotFoundError, UnauthorizedError
 from app.runs.service import ResultsService
 from app.templates.enums import AnswerType, SurveyAudience, TemplateStatus
 from app.templates.schemas import QuestionInput, TemplateCreate
@@ -149,24 +149,27 @@ def test_the_user_list_requires_a_known_caller():
     assert get_current_user in {d.call for d in route.dependant.dependencies}
 
 
-def test_the_user_list_is_available_for_public_survey_access(monkeypatch):
-    """The user list and dev auth endpoints are now mounted in all environments
-    to support public survey access via seeded users."""
-    import importlib
+async def test_a_caller_with_no_credential_is_nobody(session):
+    """The one that would have caught it, so it is worth saying what "it" was.
 
-    import app.main
-    from app.config import get_settings
+    Between 24 Aug and 27 Aug 2026 this branch substituted a hardcoded seeded id when a
+    request carried neither cookie nor header. That id was the account whose address is
+    also ADMIN_EMAILS, so an anonymous request to the deployed service was an
+    administrator: /api/v1/me answered "is_admin": true to a stranger and the admin
+    surface served without a credential. Nothing failed, because no test asked what an
+    anonymous caller gets.
 
-    def mounted_paths() -> set[str]:
-        # The generated spec rather than app.routes: included routers nest rather than
-        # flatten, so walking routes misses everything mounted through include_router.
-        get_settings.cache_clear()
-        return set(importlib.reload(app.main).app.openapi()["paths"])
+    A missing credential is missing required data, and this project does not shrug at
+    that. The assertion is the type: a 401, not a user.
+    """
+    with pytest.raises(UnauthorizedError):
+        await get_current_user(x_user_id=None, elenchus_session=None, session=session)
 
-    monkeypatch.setenv("APP_ENV", "prod")
-    assert "/api/v1/users" in mounted_paths()
-    assert "/api/v1/dev/identify" in mounted_paths()
 
-    monkeypatch.setenv("APP_ENV", "dev")
-    assert "/api/v1/users" in mounted_paths()  # restores the module for later tests
-    assert "/api/v1/dev/identify" in mounted_paths()
+async def test_an_unknown_id_is_also_nobody(session):
+    """The neighbouring branch, pinned so a future fix cannot 'helpfully' fall back to a
+    default user when the id does not resolve."""
+    from uuid import uuid4
+
+    with pytest.raises(UnauthorizedError):
+        await get_current_user(x_user_id=uuid4(), elenchus_session=None, session=session)
