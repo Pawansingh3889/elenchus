@@ -1,8 +1,0 @@
-# Secrets encryption for this repo. Only .env.encrypted is ever a sops target —
-# the live .env stays plaintext (docker-compose reads it directly) and stays
-# git-ignored. Decrypt with: scripts/decrypt-env.sh
-creation_rules:
-  - path_regex: \.env\.encrypted$
-    key_groups:
-      - age:
-          - age15mk22sq36uskdgcj0snk4f4xz95rnk997yyzqkv4lqua9m6g937s228my7
