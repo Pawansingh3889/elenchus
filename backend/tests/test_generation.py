@@ -310,8 +310,7 @@ async def test_almost_json_with_model_corruptions_is_still_decoded(session, auth
     stringified list that plain json.loads refused."""
     with_newline = '[{"text": "How often do you\nreview dashboards?", "answer_type": "number"}]'
     escaped_quote = (
-        '[{"text": "Does the platform\\\'s feature set meet your needs?",'
-        ' "answer_type": "yes_no"}]'
+        '[{"text": "Does the platform\\\'s feature set meet your needs?", "answer_type": "yes_no"}]'
     )
 
     first, _ = await GenerationService(

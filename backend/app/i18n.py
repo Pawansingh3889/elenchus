@@ -37,8 +37,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "lt": "Asistentas laikinai nepasiekiamas. Bandykite dar kartą po akimirkos.",
         "ro": "Asistentul este indisponibil pentru scurt timp. Încearcă din nou într-o clipă.",
         "es": (
-            "El asistente no está disponible por un momento. "
-            "Inténtalo de nuevo en unos instantes."
+            "El asistente no está disponible por un momento. Inténtalo de nuevo en unos instantes."
         ),
         # Retired locales, kept for in-flight runs.
         "fr": "L'assistant est momentanément indisponible. Réessayez dans un instant.",
@@ -162,8 +161,7 @@ MESSAGES: dict[str, dict[str, str]] = {
     },
     "clarify_line": {
         "en": (
-            'You answered "{answer}" to "{question}". Was that answer meant for this '
-            "question only?"
+            'You answered "{answer}" to "{question}". Was that answer meant for this question only?'
         ),
         "de": (
             'Sie haben auf "{question}" mit "{answer}" geantwortet. War diese Antwort '
@@ -182,37 +180,32 @@ MESSAGES: dict[str, dict[str, str]] = {
             "tikai šim jautājumam?"
         ),
         "lt": (
-            'Į "{question}" atsakėte "{answer}". Ar šis atsakymas buvo skirtas tik '
-            "šiam klausimui?"
+            'Į "{question}" atsakėte "{answer}". Ar šis atsakymas buvo skirtas tik šiam klausimui?'
         ),
         "ro": (
             'Ai răspuns "{answer}" la "{question}". Răspunsul respectiv era doar pentru '
             "această întrebare?"
         ),
         "es": (
-            'Respondiste "{answer}" a "{question}". ¿Esa respuesta era solo para esta ' "pregunta?"
+            'Respondiste "{answer}" a "{question}". ¿Esa respuesta era solo para esta pregunta?'
         ),
         # Retired locales, kept for in-flight runs.
         "fr": (
             'Vous avez répondu "{answer}" à "{question}". Cette réponse concernait-elle '
             "uniquement cette question ?"
         ),
-        "pt": (
-            'Respondeu "{answer}" a "{question}". Essa resposta era apenas para esta ' "pergunta?"
-        ),
+        "pt": ('Respondeu "{answer}" a "{question}". Essa resposta era apenas para esta pergunta?'),
         "hi": (
-            'आपने "{question}" का उत्तर "{answer}" दिया था। क्या वह उत्तर केवल इसी '
-            "प्रश्न के लिए था?"
+            'आपने "{question}" का उत्तर "{answer}" दिया था। क्या वह उत्तर केवल इसी प्रश्न के लिए था?'
         ),
         "bn": (
-            'আপনি "{question}"-এর উত্তরে "{answer}" দিয়েছিলেন। উত্তরটি কি শুধু এই '
-            "প্রশ্নের জন্য ছিল?"
+            'আপনি "{question}"-এর উত্তরে "{answer}" দিয়েছিলেন। উত্তরটি কি শুধু এই প্রশ্নের জন্য ছিল?'
         ),
-        "he": ('ענית "{answer}" על "{question}". האם התשובה הזו הייתה מיועדת רק לשאלה ' "הזו?"),
+        "he": ('ענית "{answer}" על "{question}". האם התשובה הזו הייתה מיועדת רק לשאלה הזו?'),
         "ur": (
-            'آپ نے "{question}" کا جواب "{answer}" دیا تھا۔ کیا وہ جواب صرف اس سوال ' "کے لیے تھا؟"
+            'آپ نے "{question}" کا جواب "{answer}" دیا تھا۔ کیا وہ جواب صرف اس سوال کے لیے تھا؟'
         ),
-        "ar": ('أجبت "{answer}" على سؤال "{question}". هل كان هذا الجواب لهذا السؤال ' "فقط؟"),
+        "ar": ('أجبت "{answer}" على سؤال "{question}". هل كان هذا الجواب لهذا السؤال فقط؟'),
     },
     "clarify_ack": {
         "en": "Thanks, noted. Your answers are saved.",
@@ -240,12 +233,10 @@ MESSAGES: dict[str, dict[str, str]] = {
         ),
         "fil": "Hindi maabot ng serbisyo ang database nito ngayon. Subukan ulit maya-maya.",
         "pl": (
-            "Usługa nie może teraz połączyć się ze swoją bazą danych. "
-            "Spróbuj ponownie za moment."
+            "Usługa nie może teraz połączyć się ze swoją bazą danych. Spróbuj ponownie za moment."
         ),
         "lv": (
-            "Pakalpojums pašlaik nevar sasniegt savu datubāzi. "
-            "Lūdzu, mēģiniet vēlreiz pēc brīža."
+            "Pakalpojums pašlaik nevar sasniegt savu datubāzi. Lūdzu, mēģiniet vēlreiz pēc brīža."
         ),
         "lt": "Paslauga šiuo metu nepasiekia savo duomenų bazės. Bandykite dar kartą po akimirkos.",
         "ro": "Serviciul nu poate accesa baza de date acum. Încearcă din nou într-o clipă.",

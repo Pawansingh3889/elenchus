@@ -382,9 +382,9 @@ def test_the_dev_surface_is_absent_when_the_app_is_built_for_production(monkeypa
             "protection; in production it must not be registered at all"
         )
         assert "/api/v1/dev/reset" not in paths, "production must not expose a database wipe"
-        assert "/api/v1/users" not in paths, (
-            "under the header shim a user id is a credential, so the list is the whole " "keyring"
-        )
+        assert (
+            "/api/v1/users" not in paths
+        ), "under the header shim a user id is a credential, so the list is the whole keyring"
         # The pair that must survive the branch: without them a production deployment
         # cannot be entered or administered at all.
         assert "/api/v1/me" in paths

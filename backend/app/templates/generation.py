@@ -377,7 +377,7 @@ def _describe(template: SurveyTemplate) -> str:
             condition = question.show_when
             parts.append(
                 f"shown only if Q{int(condition['question']) + 1} "
-                f"{condition['op']} \"{condition['value']}\""
+                f'{condition["op"]} "{condition["value"]}"'
             )
         lines.append("  " + " · ".join(parts))
     return "\n".join(lines)
