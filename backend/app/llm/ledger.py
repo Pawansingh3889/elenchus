@@ -270,6 +270,7 @@ def record(
     latency_ms: int,
     status: int,
     error: str | None = None,
+    cost_multiplier: float = 1.0,
 ) -> None:
     """Append one call attempt to the ledger, and add it to the enclosing run's spend.
 
@@ -277,12 +278,20 @@ def record(
     (0 when nothing answered at all) and ``error`` a short account of what went wrong.
     Without those rows an afternoon of 429s pushing traffic to a priced tier would be
     invisible in the very file that exists to explain the spend.
+
+    ``cost_multiplier`` is for lanes the provider prices differently from the
+    real-time tariff, the batch queue being the case in point at its published
+    half rate. The tokens stay as reported; only the price changes, because a
+    ledger that halved the tokens would no longer describe what the model did,
+    only what it cost, and those are different audit questions.
     """
     economics = economics_for(tier)
     _warn_once_if_unpriced(tier, economics)
     prompt_tokens = _token_count(usage, "prompt_tokens")
     completion_tokens = _token_count(usage, "completion_tokens")
     cost = cost_usd(economics, prompt_tokens, completion_tokens, latency_ms)
+    if cost is not None and cost_multiplier != 1.0:
+        cost = round(cost * cost_multiplier, COST_PLACES)
 
     _append(
         {

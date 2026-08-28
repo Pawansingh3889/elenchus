@@ -5,6 +5,25 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-08-28. The off-peak batch lane
+
+### Added
+- `app/llm/batch.py`: submit bulk jobs that can wait (regression-gate evals, bulk
+  scoring) to a hosted tier's batch queue at the provider's published half rate,
+  following the OpenAI cookbook shape — JSONL keyed by `custom_id`, upload with
+  `purpose=batch`, a `/v1/batches` job, poll, collect, map results and failures
+  back to their jobs.
+- Ledger: `record()` takes a `cost_multiplier`, so batch rows price at half while
+  the tokens stay as reported. Halving the tokens would blur two different audit
+  questions: what the model did, and what it cost.
+- A local or unpriced-hosted tier is refused at construction: a batch row priced
+  from `latency_ms=0` would book as free, which is the one number the ledger
+  exists to prevent being wrong.
+- Nine tests over a stubbed provider surface: spec-shaped JSONL, submission
+  bodies, collection booking, unfinished/failed/expired batches named, a
+  provider without a batch queue failing loudly, per-line failures kept rather
+  than dropped.
+
 ## 2026-08-17. The class guard reads the plainest way to write a class
 
 It never had. The guard collects the regions of a file where a class may legitimately

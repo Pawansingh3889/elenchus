@@ -183,6 +183,20 @@ deployment swaps that for a proper identity provider.)
   asking, and the misbehaviour that earned it).
 - **Who can see what, and what an answer is worth** → [ACCESS_AND_RESULTS.md](ACCESS_AND_RESULTS.md)
   (the job model, the audiences, and the gates that stop an invented answer).
+## The off-peak batch lane
+
+Not everything needs an answer right now. Regression-gate evals, bulk survey
+scoring and document backfills are queue-shaped work: nobody is waiting in a
+browser tab, so they can run overnight on the provider's batch queue at its
+published half rate. `app/llm/batch.py` speaks that queue — one JSONL file of
+requests keyed by `custom_id`, uploaded, submitted, polled, and collected —
+and books every answered row into the same token and spend ledger at the batch
+rate. The tokens stay as reported and only the price is halved, because "what
+the model did" and "what it cost" are different audit questions. Jobs are
+mapped back by their IDs, failures are named rather than dropped, and local
+tiers are refused: their cost is electricity and wall clock, so a queue that
+prices from latency would book their rows as free.
+
 - **How it all got built** → [CHANGELOG.md](../CHANGELOG.md) (the project's history,
   day by day, from the first commit).
 - **The original brief** → [trial-brief/](../trial-brief/README.md)
