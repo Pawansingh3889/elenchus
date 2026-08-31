@@ -49,6 +49,26 @@ lock switched on, so a compromised admin account or a careless script cannot del
 backups. This is the immutable copy: the difference between a backup and a backup that
 survives the incident it exists for.
 
+## Switching it on
+
+The backup service is a file you add, not a profile you enable:
+
+```bash
+docker compose -f docker-compose.prod.yml -f docker-compose.backup.yml up -d
+```
+
+It sits in its own file because Compose interpolates every service in a file before it
+selects profiles. While it lived in `docker-compose.prod.yml` behind
+`profiles: ["backup"]`, its five required `${BACKUP_*:?}` credentials were required to
+start the stack at all, backups wanted or not, and `docker compose up` stopped on
+`required variable BACKUP_S3_BUCKET is missing a value`. Separating the file restores
+what the configuration was always meant to do: nothing at all until you ask for it, and
+then refuse to start until you have said where to write and how to encrypt.
+
+The variables it needs, none of which have defaults: `BACKUP_S3_BUCKET`,
+`BACKUP_S3_ENDPOINT`, `BACKUP_S3_KEY`, `BACKUP_S3_KEY_SECRET`, `BACKUP_CIPHER_PASS`.
+`BACKUP_S3_REGION` defaults to `auto` and `BACKUP_RETENTION_FULL` to 12.
+
 ## Restoring
 
 Two shapes, and the second is the one that matters.
