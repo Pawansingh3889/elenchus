@@ -1,0 +1,9 @@
+# Baked into the controller image so a rebuild produces the same Jenkins, rather
+# than whatever the update centre is serving on the day. jenkins-plugin-cli
+# resolves each one's dependencies, so this is the wanted set, not the full list.
+configuration-as-code
+workflow-aggregator
+git
+credentials-binding
+timestamper
+pipeline-stage-view

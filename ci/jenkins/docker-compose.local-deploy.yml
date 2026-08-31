@@ -1,0 +1,22 @@
+# Overlay applied on top of docker-compose.prod.yml by the Jenkins pipeline's deploy
+# stage, for a deployment that lands on this machine rather than on a server.
+#
+#   docker compose -f docker-compose.prod.yml \
+#                  -f ci/jenkins/docker-compose.local-deploy.yml up -d
+#
+# It changes exactly one thing, and does not soften anything the prod file asserts.
+#
+# The prod file gives the backend no `ports:` on purpose: on a real install the
+# database and the API sit on the compose network behind something that terminates
+# the public origin, and publishing them would put them on the host's interface for
+# no benefit. That is right there and wrong here, because NEXT_PUBLIC_API_URL is
+# baked into the browser bundle at build time, and on a local deploy the browser is
+# on this host. With nothing published, the frontend loads and every call from it
+# fails: the bundle is asking for an origin that resolves to nothing.
+#
+# So this file publishes the backend, and nothing else. The database stays unpublished,
+# because nothing outside the compose network needs it.
+services:
+  backend:
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"

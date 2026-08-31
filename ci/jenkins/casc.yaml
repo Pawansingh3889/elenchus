@@ -1,0 +1,45 @@
+# Jenkins' own configuration, as a file rather than as clicks in a setup wizard.
+#
+# Read at boot by the configuration-as-code plugin (CASC_JENKINS_CONFIG points here).
+# The point is that this controller is reproducible: delete JENKINS_HOME, run
+# ci/jenkins/run.sh again, and the same Jenkins comes back. Anything configured by
+# hand in the web UI instead of here is lost on the next reset, by design.
+#
+# ${...} values are read from the environment, which ci/jenkins/run.sh fills from
+# `pass`. No secret is written into this file.
+
+jenkins:
+  systemMessage: |
+    Elenchus CI. Configured by ci/jenkins/casc.yaml, not by this UI.
+    Changes made here are not persisted across a --reset.
+  # Two, so the pipeline's parallel backend and frontend gates actually run at the
+  # same time. With one executor the `parallel` block would serialise and the stage
+  # view would quietly lie about what happened.
+  numExecutors: 2
+
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: admin
+          password: "${JENKINS_ADMIN_PASSWORD}"
+
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - string:
+              scope: GLOBAL
+              id: elenchus-postgres-password
+              description: Postgres password for the local Elenchus deployment
+              secret: "${ELENCHUS_POSTGRES_PASSWORD}"
+
+unclassified:
+  location:
+    # Set explicitly to stop Jenkins warning that it does not know its own address,
+    # and so links in build output point somewhere that works.
+    url: "http://localhost:8090/"
