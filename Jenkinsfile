@@ -53,26 +53,6 @@ pipeline {
         FRONTEND_ORIGIN     = 'http://localhost:3000'
         NEXT_PUBLIC_API_URL = 'http://localhost:8000'
 
-        // docker-compose.prod.yml's `backup` service sits behind profiles: ["backup"],
-        // and its comment says an unconfigured deployment "runs exactly as it did, with
-        // no backups and nothing pretending otherwise". That is not what happens.
-        // Compose interpolates the whole file before it selects profiles, so the five
-        // ${BACKUP_*:?} variables are required to bring the stack up at all, backups
-        // wanted or not. Without them `docker compose up` stops on
-        // "required variable BACKUP_S3_BUCKET is missing a value".
-        //
-        // These values exist only to get past that interpolation. Nothing reads them:
-        // the profile is not enabled, so the service is never created. They are spelled
-        // out rather than set to something plausible so that a backup service which
-        // somehow did start would fail immediately and visibly instead of quietly
-        // writing to the wrong place. The real fix belongs in the compose file, which
-        // should declare these ${VAR:-} and assert them where backups are switched on.
-        BACKUP_S3_BUCKET   = 'unset-backups-are-not-enabled'
-        BACKUP_S3_ENDPOINT = 'unset-backups-are-not-enabled'
-        BACKUP_S3_KEY      = 'unset-backups-are-not-enabled'
-        BACKUP_S3_KEY_SECRET = 'unset-backups-are-not-enabled'
-        BACKUP_CIPHER_PASS = 'unset-backups-are-not-enabled'
-
         // Off, so this pipeline needs no model key. The gates already run without one
         // by design (the suite fakes the LLM at the client wrapper), and the smoke test
         // checks that the service is up, not that it can draft a survey. Enabling a tier
