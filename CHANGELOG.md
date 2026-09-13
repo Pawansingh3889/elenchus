@@ -35,6 +35,13 @@ cost and latency beside it.
 - **Verified:** `make gate` (1,059 passed, 84 skipped, and both CSS guards ran against the
   one stylesheet), and in a clean Node 22 container `tsc --noEmit` over 34 project files,
   `eslint`, `next build` (the four routes and nothing else) and `vitest`.
+- **`globals.css` drops every rule that can no longer match: 1,796 lines to 1,122.** A
+  selector naming a class no component carries cannot match, whatever else it says, so the
+  cut was made by parsing the stylesheet rather than by hand: 102 rules, 110 selectors, two
+  reduced-motion blocks and the modal's keyframes, plus the comments that introduced them.
+  Every class a component names still has its rules. Checked by rendering the pages before
+  and after: pixel-identical, apart from one survey row that had gained a Continue button
+  between the two runs.
 
 ## 2026-08-17. The class guard reads the plainest way to write a class
 
