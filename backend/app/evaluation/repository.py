@@ -11,6 +11,8 @@ from app.evaluation.enums import LabelVerdict
 from app.evaluation.models import AnswerLabel, CorpusLabel, JudgeRun, JudgeVerdict
 from app.runs.models import Answer, RunMessage, SurveyRun
 from app.templates.models import SurveyQuestion, SurveyTemplate
+from app.trace.enums import SpanKind
+from app.trace.models import LLMSpan
 
 
 class EvaluationRepository:
@@ -111,3 +113,25 @@ class EvaluationRepository:
     def add_judging(self, judging: JudgeRun, verdicts: list[JudgeVerdict]) -> None:
         self.session.add(judging)
         self.session.add_all(verdicts)
+
+    async def runs_with_titles(self) -> list[tuple[SurveyRun, str]]:
+        stmt = (
+            select(SurveyRun, SurveyTemplate.title)
+            .join(SurveyTemplate, SurveyTemplate.id == SurveyRun.template_id)
+            .order_by(SurveyRun.started_at)
+        )
+        return [(run, title) for run, title in (await self.session.execute(stmt)).all()]
+
+    async def all_answers(self) -> list[Answer]:
+        return list((await self.session.scalars(select(Answer).order_by(Answer.answered_at))).all())
+
+    async def turn_waits(self) -> list[tuple[UUID, int]]:
+        """How long each traced turn took, by run: the respondent's wait for a reply."""
+        stmt = select(LLMSpan.run_id, LLMSpan.duration_ms).where(
+            LLMSpan.kind == SpanKind.turn, LLMSpan.run_id.is_not(None)
+        )
+        return [
+            (run_id, duration)
+            for run_id, duration in (await self.session.execute(stmt)).all()
+            if run_id is not None
+        ]

@@ -12,6 +12,7 @@ from app.evaluation.schemas import (
     FaithfulnessReport,
     JudgeRunRead,
     LabelRequest,
+    QualityReport,
     Source,
 )
 from app.evaluation.service import EvaluationService
@@ -55,3 +56,11 @@ async def judge_run(
     session: AsyncSession = Depends(get_session),
 ) -> JudgeRunRead:
     return await EvaluationService(session).judge_run(admin, run_id)
+
+
+@router.get("/quality", response_model=QualityReport)
+async def quality(
+    admin: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> QualityReport:
+    return await EvaluationService(session).quality(admin)

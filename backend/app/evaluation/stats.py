@@ -24,3 +24,12 @@ def wilson(successes: int, trials: int, z: float = Z_95) -> tuple[float, float] 
     centre = (p + z2 / (2 * trials)) / denominator
     margin = z * math.sqrt(p * (1 - p) / trials + z2 / (4 * trials * trials)) / denominator
     return max(0.0, centre - margin), min(1.0, centre + margin)
+
+
+def median(values: list[float]) -> float | None:
+    """The middle of what was measured, or None when nothing was."""
+    if not values:
+        return None
+    ordered = sorted(values)
+    middle = len(ordered) // 2
+    return ordered[middle] if len(ordered) % 2 else (ordered[middle - 1] + ordered[middle]) / 2

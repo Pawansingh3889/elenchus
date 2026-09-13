@@ -1,7 +1,10 @@
 """The labelling queue, the faithfulness report, and judging a run on request."""
 
+import re
 import time
+from collections import Counter
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -23,14 +26,18 @@ from app.evaluation.schemas import (
     FaithfulnessSlice,
     JudgeRunRead,
     LabelRequest,
+    Median,
+    QualityReport,
+    QualitySlice,
     Rate,
     Source,
 )
-from app.evaluation.stats import MIN_LABELLED, wilson
+from app.evaluation.stats import MIN_LABELLED, median, wilson
 from app.llm import ledger
 from app.llm.client import LLMProtocol
 from app.llm.factory import get_llm
-from app.runs.enums import MessageRole
+from app.runs.enums import AnswerKind, MessageRole, RunStatus
+from app.runs.models import Answer, RunMessage, SurveyRun
 from app.users.models import User
 
 ADMINS_ONLY = "The evaluation lens is for administrators: it shows what respondents typed."
@@ -81,6 +88,109 @@ def _slices(items: list[EvalItem], key: Callable[[EvalItem], str]) -> list[Faith
     for item in items:
         groups.setdefault(key(item), []).append(item)
     return [_slice(name, group) for name, group in sorted(groups.items())]
+
+
+WORD = re.compile(r"[a-z0-9']+")
+
+
+def _words(text: str) -> set[str]:
+    return set(WORD.findall(text.lower()))
+
+
+def _measured(values: list[float]) -> Median:
+    return Median(value=median(values), n=len(values))
+
+
+def _most_common(values: list[str | None]) -> str:
+    present = [value for value in values if value]
+    return Counter(present).most_common(1)[0][0] if present else "not recorded"
+
+
+@dataclass
+class _Conversation:
+    run: SurveyRun
+    title: str
+    answers: list[Answer]
+    said: list[RunMessage]
+    replies: list[RunMessage]
+    waits: list[int] = field(default_factory=list)
+
+    @property
+    def model(self) -> str:
+        return _most_common([reply.model for reply in self.replies])
+
+    @property
+    def prompt(self) -> str:
+        return _most_common([reply.prompt_version for reply in self.replies])
+
+    def said_before(self, answer: Answer) -> RunMessage | None:
+        """The respondent's latest message at or before this answer was recorded."""
+        before = [m for m in self.said if m.created_at <= answer.answered_at]
+        return before[-1] if before else None
+
+    def follow_up_novelty(self) -> list[float]:
+        shares = []
+        for answer in self.answers:
+            if answer.kind is not AnswerKind.follow_up:
+                continue
+            first = next(
+                (
+                    a
+                    for a in self.answers
+                    if a.kind is AnswerKind.scripted and a.question_id == answer.question_id
+                ),
+                None,
+            )
+            probe_reply = self.said_before(answer)
+            first_reply = None if first is None else self.said_before(first)
+            if probe_reply is None or first_reply is None or probe_reply.id == first_reply.id:
+                continue
+            words = _words(probe_reply.content)
+            if words:
+                shares.append(len(words - _words(first_reply.content)) / len(words))
+        return shares
+
+
+def _quality_slice(name: str, conversations: list[_Conversation]) -> QualitySlice:
+    answers = [a for c in conversations for a in c.answers]
+    completed = [c for c in conversations if c.run.status is RunStatus.completed]
+    total_cost = sum(float(c.run.llm_cost_usd) for c in conversations)
+    return QualitySlice(
+        name=name,
+        runs=len(conversations),
+        completion=_rate(len(completed), len(conversations)),
+        answers=len(answers),
+        declined=_rate(sum(1 for a in answers if "unanswerable" in a.value), len(answers)),
+        turns_per_answer=_measured(
+            [len(c.said) / len(c.answers) for c in conversations if c.answers]
+        ),
+        respondent_chars=_measured(
+            [float(sum(len(m.content) for m in c.said)) for c in conversations]
+        ),
+        minutes_to_complete=_measured(
+            [
+                (c.run.completed_at - c.run.started_at).total_seconds() / 60
+                for c in completed
+                if c.run.completed_at is not None
+            ]
+        ),
+        wait_ms_per_turn=_measured([float(w) for c in conversations for w in c.waits]),
+        follow_ups_asked=sum(sum(c.run.probes_asked.values()) for c in conversations),
+        follow_up_answers=sum(1 for a in answers if a.kind is AnswerKind.follow_up),
+        follow_up_new_words=_measured([s for c in conversations for s in c.follow_up_novelty()]),
+        cost_per_completed_run=_measured([float(c.run.llm_cost_usd) for c in completed]),
+        cost_per_answer=None if not answers else total_cost / len(answers),
+        unmetered_calls=sum(c.run.llm_unmetered_calls for c in conversations),
+    )
+
+
+def _quality_slices(
+    conversations: list[_Conversation], key: Callable[[_Conversation], str]
+) -> list[QualitySlice]:
+    groups: dict[str, list[_Conversation]] = {}
+    for conversation in conversations:
+        groups.setdefault(key(conversation), []).append(conversation)
+    return [_quality_slice(name, group) for name, group in sorted(groups.items())]
 
 
 class EvaluationService:
@@ -149,6 +259,37 @@ class EvaluationService:
             by_source=_slices(items, lambda item: item.source),
             by_answer_type=_slices(items, lambda item: item.answer_type),
             by_model=_slices(items, lambda item: item.model or "not recorded"),
+        )
+
+    async def quality(self, viewer: User) -> QualityReport:
+        """How conversations went: completion, effort, waiting, probing and cost, measured."""
+        self._require_admin(viewer)
+        runs = await self.repo.runs_with_titles()
+        answers = await self.repo.all_answers()
+        messages = await self.repo.messages([run.id for run, _ in runs])
+        waits = await self.repo.turn_waits()
+        conversations = []
+        for run, title in runs:
+            own = [m for m in messages if m.run_id == run.id]
+            said = [m for m in own if m.role is MessageRole.user]
+            if not said:
+                continue
+            conversations.append(
+                _Conversation(
+                    run=run,
+                    title=title,
+                    answers=[a for a in answers if a.run_id == run.id],
+                    said=said,
+                    replies=[m for m in own if m.role is MessageRole.assistant],
+                    waits=[duration for run_id, duration in waits if run_id == run.id],
+                )
+            )
+        return QualityReport(
+            runs_without_conversation=len(runs) - len(conversations),
+            overall=_quality_slice("all", conversations),
+            by_survey=_quality_slices(conversations, lambda c: c.title),
+            by_model=_quality_slices(conversations, lambda c: c.model),
+            by_prompt=_quality_slices(conversations, lambda c: c.prompt),
         )
 
     async def judge_run(self, viewer: User, run_id: UUID) -> JudgeRunRead:

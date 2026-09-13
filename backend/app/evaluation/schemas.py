@@ -92,3 +92,49 @@ class JudgeRunRead(BaseModel):
     unmetered_calls: int
     duration_ms: int
     judged_at: datetime
+
+
+class Median(BaseModel):
+    value: float | None
+    # How many measurements the median is over.
+    n: int
+
+
+class QualitySlice(BaseModel):
+    """How the conversations in one group went, measured, never judged."""
+
+    name: str
+    runs: int
+    # Completed out of every run with a conversation in this group.
+    completion: Rate
+    answers: int
+    # Answers that record a refusal, out of every recorded answer.
+    declined: Rate
+    # Per run: respondent messages for each recorded answer.
+    turns_per_answer: Median
+    # Per run: characters the respondent typed.
+    respondent_chars: Median
+    # Per completed run.
+    minutes_to_complete: Median
+    # Per traced turn: how long the respondent waited for the reply.
+    wait_ms_per_turn: Median
+    follow_ups_asked: int
+    follow_up_answers: int
+    # Per follow-up answer: the share of words in the reply that produced it that were not
+    # in the reply behind the question's first answer. Near zero, the probe drew nothing.
+    follow_up_new_words: Median
+    # Per completed run.
+    cost_per_completed_run: Median
+    cost_per_answer: float | None
+    # Calls that reported no usage: every cost above is then a floor.
+    unmetered_calls: int
+
+
+class QualityReport(BaseModel):
+    # Runs with no respondent message at all, such as seeded sample data: counted, not
+    # measured, because they are not conversations.
+    runs_without_conversation: int
+    overall: QualitySlice
+    by_survey: list[QualitySlice]
+    by_model: list[QualitySlice]
+    by_prompt: list[QualitySlice]

@@ -209,4 +209,69 @@ async def test_only_admins_see_evaluation(session, author, corpus):
     with pytest.raises(ForbiddenError):
         await service.faithfulness(author)
     with pytest.raises(ForbiddenError):
+        await service.quality(author)
+    with pytest.raises(ForbiddenError):
         await service.judge_run(author, "00000000-0000-0000-0000-000000000000")
+
+
+# ------------------------------------------------------------------ conversation quality
+
+
+async def test_quality_measures_conversations_and_only_counts_sample_runs(
+    session, respondent, other_respondent, published, admin, tmp_path
+):
+    await _answered(session, respondent, published)
+    # A run nobody has said anything in: counted, never measured.
+    await ConductEngine(session, llm=FakeLLM()).start_run(published.id, other_respondent)
+
+    report = await EvaluationService(session, corpus_dir=tmp_path).quality(admin)
+
+    assert report.runs_without_conversation == 1
+    overall = report.overall
+    assert (overall.runs, overall.answers) == (1, 1)
+    assert overall.turns_per_answer.value == 1.0 and overall.turns_per_answer.n == 1
+    assert overall.respondent_chars.value == float(len("line lead on nights"))
+    assert (overall.declined.numerator, overall.declined.denominator) == (0, 1)
+    assert overall.wait_ms_per_turn.n == 1
+    assert overall.follow_up_answers == 0 and overall.follow_up_new_words.n == 0
+    assert [s.name for s in report.by_model] == ["gpt-5.5"]
+    assert len(report.by_prompt) == 1 and report.by_prompt[0].name.startswith("conduct_v")
+    assert [s.name for s in report.by_survey] == [published.title]
+
+
+def test_a_follow_up_scores_the_words_it_drew_that_the_first_reply_lacked():
+    from datetime import UTC, datetime, timedelta
+    from uuid import uuid4
+
+    from app.evaluation.service import _Conversation
+    from app.runs.enums import AnswerKind, MessageRole
+    from app.runs.models import Answer, RunMessage, SurveyRun
+
+    start = datetime(2026, 9, 13, 9, 0, tzinfo=UTC)
+    question = uuid4()
+    first = RunMessage(id=uuid4(), role=MessageRole.user, content="it was fine", created_at=start)
+    probe = RunMessage(
+        id=uuid4(),
+        role=MessageRole.user,
+        content="fine but the rota change hurt",
+        created_at=start + timedelta(minutes=1),
+    )
+    answers = [
+        Answer(
+            question_id=question,
+            kind=AnswerKind.scripted,
+            value={"text": "fine"},
+            answered_at=start + timedelta(seconds=5),
+        ),
+        Answer(
+            question_id=question,
+            kind=AnswerKind.follow_up,
+            value={"text": "rota change"},
+            answered_at=start + timedelta(minutes=1, seconds=5),
+        ),
+    ]
+    conversation = _Conversation(
+        run=SurveyRun(), title="t", answers=answers, said=[first, probe], replies=[]
+    )
+    # "fine but the rota change hurt": six words, five of them new against "it was fine".
+    assert conversation.follow_up_novelty() == [5 / 6]

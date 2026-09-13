@@ -71,6 +71,7 @@ GUARDED_TYPES = frozenset(
         "EvalItem",
         "FaithfulnessReport",
         "JudgeRunRead",
+        "QualityReport",
     }
 )
 
