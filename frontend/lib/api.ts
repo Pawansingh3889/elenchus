@@ -1,6 +1,14 @@
 import { z, type ZodType } from "zod";
 
-import { lensStripSchema, meSchema, spanSchema, tracedRunSchema } from "./schemas";
+import type { LensScope } from "./lensScope";
+import {
+  attemptRowSchema,
+  decisionRowSchema,
+  lensStripSchema,
+  meSchema,
+  spanSchema,
+  tracedRunSchema,
+} from "./schemas";
 import { useLocaleStore, useUserStore } from "./store";
 import type { ResumableRun, Run, TemplateSummary, User } from "./types";
 
@@ -98,6 +106,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
+/** A lens path narrowed to one survey or one run, when the page's filter says so. */
+function scoped(path: string, scope: LensScope): string {
+  const query = new URLSearchParams();
+  if (scope.surveyId) query.set("survey_id", scope.surveyId);
+  if (scope.runId) query.set("run_id", scope.runId);
+  const text = query.toString();
+  return text ? `${path}?${text}` : path;
+}
+
 async function parsed<S extends ZodType>(path: string, schema: S): Promise<z.infer<S>> {
   return parseBody(path, schema, await request<unknown>(path));
 }
@@ -149,4 +166,8 @@ export const api = {
   lensStrip: () => parsed("/lens/strip", lensStripSchema),
   lensRuns: () => parsed("/lens/runs", z.array(tracedRunSchema)),
   lensSpans: (runId: string) => parsed(`/lens/runs/${runId}/spans`, z.array(spanSchema)),
+  lensAttempts: (scope: LensScope) =>
+    parsed(scoped("/lens/attempts", scope), z.array(attemptRowSchema)),
+  lensDecisions: (scope: LensScope) =>
+    parsed(scoped("/lens/decisions", scope), z.array(decisionRowSchema)),
 };

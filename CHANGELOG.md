@@ -6,6 +6,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
 
+
+## 2026-09-13. Four factor pages: inference, state, tool selection, validation
+
+Each lens factor now has its own page, scoped by one filter row (a survey or a run, kept in
+the URL), with every chart carrying its sample size and a table twin.
+
+- **Inference** splits every call into the wait before its first token and the writing.
+  On Rosa's completed onboarding survey (10 calls to `gpt-5.5`, $0.2031 in all), the
+  median wait before the first token was 3,136 ms against 364 ms of writing.
+- **State** plots input tokens by turn, one line per run with the run in focus
+  emphasised, and tabulates what the engine knew at every ask. Input was 97% of all tokens
+  on that survey. Decision spans now record the engine's state: answer type, follow-up
+  policy, whether a follow-up was forced or awaiting a reply, whether an answer was already
+  recorded or recorded this turn, and follow-ups and replies used. Flags and counts only;
+  the engine's copy of a respondent's answer stays out, and a test pins that.
+- **Tool selection** shows, per tool, how often it was offered, picked and accepted, and
+  every ask with its cost. Confidence arrives with the local model.
+- **Validation** shows refusals and what their own calls cost, and counts answers the model
+  gave up as unanswerable, which the check accepts and which still lose an answer: a
+  "decent, nothing special" on a rating went that way in the real run.
+- **`GET /api/v1/lens/attempts` and `/lens/decisions`**, admin-only and filterable by
+  `survey_id` or `run_id`, place each span in its run and turn. A decision counts only its
+  own attempts, so a refusal's cost and its retry's cost stay apart. State fields are null
+  on asks traced before they were recorded, which is unknown, not false. `AttemptRow` and
+  `DecisionRow` join the access guard's types.
+- **Chart colour is validated**: four series tokens per theme, checked with the dataviz
+  palette script against the card surface in light and dark. Only the first three pass for
+  all-pairs forms in light and none on dark, so the scatter is one series.
+
 ## 2026-09-13. The lens: every traced run, what it cost, and where its time went
 
 The first page that puts cost and latency beside what explains them. Administrators only.

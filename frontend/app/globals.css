@@ -166,6 +166,14 @@
      controls against it, and a white bar dresses its controls from the ordinary
      surface tokens, so nothing was left to paint. */
   --shadow-sm: 0 1px 3px rgba(11, 18, 34, 0.05), 0 1px 2px rgba(11, 18, 34, 0.03);
+  /* Chart series, in fixed order: identity follows the entity, never its rank. Validated
+     with the dataviz palette script on 13 Sep 2026 against --raised: all four pass for
+     adjacent marks (bars, stacks, lines); only the first three pass for all-pairs forms,
+     so a scatter or small multiple never seats a fourth. */
+  --series-1: #005eb8;
+  --series-2: #0d9488;
+  --series-3: #7c3aed;
+  --series-4: #b6357a;
   --shadow-md: 0 4px 12px rgba(11, 18, 34, 0.06), 0 2px 4px rgba(11, 18, 34, 0.04);
 
   color-scheme: light;
@@ -238,6 +246,13 @@
     --on-band-6: #0b1222;
     /* Elevation reads as light on a dark surface, not as a cast shadow. */
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+    /* Stepped for the dark card, not flipped: the light steps sat below 3:1 on it.
+       Adjacent marks only; no three of these pass all-pairs on dark, so all-pairs
+       forms use one series and facet. */
+    --series-1: #2f84d8;
+    --series-2: #12a191;
+    --series-3: #8f67f0;
+    --series-4: #d0529a;
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
     color-scheme: dark;
   }
@@ -295,6 +310,10 @@
   --on-band-5: #0b1222;
   --on-band-6: #0b1222;
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --series-1: #2f84d8;
+  --series-2: #12a191;
+  --series-3: #8f67f0;
+  --series-4: #d0529a;
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
   color-scheme: dark;
 }
@@ -1165,7 +1184,6 @@ select.field {
 .lens-tile-value {
   font-size: var(--text-md);
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
 }
 .lens-table-wrap {
   overflow-x: auto;
@@ -1332,4 +1350,140 @@ select.field {
   background: var(--surface);
   border-radius: 6px;
   padding: var(--space-2);
+}
+
+/* Lens frame: tabs, the one filter row, chart cards. */
+.lens-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-block-end: var(--space-4);
+}
+.lens-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  border-block-end: 1px solid var(--border);
+}
+.lens-tab {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--muted);
+  border-block-end: 2px solid transparent;
+  margin-block-end: -1px;
+}
+.lens-tab:hover {
+  color: var(--ink);
+}
+.lens-tab-current {
+  color: var(--ink);
+  border-block-end-color: var(--accent-strong);
+}
+.lens-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.lens-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+.lens-filter select {
+  max-inline-size: 22rem;
+}
+.lens-chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+}
+.lens-chart-title {
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+.lens-chart-sub {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+.lens-chart-plot {
+  block-size: 280px;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+.lens-chart-plot[data-stale="true"] {
+  opacity: 0.5;
+}
+.lens-chart details summary {
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--accent-strong);
+}
+.lens-tooltip {
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.lens-tooltip-label {
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+.lens-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.lens-tooltip-key {
+  inline-size: 12px;
+  block-size: 2px;
+  border-radius: 1px;
+}
+.lens-tooltip-value {
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.lens-tooltip-name {
+  color: var(--muted);
+}
+.lens-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+.lens-legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.lens-legend-swatch {
+  inline-size: 10px;
+  block-size: 10px;
+  border-radius: 2px;
+}
+.lens-note {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+.lens-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr));
+  gap: var(--space-4);
+}
+.lens-table .lens-refused {
+  color: var(--err-text);
+  font-weight: 600;
 }
