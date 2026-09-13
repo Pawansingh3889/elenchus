@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import { LOCALES, isLocale, type Locale } from "@/lib/i18n";
 import { useDocumentLanguage, useT } from "@/lib/i18n/useT";
-import { useIdentify, useProviders, useUsers } from "@/lib/queries";
+import { useIdentify, useMe, useProviders, useUsers } from "@/lib/queries";
 import { useLocaleStore, useUserStore } from "@/lib/store";
 
 /**
@@ -80,6 +80,7 @@ export function TopBar() {
   const locale = useLocaleStore((s) => s.locale);
   const setLocale = useLocaleStore((s) => s.setLocale);
   const { topbar } = useT();
+  const { data: me } = useMe();
   useDocumentLanguage();
 
   return (
@@ -95,6 +96,9 @@ export function TopBar() {
         <nav className="topbar-nav">
           <Link href="/">{topbar.home}</Link>
           <Link href="/respond">{topbar.respond}</Link>
+          {/* Administrators only, and the server says who that is: the lens reads are
+              refused to anyone else, so a link that led to a refusal would be a lie. */}
+          {me?.is_admin ? <Link href="/lens">Lens</Link> : null}
         </nav>
       </div>
       <div className="topbar-user">

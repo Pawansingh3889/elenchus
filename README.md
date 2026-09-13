@@ -133,6 +133,8 @@ backend/
     runs/survey_summary.py   the survey-level recap, fixed shape, engine-computed caveat
     llm/               the OpenAI-compatible client + tier failover chain,
                        tolerant decoding of model JSON, versioned prompts
+    trace/             llm_spans (every turn's tree of decisions, attempts and checks)
+                       and the admin-only lens reads over it
     auth/              dev-auth dependency
   migrations/          Alembic (async env)
   tests/               pytest against a real Postgres, LLM faked at the client boundary
@@ -142,7 +144,10 @@ frontend/
     signin/            sign-in with whichever providers the deployment has
     respond/           surveys open to the current user
     runs/[id]/         the conversational runner
-  lib/                 typed API client, TanStack Query hooks, Zustand store
+    lens/              admin only: traced runs, their cost and latency per tier
+    lens/runs/[id]/    one run's spans as a waterfall, with what each call cost
+  lib/                 typed API client, TanStack Query hooks, Zustand store,
+                       zod schemas for the responses the lens renders numbers from
 docker-compose.yml        development stack: postgres, backend, frontend
 docker-compose.prod.yml   deployment: pinned digests, no seeding, no bind mounts
 ```

@@ -24,8 +24,17 @@ this directory.
 - **One frontend test, by policy.** `tests/smoke.test.tsx` proves the harness renders and
   queries a component. The checks are `tsc --noEmit`, `eslint`, `next build` and `vitest`.
   A new test is written when something breaks, and it names that bug.
-- **Parse at the boundary when the lens pages arrive.** `lib/api.ts` still casts response
-  bodies to their types. PR #65 (closed, branch `feat/parse-api-responses-at-the-boundary`)
-  holds a zod mechanism, `lib/schemas.ts` plus `ApiContractError`, written for pages that
-  render numbers from the API. The lens pages are exactly that, so lift it rather than
-  casting.
+- **The lens is administrators only, and every figure on it is measured.** `/lens` lists
+  traced runs under a strip of totals per tier; `/lens/runs/[id]` draws one run's spans as
+  a waterfall, each bar placed against its own turn, with an attempt's time before its first
+  token shaded. The link shows only when `/me` says `is_admin`, because the server refuses
+  the reads to anyone else and half of that rule is an allowlist the browser never sees.
+  `lib/lensFormat.ts` writes the numbers, and its rule is the thing to keep: **unknown is
+  never zero**. A figure not reported reads "not reported", an unpriced cost "unpriced", and
+  a sum over attempts that reported nothing "at least". Nothing on these pages is an
+  estimate yet; when one arrives it has to say so beside the number.
+- **Responses the lens renders numbers from are parsed at the boundary.** `lib/schemas.ts`
+  holds zod schemas and the types are inferred from them; `parsed()` in `lib/api.ts` throws
+  `ApiContractError`, naming the paths, when a response does not match. Lifted from the
+  closed PR #65. Unknown keys are stripped rather than rejected, so an added field never
+  breaks a page. The respondent pages still cast; move them across when they are touched.

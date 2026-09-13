@@ -1120,3 +1120,216 @@ select.field {
   color: var(--warn-text);
 }
 
+
+/* ---------------------------------------------------------------------------
+   The lens: administrator pages that show what each model call cost, and why.
+
+   Numbers are tabular so columns of milliseconds and dollars line up by digit. Bars are
+   positioned with logical insets from inline styles, so a right-to-left reader sees the
+   waterfall run the other way, like everything else here.
+   --------------------------------------------------------------------------- */
+.lens {
+  gap: var(--space-5);
+}
+.lens-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.lens-heading {
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+.lens-provenance {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  max-width: 80ch;
+}
+.lens-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--space-3);
+}
+.lens-tile {
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+}
+.lens-tile-label {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.lens-tile-value {
+  font-size: var(--text-md);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.lens-table-wrap {
+  overflow-x: auto;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.lens-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+.lens-table th,
+.lens-table td {
+  padding: var(--space-2) var(--space-3);
+  border-block-end: 1px solid var(--border);
+  text-align: start;
+  white-space: nowrap;
+}
+.lens-table th {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  font-weight: 600;
+}
+.lens-table .num {
+  text-align: end;
+}
+.lens-row-link {
+  cursor: pointer;
+}
+.lens-row-link:hover td {
+  background: var(--highlight-soft);
+}
+.lens-row-link a {
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+.lens-split {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .lens-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.lens-tree {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-2);
+}
+.lens-node {
+  display: grid;
+  grid-template-columns: minmax(10rem, 18rem) minmax(4rem, 1fr) 5.5rem;
+  gap: var(--space-2);
+  align-items: center;
+  inline-size: 100%;
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-size: var(--text-sm);
+  text-align: start;
+}
+.lens-node:hover,
+.lens-node[aria-pressed="true"] {
+  background: var(--highlight-soft);
+}
+.lens-node-label {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-width: 0;
+}
+.lens-node-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lens-kind {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+}
+.lens-kind-attempt {
+  color: var(--accent-strong);
+  border-color: var(--accent);
+}
+.lens-node-failed .lens-kind {
+  color: var(--err-text);
+  border-color: var(--err-border);
+}
+.lens-track {
+  position: relative;
+  block-size: 10px;
+  background: var(--surface);
+  border-radius: 5px;
+}
+.lens-bar,
+.lens-bar-wait {
+  position: absolute;
+  inset-block: 0;
+  min-inline-size: 2px;
+  border-radius: 5px;
+}
+.lens-bar {
+  background: var(--accent-strong);
+}
+.lens-bar-wait {
+  background: var(--accent);
+  opacity: 0.45;
+}
+.lens-node-failed .lens-bar {
+  background: var(--err-text);
+}
+.lens-node-ms {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.lens-detail {
+  position: sticky;
+  inset-block-start: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.lens-detail dl {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+}
+.lens-fact {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr);
+  gap: var(--space-3);
+}
+.lens-fact dt {
+  color: var(--muted);
+}
+.lens-fact dd {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.lens-detail pre {
+  font-size: var(--text-xs);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--surface);
+  border-radius: 6px;
+  padding: var(--space-2);
+}

@@ -5,6 +5,31 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+
+## 2026-09-13. The lens: every traced run, what it cost, and where its time went
+
+The first page that puts cost and latency beside what explains them. Administrators only.
+
+- **`GET /api/v1/lens/strip`, `/lens/runs` and `/lens/runs/{id}/spans`**, in a new
+  `app/trace` router behind `require_admin`, with `is_admin` asked again inside the service.
+  Spans hold refusal reasons that can quote a value a model proposed from a respondent's
+  words, so `TracedRun`, `SpanRead` and `LensStrip` join the types `check_access_consulted`
+  holds every service to, and `app/trace` joins the layering contract now that it has a
+  router.
+- **Totals are aggregated in the database** with `FILTER` and `percentile_cont`, so every
+  figure is a sum or a percentile over the spans it describes: turns, asks, retries,
+  attempts and failures per run; tokens in, cached, out and reasoning; cost; the wait a
+  respondent had; and latency and first-token time at p50 and p95 per tier and model. A
+  failed attempt has no first token, and the percentile skips it rather than reading zero.
+- **`/lens` lists traced runs under that strip; `/lens/runs/[id]` draws the run as a
+  waterfall**, each bar placed against its turn, an attempt's time before its first token
+  shaded, and a click showing the span's figures and what the engine knew.
+- **Unknown is never zero on the page.** A figure not reported reads "not reported", an
+  unpriced cost "unpriced", and a sum over attempts that reported nothing "at least".
+- **Lens responses are parsed with zod at the boundary** (`lib/schemas.ts`), lifted from the
+  closed PR #65, and a response in the wrong shape throws `ApiContractError` naming its
+  paths. The top bar shows the Lens link only when `/me` says the caller is an administrator.
+
 ## 2026-09-13. Every turn leaves a trace: what it asked, what each call cost, what was decided
 
 The ledger could say what a run cost, never why. A turn whose cost doubled looked the same

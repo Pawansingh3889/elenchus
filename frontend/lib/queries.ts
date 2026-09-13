@@ -160,3 +160,33 @@ export function useResetDemo() {
     },
   });
 }
+
+/** The caller as the server sees them. Half of `is_admin` is an email allowlist in
+ *  server settings, so the browser cannot work it out and has to ask. */
+export function useMe() {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({ queryKey: ["me", userId], queryFn: api.me, enabled: !!userId });
+}
+
+/* The lens reads. Keyed by the acting user as well, so switching user in the dev picker
+ * never serves one person's view of the trace to another; `enabled` keeps them off the
+ * wire until the caller is known to be an administrator. */
+
+export function useLensStrip(enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({ queryKey: ["lens", "strip", userId], queryFn: api.lensStrip, enabled });
+}
+
+export function useLensRuns(enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({ queryKey: ["lens", "runs", userId], queryFn: api.lensRuns, enabled });
+}
+
+export function useLensSpans(runId: string, enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["lens", "spans", runId, userId],
+    queryFn: () => api.lensSpans(runId),
+    enabled,
+  });
+}
