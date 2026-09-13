@@ -1,0 +1,51 @@
+[project]
+name = "elenchus-interp"
+version = "0.1.0"
+description = "Reads a traced conduct prompt with a small open model and reports what it can see inside"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "torch>=2.9",
+    "transformers>=5.17,<6",
+    "safetensors>=0.8",
+    "fastapi>=0.141",
+    "uvicorn>=0.52",
+    "pydantic>=2.11",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4",
+    "httpx>=0.28",
+    "ruff>=0.14",
+    "black>=25.9",
+    "mypy>=1.13",
+]
+
+# CPU wheels on Linux: the default Linux wheel carries CUDA, gigabytes this laptop has no
+# GPU for. macOS takes the default wheel, which is the one with Apple GPU (MPS) support.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

@@ -80,6 +80,48 @@ jobs:
       - name: pytest
         run: uv run pytest -q
 
+  interp:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: interp
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: interp/uv.lock
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      # The real tokenizer, about 15 MB, and never the weights: the suite reads prompts with
+      # a tiny random Qwen3 built in code, so no run downloads a gigabyte.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-qwen3-0.6b-tokenizer-c1899de
+
+      - name: Tokenizer
+        run: >-
+          uv run python -c "from huggingface_hub import snapshot_download;
+          snapshot_download('Qwen/Qwen3-0.6B', revision='c1899de289a04d12100db370d81485cdf75e47ca',
+          allow_patterns=['tokenizer*', 'vocab.json', 'merges.txt', 'config.json', 'generation_config.json'])"
+
+      - name: ruff
+        run: uv run ruff check .
+
+      - name: black
+        run: uv run black --check elenchus_interp tests
+
+      - name: mypy
+        run: uv run mypy elenchus_interp
+
+      - name: pytest
+        run: uv run pytest -q
+
   frontend:
     runs-on: ubuntu-latest
     defaults:
