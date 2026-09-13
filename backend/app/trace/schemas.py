@@ -92,6 +92,28 @@ class LensStrip(BaseModel):
     tiers: list[TierStrip]
 
 
+class CorrelationCell(BaseModel):
+    """One factor against one outcome, over the calls where both were measured."""
+
+    factor: str
+    outcome: str
+    n: int
+    rho: float | None
+    ci_low: float | None
+    ci_high: float | None
+    # Below the minimum sample the coefficient is shown for reference and never ranked.
+    too_few: bool
+    # Why rho is None when it is: one side never varied across these calls.
+    no_variation: bool
+
+
+class CorrelationMatrix(BaseModel):
+    factors: list[str]
+    outcomes: list[str]
+    min_samples: int
+    cells: list[CorrelationCell]
+
+
 class AttemptRow(BaseModel):
     """One call to one tier, placed in its run and turn. The Inference page's unit."""
 

@@ -6,6 +6,7 @@ the data leaves the layer and not only at the door, which is also what
 ``check_access_consulted`` holds every service to.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
@@ -18,7 +19,17 @@ from app.config import get_settings
 from app.errors import ForbiddenError, NotFoundError
 from app.trace.models import LLMSpan
 from app.trace.repository import SpanRepository
-from app.trace.schemas import AttemptRow, DecisionRow, LensStrip, SpanRead, TierStrip, TracedRun
+from app.trace.schemas import (
+    AttemptRow,
+    CorrelationCell,
+    CorrelationMatrix,
+    DecisionRow,
+    LensStrip,
+    SpanRead,
+    TierStrip,
+    TracedRun,
+)
+from app.trace.stats import MIN_SAMPLES, bootstrap_interval, spearman
 from app.users.models import User
 
 ADMINS_ONLY = "The lens is for administrators: traces can quote what respondents said."
@@ -65,6 +76,10 @@ def _place(rows: list[tuple[LLMSpan, str]]) -> dict[Any, _Placed]:
         if node is not None:
             placed[span.id] = _Placed(span, title[span.id], node, number[node.id])
     return placed
+
+
+def _maybe(value: int | None) -> float | None:
+    return None if value is None else float(value)
 
 
 def _flag(attrs: dict[str, Any], key: str) -> bool | None:
@@ -255,3 +270,66 @@ class LensService:
                 )
             )
         return rows
+
+    async def correlations(
+        self, viewer: User, survey_id: UUID | None, run_id: UUID | None
+    ) -> CorrelationMatrix:
+        """Each factor of a call against each outcome, ranked, with a bootstrap interval.
+
+        Correlation over real traffic, not cause: a prompt that grew because the transcript
+        did also sits later in the run, and this cannot tell the two apart.
+        """
+        if not is_admin(viewer, get_settings().admin_email_set):
+            raise ForbiddenError(ADMINS_ONLY)
+        rows = await self.attempts(viewer, survey_id, run_id)
+
+        def writing(row: AttemptRow) -> float | None:
+            if row.first_token_ms is None:
+                return None
+            return float(row.duration_ms - row.first_token_ms)
+
+        factors: dict[str, Callable[[AttemptRow], float | None]] = {
+            "tokens_in": lambda r: _maybe(r.prompt_tokens),
+            "cached_tokens": lambda r: _maybe(r.cached_tokens),
+            "tokens_out": lambda r: _maybe(r.completion_tokens),
+            "transcript_messages": lambda r: _maybe(r.transcript_messages),
+            "turn_number": lambda r: float(r.turn_number),
+            "retry": lambda r: 1.0 if r.retry else 0.0,
+        }
+        outcomes: dict[str, Callable[[AttemptRow], float | None]] = {
+            "first_token_ms": lambda r: _maybe(r.first_token_ms),
+            "writing_ms": writing,
+            "duration_ms": lambda r: float(r.duration_ms),
+            "cost_usd": lambda r: r.cost_usd,
+        }
+        cells = []
+        for factor, read_factor in factors.items():
+            for outcome, read_outcome in outcomes.items():
+                pairs = [
+                    (x, y)
+                    for x, y in ((read_factor(r), read_outcome(r)) for r in rows)
+                    if x is not None and y is not None
+                ]
+                xs = [x for x, _ in pairs]
+                ys = [y for _, y in pairs]
+                rho = spearman(xs, ys)
+                too_few = len(pairs) < MIN_SAMPLES
+                interval = None if too_few or rho is None else bootstrap_interval(xs, ys)
+                cells.append(
+                    CorrelationCell(
+                        factor=factor,
+                        outcome=outcome,
+                        n=len(pairs),
+                        rho=rho,
+                        ci_low=interval[0] if interval else None,
+                        ci_high=interval[1] if interval else None,
+                        too_few=too_few,
+                        no_variation=len(pairs) >= 2 and rho is None,
+                    )
+                )
+        return CorrelationMatrix(
+            factors=list(factors),
+            outcomes=list(outcomes),
+            min_samples=MIN_SAMPLES,
+            cells=cells,
+        )

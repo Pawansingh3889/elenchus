@@ -200,3 +200,27 @@ async def test_traced_runs_name_their_survey_for_the_filter(session, respondent,
     await _one_good_turn(session, respondent, published)
     (traced,) = await LensService(session).runs(admin)
     assert traced.template_id == published.id
+
+
+# ------------------------------------------------------------------ correlations
+
+
+async def test_correlations_flag_a_small_sample_and_never_invent_an_interval(
+    session, respondent, published, admin
+):
+    await _one_good_turn(session, respondent, published)
+    matrix = await LensService(session).correlations(admin, None, None)
+
+    assert matrix.min_samples == 20
+    assert len(matrix.cells) == len(matrix.factors) * len(matrix.outcomes)
+    cell = next(c for c in matrix.cells if (c.factor, c.outcome) == ("tokens_in", "first_token_ms"))
+    assert cell.n == 2 and cell.too_few
+    assert cell.ci_low is None and cell.ci_high is None
+    # Every call in this turn had the same tokens in: no rank order, so no coefficient.
+    assert cell.rho is None and cell.no_variation
+
+
+async def test_only_admins_read_correlations(session, respondent, published, author):
+    await _one_good_turn(session, respondent, published)
+    with pytest.raises(ForbiddenError):
+        await LensService(session).correlations(author, None, None)
