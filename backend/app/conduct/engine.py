@@ -46,7 +46,7 @@ from app.runs.service import flatten_answer
 from app.templates.enums import FollowUpPolicy, TemplateStatus
 from app.templates.reading import questions_of, setting_of
 from app.templates.visibility import next_visible, remaining_possible
-from app.trace.models import LLMSpan
+from app.trace.models import LLMRequest, LLMSpan
 from app.trace.repository import SpanRepository
 from app.users.models import User
 
@@ -398,7 +398,17 @@ class ConductEngine:
         assert bind is not None, "a turn's session always has an engine"
         try:
             async with AsyncSession(bind, expire_on_commit=False) as own:
-                SpanRepository(own).add_all([LLMSpan.from_trace(run_id, node) for node in spans])
+                repo = SpanRepository(own)
+                repo.add_all([LLMSpan.from_trace(run_id, node) for node in spans])
+                # The exact requests go in the same transaction as their spans, so an
+                # analysis never finds a span whose prompt was lost, or the reverse.
+                repo.add_requests(
+                    [
+                        request
+                        for node in spans
+                        if (request := LLMRequest.from_trace(run_id, node)) is not None
+                    ]
+                )
                 await own.commit()
         except Exception:
             logger.exception("could not write the trace for run=%s", run_id)

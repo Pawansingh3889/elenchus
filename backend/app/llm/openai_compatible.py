@@ -188,6 +188,17 @@ async def _assemble_stream(
     return {"choices": [{"message": message, "finish_reason": finish_reason}], "usage": usage}
 
 
+def _request_of(payload: dict[str, Any]) -> dict[str, Any] | None:
+    """What a chat call asked, exactly, for the trace; None for a call with no messages.
+
+    The transport keys (model, stream, token limits) are left out: the model is on the span
+    already, and the rest changes how an answer arrives, not what was asked.
+    """
+    if "messages" not in payload:
+        return None
+    return {key: payload[key] for key in ("messages", "tools", "tool_choice") if key in payload}
+
+
 class OpenAICompatibleLLMClient:
     """Force one schema-constrained tool call out of an OpenAI-compatible endpoint."""
 
@@ -290,6 +301,7 @@ class OpenAICompatibleLLMClient:
                 status=status,
                 error=error,
                 priced_as=self._priced_as,
+                request=_request_of(payload),
             )
 
         try:

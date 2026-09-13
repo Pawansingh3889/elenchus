@@ -1,5 +1,7 @@
 """The lens reads: admins only, and totals that add up to the spans under them."""
 
+from typing import Any
+
 import pytest
 import pytest_asyncio
 
@@ -16,7 +18,7 @@ class _MeteredLLM(FakeLLM):
     """Books every call the way the real client does: tokens, cached tokens, a first
     token and a latency, on tier 4, which the suite prices by the clock."""
 
-    def _book(self, *, status: int, error: str | None) -> None:
+    def _book(self, *, status: int, error: str | None, request: dict[str, Any]) -> None:
         ledger.record(
             tier=4,
             model="local-3b",
@@ -34,6 +36,7 @@ class _MeteredLLM(FakeLLM):
             first_token_ms=None if error else 1100,
             status=status,
             error=error,
+            request=request,
         )
 
 

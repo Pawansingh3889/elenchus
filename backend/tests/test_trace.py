@@ -12,7 +12,7 @@ from app.conduct.engine import ConductEngine
 from app.llm import ledger
 from app.llm.client import LLMError, ToolTurn
 from app.trace.enums import SpanKind
-from app.trace.models import LLMSpan
+from app.trace.models import LLMRequest, LLMSpan
 from app.trace.repository import SpanRepository
 from tests.fakes import FakeLLM, move_on, record
 
@@ -59,6 +59,29 @@ def test_an_attempt_is_booked_under_the_span_that_was_open() -> None:
     assert attempt.kind == "attempt"
     assert attempt.parent_id == decision.id
     assert (attempt.duration_ms, attempt.first_token_ms, attempt.prompt_tokens) == (250, 200, 10)
+
+
+def test_a_chat_attempt_carries_its_exact_request_and_other_calls_do_not() -> None:
+    asked = {
+        "messages": [{"role": "system", "content": "brief"}, {"role": "user", "content": "hi"}],
+        "tools": [{"type": "function", "function": {"name": "move_on", "parameters": {}}}],
+        "tool_choice": "required",
+    }
+    common = dict(tier=1, model="gpt-5.5", usage=None, latency_ms=10, status=200)
+    with ledger.tracing() as spans:
+        ledger.record(op="tool_turn", request=asked, **common)
+        ledger.record(op="embed", **common)
+    chat, embed = spans
+
+    row = LLMRequest.from_trace(None, chat)
+    assert row is not None
+    assert (row.span_id, row.model, row.messages, row.tool_choice) == (
+        chat.id,
+        "gpt-5.5",
+        asked["messages"],
+        "required",
+    )
+    assert LLMRequest.from_trace(None, embed) is None
 
 
 # ------------------------------------------------------------------ the engine's half
@@ -111,6 +134,24 @@ async def test_a_turn_leaves_a_tree_of_decisions_attempts_and_checks(
     ]
 
 
+async def test_every_attempt_of_a_turn_keeps_the_request_it_sent(session, respondent, published):
+    run = await _started(session, respondent, published)
+    llm = FakeLLM(record("Line lead"), move_on("Thanks."), serves_as=(1, "gpt-5.5"))
+    await ConductEngine(session, llm=llm).handle_message(run.id, "line lead", respondent)
+
+    repo = SpanRepository(session)
+    attempts = _of(await repo.for_run(run.id), SpanKind.attempt)
+    requests = [await repo.request_for(attempt.id) for attempt in attempts]
+    assert len(requests) == 2 and all(r is not None and r.run_id == run.id for r in requests)
+    first = requests[0]
+    assert first is not None
+    # Exactly what the model was sent: the briefing first, then the transcript, then tools.
+    assert first.messages[0] == {"role": "system", "content": llm.briefings[0]}
+    assert first.messages[1:] == llm.messages_seen[0]
+    assert [t["function"]["name"] for t in first.tools] == llm.offered[0]
+    assert first.tool_choice == "required"
+
+
 async def test_a_refused_action_links_to_the_retry_it_caused(session, respondent, published):
     run = await _started(session, respondent, published)
     llm = FakeLLM(
@@ -149,14 +190,21 @@ async def test_a_turn_that_fails_still_keeps_its_trace(session, respondent, publ
     (attempt,) = _of(spans, SpanKind.attempt)
     assert attempt.status == 0
     assert attempt.error is not None and "tier down" in attempt.error
+    # The prompt that failed is kept with it, so a failure can be read like a success.
+    assert await SpanRepository(session).request_for(attempt.id) is not None
 
 
 async def test_withdrawing_a_run_takes_its_trace_with_it(session, respondent, published):
     run = await _started(session, respondent, published)
     llm = FakeLLM(record("Line lead"), move_on("Thanks."), serves_as=(1, "gpt-5.5"))
     await ConductEngine(session, llm=llm).handle_message(run.id, "line lead", respondent)
-    assert await SpanRepository(session).for_run(run.id)
+    attempt_ids = [
+        s.id for s in _of(await SpanRepository(session).for_run(run.id), SpanKind.attempt)
+    ]
+    assert attempt_ids
 
     await ConductEngine(session, llm=FakeLLM()).delete_run(run.id, respondent)
 
     assert await SpanRepository(session).for_run(run.id) == []
+    # The requests copied what the respondent typed, so they go too.
+    assert [await SpanRepository(session).request_for(i) for i in attempt_ids] == [None, None]
