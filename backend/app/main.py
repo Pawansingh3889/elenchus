@@ -23,6 +23,7 @@ from app.config import get_settings
 from app.db.session import get_session
 from app.errors import register_error_handlers
 from app.llm.router import router as llm_admin_router
+from app.prompts.router import router as prompts_router
 from app.runs.router import dashboard_router
 from app.runs.router import router as results_router
 from app.seed import seed
@@ -139,6 +140,7 @@ app.include_router(llm_admin_router)
 # Admin-only reads of the trace, for the lens pages. Gated per route and again in the
 # service, like the admin screens above it.
 app.include_router(lens_router)
+app.include_router(prompts_router)
 app.include_router(templates_router)
 app.include_router(results_router)
 app.include_router(dashboard_router)

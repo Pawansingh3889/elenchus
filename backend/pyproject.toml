@@ -78,7 +78,7 @@ include_external_packages = true
 name = "Layered inside every domain"
 type = "layers"
 layers = ["router", "(service)", "repository", "(models)"]
-containers = ["app.templates", "app.runs", "app.conduct", "app.users", "app.trace"]
+containers = ["app.templates", "app.runs", "app.conduct", "app.users", "app.trace", "app.prompts"]
 comment = """
 Imports point downward only: router -> service -> repository -> models. The
 contract resolves the real import graph, so an aliased import, a re-export or a

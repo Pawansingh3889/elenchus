@@ -8,7 +8,7 @@ from pathlib import Path
 
 from app.errors import AppError
 
-_PROMPTS_DIR = Path(__file__).parent / "prompts"
+PROMPTS_DIR = Path(__file__).parent / "prompts"
 
 
 class PromptNotFoundError(AppError):
@@ -30,7 +30,7 @@ class PromptNotFoundError(AppError):
 
 
 def load_prompt(name: str) -> str:
-    path = _PROMPTS_DIR / f"{name}.md"
+    path = PROMPTS_DIR / f"{name}.md"
     if not path.exists():
         raise PromptNotFoundError(f"Prompt not found: {name}")
     return path.read_text(encoding="utf-8").strip()

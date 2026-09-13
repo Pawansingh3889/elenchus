@@ -29,7 +29,7 @@ from app.i18n import language_note, translate
 from app.llm import ledger
 from app.llm.client import LLMError, LLMProtocol, NoToolCallError, ToolTurn
 from app.llm.factory import get_llm
-from app.llm.prompts import load_prompt
+from app.prompts.service import PromptResolver, ResolvedPrompt
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
 from app.runs.models import REPLY_PREFIX, Answer, RunMessage, SurveyRun, add_llm_spend
 from app.runs.service import flatten_answer
@@ -55,6 +55,9 @@ MAX_MODEL_TURNS = 3  # per respondent message
 # name alongside `runs/summary.py`'s, and every assistant message is stamped with it, so
 # the version that produced a turn has to be one value rather than a string repeated
 # wherever it happens to be needed.
+# The version live when no administrator has activated another. An activated version
+# (a file, or one saved from the prompt screen) replaces it from the next turn; see
+# app/prompts.
 PROMPT_VERSION = "conduct_v8"
 TRANSCRIPT_WINDOW = 12  # messages replayed per turn; the briefing restates the question
 _REJECTED = "run=%s question=%s tool=%s raw_input=%r raw_text=%r error=%s"
@@ -84,6 +87,8 @@ class ConductEngine:
         self.session = session
         self._llm = llm
         self.repo = RunRepository(session)
+        # Set at the start of every model-backed turn; see handle_message.
+        self._prompt = ResolvedPrompt(PROMPT_VERSION, "")
 
     @property
     def llm(self) -> LLMProtocol:
@@ -315,9 +320,12 @@ class ConductEngine:
         # run in the same transaction as the answer it produced. A turn that fails partway
         # still committed nothing, and the ledger file keeps the calls it did make: the
         # rollup is the app's summary, the file is the record.
+        # Resolved once per turn, so every ask in it, its ledger rows, its spans and the
+        # reply it produces all name the same version even if it is switched mid-turn.
+        self._prompt = await PromptResolver(self.session).active("conduct", PROMPT_VERSION)
         with (
             ledger.measuring(run.id) as spend,
-            ledger.using_prompt(PROMPT_VERSION),
+            ledger.using_prompt(self._prompt.name),
             ledger.tracing() as spans,
         ):
             try:
@@ -342,7 +350,7 @@ class ConductEngine:
             RunMessage(
                 role=MessageRole.assistant,
                 content=utterance,
-                prompt_version=PROMPT_VERSION,
+                prompt_version=self._prompt.name,
                 model=spend.last_model,
                 tier=spend.last_tier,
             )
@@ -717,9 +725,7 @@ class ConductEngine:
             ]
         try:
             turn = await self.llm.tool_turn(
-                system="\n\n".join(
-                    (load_prompt(PROMPT_VERSION), language_note(run.language), briefing)
-                ),
+                system="\n\n".join((self._prompt.text, language_note(run.language), briefing)),
                 messages=messages,
                 tools=tools,
                 # The first attempt keeps its tier: this caller owns the nudged retry
