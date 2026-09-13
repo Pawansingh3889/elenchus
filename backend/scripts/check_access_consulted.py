@@ -64,6 +64,9 @@ GUARDED_TYPES = frozenset(
         "AnswerMap",
         "ThemeReport",
         "DuplicateReport",
+        # What respondents typed, read by a local model.
+        "CapturedAsk",
+        "StoredAnalysis",
     }
 )
 

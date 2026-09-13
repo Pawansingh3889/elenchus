@@ -29,6 +29,7 @@ from app.embeddings.repository import EmbeddingRepository
 from app.embeddings.service import digest
 from app.errors import ConflictError, ForbiddenError, NotFoundError
 from app.i18n import language_note, translate
+from app.interp.repository import InterpRepository
 from app.llm import ledger
 from app.llm.client import (
     EmbedderProtocol,
@@ -565,6 +566,8 @@ class ConductEngine:
         run = await self.load(run_id, respondent)
         # Explicitly, because spans carry the run id without a foreign key to cascade on.
         await SpanRepository(self.session).delete_for_run(run_id)
+        # And what a local model read from their words.
+        await InterpRepository(self.session).delete_for_run(run_id)
         # And the vectors of everything they said: a vector still carries meaning.
         vectors = EmbeddingRepository(self.session)
         await vectors.delete_digests([digest(text) for text in await vectors.run_texts(run_id)])

@@ -82,3 +82,14 @@ def test_semantic_grounding_needs_embeddings_and_a_measured_threshold() -> None:
 
 def test_a_blank_threshold_from_compose_counts_as_unset() -> None:
     assert _settings(grounding_similarity_margin="").grounding_similarity_margin is None
+
+
+def test_the_interp_service_needs_an_address_and_a_long_enough_token() -> None:
+    with pytest.raises(ValidationError, match="INTERP_BASE_URL and INTERP_TOKEN not"):
+        _settings(interp_enabled=True)
+    with pytest.raises(ValidationError, match="at least 16 characters"):
+        _settings(interp_enabled=True, interp_base_url="http://h:8765", interp_token="short")
+    settings = _settings(
+        interp_enabled=True, interp_base_url="http://h:8765", interp_token="t" * 24
+    )
+    assert settings.interp_enabled
