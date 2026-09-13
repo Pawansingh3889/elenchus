@@ -6,12 +6,18 @@ import { usePathname } from "next/navigation";
 import { useLensScope } from "@/lib/lensScope";
 import { useLensRuns, useMe } from "@/lib/queries";
 
+// `filtered` marks the pages the survey and run filter scopes. The overview has its own
+// run list, the comparison picks its own two runs, and prompts are not about runs at all.
 const FACTORS = [
-  { href: "/lens", label: "Overview" },
-  { href: "/lens/inference", label: "Inference" },
-  { href: "/lens/state", label: "State" },
-  { href: "/lens/tools", label: "Tool selection" },
-  { href: "/lens/validation", label: "Validation" },
+  { href: "/lens", label: "Overview", filtered: false },
+  { href: "/lens/inference", label: "Inference", filtered: true },
+  { href: "/lens/state", label: "State", filtered: true },
+  { href: "/lens/tools", label: "Tool selection", filtered: true },
+  { href: "/lens/validation", label: "Validation", filtered: true },
+  { href: "/lens/relationships", label: "Relationships", filtered: true },
+  { href: "/lens/chains", label: "Cause chains", filtered: true },
+  { href: "/lens/compare", label: "Compare runs", filtered: false },
+  { href: "/lens/prompts", label: "Prompts", filtered: false },
 ] as const;
 
 /**
@@ -27,7 +33,7 @@ export function LensNav() {
   const [scope, setScope] = useLensScope();
 
   if (!admin) return null;
-  const onFactor = FACTORS.some((f) => f.href !== "/lens" && pathname.startsWith(f.href));
+  const onFactor = FACTORS.some((f) => f.filtered && pathname.startsWith(f.href));
   const query = new URLSearchParams();
   if (scope.surveyId) query.set("survey", scope.surveyId);
   if (scope.runId) query.set("run", scope.runId);
@@ -48,7 +54,7 @@ export function LensNav() {
           return (
             <Link
               key={factor.href}
-              href={factor.href === "/lens" ? factor.href : `${factor.href}${suffix}`}
+              href={factor.filtered ? `${factor.href}${suffix}` : factor.href}
               className={current ? "lens-tab lens-tab-current" : "lens-tab"}
               aria-current={current ? "page" : undefined}
             >

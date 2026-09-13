@@ -59,6 +59,7 @@ GUARDED_TYPES = frozenset(
         "LensStrip",
         "AttemptRow",
         "DecisionRow",
+        "CorrelationMatrix",
     }
 )
 

@@ -133,6 +133,8 @@ backend/
     runs/survey_summary.py   the survey-level recap, fixed shape, engine-computed caveat
     llm/               the OpenAI-compatible client + tier failover chain,
                        tolerant decoding of model JSON, versioned prompts
+    prompts/           conduct prompt versions saved from the admin screen, and the
+                       append-only log of which version is live
     trace/             llm_spans (every turn's tree of decisions, attempts and checks)
                        and the admin-only lens reads over it
     auth/              dev-auth dependency
@@ -150,6 +152,10 @@ frontend/
     lens/state/        input tokens by turn, and what the engine knew at every ask
     lens/tools/        tools offered, picked and accepted at every ask
     lens/validation/   refusals, what they cost, and answers given up as unanswerable
+    lens/relationships/  factor correlations with intervals, and the flow of asks
+    lens/chains/       every question's asks in order, with what the chain cost
+    lens/compare/      two runs side by side, question by question
+    lens/prompts/      conduct prompt versions: save a new one, activate, roll back
   lib/                 typed API client, TanStack Query hooks, Zustand store,
                        zod schemas for the responses the lens renders numbers from
 docker-compose.yml        development stack: postgres, backend, frontend

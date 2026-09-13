@@ -58,6 +58,11 @@ Alembic migrations from the first table; no `create_all` in application code.
 - **Secrets**: `.env` is git-ignored, `.env.example` is committed. No provider key ever
   enters the repo.
 - **Prompts as code**: versioned under `backend/app/llm/prompts/`, loaded by name + version.
+  Since 13 Sep 2026 the conduct prompt can also gain versions from the admin screen: saved
+  as new, never-edited rows in `prompt_versions` and switched by an append-only
+  `prompt_activations` log (see `app/prompts`). The files stay the seed versions the code
+  names, every stored `prompt_version` still resolves to exactly one text, and no other
+  prompt family is editable in the browser.
 
 ## Decisions log
 

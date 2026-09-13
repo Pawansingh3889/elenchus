@@ -7,7 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import require_admin
 from app.db.session import get_session
-from app.trace.schemas import AttemptRow, DecisionRow, LensStrip, SpanRead, TracedRun
+from app.trace.schemas import (
+    AttemptRow,
+    CorrelationMatrix,
+    DecisionRow,
+    LensStrip,
+    SpanRead,
+    TracedRun,
+)
 from app.trace.service import LensService
 from app.users.models import User
 
@@ -57,3 +64,13 @@ async def decisions(
     session: AsyncSession = Depends(get_session),
 ) -> list[DecisionRow]:
     return await LensService(session).decisions(admin, survey_id, run_id)
+
+
+@router.get("/correlations", response_model=CorrelationMatrix)
+async def correlations(
+    survey_id: UUID | None = Query(None),
+    run_id: UUID | None = Query(None),
+    admin: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> CorrelationMatrix:
+    return await LensService(session).correlations(admin, survey_id, run_id)
