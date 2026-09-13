@@ -1,11 +1,38 @@
 """Span writes and reads. The only module that queries llm_spans."""
 
+from typing import Any
 from uuid import UUID
 
-from sqlalchemy import delete, select
+from sqlalchemy import ColumnElement, Row, delete, distinct, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.runs.models import SurveyRun
+from app.templates.models import SurveyTemplate
+from app.trace.enums import SpanKind
 from app.trace.models import LLMSpan
+
+
+def _unmetered() -> ColumnElement[bool]:
+    """An attempt whose tokens or cost the provider never reported.
+
+    The same rule the ledger's ``Spend.unmetered_calls`` counts by, so the lens and the
+    run rollup cannot disagree about which calls were measured.
+    """
+    return or_(
+        LLMSpan.cost_usd.is_(None),
+        LLMSpan.prompt_tokens.is_(None),
+        LLMSpan.completion_tokens.is_(None),
+    )
+
+
+def _token_sums() -> list[Any]:
+    return [
+        func.coalesce(func.sum(LLMSpan.prompt_tokens), 0).label("prompt_tokens"),
+        func.coalesce(func.sum(LLMSpan.completion_tokens), 0).label("completion_tokens"),
+        func.coalesce(func.sum(LLMSpan.cached_tokens), 0).label("cached_tokens"),
+        func.coalesce(func.sum(LLMSpan.reasoning_tokens), 0).label("reasoning_tokens"),
+        func.sum(LLMSpan.cost_usd).label("cost_usd"),
+    ]
 
 
 class SpanRepository:
@@ -22,3 +49,86 @@ class SpanRepository:
     async def delete_for_run(self, run_id: UUID) -> None:
         """Explicit, because run_id is not a foreign key (see the models docstring)."""
         await self.session.execute(delete(LLMSpan).where(LLMSpan.run_id == run_id))
+
+    async def run_totals(self) -> list[Row[Any]]:
+        """One row per traced run, newest trace first.
+
+        Aggregated in the database with FILTER, so every figure is a sum over the spans
+        it describes and a page never re-derives one from a sample. Joined on the run id
+        without a foreign key behind it, which is safe because withdrawal deletes spans
+        with the run.
+        """
+        attempt = LLMSpan.kind == SpanKind.attempt
+        stmt = (
+            select(
+                LLMSpan.run_id,
+                SurveyTemplate.title,
+                SurveyRun.started_at,
+                func.max(LLMSpan.started_at).label("last_traced_at"),
+                func.count().filter(LLMSpan.kind == SpanKind.turn).label("turns"),
+                func.count().filter(LLMSpan.kind == SpanKind.decision).label("decisions"),
+                func.count()
+                .filter(LLMSpan.kind == SpanKind.decision, LLMSpan.attrs["retry"].as_boolean())
+                .label("retries"),
+                func.count().filter(attempt).label("attempts"),
+                func.count().filter(attempt, LLMSpan.error.is_not(None)).label("failed_attempts"),
+                func.count().filter(attempt, _unmetered()).label("unmetered_attempts"),
+                *_token_sums(),
+                func.coalesce(
+                    func.sum(LLMSpan.duration_ms).filter(LLMSpan.kind == SpanKind.turn), 0
+                ).label("turn_ms"),
+                # Only attempts carry a first-token time, and the percentile skips nulls.
+                func.percentile_cont(0.5)
+                .within_group(LLMSpan.first_token_ms)
+                .label("first_token_ms_p50"),
+            )
+            .join(SurveyRun, SurveyRun.id == LLMSpan.run_id)
+            .join(SurveyTemplate, SurveyTemplate.id == SurveyRun.template_id)
+            .group_by(LLMSpan.run_id, SurveyTemplate.title, SurveyRun.started_at)
+            .order_by(func.max(LLMSpan.started_at).desc())
+        )
+        return list((await self.session.execute(stmt)).all())
+
+    async def tier_totals(self) -> list[Row[Any]]:
+        """Every attempt, grouped by the tier and model that served it."""
+        stmt = (
+            select(
+                LLMSpan.tier,
+                LLMSpan.model,
+                func.count().label("attempts"),
+                func.count().filter(LLMSpan.error.is_not(None)).label("failed_attempts"),
+                func.count().filter(_unmetered()).label("unmetered_attempts"),
+                *_token_sums(),
+                func.percentile_cont(0.5).within_group(LLMSpan.duration_ms).label("latency_ms_p50"),
+                func.percentile_cont(0.95)
+                .within_group(LLMSpan.duration_ms)
+                .label("latency_ms_p95"),
+                func.percentile_cont(0.5)
+                .within_group(LLMSpan.first_token_ms)
+                .label("first_token_ms_p50"),
+                func.percentile_cont(0.95)
+                .within_group(LLMSpan.first_token_ms)
+                .label("first_token_ms_p95"),
+            )
+            .where(LLMSpan.kind == SpanKind.attempt)
+            .group_by(LLMSpan.tier, LLMSpan.model)
+            .order_by(LLMSpan.tier, LLMSpan.model)
+        )
+        return list((await self.session.execute(stmt)).all())
+
+    async def overall(self) -> Row[Any]:
+        """Runs, turns, retries and the median turn across every trace."""
+        turn_p50 = (
+            select(func.percentile_cont(0.5).within_group(LLMSpan.duration_ms))
+            .where(LLMSpan.kind == SpanKind.turn)
+            .scalar_subquery()
+        )
+        stmt = select(
+            func.count(distinct(LLMSpan.run_id)).label("runs"),
+            func.count().filter(LLMSpan.kind == SpanKind.turn).label("turns"),
+            func.count()
+            .filter(LLMSpan.kind == SpanKind.decision, LLMSpan.attrs["retry"].as_boolean())
+            .label("retries"),
+            turn_p50.label("turn_ms_p50"),
+        )
+        return (await self.session.execute(stmt)).one()

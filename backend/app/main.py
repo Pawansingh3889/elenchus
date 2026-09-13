@@ -27,6 +27,7 @@ from app.runs.router import dashboard_router
 from app.runs.router import router as results_router
 from app.seed import seed
 from app.templates.router import router as templates_router
+from app.trace.router import router as lens_router
 from app.users.models import User
 from app.users.router import admin_router, dev_router, me_router
 from app.users.router import directory_router as people_router
@@ -135,6 +136,9 @@ app.include_router(people_router)
 app.include_router(me_router)
 app.include_router(admin_router)
 app.include_router(llm_admin_router)
+# Admin-only reads of the trace, for the lens pages. Gated per route and again in the
+# service, like the admin screens above it.
+app.include_router(lens_router)
 app.include_router(templates_router)
 app.include_router(results_router)
 app.include_router(dashboard_router)
