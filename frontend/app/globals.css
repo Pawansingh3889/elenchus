@@ -446,6 +446,10 @@ select {
   display: flex;
   align-items: center;
   gap: 8px;
+  /* Signed in, the user picker and the language select share one line in a bar of fixed
+     height, and a select sizes itself to its longest option: every page was 450px wide
+     on a 390px phone. Shrinking is the fix; wrapping would spill out of the bar. */
+  min-inline-size: 0;
 }
 .topbar-user-label {
   font-size: var(--text-xs);
@@ -454,6 +458,7 @@ select {
   color: var(--on-hero-muted);
 }
 .topbar-user select {
+  min-inline-size: 0;
   background: var(--canvas);
   color: var(--ink);
   border: 1px solid var(--border);
@@ -1395,9 +1400,13 @@ select.field {
   gap: var(--space-2);
   font-size: var(--text-sm);
   color: var(--muted);
+  /* A select sizes itself to its longest option; without these a run's label pushed the
+     filter row 60px past a 390px phone on every factor page. */
+  max-inline-size: 100%;
 }
 .lens-filter select {
   max-inline-size: 22rem;
+  min-inline-size: 0;
 }
 .lens-chart {
   display: flex;
