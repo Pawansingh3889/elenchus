@@ -1,6 +1,7 @@
 """Every query the evaluation lens makes."""
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
@@ -9,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.evaluation.enums import LabelVerdict
 from app.evaluation.models import AnswerLabel, CorpusLabel, EvalRun, JudgeRun, JudgeVerdict
+from app.interp.models import InterpAnalysis
+from app.runs.enums import AnswerKind
 from app.runs.models import Answer, RunMessage, SurveyRun
 from app.templates.models import SurveyQuestion, SurveyTemplate
 from app.trace.enums import SpanKind
@@ -176,3 +179,58 @@ class EvaluationRepository:
             .execution_options(populate_existing=True)
         )
         return list((await self.session.scalars(stmt)).all())
+
+    async def all_eval_runs(self) -> list[EvalRun]:
+        """Every evaluation run, oldest first, fresh from the database."""
+        stmt = (
+            select(EvalRun)
+            .order_by(EvalRun.queued_at, EvalRun.position)
+            .execution_options(populate_existing=True)
+        )
+        return list((await self.session.scalars(stmt)).all())
+
+    async def readings(
+        self,
+    ) -> list[tuple[dict[str, Any], LLMSpan, dict[str, Any] | None, dict[str, Any] | None]]:
+        """Each stored Qwen reading with the hosted attempt it read, the attrs of the
+        decision that attempt served, and the engine's check of that decision.
+
+        The decision or its check is None when the trace holds none: a failed attempt's
+        decision may have been retried, and a reading of it has no check to compare.
+        """
+        stmt = select(InterpAnalysis.result, LLMSpan).join(
+            LLMSpan, LLMSpan.id == InterpAnalysis.span_id
+        )
+        rows = [(result, attempt) for result, attempt in (await self.session.execute(stmt)).all()]
+        parents = [attempt.parent_id for _, attempt in rows if attempt.parent_id is not None]
+        decisions: dict[UUID, dict[str, Any]] = {}
+        checks: dict[UUID, dict[str, Any]] = {}
+        if parents:
+            for span in await self.session.scalars(select(LLMSpan).where(LLMSpan.id.in_(parents))):
+                decisions[span.id] = span.attrs
+            validations = select(LLMSpan.parent_id, LLMSpan.attrs).where(
+                LLMSpan.parent_id.in_(parents), LLMSpan.kind == SpanKind.validation
+            )
+            for parent, attrs in (await self.session.execute(validations)).all():
+                checks[parent] = attrs
+        return [
+            (
+                result,
+                attempt,
+                None if attempt.parent_id is None else decisions.get(attempt.parent_id),
+                None if attempt.parent_id is None else checks.get(attempt.parent_id),
+            )
+            for result, attempt in rows
+        ]
+
+    async def scripted_labels(self) -> dict[tuple[UUID, str], LabelVerdict]:
+        """People's labels on scripted answers, by run and question."""
+        stmt = (
+            select(Answer.run_id, Answer.question_id, AnswerLabel.verdict)
+            .join(AnswerLabel, AnswerLabel.answer_id == Answer.id)
+            .where(Answer.kind == AnswerKind.scripted)
+        )
+        return {
+            (run_id, str(question_id)): verdict
+            for run_id, question_id, verdict in (await self.session.execute(stmt)).all()
+        }

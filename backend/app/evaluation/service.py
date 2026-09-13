@@ -26,7 +26,11 @@ from app.evaluation.models import EvalRun, JudgeRun, JudgeVerdict
 from app.evaluation.repository import EvaluationRepository
 from app.evaluation.scenarios import SCENARIOS, Scenario, max_turns
 from app.evaluation.schemas import (
+    Agreement,
     CheckRead,
+    ComparisonCell,
+    ComparisonGroup,
+    ComparisonReport,
     EvalItem,
     EvalOptions,
     EvalRunRead,
@@ -44,6 +48,7 @@ from app.evaluation.schemas import (
     TierRead,
 )
 from app.evaluation.stats import MIN_LABELLED, median, wilson
+from app.interp.schemas import Analysis
 from app.llm import ledger
 from app.llm.client import LLMError, LLMProtocol
 from app.llm.factory import enabled_tiers, get_llm, get_llm_for_tier
@@ -208,6 +213,31 @@ def _quality_slices(
     for conversation in conversations:
         groups.setdefault(key(conversation), []).append(conversation)
     return [_quality_slice(name, group) for name, group in sorted(groups.items())]
+
+
+def _group_key(row: EvalRun) -> tuple[str, str]:
+    return row.model or f"tier {row.tier}, model not recorded", row.prompt_version
+
+
+def _group_name(model: str, prompt_version: str) -> str:
+    return f"{model} with {prompt_version}"
+
+
+def _comparison_group(model: str, prompt_version: str, runs: list[EvalRun]) -> ComparisonGroup:
+    hard = [check for run in runs for check in run.checks if check["hard"]]
+    return ComparisonGroup(
+        name=_group_name(model, prompt_version),
+        model=model,
+        prompt_version=prompt_version,
+        runs=len(runs),
+        clean_runs=_rate(sum(1 for run in runs if run.hard_failures == 0), len(runs)),
+        hard_checks=_rate(sum(1 for check in hard if check["ok"]), len(hard)),
+        cost_per_run=_measured([float(run.cost_usd) for run in runs]),
+        duration_ms=_measured([float(run.duration_ms) for run in runs]),
+        turns=_measured([float(run.turns) for run in runs]),
+        unmetered_calls=sum(run.unmetered_calls for run in runs),
+        scenarios=sorted({run.scenario for run in runs}),
+    )
 
 
 class EvaluationService:
@@ -509,6 +539,82 @@ class EvaluationService:
         await self.session.commit()
         self._launch(runner.run_batch(self._sessions, batch_id, self._make_llm, self._catalogue))
         return [self._eval_read(row) for row in rows]
+
+    async def comparison(self, viewer: User) -> ComparisonReport:
+        """Accuracy per model and prompt version, beside what it cost and how long it took.
+
+        Accuracy is what the scripted checks measure, over completed runs only: a run cut
+        short by the cap or an error has no finished transcript to score, and is counted
+        as left out rather than as a failure it may not have been.
+        """
+        self._require_admin(viewer)
+        rows = await self.repo.all_eval_runs()
+        done = [row for row in rows if row.status is EvalRunStatus.completed]
+        by_group: dict[tuple[str, str], list[EvalRun]] = {}
+        by_cell: dict[tuple[str, str, str], list[EvalRun]] = {}
+        for row in done:
+            model, prompt_version = _group_key(row)
+            by_group.setdefault((model, prompt_version), []).append(row)
+            by_cell.setdefault((row.scenario, model, prompt_version), []).append(row)
+        return ComparisonReport(
+            completed_runs=len(done),
+            left_out=len(rows) - len(done),
+            groups=[
+                _comparison_group(model, prompt_version, runs)
+                for (model, prompt_version), runs in sorted(by_group.items())
+            ],
+            cells=[
+                ComparisonCell(
+                    scenario=scenario,
+                    group=_group_name(model, prompt_version),
+                    runs=len(runs),
+                    clean_runs=sum(1 for run in runs if run.hard_failures == 0),
+                    cost_per_run=_measured([float(run.cost_usd) for run in runs]),
+                    duration_ms=_measured([float(run.duration_ms) for run in runs]),
+                )
+                for (scenario, model, prompt_version), runs in sorted(by_cell.items())
+            ],
+            agreement=await self._agreement(),
+        )
+
+    async def _agreement(self) -> Agreement:
+        """Whether Qwen agreeing with the hosted pick goes with what happened next.
+
+        The question Phase 6 left open: does the stand-in disagreeing predict a refused
+        call or an invented answer? A reading counts when the attempt it read succeeded
+        and the engine checked it; a label is looked up only for an accepted
+        record_answer, through the question its decision was about.
+        """
+        labels = await self.repo.scripted_labels()
+        analysed = 0
+        read: list[tuple[bool, str, LabelVerdict | None]] = []
+        for result, attempt, decision, check in await self.repo.readings():
+            analysed += 1
+            if attempt.error is not None or check is None:
+                continue
+            called = str(check["tool"])
+            outcome = str(check["outcome"])
+            label = None
+            if (
+                called == "record_answer"
+                and outcome == "accepted"
+                and decision is not None
+                and attempt.run_id is not None
+            ):
+                label = labels.get((attempt.run_id, str(decision["question_id"])))
+            read.append((Analysis.model_validate(result).pick == called, outcome, label))
+
+        def share(subset: list[tuple[bool, str, LabelVerdict | None]]) -> Rate:
+            return _rate(sum(1 for agrees, _, _ in subset if agrees), len(subset))
+
+        return Agreement(
+            analysed=analysed,
+            agrees=share(read),
+            when_accepted=share([r for r in read if r[1] == "accepted"]),
+            when_refused=share([r for r in read if r[1] == "refused"]),
+            on_supported=share([r for r in read if r[2] is LabelVerdict.supported]),
+            on_invented=share([r for r in read if r[2] is LabelVerdict.invented]),
+        )
 
     async def eval_runs(self, viewer: User) -> list[EvalRunRead]:
         """Recent evaluation runs, newest batch first."""

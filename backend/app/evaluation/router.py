@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import require_admin
 from app.db.session import get_session
 from app.evaluation.schemas import (
+    ComparisonReport,
     EvalItem,
     EvalOptions,
     EvalRunRead,
@@ -92,3 +93,11 @@ async def scenario_runs(
     session: AsyncSession = Depends(get_session),
 ) -> list[EvalRunRead]:
     return await EvaluationService(session).eval_runs(admin)
+
+
+@router.get("/comparison", response_model=ComparisonReport)
+async def comparison(
+    admin: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> ComparisonReport:
+    return await EvaluationService(session).comparison(admin)
