@@ -6,7 +6,9 @@ the data leaves the layer and not only at the door, which is also what
 ``check_access_consulted`` holds every service to.
 """
 
+from dataclasses import dataclass
 from decimal import Decimal
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,8 +16,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.access import is_admin
 from app.config import get_settings
 from app.errors import ForbiddenError, NotFoundError
+from app.trace.models import LLMSpan
 from app.trace.repository import SpanRepository
-from app.trace.schemas import LensStrip, SpanRead, TierStrip, TracedRun
+from app.trace.schemas import AttemptRow, DecisionRow, LensStrip, SpanRead, TierStrip, TracedRun
 from app.users.models import User
 
 ADMINS_ONLY = "The lens is for administrators: traces can quote what respondents said."
@@ -23,6 +26,61 @@ ADMINS_ONLY = "The lens is for administrators: traces can quote what respondents
 
 def _money(value: Decimal | None) -> float | None:
     return None if value is None else float(value)
+
+
+@dataclass(frozen=True)
+class _Placed:
+    """A span with the run context the factor rows need: its survey, its turn."""
+
+    span: LLMSpan
+    survey_title: str
+    turn: LLMSpan
+    turn_number: int
+
+
+def _place(rows: list[tuple[LLMSpan, str]]) -> dict[Any, _Placed]:
+    """Walk each span up to its turn and number the turns within each run.
+
+    Done here rather than in SQL because the tree is a parent chain of unknown depth (a
+    retry nests under the ask it retries), and the scope is one survey's traces at most.
+    A span whose chain does not reach a turn is left out: every span the engine writes
+    has one, so this only drops spans some other writer made.
+    """
+    by_id = {span.id: span for span, _ in rows}
+    title = {span.id: survey for span, survey in rows}
+    turns_by_run: dict[Any, list[LLMSpan]] = {}
+    for span, _ in rows:
+        if span.kind.value == "turn":
+            turns_by_run.setdefault(span.run_id, []).append(span)
+    number = {
+        turn.id: index
+        for turns in turns_by_run.values()
+        for index, turn in enumerate(sorted(turns, key=lambda t: t.started_at), start=1)
+    }
+    placed: dict[Any, _Placed] = {}
+    for span, _ in rows:
+        node: LLMSpan | None = span
+        while node is not None and node.kind.value != "turn":
+            node = by_id.get(node.parent_id) if node.parent_id is not None else None
+        if node is not None:
+            placed[span.id] = _Placed(span, title[span.id], node, number[node.id])
+    return placed
+
+
+def _flag(attrs: dict[str, Any], key: str) -> bool | None:
+    """A recorded flag, or None when the span predates it. Unknown is not false."""
+    value = attrs.get(key)
+    return value if isinstance(value, bool) else None
+
+
+def _whole(attrs: dict[str, Any], key: str) -> int | None:
+    value = attrs.get(key)
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def _text(attrs: dict[str, Any], key: str) -> str | None:
+    value = attrs.get(key)
+    return value if isinstance(value, str) else None
 
 
 class LensService:
@@ -36,6 +94,7 @@ class LensService:
         return [
             TracedRun(
                 run_id=row.run_id,
+                template_id=row.template_id,
                 survey_title=row.title,
                 started_at=row.started_at,
                 last_traced_at=row.last_traced_at,
@@ -98,3 +157,101 @@ class LensService:
                 for row in await self.repo.tier_totals()
             ],
         )
+
+    async def attempts(
+        self, viewer: User, survey_id: UUID | None, run_id: UUID | None
+    ) -> list[AttemptRow]:
+        """Every attempt in scope, oldest first, placed in its run and turn."""
+        if not is_admin(viewer, get_settings().admin_email_set):
+            raise ForbiddenError(ADMINS_ONLY)
+        placed = _place(await self.repo.in_scope(survey_id, run_id))
+        by_id = {p.span.id: p.span for p in placed.values()}
+        rows = []
+        for p in placed.values():
+            span = p.span
+            if span.kind.value != "attempt":
+                continue
+            decision = by_id.get(span.parent_id) if span.parent_id is not None else None
+            decision_attrs = decision.attrs if decision is not None else {}
+            rows.append(
+                AttemptRow(
+                    id=span.id,
+                    run_id=p.turn.run_id,
+                    survey_title=p.survey_title,
+                    started_at=span.started_at,
+                    turn_number=p.turn_number,
+                    question_index=_whole(p.turn.attrs, "question_index"),
+                    retry=_flag(decision_attrs, "retry") is True,
+                    transcript_messages=_whole(decision_attrs, "transcript_messages"),
+                    tier=span.tier,
+                    model=span.model,
+                    status=span.status,
+                    error=span.error,
+                    duration_ms=span.duration_ms,
+                    first_token_ms=span.first_token_ms,
+                    prompt_tokens=span.prompt_tokens,
+                    cached_tokens=span.cached_tokens,
+                    completion_tokens=span.completion_tokens,
+                    reasoning_tokens=span.reasoning_tokens,
+                    cost_usd=_money(span.cost_usd),
+                )
+            )
+        return rows
+
+    async def decisions(
+        self, viewer: User, survey_id: UUID | None, run_id: UUID | None
+    ) -> list[DecisionRow]:
+        """Every ask in scope, oldest first, with its check and its own attempts."""
+        if not is_admin(viewer, get_settings().admin_email_set):
+            raise ForbiddenError(ADMINS_ONLY)
+        placed = _place(await self.repo.in_scope(survey_id, run_id))
+        children: dict[Any, list[LLMSpan]] = {}
+        for p in placed.values():
+            if p.span.parent_id is not None:
+                children.setdefault(p.span.parent_id, []).append(p.span)
+        rows = []
+        for p in placed.values():
+            span = p.span
+            if span.kind.value != "decision":
+                continue
+            attrs = span.attrs
+            under = children.get(span.id, [])
+            attempts = [c for c in under if c.kind.value == "attempt"]
+            checks = [c for c in under if c.kind.value == "validation"]
+            check = checks[-1].attrs if checks else {}
+            costs = [c.cost_usd for c in attempts if c.cost_usd is not None]
+            offered = attrs.get("tools_offered")
+            rows.append(
+                DecisionRow(
+                    id=span.id,
+                    run_id=p.turn.run_id,
+                    survey_title=p.survey_title,
+                    started_at=span.started_at,
+                    turn_number=p.turn_number,
+                    question_index=_whole(p.turn.attrs, "question_index"),
+                    retry=_flag(attrs, "retry") is True,
+                    duration_ms=span.duration_ms,
+                    error=span.error,
+                    answer_type=_text(attrs, "answer_type"),
+                    follow_up_policy=_text(attrs, "follow_up_policy"),
+                    forced_probe=_flag(attrs, "forced_probe"),
+                    probe_outstanding=_flag(attrs, "probe_outstanding"),
+                    scripted_recorded=_flag(attrs, "scripted_recorded"),
+                    recorded_this_turn=_flag(attrs, "recorded_this_turn"),
+                    follow_ups_used=_whole(attrs, "follow_ups_used"),
+                    replies_used=_whole(attrs, "replies_used"),
+                    transcript_messages=_whole(attrs, "transcript_messages"),
+                    tools_offered=([str(t) for t in offered] if isinstance(offered, list) else []),
+                    resolved_to=_text(attrs, "resolved_to"),
+                    picked=_text(check, "tool"),
+                    outcome=_text(check, "outcome"),
+                    reason=_text(check, "reason"),
+                    attempts=len(attempts),
+                    failed_attempts=sum(1 for c in attempts if c.error is not None),
+                    attempt_ms=sum(c.duration_ms for c in attempts),
+                    # Unknown only when no attempt under it was priced; otherwise the sum of
+                    # the priced ones, as the run totals do.
+                    cost_usd=_money(sum(costs, Decimal(0))) if costs else None,
+                )
+            )
+        return rows
