@@ -12,8 +12,9 @@ Kept out of ``client.py`` so that module has no import cycle with
 """
 
 from app.config import Settings, get_settings
-from app.llm.client import LLMError, LLMProtocol
+from app.llm.client import EmbedderProtocol, EmbeddingsNotConfiguredError, LLMError, LLMProtocol
 from app.llm.failover import FailoverLLM
+from app.llm.ledger import TierEconomics
 from app.llm.openai_compatible import OpenAICompatibleLLMClient
 
 # Tier order is positional, not alphabetical: tier 1 serves every turn until it fails.
@@ -73,3 +74,27 @@ def get_llm() -> LLMProtocol:
     if len(chain) == 1:
         return chain[0]
     return FailoverLLM(*chain)
+
+
+def get_embedder() -> EmbedderProtocol:
+    """The embeddings client, or a loud 503 on a deployment that has not configured one."""
+    settings = _merged_settings()
+    if not settings.llm_embedding_enabled:
+        raise EmbeddingsNotConfiguredError(
+            "Embeddings are not configured on this deployment: set LLM_EMBEDDING_ENABLED and "
+            "its URL, model and price."
+        )
+    price = settings.llm_embedding_price_per_mtok
+    if price is None:  # settings refuse this; asserted so the type is proven here too
+        raise EmbeddingsNotConfiguredError("LLM_EMBEDDING_PRICE_PER_MTOK is not set.")
+    return OpenAICompatibleLLMClient(
+        base_url=settings.llm_embedding_base_url,
+        api_key=settings.llm_embedding_api_key,
+        model=settings.llm_embedding_model,
+        timeout_seconds=settings.llm_embedding_timeout_seconds,
+        tier=0,
+        # Embeddings bill input tokens only; output is priced at zero because none is made.
+        priced_as=TierEconomics(
+            params_b=0, local=False, price_in_per_mtok=price, price_out_per_mtok=0.0
+        ),
+    )

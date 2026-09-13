@@ -141,3 +141,26 @@ def test_an_enabled_but_unconfigured_tier_fails_loudly(monkeypatch):
 
     with pytest.raises(LLMError):
         factory.get_llm()
+
+
+def test_embeddings_that_are_not_configured_are_a_loud_503(monkeypatch):
+    from app.llm.client import EmbeddingsNotConfiguredError
+
+    monkeypatch.setattr(factory, "get_settings", lambda: _settings())
+    with pytest.raises(EmbeddingsNotConfiguredError) as caught:
+        factory.get_embedder()
+    assert caught.value.status_code == 503
+
+
+def test_configured_embeddings_build_a_priced_client(monkeypatch):
+    monkeypatch.setattr(
+        factory,
+        "get_settings",
+        lambda: _settings(
+            llm_embedding_enabled=True,
+            llm_embedding_base_url="https://api.openai.com/v1",
+            llm_embedding_price_per_mtok=0.02,
+        ),
+    )
+    embedder = factory.get_embedder()
+    assert embedder.model == "text-embedding-3-small"

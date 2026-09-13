@@ -61,3 +61,24 @@ def test_a_local_tier_needs_no_price() -> None:
 def test_a_disabled_tier_needs_no_price() -> None:
     settings = _settings(llm_tier2_enabled=False)
     assert settings.llm_tier2_price_in_per_mtok is None
+
+
+def test_embeddings_enabled_without_a_price_refuse_to_load() -> None:
+    with pytest.raises(ValidationError, match="LLM_EMBEDDING_PRICE_PER_MTOK"):
+        _settings(llm_embedding_enabled=True, llm_embedding_base_url="https://api.openai.com/v1")
+
+
+def test_semantic_grounding_needs_embeddings_and_a_measured_threshold() -> None:
+    with pytest.raises(ValidationError, match="needs embeddings"):
+        _settings(grounding_semantic_enabled=True, grounding_similarity_margin=0.05)
+    with pytest.raises(ValidationError, match="GROUNDING_SIMILARITY_MARGIN"):
+        _settings(
+            grounding_semantic_enabled=True,
+            llm_embedding_enabled=True,
+            llm_embedding_base_url="https://api.openai.com/v1",
+            llm_embedding_price_per_mtok=0.02,
+        )
+
+
+def test_a_blank_threshold_from_compose_counts_as_unset() -> None:
+    assert _settings(grounding_similarity_margin="").grounding_similarity_margin is None

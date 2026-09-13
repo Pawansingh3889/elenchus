@@ -347,6 +347,7 @@ def record(
     status: int,
     error: str | None = None,
     first_token_ms: int | None = None,
+    priced_as: TierEconomics | None = None,
 ) -> None:
     """Append one call attempt to the ledger, and add it to the enclosing run's spend.
 
@@ -355,7 +356,8 @@ def record(
     Without those rows an afternoon of 429s pushing traffic to a priced tier would be
     invisible in the very file that exists to explain the spend.
     """
-    economics = economics_for(tier)
+    # A caller outside the tier chain (the embeddings endpoint) states its own economics.
+    economics = priced_as if priced_as is not None else economics_for(tier)
     prompt_tokens = _token_count(usage, "prompt_tokens")
     completion_tokens = _token_count(usage, "completion_tokens")
     cached_tokens = _detail_count(usage, "prompt_tokens_details", "cached_tokens")

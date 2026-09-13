@@ -861,3 +861,76 @@ async def test_a_stream_that_drops_mid_answer_is_retried():
     turn = await _client(handler).tool_turn(system="s", messages=[], tools=[])
     assert turn.tool_name == "move_on"
     assert attempts["n"] == 2
+
+
+# ------------------------------------------------------------------------ embeddings
+
+
+def _embedder(handler: Any) -> OpenAICompatibleLLMClient:
+    from app.llm.ledger import TierEconomics
+
+    return OpenAICompatibleLLMClient(
+        base_url="http://tier.local/v1",
+        api_key="k",
+        model="text-embedding-3-small",
+        transport=httpx.MockTransport(handler),
+        priced_as=TierEconomics(
+            params_b=0, local=False, price_in_per_mtok=0.02, price_out_per_mtok=0.0
+        ),
+    )
+
+
+async def test_embeddings_are_placed_by_index_and_never_streamed(ledger_file):
+    seen: dict[str, Any] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["path"] = request.url.path
+        seen["body"] = json.loads(request.content)
+        # Out of order on purpose: the API does not promise order, the index is the contract.
+        return httpx.Response(
+            200,
+            json={
+                "data": [
+                    {"index": 1, "embedding": [0.0, 1.0]},
+                    {"index": 0, "embedding": [1.0, 0.0]},
+                ],
+                "usage": {"prompt_tokens": 12, "total_tokens": 12},
+            },
+        )
+
+    vectors = await _embedder(handler).embed(["first", "second"])
+
+    assert vectors == [[1.0, 0.0], [0.0, 1.0]]
+    assert seen["path"] == "/v1/embeddings"
+    assert "stream" not in seen["body"] and seen["body"]["input"] == ["first", "second"]
+    (row,) = _booked(ledger_file)
+    assert (row["op"], row["prompt_tokens"]) == ("embed", 12)
+    # No output is made, so zero output tokens is booked and the call is priced.
+    assert row["completion_tokens"] == 0
+    assert row["cost_usd"] == pytest.approx(12 / 1_000_000 * 0.02)
+
+
+async def test_a_vector_count_that_does_not_match_the_input_fails_loudly():
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"data": [{"index": 0, "embedding": [1.0]}]})
+
+    with pytest.raises(LLMError, match="1 vectors for 2 texts"):
+        await _embedder(handler).embed(["a", "b"])
+
+
+async def test_a_repeated_index_fails_loudly():
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"data": [{"index": 0, "embedding": [1.0]}, {"index": 0, "embedding": [2.0]}]},
+        )
+
+    with pytest.raises(LLMError, match="repeated index"):
+        await _embedder(handler).embed(["a", "b"])
+
+
+async def test_embedding_nothing_makes_no_call():
+    def handler(_: httpx.Request) -> httpx.Response:
+        raise AssertionError("no request expected")
+
+    assert await _embedder(handler).embed([]) == []
