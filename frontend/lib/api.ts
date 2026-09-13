@@ -3,7 +3,10 @@ import { z, type ZodType } from "zod";
 import type { LensScope } from "./lensScope";
 import {
   attemptRowSchema,
+  correlationMatrixSchema,
   decisionRowSchema,
+  promptBodySchema,
+  promptFamilySchema,
   lensStripSchema,
   meSchema,
   spanSchema,
@@ -115,8 +118,12 @@ function scoped(path: string, scope: LensScope): string {
   return text ? `${path}?${text}` : path;
 }
 
-async function parsed<S extends ZodType>(path: string, schema: S): Promise<z.infer<S>> {
-  return parseBody(path, schema, await request<unknown>(path));
+async function parsed<S extends ZodType>(
+  path: string,
+  schema: S,
+  init?: RequestInit,
+): Promise<z.infer<S>> {
+  return parseBody(path, schema, await request<unknown>(path, init));
 }
 
 export const api = {
@@ -170,4 +177,21 @@ export const api = {
     parsed(scoped("/lens/attempts", scope), z.array(attemptRowSchema)),
   lensDecisions: (scope: LensScope) =>
     parsed(scoped("/lens/decisions", scope), z.array(decisionRowSchema)),
+  lensCorrelations: (scope: LensScope) =>
+    parsed(scoped("/lens/correlations", scope), correlationMatrixSchema),
+  /** Conduct prompt versions, file and saved, with what their traced turns cost. */
+  promptFamily: () => parsed("/admin/prompts/conduct", promptFamilySchema),
+  promptBody: (name: string) =>
+    parsed(`/admin/prompts/conduct/versions/${encodeURIComponent(name)}`, promptBodySchema),
+  /** Saves as the next version. Saving never makes it live; activating does. */
+  savePrompt: (body: string, note: string | null) =>
+    parsed("/admin/prompts/conduct/versions", promptFamilySchema, {
+      method: "POST",
+      body: JSON.stringify({ body, note }),
+    }),
+  activatePrompt: (name: string) =>
+    parsed("/admin/prompts/conduct/activate", promptFamilySchema, {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
 };

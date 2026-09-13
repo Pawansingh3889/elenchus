@@ -213,3 +213,51 @@ export function useLensDecisions(scope: LensScope, enabled: boolean) {
     placeholderData: (previous) => previous,
   });
 }
+
+export function useLensCorrelations(scope: LensScope, enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["lens", "correlations", scope.surveyId, scope.runId, userId],
+    queryFn: () => api.lensCorrelations(scope),
+    enabled,
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function usePromptFamily(enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({ queryKey: ["prompts", "conduct", userId], queryFn: api.promptFamily, enabled });
+}
+
+export function usePromptBody(name: string | null, enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["prompts", "conduct", "body", name, userId],
+    queryFn: () => api.promptBody(name as string),
+    enabled: enabled && name !== null,
+  });
+}
+
+/* Both prompt writes return the whole family, so they seed its cache instead of refetching,
+ * and they invalidate the lens: which version is live changes what every page reads next. */
+
+export function useSavePrompt() {
+  const qc = useQueryClient();
+  const userId = useUserStore((s) => s.currentUserId);
+  return useMutation({
+    mutationFn: ({ body, note }: { body: string; note: string | null }) => api.savePrompt(body, note),
+    onSuccess: (family) => qc.setQueryData(["prompts", "conduct", userId], family),
+  });
+}
+
+export function useActivatePrompt() {
+  const qc = useQueryClient();
+  const userId = useUserStore((s) => s.currentUserId);
+  return useMutation({
+    mutationFn: (name: string) => api.activatePrompt(name),
+    onSuccess: (family) => {
+      qc.setQueryData(["prompts", "conduct", userId], family);
+      void qc.invalidateQueries({ queryKey: ["lens"] });
+    },
+  });
+}

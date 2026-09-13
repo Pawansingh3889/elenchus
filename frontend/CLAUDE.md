@@ -52,3 +52,14 @@ this directory.
   `ApiContractError`, naming the paths, when a response does not match. Lifted from the
   closed PR #65. Unknown keys are stripped rather than rejected, so an added field never
   breaks a page. The respondent pages still cast; move them across when they are touched.
+- **A correlation is never a finding below 20 calls, and never a cause.** The Relationships
+  page reads Spearman coefficients with a 95% bootstrap interval from
+  `/lens/correlations`. Under the minimum a cell is outlined and uncoloured, and a side
+  with no variation reads "no variation", not 0. Cells mix from `--div-mid` toward
+  `--div-pos` or `--div-neg` by |rho|, a diverging pair with a neutral grey midpoint,
+  defined in all three token blocks; text on a strong cell switches to `--on-slab`.
+- **The prompt screen saves, it never switches.** "Save as a new version" adds the next
+  version and changes nothing for respondents; only "Activate", confirmed by a second
+  click rather than a browser dialog, makes a version live. The editor is keyed by version
+  so opening another one mounts fresh state instead of copying text in an effect. Only
+  the conduct prompt is editable here, by decision.

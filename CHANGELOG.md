@@ -7,6 +7,36 @@ The project is not yet versioned, so entries are grouped by date. Newest first.
 
 
 
+
+## 2026-09-13. Relationships: what moves with cost and latency, and a versioned conduct prompt
+
+Three real surveys on AI problems and solutions around the world (healthcare in English,
+jobs in Spanish, misinformation in German) were drafted through `gpt-5.5` and each
+answered by two seeded respondents with different answer styles: 6 runs, 55 turns, 83
+calls, $1.01. With the onboarding run that gives 93 traced calls, enough for correlation.
+
+- **`/lens/relationships`** shows each factor of a call (tokens in, cached, out,
+  transcript length, turn number, retry) against each outcome (wait for the first token,
+  writing time, total time, cost) as Spearman rank correlations with a seeded 95%
+  bootstrap interval, computed in plain Python in `app/trace/stats.py`. Below 20 calls a
+  cell is shown for reference and never coloured. On the 93 calls: tokens out moves with
+  the wait for the first token (rho +0.74, interval +0.60 to +0.85), cached tokens move
+  against cost (-0.76, -0.82 to -0.65), and transcript length and turn number show nothing
+  whose interval clears zero. Correlation, not cause, and the page says so.
+- **The flow of asks** runs answer type, the tool picked, the check and what the ask
+  resolved to as a Sankey with a table twin.
+- **`/lens/chains`** lays out every question's asks in order per run, with the chain's
+  time and cost, and which questions need the longest chains.
+- **`/lens/compare`** puts two runs side by side, question by question.
+- **The conduct prompt is versioned in the database as well as in files.** An
+  administrator saves text from `/lens/prompts` as the next version (`conduct_v9`, then
+  `v10`), never editing one, and activates any version from the next turn; rolling back
+  is activating an older one. `prompt_versions` and the append-only `prompt_activations`
+  log hold it; the engine resolves the live version once per turn, so every ask, ledger
+  row, span and reply in the turn names the same one. Each version shows the turns, runs,
+  median turn and cost traced under it. An identical save is refused, and only the conduct
+  family is editable. `CLAUDE.md` records the change to the prompts-as-code rule.
+
 ## 2026-09-13. Four factor pages: inference, state, tool selection, validation
 
 Each lens factor now has its own page, scoped by one filter row (a survey or a run, kept in

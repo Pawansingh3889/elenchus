@@ -164,3 +164,55 @@ export const decisionRowSchema = z.object({
   cost_usd: z.number().nonnegative().nullable(),
 });
 export type DecisionRow = z.infer<typeof decisionRowSchema>;
+
+export const correlationCellSchema = z.object({
+  factor: z.string(),
+  outcome: z.string(),
+  n: count,
+  rho: z.number().min(-1).max(1).nullable(),
+  ci_low: z.number().min(-1).max(1).nullable(),
+  ci_high: z.number().min(-1).max(1).nullable(),
+  /** Below the minimum sample: shown for reference, never ranked or coloured. */
+  too_few: z.boolean(),
+  /** rho is null because one side never varied across these calls. */
+  no_variation: z.boolean(),
+});
+export type CorrelationCell = z.infer<typeof correlationCellSchema>;
+
+export const correlationMatrixSchema = z.object({
+  factors: z.array(z.string()),
+  outcomes: z.array(z.string()),
+  min_samples: count,
+  cells: z.array(correlationCellSchema),
+});
+export type CorrelationMatrix = z.infer<typeof correlationMatrixSchema>;
+
+export const promptVersionSchema = z.object({
+  name: z.string(),
+  source: z.enum(["file", "database"]),
+  active: z.boolean(),
+  created_at: z.string().nullable(),
+  created_by_name: z.string().nullable(),
+  note: z.string().nullable(),
+  /** From the trace; null means no traced turn ran on it, not that it never ran. */
+  turns: optionalCount,
+  runs: optionalCount,
+  turn_ms_p50: z.number().nullable(),
+  cost_usd: z.number().nonnegative().nullable(),
+});
+export type PromptVersion = z.infer<typeof promptVersionSchema>;
+
+export const promptFamilySchema = z.object({
+  family: z.string(),
+  active: z.string(),
+  default: z.string(),
+  versions: z.array(promptVersionSchema),
+});
+export type PromptFamily = z.infer<typeof promptFamilySchema>;
+
+export const promptBodySchema = z.object({
+  name: z.string(),
+  source: z.enum(["file", "database"]),
+  body: z.string(),
+});
+export type PromptBody = z.infer<typeof promptBodySchema>;
