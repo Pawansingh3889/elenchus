@@ -664,8 +664,18 @@ class ConductEngine:
             question_id=str(question["id"]),
             tools_offered=sorted(t["name"] for t in tools),
             retry=previous_error is not None,
-            follow_ups_used=state.get("follow_ups_used"),
             transcript_messages=len(run.messages),
+            # What the engine knew when it asked, as flags and counts. The engine's copy of
+            # the respondent's scripted answer is deliberately not among them: the trace
+            # explains a decision, and quoting the answer adds nothing to that.
+            answer_type=question["answer_type"],
+            follow_up_policy=question["follow_up_policy"],
+            scripted_recorded=state["scripted_recorded"],
+            recorded_this_turn=state["recorded_this_turn"],
+            follow_ups_used=state["follow_ups_used"],
+            replies_used=state["replies_used"],
+            probe_outstanding=state["probe_outstanding"],
+            forced_probe=_must_probe(question, state),
         ) as node:
             turn = await self._decide_unspanned(
                 run, questions, question, state, tools, setting, previous_error, probe_allowed

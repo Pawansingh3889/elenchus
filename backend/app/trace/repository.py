@@ -62,6 +62,7 @@ class SpanRepository:
         stmt = (
             select(
                 LLMSpan.run_id,
+                SurveyRun.template_id,
                 SurveyTemplate.title,
                 SurveyRun.started_at,
                 func.max(LLMSpan.started_at).label("last_traced_at"),
@@ -84,10 +85,32 @@ class SpanRepository:
             )
             .join(SurveyRun, SurveyRun.id == LLMSpan.run_id)
             .join(SurveyTemplate, SurveyTemplate.id == SurveyRun.template_id)
-            .group_by(LLMSpan.run_id, SurveyTemplate.title, SurveyRun.started_at)
+            .group_by(
+                LLMSpan.run_id, SurveyRun.template_id, SurveyTemplate.title, SurveyRun.started_at
+            )
             .order_by(func.max(LLMSpan.started_at).desc())
         )
         return list((await self.session.execute(stmt)).all())
+
+    async def in_scope(
+        self, survey_id: UUID | None, run_id: UUID | None
+    ) -> list[tuple[LLMSpan, str]]:
+        """Every span of the traced runs in scope, oldest first, with its survey's title.
+
+        Rows rather than aggregates, because the factor pages chart distributions and
+        link each point back to its run. The service places each span in its run and turn.
+        """
+        stmt = (
+            select(LLMSpan, SurveyTemplate.title)
+            .join(SurveyRun, SurveyRun.id == LLMSpan.run_id)
+            .join(SurveyTemplate, SurveyTemplate.id == SurveyRun.template_id)
+            .order_by(LLMSpan.started_at)
+        )
+        if survey_id is not None:
+            stmt = stmt.where(SurveyRun.template_id == survey_id)
+        if run_id is not None:
+            stmt = stmt.where(LLMSpan.run_id == run_id)
+        return [(span, title) for span, title in (await self.session.execute(stmt)).all()]
 
     async def tier_totals(self) -> list[Row[Any]]:
         """Every attempt, grouped by the tier and model that served it."""

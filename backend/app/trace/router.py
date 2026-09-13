@@ -2,12 +2,12 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import require_admin
 from app.db.session import get_session
-from app.trace.schemas import LensStrip, SpanRead, TracedRun
+from app.trace.schemas import AttemptRow, DecisionRow, LensStrip, SpanRead, TracedRun
 from app.trace.service import LensService
 from app.users.models import User
 
@@ -37,3 +37,23 @@ async def strip(
     session: AsyncSession = Depends(get_session),
 ) -> LensStrip:
     return await LensService(session).strip(admin)
+
+
+@router.get("/attempts", response_model=list[AttemptRow])
+async def attempts(
+    survey_id: UUID | None = Query(None),
+    run_id: UUID | None = Query(None),
+    admin: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> list[AttemptRow]:
+    return await LensService(session).attempts(admin, survey_id, run_id)
+
+
+@router.get("/decisions", response_model=list[DecisionRow])
+async def decisions(
+    survey_id: UUID | None = Query(None),
+    run_id: UUID | None = Query(None),
+    admin: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> list[DecisionRow]:
+    return await LensService(session).decisions(admin, survey_id, run_id)

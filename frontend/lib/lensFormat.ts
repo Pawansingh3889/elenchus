@@ -32,3 +32,19 @@ export function dollars(value: number | null, unmetered = 0): string {
 export function moment(iso: string): string {
   return new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
 }
+
+/** The median of what was measured, or null when nothing was. */
+export function median(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+/** A share as a whole percentage, or "no data" when there is nothing to divide by. */
+export function percent(part: number, whole: number): string {
+  return whole === 0 ? "no data" : `${Math.round((part / whole) * 100)}%`;
+}
+
+/** Below this many samples a percentile or a trend is a story, not a measurement. */
+export const TOO_FEW = 5;

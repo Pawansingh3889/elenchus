@@ -28,6 +28,7 @@ export type Me = z.infer<typeof meSchema>;
 
 export const tracedRunSchema = z.object({
   run_id: z.string(),
+  template_id: z.string(),
   survey_title: z.string(),
   started_at: z.string(),
   last_traced_at: z.string(),
@@ -102,3 +103,64 @@ export const lensStripSchema = z.object({
   tiers: z.array(tierStripSchema),
 });
 export type LensStrip = z.infer<typeof lensStripSchema>;
+
+/** One call to one tier, placed in its run and turn: the Inference page's unit. */
+export const attemptRowSchema = z.object({
+  id: z.string(),
+  run_id: z.string(),
+  survey_title: z.string(),
+  started_at: z.string(),
+  turn_number: count,
+  question_index: optionalCount,
+  /** The ask this attempt served was a nudged retry after a refusal. */
+  retry: z.boolean(),
+  transcript_messages: optionalCount,
+  tier: z.number().int().nullable(),
+  model: z.string().nullable(),
+  status: z.number().int().nullable(),
+  error: z.string().nullable(),
+  duration_ms: count,
+  first_token_ms: optionalCount,
+  prompt_tokens: optionalCount,
+  cached_tokens: optionalCount,
+  completion_tokens: optionalCount,
+  reasoning_tokens: optionalCount,
+  cost_usd: z.number().nonnegative().nullable(),
+});
+export type AttemptRow = z.infer<typeof attemptRowSchema>;
+
+/**
+ * One ask of the model: what the engine knew, what it offered, what the model picked,
+ * what the check concluded, and what the ask's own calls cost. State fields are null on
+ * asks traced before they were recorded, which is unknown, not false.
+ */
+export const decisionRowSchema = z.object({
+  id: z.string(),
+  run_id: z.string(),
+  survey_title: z.string(),
+  started_at: z.string(),
+  turn_number: count,
+  question_index: optionalCount,
+  retry: z.boolean(),
+  duration_ms: count,
+  error: z.string().nullable(),
+  answer_type: z.string().nullable(),
+  follow_up_policy: z.string().nullable(),
+  forced_probe: z.boolean().nullable(),
+  probe_outstanding: z.boolean().nullable(),
+  scripted_recorded: z.boolean().nullable(),
+  recorded_this_turn: z.boolean().nullable(),
+  follow_ups_used: optionalCount,
+  replies_used: optionalCount,
+  transcript_messages: optionalCount,
+  tools_offered: z.array(z.string()),
+  resolved_to: z.string().nullable(),
+  picked: z.string().nullable(),
+  outcome: z.string().nullable(),
+  reason: z.string().nullable(),
+  attempts: count,
+  failed_attempts: count,
+  attempt_ms: count,
+  cost_usd: z.number().nonnegative().nullable(),
+});
+export type DecisionRow = z.infer<typeof decisionRowSchema>;

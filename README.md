@@ -146,6 +146,10 @@ frontend/
     runs/[id]/         the conversational runner
     lens/              admin only: traced runs, their cost and latency per tier
     lens/runs/[id]/    one run's spans as a waterfall, with what each call cost
+    lens/inference/    each call split into time before its first token and writing
+    lens/state/        input tokens by turn, and what the engine knew at every ask
+    lens/tools/        tools offered, picked and accepted at every ask
+    lens/validation/   refusals, what they cost, and answers given up as unanswerable
   lib/                 typed API client, TanStack Query hooks, Zustand store,
                        zod schemas for the responses the lens renders numbers from
 docker-compose.yml        development stack: postgres, backend, frontend

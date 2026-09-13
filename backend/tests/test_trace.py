@@ -89,6 +89,21 @@ async def test_a_turn_leaves_a_tree_of_decisions_attempts_and_checks(
     assert [d.attrs["resolved_to"] for d in decisions] == ["record_answer", "move_on"]
     assert all(d.parent_id == turn.id for d in decisions)
     assert "record_answer" in decisions[0].attrs["tools_offered"]
+    state_keys = {
+        "answer_type",
+        "follow_up_policy",
+        "scripted_recorded",
+        "recorded_this_turn",
+        "follow_ups_used",
+        "replies_used",
+        "probe_outstanding",
+        "forced_probe",
+    }
+    assert all(state_keys <= d.attrs.keys() for d in decisions)
+    # The flag moves between the two asks: the first recorded, so the second knows it had.
+    assert [d.attrs["recorded_this_turn"] for d in decisions] == [False, True]
+    # Flags and counts only: the engine's copy of the respondent's answer stays out.
+    assert not any("scripted_value" in d.attrs for d in decisions)
     assert [a.parent_id for a in attempts] == [d.id for d in decisions]
     assert {(a.tier, a.model, a.status) for a in attempts} == {(1, "gpt-5.5", 200)}
     assert [(c.parent_id, c.attrs["outcome"]) for c in checks] == [

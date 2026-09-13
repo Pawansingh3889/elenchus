@@ -20,7 +20,21 @@ this directory.
   A class with no rule renders unstyled and no checker notices, so rendering is verified
   by looking at the page. Do not reintroduce a utility framework or a component kit for
   the lens pages without a reason that names what plain classes cannot do.
-- **`recharts` is the one charting dependency**, kept for the lens pages.
+- **`recharts` is the one charting dependency, and chart colour is validated, not chosen.**
+  Series colours are `--series-1` to `--series-4` in all three token blocks of
+  `globals.css` (light, dark by media query, dark by `data-theme`), checked with the
+  dataviz palette script on 13 Sep 2026 against `--raised`. All four pass for adjacent marks
+  (bars, stacks, lines). Only the first three pass for all-pairs forms in light, and no
+  three pass on dark, so a scatter or small multiple uses one series and facets instead of
+  seating more hues. Dark steps are their own values, not the light ones flipped: the
+  light steps sat below 3:1 on the dark card. Colour follows the entity, never its rank;
+  text wears text tokens, never a series colour.
+- **Every lens chart has a table twin and its sample size.** `ChartCard` in
+  `components/lens/Chart.tsx` gives each plot a subtitle naming n and a "Show as a table"
+  view, because a tooltip must never be the only way to read a value. Below
+  `TOO_FEW` (5) samples a chart says it is too few to read a trend from. The factor pages
+  share one filter row, kept in the URL (`lib/lensScope.ts`), so every chart below it reads
+  the same slice and a narrowed page can be linked.
 - **One frontend test, by policy.** `tests/smoke.test.tsx` proves the harness renders and
   queries a component. The checks are `tsc --noEmit`, `eslint`, `next build` and `vitest`.
   A new test is written when something breaks, and it names that bug.

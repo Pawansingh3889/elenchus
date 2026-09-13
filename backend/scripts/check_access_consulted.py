@@ -57,6 +57,8 @@ GUARDED_TYPES = frozenset(
         "TracedRun",
         "SpanRead",
         "LensStrip",
+        "AttemptRow",
+        "DecisionRow",
     }
 )
 

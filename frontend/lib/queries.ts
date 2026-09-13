@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
 import { api } from "./api";
+import type { LensScope } from "./lensScope";
 import { useUserStore } from "./store";
 
 export function useUsers() {
@@ -188,5 +189,27 @@ export function useLensSpans(runId: string, enabled: boolean) {
     queryKey: ["lens", "spans", runId, userId],
     queryFn: () => api.lensSpans(runId),
     enabled,
+  });
+}
+
+export function useLensAttempts(scope: LensScope, enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["lens", "attempts", scope.surveyId, scope.runId, userId],
+    queryFn: () => api.lensAttempts(scope),
+    enabled,
+    // Refetch keeps the frame: a new filter holds the previous render rather than
+    // flashing empty while the next slice loads.
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useLensDecisions(scope: LensScope, enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["lens", "decisions", scope.surveyId, scope.runId, userId],
+    queryFn: () => api.lensDecisions(scope),
+    enabled,
+    placeholderData: (previous) => previous,
   });
 }

@@ -129,3 +129,74 @@ async def test_a_run_without_a_trace_is_not_found(session, respondent, published
     run = await ConductEngine(session, llm=FakeLLM()).start_run(published.id, respondent)
     with pytest.raises(NotFoundError, match="no trace"):
         await LensService(session).spans(run.id, admin)
+
+
+# ------------------------------------------------------------------ factor rows
+
+
+async def test_attempt_rows_are_placed_in_their_turn_and_marked_as_retries(
+    session, respondent, published, admin
+):
+    run = await _one_good_turn(
+        session,
+        respondent,
+        published,
+        ToolTurn(text="", tool_name="delete_everything", tool_input={}),
+        record("Line lead"),
+        move_on("Thanks."),
+    )
+    rows = await LensService(session).attempts(admin, None, None)
+
+    assert [row.retry for row in rows] == [False, True, False]
+    assert {row.turn_number for row in rows} == {1}
+    assert {row.run_id for row in rows} == {run.id}
+    assert all(row.survey_title == published.title for row in rows)
+    assert all(row.first_token_ms == 1100 and row.cached_tokens == 600 for row in rows)
+
+
+async def test_decision_rows_carry_the_check_and_their_own_cost(
+    session, respondent, published, admin
+):
+    await _one_good_turn(
+        session,
+        respondent,
+        published,
+        ToolTurn(text="", tool_name="delete_everything", tool_input={}),
+        record("Line lead"),
+        move_on("Thanks."),
+    )
+    refused, retry, move = await LensService(session).decisions(admin, None, None)
+
+    assert (refused.picked, refused.outcome) == ("delete_everything", "refused")
+    assert refused.reason is not None and "not available" in refused.reason
+    assert refused.resolved_to == "record_answer"
+    assert (retry.retry, retry.picked, retry.outcome) == (True, "record_answer", "accepted")
+    # Each ask counts only its own attempt, so the refusal's cost is not the retry's.
+    assert (refused.attempts, retry.attempts, move.attempts) == (1, 1, 1)
+    assert refused.cost_usd is not None and refused.cost_usd == retry.cost_usd
+    assert refused.recorded_this_turn is False and move.recorded_this_turn is True
+    assert "record_answer" in refused.tools_offered
+
+
+async def test_factor_rows_narrow_to_a_survey_or_a_run(session, respondent, published, admin):
+    run = await _one_good_turn(session, respondent, published)
+    lens = LensService(session)
+    assert len(await lens.attempts(admin, published.id, None)) == 2
+    assert len(await lens.decisions(admin, None, run.id)) == 2
+    other_survey = run.id  # any id that is not a survey id matches nothing
+    assert await lens.attempts(admin, other_survey, None) == []
+
+
+async def test_only_admins_read_factor_rows(session, respondent, published, author):
+    await _one_good_turn(session, respondent, published)
+    lens = LensService(session)
+    with pytest.raises(ForbiddenError):
+        await lens.attempts(author, None, None)
+    with pytest.raises(ForbiddenError):
+        await lens.decisions(author, None, None)
+
+
+async def test_traced_runs_name_their_survey_for_the_filter(session, respondent, published, admin):
+    await _one_good_turn(session, respondent, published)
+    (traced,) = await LensService(session).runs(admin)
+    assert traced.template_id == published.id

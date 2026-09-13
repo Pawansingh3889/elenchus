@@ -17,6 +17,7 @@ class TracedRun(BaseModel):
     """One run that has a trace, with what its turns cost and how long they took."""
 
     run_id: UUID
+    template_id: UUID
     survey_title: str
     started_at: datetime
     last_traced_at: datetime
@@ -89,3 +90,70 @@ class LensStrip(BaseModel):
     retries: int
     turn_ms_p50: float | None
     tiers: list[TierStrip]
+
+
+class AttemptRow(BaseModel):
+    """One call to one tier, placed in its run and turn. The Inference page's unit."""
+
+    id: UUID
+    run_id: UUID
+    survey_title: str
+    started_at: datetime
+    # 1-based, in the order the run's turns happened.
+    turn_number: int
+    question_index: int | None
+    # Whether the ask this attempt served was a nudged retry after a refusal.
+    retry: bool
+    transcript_messages: int | None
+    tier: int | None
+    model: str | None
+    status: int | None
+    error: str | None
+    duration_ms: int
+    first_token_ms: int | None
+    prompt_tokens: int | None
+    cached_tokens: int | None
+    completion_tokens: int | None
+    reasoning_tokens: int | None
+    cost_usd: float | None
+
+
+class DecisionRow(BaseModel):
+    """One ask of the model, with what the engine knew, what it offered, what the model
+    picked, what the check concluded, and what the ask's own calls cost.
+
+    State fields are None on decisions traced before they were recorded (13 Sep 2026),
+    which is unknown, not false.
+    """
+
+    id: UUID
+    run_id: UUID
+    survey_title: str
+    started_at: datetime
+    turn_number: int
+    question_index: int | None
+    retry: bool
+    duration_ms: int
+    error: str | None
+    answer_type: str | None
+    follow_up_policy: str | None
+    forced_probe: bool | None
+    probe_outstanding: bool | None
+    scripted_recorded: bool | None
+    recorded_this_turn: bool | None
+    follow_ups_used: int | None
+    replies_used: int | None
+    transcript_messages: int | None
+    tools_offered: list[str]
+    resolved_to: str | None
+    # From the ask's own validation span. None when the model never produced an action
+    # to check (the call failed, or it chatted and was nudged).
+    picked: str | None
+    outcome: str | None
+    reason: str | None
+    # The attempts directly under this ask, not under a retry nested beneath it, so a
+    # refusal's cost and its retry's cost stay apart.
+    attempts: int
+    failed_attempts: int
+    attempt_ms: int
+    cost_usd: float | None
