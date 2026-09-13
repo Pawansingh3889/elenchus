@@ -67,6 +67,10 @@ GUARDED_TYPES = frozenset(
         # What respondents typed, read by a local model.
         "CapturedAsk",
         "StoredAnalysis",
+        # Recorded answers beside what respondents said, labelled and judged.
+        "EvalItem",
+        "FaithfulnessReport",
+        "JudgeRunRead",
     }
 )
 
