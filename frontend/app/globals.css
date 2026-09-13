@@ -1523,6 +1523,90 @@ select.field {
   font-weight: 600;
 }
 
+/* Interpretability pages: the chosen call, a running reading, words coloured by pull. */
+.lens-table tr[aria-selected="true"] td {
+  background: var(--highlight-soft);
+}
+.lens-running {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.lens-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+.lens-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  font-size: var(--text-md);
+  line-height: 1.8;
+}
+.lens-word {
+  padding-inline: var(--space-1);
+  border-radius: 4px;
+  color: var(--ink);
+}
+.lens-word-strong {
+  color: var(--on-slab);
+}
+
+/* Evaluation: one recorded answer at a time, beside what was said. */
+.lens-eval-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+}
+.lens-eval-meta {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.lens-eval-question {
+  font-weight: 700;
+  color: var(--ink);
+}
+.lens-eval-said {
+  margin: 0;
+  padding-inline-start: var(--space-4);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.lens-eval-value {
+  font-size: var(--text-sm);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--surface);
+  border-radius: 6px;
+  padding: var(--space-2);
+  margin: 0;
+}
+.lens-eval-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+/* The note field only: a checkbox in the same row must keep its own size. */
+.lens-eval-actions input[type="text"] {
+  flex: 1 1 12rem;
+  min-inline-size: 0;
+}
+.lens-eval-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
 /* Correlation matrix and prompt screen. */
 .lens-matrix td,
 .lens-matrix th {

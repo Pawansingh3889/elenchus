@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { useLensScope } from "@/lib/lensScope";
+import { useLensScope, useSelectedAsk } from "@/lib/lensScope";
 import { useLensRuns, useMe } from "@/lib/queries";
 
 // `filtered` marks the pages the survey and run filter scopes. The overview has its own
@@ -17,9 +17,15 @@ const FACTORS = [
   { href: "/lens/relationships", label: "Relationships", filtered: true },
   { href: "/lens/chains", label: "Cause chains", filtered: true },
   { href: "/lens/embeddings", label: "Embeddings", filtered: true },
+  { href: "/lens/hidden-layers", label: "Hidden layers", filtered: true },
+  { href: "/lens/attention", label: "Attention", filtered: true },
+  { href: "/lens/tokens", label: "Token relationships", filtered: true },
+  { href: "/lens/evaluation", label: "Evaluation", filtered: false },
   { href: "/lens/compare", label: "Compare runs", filtered: false },
   { href: "/lens/prompts", label: "Prompts", filtered: false },
 ] as const;
+
+const INTERP_PAGES = new Set(["/lens/hidden-layers", "/lens/attention", "/lens/tokens"]);
 
 /**
  * The lens tabs and, on the factor pages, the one filter row that scopes everything
@@ -32,6 +38,7 @@ export function LensNav() {
   const admin = me?.is_admin === true;
   const runs = useLensRuns(admin);
   const [scope, setScope] = useLensScope();
+  const [ask] = useSelectedAsk();
 
   if (!admin) return null;
   const onFactor = FACTORS.some((f) => f.filtered && pathname.startsWith(f.href));
@@ -39,6 +46,14 @@ export function LensNav() {
   if (scope.surveyId) query.set("survey", scope.surveyId);
   if (scope.runId) query.set("run", scope.runId);
   const suffix = query.toString() ? `?${query.toString()}` : "";
+  // The three pages that read one captured call carry it between them.
+  const onInterp = INTERP_PAGES.has(pathname);
+  const withAsk = (href: string) => {
+    if (!ask || !onInterp || !INTERP_PAGES.has(href)) return `${href}${suffix}`;
+    const carried = new URLSearchParams(query);
+    carried.set("ask", ask);
+    return `${href}?${carried.toString()}`;
+  };
 
   const surveys = new Map<string, string>();
   for (const run of runs.data ?? []) surveys.set(run.template_id, run.survey_title);
@@ -55,7 +70,7 @@ export function LensNav() {
           return (
             <Link
               key={factor.href}
-              href={factor.filtered ? `${factor.href}${suffix}` : factor.href}
+              href={factor.filtered ? withAsk(factor.href) : factor.href}
               className={current ? "lens-tab lens-tab-current" : "lens-tab"}
               aria-current={current ? "page" : undefined}
             >

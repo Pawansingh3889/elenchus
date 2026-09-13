@@ -115,6 +115,23 @@ Answering needs at least one working tier, configured via `LLM_TIER1_*` through
 lowest-numbered one and falls through to the next only when it errors. Everything else
 runs without a model.
 
+## Inside a model (optional)
+
+The hosted models expose no hidden layers or attention, so the lens pages for those read the
+exact prompt a hosted call was sent with a small open model, Qwen3-0.6B, running on your own
+machine. It is off unless you start it, and conduct never uses it.
+
+```bash
+openssl rand -hex 24          # add to .env as INTERP_TOKEN, with INTERP_ENABLED=true and
+                              # INTERP_BASE_URL=http://host.docker.internal:8765
+docker compose up -d --force-recreate backend
+make interp                   # first run downloads the model, about 1.5 GB
+```
+
+Then answer a survey, open **Lens > Hidden layers**, and press **Analyse** on a captured call.
+On a laptop CPU a reading takes about a minute and a half and an attribution about five; a
+Mac with Apple silicon uses its GPU. Results are stored, so a second view is free.
+
 ## Layout
 
 ```
@@ -139,6 +156,7 @@ backend/
                        and the admin-only lens reads over it
     embeddings/        vectors cached by text hash, the embedding lens reads, and the
                        measured margin that lets meaning ground a choice
+    interp/            captured calls read by the local interpretability model on request
     auth/              dev-auth dependency
   migrations/          Alembic (async env)
   tests/               pytest against a real Postgres, LLM faked at the client boundary
@@ -157,10 +175,14 @@ frontend/
     lens/relationships/  factor correlations with intervals, and the flow of asks
     lens/chains/       every question's asks in order, with what the chain cost
     lens/embeddings/   answers placed by meaning, themes, near duplicates, grounding margin
+    lens/hidden-layers/  a local model's leaning between tools, layer by layer
+    lens/attention/    where that model looks at the moment it picks a tool
+    lens/tokens/       which words moved it toward or away from the hosted pick
     lens/compare/      two runs side by side, question by question
     lens/prompts/      conduct prompt versions: save a new one, activate, roll back
   lib/                 typed API client, TanStack Query hooks, Zustand store,
                        zod schemas for the responses the lens renders numbers from
+interp/                  Qwen3-0.6B on the host, reading captured prompts for the lens
 docker-compose.yml        development stack: postgres, backend, frontend
 docker-compose.prod.yml   deployment: pinned digests, no seeding, no bind mounts
 ```

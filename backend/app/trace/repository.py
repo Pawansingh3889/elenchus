@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.runs.models import SurveyRun
 from app.templates.models import SurveyTemplate
 from app.trace.enums import SpanKind
-from app.trace.models import LLMSpan
+from app.trace.models import LLMRequest, LLMSpan
 
 
 def _unmetered() -> ColumnElement[bool]:
@@ -42,12 +42,20 @@ class SpanRepository:
     def add_all(self, spans: list[LLMSpan]) -> None:
         self.session.add_all(spans)
 
+    def add_requests(self, requests: list[LLMRequest]) -> None:
+        self.session.add_all(requests)
+
+    async def request_for(self, span_id: UUID) -> LLMRequest | None:
+        return await self.session.get(LLMRequest, span_id)
+
     async def for_run(self, run_id: UUID) -> list[LLMSpan]:
         stmt = select(LLMSpan).where(LLMSpan.run_id == run_id).order_by(LLMSpan.started_at)
         return list((await self.session.scalars(stmt)).all())
 
     async def delete_for_run(self, run_id: UUID) -> None:
-        """Explicit, because run_id is not a foreign key (see the models docstring)."""
+        """The run's spans and captured requests. Explicit, because run_id is not a foreign
+        key on either (see the models docstring)."""
+        await self.session.execute(delete(LLMRequest).where(LLMRequest.run_id == run_id))
         await self.session.execute(delete(LLMSpan).where(LLMSpan.run_id == run_id))
 
     async def run_totals(self) -> list[Row[Any]]:

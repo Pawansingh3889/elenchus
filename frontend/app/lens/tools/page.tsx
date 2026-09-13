@@ -6,15 +6,17 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { axis, ChartCard, Gate, LensTooltip } from "@/components/lens/Chart";
 import { Tile } from "@/components/lens/LensStripView";
-import { dollars, milliseconds, percent } from "@/lib/lensFormat";
+import { probability } from "@/lib/interpFormat";
+import { dollars, median, milliseconds, percent } from "@/lib/lensFormat";
 import { useLensScope } from "@/lib/lensScope";
-import { useLensDecisions, useMe } from "@/lib/queries";
+import { useInterpAsks, useLensDecisions, useMe } from "@/lib/queries";
 import type { DecisionRow } from "@/lib/schemas";
 
 /**
  * Tool selection: at every ask the engine offers only the actions that are legal right
- * then, and the model picks one. How sure the model was is not measurable from the hosted
- * tier (it refuses logprobs), and arrives with the local model.
+ * then, and the model picks one. The hosted tier reports no probabilities, so how sure a
+ * model is comes from Qwen3-0.6B reading the same captured prompt: a stand-in, shown with
+ * how often it picks the same tool, never a measurement of the hosted model itself.
  */
 export default function ToolsPage() {
   const { data: me, isLoading } = useMe();
@@ -40,8 +42,8 @@ export default function ToolsPage() {
         </div>
         <p className="lens-provenance">
           Measured per ask. Offered is what the engine allowed; picked is what the model
-          chose; accepted is what the engine&rsquo;s check let through. How confident the model
-          was arrives with the local model.
+          chose; accepted is what the engine&rsquo;s check let through. How sure a local model
+          is, reading the same prompt, is at the foot of the page.
         </p>
         <ErrorBanner error={decisions.error} />
 
@@ -85,6 +87,8 @@ export default function ToolsPage() {
             <AskTable rows={rows} />
           </div>
         </section>
+
+        <Confidence admin={admin} />
       </div>
     </Gate>
   );
@@ -150,5 +154,84 @@ function AskTable({ rows }: { rows: DecisionRow[] }) {
         ))}
       </tbody>
     </table>
+  );
+}
+
+/** How sure Qwen3-0.6B is of the hosted pick, over the captured calls it has read. */
+function Confidence({ admin }: { admin: boolean }) {
+  const [scope] = useLensScope();
+  const asks = useInterpAsks(scope, admin);
+  const captured = asks.data ?? [];
+  const read = captured.filter(
+    (ask) => ask.analysed && ask.qwen_probability_of_hosted_pick !== null,
+  );
+  const agreeing = read.filter((ask) => ask.agrees === true).length;
+  // A median over the read calls with this check, or words when there are none: no refused
+  // pick is a fact about the calls, not a confidence of zero.
+  const sureOf = (outcome: string) => {
+    const scores = read.flatMap((ask) =>
+      ask.outcome === outcome && ask.qwen_probability_of_hosted_pick !== null
+        ? [ask.qwen_probability_of_hosted_pick]
+        : [],
+    );
+    return scores.length === 0 ? `none ${outcome}` : probability(median(scores));
+  };
+
+  return (
+    <section className="lens-section">
+      <h2 className="lens-heading">How sure a local model is of the hosted pick</h2>
+      <p className="lens-note">
+        Qwen3-0.6B reading the exact prompt of each captured call. Calls are read one at a time
+        from the Hidden layers page.
+      </p>
+      <ErrorBanner error={asks.error} />
+      <div className="lens-tiles">
+        <Tile label="Captured calls" value={String(captured.length)} />
+        <Tile label="Read by the local model" value={String(read.length)} />
+        <Tile
+          label="Picks the same tool"
+          value={`${agreeing} of ${read.length} (${percent(agreeing, read.length)})`}
+        />
+        <Tile label="Median confidence, accepted picks" value={sureOf("accepted")} />
+        <Tile label="Median confidence, refused picks" value={sureOf("refused")} />
+      </div>
+      <div className="lens-table-wrap">
+        <table className="lens-table">
+          <thead>
+            <tr>
+              <th>Run</th>
+              <th>Hosted pick</th>
+              <th>Check</th>
+              <th>Qwen&rsquo;s pick</th>
+              <th className="num">Qwen on the hosted pick</th>
+              <th className="num">Reading</th>
+            </tr>
+          </thead>
+          <tbody>
+            {read.map((ask) => (
+              <tr key={ask.span_id}>
+                <td>
+                  <Link href={`/lens/hidden-layers?ask=${ask.span_id}`}>{ask.run_id.slice(0, 8)}</Link>
+                </td>
+                <td>{ask.hosted_pick}</td>
+                <td className={ask.outcome === "refused" ? "lens-refused" : undefined}>{ask.outcome ?? ""}</td>
+                <td>{ask.qwen_pick}</td>
+                <td className="num">{probability(ask.qwen_probability_of_hosted_pick)}</td>
+                <td className="num">
+                  {milliseconds(ask.analysis_ms)} · {dollars(ask.analysis_cost_usd)}
+                </td>
+              </tr>
+            ))}
+            {read.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="muted">
+                  No captured call in this scope has been read yet.
+                </td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }

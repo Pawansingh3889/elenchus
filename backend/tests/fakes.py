@@ -7,6 +7,7 @@ from typing import Any
 
 from app.llm import ledger
 from app.llm.client import LLMError, ToolTurn
+from app.llm.openai_compatible import OpenAICompatibleLLMClient
 
 
 class FakeLLM:
@@ -57,13 +58,20 @@ class FakeLLM:
             raise AssertionError("engine asked for a turn the test did not script")
         turn = self._turns[min(self.calls, len(self._turns) - 1)]
         self.calls += 1
+        # The request the real client would send, in its shape, so the trace captures what
+        # it captures in production: the system prompt first, tools as OpenAI functions.
+        request = {
+            "messages": [{"role": "system", "content": system}, *messages],
+            "tools": OpenAICompatibleLLMClient._as_openai_tools(tools),
+            "tool_choice": "required",
+        }
         if isinstance(turn, Exception):
-            self._book(status=0, error=repr(turn))
+            self._book(status=0, error=repr(turn), request=request)
             raise turn
-        self._book(status=200, error=None)
+        self._book(status=200, error=None, request=request)
         return turn
 
-    def _book(self, *, status: int, error: str | None) -> None:
+    def _book(self, *, status: int, error: str | None, request: dict[str, Any]) -> None:
         """Book this call the way ``openai_compatible`` books a real one.
 
         Booked on the failure path too, and with ``error`` set, because that is the half
@@ -81,6 +89,7 @@ class FakeLLM:
             latency_ms=0,
             status=status,
             error=error,
+            request=request,
         )
 
     async def tool_call(self, **_: Any) -> dict[str, Any]:

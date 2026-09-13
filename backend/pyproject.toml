@@ -78,7 +78,7 @@ include_external_packages = true
 name = "Layered inside every domain"
 type = "layers"
 layers = ["router", "(service)", "repository", "(models)"]
-containers = ["app.templates", "app.runs", "app.conduct", "app.users", "app.trace", "app.prompts", "app.embeddings"]
+containers = ["app.templates", "app.runs", "app.conduct", "app.users", "app.trace", "app.prompts", "app.embeddings", "app.interp", "app.evaluation"]
 comment = """
 Imports point downward only: router -> service -> repository -> models. The
 contract resolves the real import graph, so an aliased import, a re-export or a
@@ -114,4 +114,16 @@ provider only through LLMProtocol.
 Direct imports only. Reaching a socket through the factory is the design: the
 factory's whole job is to build the client that owns the transport. What this
 forbids is a module opening its own connection beside it.
+"""
+
+[[tool.importlinter.contracts]]
+name = "One module talks to the interpretability service"
+type = "forbidden"
+source_modules = ["app.interp.router", "app.interp.service", "app.interp.repository"]
+forbidden_modules = ["httpx", "urllib", "socket", "requests"]
+allow_indirect_imports = "true"
+comment = """
+The same rule for the same reason: app.interp.transport owns the HTTP calls to the
+interp service, its timeouts and its errors, so every way that service can fail is
+translated into a typed error in one place.
 """

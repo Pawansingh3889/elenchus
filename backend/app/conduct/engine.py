@@ -29,6 +29,7 @@ from app.embeddings.repository import EmbeddingRepository
 from app.embeddings.service import digest
 from app.errors import ConflictError, ForbiddenError, NotFoundError
 from app.i18n import language_note, translate
+from app.interp.repository import InterpRepository
 from app.llm import ledger
 from app.llm.client import (
     EmbedderProtocol,
@@ -46,7 +47,7 @@ from app.runs.service import flatten_answer
 from app.templates.enums import FollowUpPolicy, TemplateStatus
 from app.templates.reading import questions_of, setting_of
 from app.templates.visibility import next_visible, remaining_possible
-from app.trace.models import LLMSpan
+from app.trace.models import LLMRequest, LLMSpan
 from app.trace.repository import SpanRepository
 from app.users.models import User
 
@@ -98,9 +99,13 @@ class ConductEngine:
         session: AsyncSession,
         llm: LLMProtocol | None = None,
         embedder: EmbedderProtocol | None = None,
+        prompt_version: str | None = None,
     ) -> None:
         self.session = session
         self._llm = llm
+        # A conduct prompt version to use instead of the active one, for evaluation runs
+        # that compare versions. None, as for every respondent, follows the activation log.
+        self._pinned_prompt = prompt_version
         # Built on first use, and only when semantic grounding is switched on.
         self._embedder = embedder
         self.repo = RunRepository(session)
@@ -345,7 +350,12 @@ class ConductEngine:
         # rollup is the app's summary, the file is the record.
         # Resolved once per turn, so every ask in it, its ledger rows, its spans and the
         # reply it produces all name the same version even if it is switched mid-turn.
-        self._prompt = await PromptResolver(self.session).active("conduct", PROMPT_VERSION)
+        resolver = PromptResolver(self.session)
+        self._prompt = (
+            await resolver.active("conduct", PROMPT_VERSION)
+            if self._pinned_prompt is None
+            else ResolvedPrompt(self._pinned_prompt, await resolver.text(self._pinned_prompt))
+        )
         with (
             ledger.measuring(run.id) as spend,
             ledger.using_prompt(self._prompt.name),
@@ -398,7 +408,17 @@ class ConductEngine:
         assert bind is not None, "a turn's session always has an engine"
         try:
             async with AsyncSession(bind, expire_on_commit=False) as own:
-                SpanRepository(own).add_all([LLMSpan.from_trace(run_id, node) for node in spans])
+                repo = SpanRepository(own)
+                repo.add_all([LLMSpan.from_trace(run_id, node) for node in spans])
+                # The exact requests go in the same transaction as their spans, so an
+                # analysis never finds a span whose prompt was lost, or the reverse.
+                repo.add_requests(
+                    [
+                        request
+                        for node in spans
+                        if (request := LLMRequest.from_trace(run_id, node)) is not None
+                    ]
+                )
                 await own.commit()
         except Exception:
             logger.exception("could not write the trace for run=%s", run_id)
@@ -555,6 +575,8 @@ class ConductEngine:
         run = await self.load(run_id, respondent)
         # Explicitly, because spans carry the run id without a foreign key to cascade on.
         await SpanRepository(self.session).delete_for_run(run_id)
+        # And what a local model read from their words.
+        await InterpRepository(self.session).delete_for_run(run_id)
         # And the vectors of everything they said: a vector still carries meaning.
         vectors = EmbeddingRepository(self.session)
         await vectors.delete_digests([digest(text) for text in await vectors.run_texts(run_id)])

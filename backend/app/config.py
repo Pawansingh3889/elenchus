@@ -15,6 +15,10 @@ PRICE_FIELDS = tuple(
 CACHED_PRICE_FIELDS = tuple(f"llm_tier{tier}_price_cached_in_per_mtok" for tier in range(1, 5))
 
 
+# The interp service refuses a shorter token; the backend refuses to start with one.
+INTERP_TOKEN_MIN_LENGTH = 16
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -263,6 +267,28 @@ class Settings(BaseSettings):
                 )
         return self
 
+    @model_validator(mode="after")
+    def _interp_is_configured_before_use(self) -> "Settings":
+        """Refuse the interpretability service switched on without an address or a token."""
+        if not self.interp_enabled:
+            return self
+        missing = [
+            name
+            for name, value in (
+                ("INTERP_BASE_URL", self.interp_base_url),
+                ("INTERP_TOKEN", self.interp_token),
+            )
+            if not value
+        ]
+        if missing:
+            raise ValueError(f"INTERP_ENABLED is set but {' and '.join(missing)} not.")
+        if len(self.interp_token) < INTERP_TOKEN_MIN_LENGTH:
+            raise ValueError(
+                f"INTERP_TOKEN must be at least {INTERP_TOKEN_MIN_LENGTH} characters, the same "
+                "value the service is started with. Generate one with: openssl rand -hex 24"
+            )
+        return self
+
     hardware_watts: float = Field(
         200.0, ge=0, description="Power draw while serving a local tier, in watts"
     )
@@ -300,6 +326,21 @@ class Settings(BaseSettings):
         ge=0,
         lt=1,
         description="How far above the runner-up option a choice must be to count as supported",
+    )
+    # The interpretability service (interp/): Qwen3-0.6B reading captured conduct prompts
+    # for the lens pages. Off by default, and conduct never uses it: it only reads prompts
+    # after the fact, on an administrator's request. It runs on the host, not in the stack,
+    # so a Mac can use its GPU; the token is what keeps a listening model private.
+    interp_enabled: bool = Field(False, description="Enable the interpretability service")
+    interp_base_url: str = Field(
+        "", description="Where the service listens, e.g. http://host.docker.internal:8765"
+    )
+    interp_token: str = Field("", description="The shared token the service requires")
+    interp_timeout_seconds: float = Field(
+        900, gt=0, description="How long one analysis may take; a CPU reads slowly"
+    )
+    interp_params_b: float = Field(
+        0.6, ge=0, description="Size of the model the service runs, in billions of parameters"
     )
 
     llm_ledger_path: str = Field(

@@ -1,5 +1,6 @@
 .PHONY: help setup test gate lint fmt typecheck imports guards gate-proof eval \
-        stack-up stack-down migrate serve front front-gate all-gates clean
+        stack-up stack-down migrate serve front front-gate all-gates clean \
+        interp interp-gate
 
 PY := uv run
 GUARDS := scripts/check_query_surface.py \
@@ -22,6 +23,8 @@ help:
 	@echo "make eval        The replay corpus in numbers, and what must not regress"
 	@echo "make front-gate  Frontend checks (tsc, eslint, vitest) in the container"
 	@echo "make all-gates   Both gates, backend then frontend"
+	@echo "make interp      Start the interpretability model on the host (Qwen3-0.6B)"
+	@echo "make interp-gate The interpretability service's checks"
 	@echo "make serve       Run the backend on the host, against the compose Postgres"
 
 setup:
@@ -97,6 +100,22 @@ front-gate:
 # Both halves, for when you want the whole repo checked and have the stack up.
 # Named `all-gates` rather than `gates`, which is one keystroke from `gate` and would
 # quietly run the wrong thing on a typo.
+# The interpretability service (interp/): Qwen3-0.6B on the host, for the lens pages.
+# On the host rather than in the stack so a Mac reads with its GPU. It listens on every
+# interface because the backend container reaches it through host.docker.internal, so it
+# takes INTERP_TOKEN, and only that, from .env: the token is the lock, and the process has
+# no use for any other secret. The first run downloads about 1.5 GB of weights.
+interp:
+	cd interp && INTERP_HOST=0.0.0.0 \
+		INTERP_TOKEN="$$(grep -E '^INTERP_TOKEN=' ../.env | cut -d= -f2-)" \
+		uv run python -m elenchus_interp
+
+# Its own gate, because it is its own project: PyTorch never enters the backend's
+# environment, and the backend gate stays runnable without it.
+interp-gate:
+	cd interp && uv run ruff check . && uv run black --check elenchus_interp tests && \
+		uv run mypy elenchus_interp && uv run pytest -q
+
 all-gates: gate front-gate
 	@echo ""
 	@echo "Backend and frontend both clean."

@@ -10,9 +10,11 @@ written in their own short transaction while the turn that produced them still h
 row, which that lock blocks: the turn would wait on its own spans forever. Withdrawing a
 run deletes its spans explicitly instead of by cascade.
 
-No transcript is copied here. Attributes carry counts, tool names, question ids and the
-engine's refusal reasons, and a refusal reason can quote the value a model proposed, so
-withdrawing a run deletes its spans along with everything else it holds.
+No transcript is copied into a span. Attributes carry counts, tool names, question ids and
+the engine's refusal reasons, and a refusal reason can quote the value a model proposed, so
+withdrawing a run deletes its spans along with everything else it holds. The exact request
+of each chat attempt, which does copy the transcript, is kept apart in ``llm_requests``
+and deleted with the run in the same way.
 """
 
 from datetime import datetime
@@ -82,4 +84,43 @@ class LLMSpan(Base):
             # the numeric column.
             cost_usd=None if node.cost_usd is None else Decimal(str(node.cost_usd)),
             attrs=node.attrs,
+        )
+
+
+class LLMRequest(Base):
+    """The exact request of one traced chat attempt: the messages and tools it was sent.
+
+    Kept so a local model can read precisely what the hosted one read. A prompt rebuilt
+    later from the recorded state would be a different prompt, and an explanation of a
+    different prompt explains nothing about the call that happened. Captured from
+    13 Sep 2026 onward; attempts before that have no row.
+
+    Keyed by the attempt span it belongs to, and like the span not a foreign key to the
+    run, for the lock reason in this module's docstring. It holds what the respondent
+    typed, so withdrawal deletes it explicitly.
+    """
+
+    __tablename__ = "llm_requests"
+
+    span_id: Mapped[UUID] = mapped_column(primary_key=True)
+    run_id: Mapped[UUID | None] = mapped_column(index=True, default=None)
+    model: Mapped[str | None] = mapped_column(String(128), default=None)
+    messages: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    tools: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
+    tool_choice: Mapped[Any] = mapped_column(JSONB, nullable=True, default=None)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    @classmethod
+    def from_trace(cls, run_id: UUID | None, node: "TraceSpan") -> "LLMRequest | None":
+        """The row for a span's captured request, or None when the span carries none."""
+        if node.request is None:
+            return None
+        return cls(
+            span_id=node.id,
+            run_id=run_id,
+            model=node.model,
+            messages=node.request["messages"],
+            tools=node.request.get("tools", []),
+            tool_choice=node.request.get("tool_choice"),
+            created_at=node.started_at,
         )

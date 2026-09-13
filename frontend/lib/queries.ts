@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
-import { api } from "./api";
+import { api, ApiError } from "./api";
 import type { LensScope } from "./lensScope";
 import { useUserStore } from "./store";
 
@@ -270,6 +270,159 @@ export function useLensGrounding(enabled: boolean) {
     queryFn: api.lensGrounding,
     enabled,
     retry: false,
+  });
+}
+
+/* The interpretability reads. An analysis runs a local model for minutes on a CPU, so it
+ * is never started by a read: only the Analyse mutation starts one, and a call that has not
+ * been analysed reads as null rather than as an error. */
+
+export function useInterpStatus(enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["lens", "interp", "status", userId],
+    queryFn: api.lensInterpStatus,
+    enabled,
+    retry: false,
+  });
+}
+
+export function useInterpAsks(scope: LensScope, enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["lens", "interp", "asks", scope.surveyId, scope.runId, userId],
+    queryFn: () => api.lensInterpAsks(scope),
+    enabled,
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useInterpAnalysis(spanId: string | null, enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["lens", "interp", "analysis", spanId, userId],
+    queryFn: async () => {
+      if (spanId === null) throw new Error("An analysis needs a call chosen.");
+      try {
+        return await api.lensInterpAnalysis(spanId);
+      } catch (error) {
+        // Not analysed yet is a state of the call, and the page offers to start one.
+        if (error instanceof ApiError && error.status === 404) return null;
+        throw error;
+      }
+    },
+    enabled: enabled && spanId !== null,
+    retry: false,
+  });
+}
+
+export function useAnalyse() {
+  const qc = useQueryClient();
+  const userId = useUserStore((s) => s.currentUserId);
+  return useMutation({
+    mutationFn: (spanId: string) => api.lensInterpAnalyse(spanId),
+    onSuccess: (stored) => {
+      qc.setQueryData(["lens", "interp", "analysis", stored.span_id, userId], stored);
+      void qc.invalidateQueries({ queryKey: ["lens", "interp", "asks"] });
+    },
+  });
+}
+
+export function useAttribute() {
+  const qc = useQueryClient();
+  const userId = useUserStore((s) => s.currentUserId);
+  return useMutation({
+    mutationFn: (spanId: string) => api.lensInterpAttribute(spanId),
+    onSuccess: (stored) => {
+      qc.setQueryData(["lens", "interp", "analysis", stored.span_id, userId], stored);
+      void qc.invalidateQueries({ queryKey: ["lens", "interp", "asks"] });
+    },
+  });
+}
+
+/* The evaluation reads. Labelling changes every rate on the page, so a label refreshes the
+ * whole evaluation lens rather than patching one row. */
+
+export function useEvalItems(source: "corpus" | "runs", unlabelled: boolean, enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["lens", "evaluation", "items", source, unlabelled, userId],
+    queryFn: () => api.lensEvalItems(source, unlabelled),
+    enabled,
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useFaithfulness(enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["lens", "evaluation", "faithfulness", userId],
+    queryFn: api.lensEvalFaithfulness,
+    enabled,
+  });
+}
+
+export function useQuality(enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["lens", "evaluation", "quality", userId],
+    queryFn: api.lensEvalQuality,
+    enabled,
+  });
+}
+
+export function useEvalOptions(enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["lens", "evaluation", "options", userId],
+    queryFn: api.lensEvalOptions,
+    enabled,
+  });
+}
+
+export function useEvalRuns(enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["lens", "evaluation", "scenario-runs", userId],
+    queryFn: api.lensEvalRuns,
+    enabled,
+    // Polled only while something is still going, so an idle page makes no requests.
+    refetchInterval: (query) =>
+      query.state.data?.some((run) => run.status === "queued" || run.status === "running")
+        ? 4000
+        : false,
+  });
+}
+
+export function useStartEval() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.lensEvalStart,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["lens", "evaluation"] }),
+  });
+}
+
+export function useLabel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      key,
+      verdict,
+      note,
+    }: {
+      key: string;
+      verdict: "supported" | "invented" | "unsure";
+      note: string | null;
+    }) => api.lensEvalLabel(key, verdict, note),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["lens", "evaluation"] }),
+  });
+}
+
+export function useJudgeRun() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (runId: string) => api.lensEvalJudgeRun(runId),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["lens", "evaluation"] }),
   });
 }
 

@@ -934,3 +934,30 @@ async def test_embedding_nothing_makes_no_call():
         raise AssertionError("no request expected")
 
     assert await _embedder(handler).embed([]) == []
+
+
+async def test_a_traced_chat_call_keeps_exactly_what_it_sent_and_an_embed_keeps_nothing(
+    ledger_file,
+):
+    """The request is captured at the one place it is built, so what an analysis later
+    reads is what the provider was sent, not a reconstruction of it."""
+    from app.llm import ledger
+
+    client = _client(lambda request: _tool_response("move_on", {}, "Next."))
+    tools = [{"name": "move_on", "description": "d", "input_schema": {"type": "object"}}]
+    embedder = _embedder(
+        lambda request: httpx.Response(200, json={"data": [{"index": 0, "embedding": [1.0]}]})
+    )
+    with ledger.tracing() as spans:
+        await client.tool_turn(
+            system="brief", messages=[{"role": "user", "content": "hello"}], tools=tools
+        )
+        await embedder.embed(["hello"])
+    chat, embed = spans
+
+    assert chat.request == {
+        "messages": [{"role": "system", "content": "brief"}, {"role": "user", "content": "hello"}],
+        "tools": OpenAICompatibleLLMClient._as_openai_tools(tools),
+        "tool_choice": "required",
+    }
+    assert embed.request is None

@@ -102,6 +102,10 @@ class TraceSpan:
     first_token_ms: int | None = None
     cost_usd: float | None = None
     attrs: dict[str, Any] = field(default_factory=dict)
+    # Attempt spans of chat calls only: exactly what the model was sent (messages, tools,
+    # tool_choice), so a local model can later read the same prompt. Stored apart from the
+    # span, in llm_requests, because unlike the span it copies the transcript.
+    request: dict[str, Any] | None = None
 
 
 _TRACE: ContextVar[list[TraceSpan] | None] = ContextVar("llm_trace", default=None)
@@ -348,6 +352,7 @@ def record(
     error: str | None = None,
     first_token_ms: int | None = None,
     priced_as: TierEconomics | None = None,
+    request: dict[str, Any] | None = None,
 ) -> None:
     """Append one call attempt to the ledger, and add it to the enclosing run's spend.
 
@@ -426,6 +431,7 @@ def record(
                 reasoning_tokens=reasoning_tokens,
                 first_token_ms=first_token_ms,
                 cost_usd=cost,
+                request=request,
             )
         )
 

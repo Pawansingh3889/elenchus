@@ -22,6 +22,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from app.config import get_settings
 from app.db.base import Base
 from app.embeddings import models as _embeddings  # noqa: F401
+from app.evaluation import models as _evaluation  # noqa: F401
+from app.interp import models as _interp  # noqa: F401
 from app.prompts import models as _prompts  # noqa: F401
 from app.runs import models as _runs  # noqa: F401  (register tables on metadata)
 from app.templates import models as _templates  # noqa: F401
