@@ -201,40 +201,26 @@ def test_the_accumulator_does_not_leak_past_its_block(ledger_file) -> None:
     assert second.calls == 0
 
 
-def test_an_unpriced_hosted_tier_says_so_once_and_names_itself(ledger_file, caplog) -> None:
-    """Zero is a legitimate price and also what an unconfigured tier looks like. The
-    ledger cannot tell them apart, so it records 0.0 and says so, naming the tier so
-    the operator knows which LLM_TIER<n> to price, rather than letting months of calls
-    accumulate as costless."""
-    ledger._UNPRICED_WARNED.clear()
+def test_an_unpriced_hosted_tier_costs_unknown_rather_than_zero() -> None:
+    """The failure this replaces: zero was a real price and also what an unstated one
+    looked like, so every hosted call was booked as free. Settings now refuse an enabled
+    hosted tier with no price; a call booked against one anyway is unknown, not free."""
+    unpriced = TierEconomics(
+        params_b=0, local=False, price_in_per_mtok=None, price_out_per_mtok=None
+    )
+    assert cost_usd(unpriced, 1000, 100, latency_ms=500) is None
+    free = TierEconomics(params_b=0, local=False, price_in_per_mtok=0.0, price_out_per_mtok=0.0)
+    assert cost_usd(free, 1000, 100, latency_ms=500) == 0.0
+
+
+def test_a_call_on_an_unpriced_tier_is_counted_as_unmetered(ledger_file) -> None:
+    """Tier 2 carries no price in the suite, so its cost is unknown and says so."""
     usage = {"prompt_tokens": 1000, "completion_tokens": 100}
-    with caplog.at_level("WARNING", logger="app.llm.ledger"):
+    with ledger.measuring(uuid4()) as spend:
         ledger.record(tier=2, model="m", op="tool_turn", usage=usage, latency_ms=500, status=200)
-        ledger.record(tier=2, model="m", op="tool_turn", usage=usage, latency_ms=500, status=200)
-    warned = [r.getMessage() for r in caplog.records if "no price configured" in r.getMessage()]
-    assert len(warned) == 1
-    assert "tier 2" in warned[0] and "LLM_TIER2_PRICE_IN_PER_MTOK" in warned[0]
-
-
-def test_a_priced_tier_is_not_warned_about(ledger_file, caplog, monkeypatch) -> None:
-    from app.config import get_settings
-
-    ledger._UNPRICED_WARNED.clear()
-    monkeypatch.setenv("LLM_TIER2_PRICE_IN_PER_MTOK", "0.5")
-    get_settings.cache_clear()
-    usage = {"prompt_tokens": 1000, "completion_tokens": 100}
-    with caplog.at_level("WARNING", logger="app.llm.ledger"):
-        ledger.record(tier=2, model="m", op="tool_turn", usage=usage, latency_ms=500, status=200)
-    assert not [r for r in caplog.records if "no price configured" in r.getMessage()]
-    get_settings.cache_clear()
-
-
-def test_a_local_tier_is_not_warned_about(ledger_file, caplog) -> None:
-    """It is priced by the clock, so zero token prices are correct, not missing."""
-    ledger._UNPRICED_WARNED.clear()
-    with caplog.at_level("WARNING", logger="app.llm.ledger"):
-        ledger.record(tier=4, model="m", op="tool_turn", usage=None, latency_ms=500, status=200)
-    assert not [r for r in caplog.records if "no price configured" in r.getMessage()]
+    assert spend.unmetered_calls == 1
+    assert spend.cost_usd == 0.0
+    assert _lines(ledger_file)[-1]["cost_usd"] is None
 
 
 # ------------------------------------------------------------ unknown is not zero
@@ -243,7 +229,6 @@ def test_a_local_tier_is_not_warned_about(ledger_file, caplog) -> None:
 def test_an_unmetered_hosted_call_is_counted_not_zeroed(ledger_file) -> None:
     """`cost or 0.0` folded "the provider reported nothing" into "it cost nothing" and
     the rollup understated itself with no marker. Unknowns are counted instead."""
-    ledger._UNPRICED_WARNED.clear()
     with ledger.measuring(uuid4()) as spend:
         ledger.record(tier=2, model="m", op="tool_turn", usage=None, latency_ms=500, status=200)
     assert spend.calls == 1

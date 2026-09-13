@@ -85,29 +85,30 @@ services:
       # What each tier costs, for the spend ledger. Forwarded for the same reason the
       # connection settings above are: compose reads the root .env only to interpolate
       # ${...} here, so a variable that is not named on this list never reaches the
-      # container. Left off, prices fall back to the code defaults of zero and every
-      # hosted call is recorded as free, which the ledger cannot be told about later
-      # because it prices at call time rather than recomputing.
+      # container. A price nobody set arrives empty, which settings read as unstated:
+      # an enabled hosted tier then refuses to start. It used to default to 0 here,
+      # which recorded every hosted call as free and could not be corrected later,
+      # because the ledger prices at call time rather than recomputing.
       LLM_TIER1_PARAMS_B: ${LLM_TIER1_PARAMS_B:-0}
       LLM_TIER1_LOCAL: ${LLM_TIER1_LOCAL:-false}
-      LLM_TIER1_PRICE_IN_PER_MTOK: ${LLM_TIER1_PRICE_IN_PER_MTOK:-0}
-      LLM_TIER1_PRICE_OUT_PER_MTOK: ${LLM_TIER1_PRICE_OUT_PER_MTOK:-0}
+      LLM_TIER1_PRICE_IN_PER_MTOK: ${LLM_TIER1_PRICE_IN_PER_MTOK:-}
+      LLM_TIER1_PRICE_OUT_PER_MTOK: ${LLM_TIER1_PRICE_OUT_PER_MTOK:-}
       LLM_TIER2_PARAMS_B: ${LLM_TIER2_PARAMS_B:-0}
       LLM_TIER2_LOCAL: ${LLM_TIER2_LOCAL:-false}
-      LLM_TIER2_PRICE_IN_PER_MTOK: ${LLM_TIER2_PRICE_IN_PER_MTOK:-0}
-      LLM_TIER2_PRICE_OUT_PER_MTOK: ${LLM_TIER2_PRICE_OUT_PER_MTOK:-0}
+      LLM_TIER2_PRICE_IN_PER_MTOK: ${LLM_TIER2_PRICE_IN_PER_MTOK:-}
+      LLM_TIER2_PRICE_OUT_PER_MTOK: ${LLM_TIER2_PRICE_OUT_PER_MTOK:-}
       LLM_TIER3_PARAMS_B: ${LLM_TIER3_PARAMS_B:-0}
       LLM_TIER3_LOCAL: ${LLM_TIER3_LOCAL:-false}
-      LLM_TIER3_PRICE_IN_PER_MTOK: ${LLM_TIER3_PRICE_IN_PER_MTOK:-0}
-      LLM_TIER3_PRICE_OUT_PER_MTOK: ${LLM_TIER3_PRICE_OUT_PER_MTOK:-0}
+      LLM_TIER3_PRICE_IN_PER_MTOK: ${LLM_TIER3_PRICE_IN_PER_MTOK:-}
+      LLM_TIER3_PRICE_OUT_PER_MTOK: ${LLM_TIER3_PRICE_OUT_PER_MTOK:-}
       # Tier 4 defaults to a hosted pricing shape because the slot is empty. Point it at
       # a model you serve yourself and set LLM_TIER4_LOCAL=true with a real PARAMS_B:
       # a local tier bills no tokens and is priced from wall clock instead, and reporting
       # it as free is the one number that is certainly wrong.
       LLM_TIER4_PARAMS_B: ${LLM_TIER4_PARAMS_B:-0}
       LLM_TIER4_LOCAL: ${LLM_TIER4_LOCAL:-false}
-      LLM_TIER4_PRICE_IN_PER_MTOK: ${LLM_TIER4_PRICE_IN_PER_MTOK:-0}
-      LLM_TIER4_PRICE_OUT_PER_MTOK: ${LLM_TIER4_PRICE_OUT_PER_MTOK:-0}
+      LLM_TIER4_PRICE_IN_PER_MTOK: ${LLM_TIER4_PRICE_IN_PER_MTOK:-}
+      LLM_TIER4_PRICE_OUT_PER_MTOK: ${LLM_TIER4_PRICE_OUT_PER_MTOK:-}
       HARDWARE_WATTS: ${HARDWARE_WATTS:-200}
       ELECTRICITY_PRICE_PER_KWH: ${ELECTRICITY_PRICE_PER_KWH:-0.32}
       LLM_LEDGER_PATH: ${LLM_LEDGER_PATH:-var/llm_ledger.jsonl}

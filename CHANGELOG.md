@@ -5,6 +5,34 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+
+## 2026-09-13. An enabled hosted tier states its price, or the app does not start
+
+No deployment had ever set a tier price, so 1,808 of the ledger's 1,841 calls were booked
+as free: about 5.6 million tokens, roughly $18 at the providers' listed rates on this
+date, $17.91 of it on `gpt-5.5`. Zero was both the price of a free model and the default
+for a price nobody set, and the only signal was one warning per process.
+
+- **Price settings have no default.** An enabled tier that is not local must state both
+  its input and output price, or settings refuse to load and name the variables. `0` is
+  still a price, so a free model loads.
+- **The compose files stop defaulting prices to `0`.** A price nobody set now reaches the
+  container empty, which settings read as unstated. Before, `:-0` answered the question
+  for the operator and the refusal could never fire. `test_compose_settings.py` checks all
+  three files and proves the check rejects a planted `:-0`.
+- **The once-per-process "no price configured" warning is removed**, because the refusal
+  replaces it. A call booked against an unpriced tier anyway records its cost as unknown,
+  never zero, and counts as unmetered.
+- **`.env.example` lists this date's listed prices** for the three tiers the chain
+  describes, in place of a tier 1 example that still carried `gpt-4o-mini`'s rates.
+- **Existing rows are left as they were recorded.** The ledger prices at call time by
+  design, so history is not restated; the lens pages will mark those rows as unpriced and
+  show an estimate beside them.
+
+A deployment with an enabled tier and no prices (the local `.env` here, and
+`docker-compose.prod.yml`, whose tier 1 defaults to enabled) will not start until the
+prices are set.
+
 ## 2026-08-17. The class guard reads the plainest way to write a class
 
 It never had. The guard collects the regions of a file where a class may legitimately

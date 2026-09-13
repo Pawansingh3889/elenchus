@@ -32,16 +32,23 @@ _OPENAI = {
     "llm_tier1_enabled": True,
     "llm_tier1_base_url": "https://api.openai.com/v1",
     "llm_tier1_model": "gpt-test",
+    # Every enabled hosted tier states its prices or settings refuse to load.
+    "llm_tier1_price_in_per_mtok": 5.0,
+    "llm_tier1_price_out_per_mtok": 30.0,
 }
 _GROQ = {
     "llm_tier2_enabled": True,
     "llm_tier2_base_url": "https://api.groq.com/openai/v1",
     "llm_tier2_model": "llama-3.3-70b-versatile",
+    "llm_tier2_price_in_per_mtok": 0.59,
+    "llm_tier2_price_out_per_mtok": 0.79,
 }
 _OPENROUTER = {
     "llm_tier3_enabled": True,
     "llm_tier3_base_url": "https://openrouter.ai/api/v1",
     "llm_tier3_model": "openrouter/free",
+    "llm_tier3_price_in_per_mtok": 0,
+    "llm_tier3_price_out_per_mtok": 0,
 }
 # Tier 4 is a spare slot with nothing shipped in it, so this stands for whatever an
 # operator points at: a self-hosted server here, but the chain does not care which.
@@ -49,6 +56,9 @@ _TIER4 = {
     "llm_tier4_enabled": True,
     "llm_tier4_base_url": "http://localhost:11434/v1",
     "llm_tier4_model": "a-local-model",
+    # Local, so priced by the clock rather than per token. Stated here rather than left
+    # to conftest's environment, so this dict means the same thing wherever it is used.
+    "llm_tier4_local": True,
 }
 
 
@@ -119,7 +129,15 @@ def test_no_configured_tier_fails_loudly(monkeypatch):
 
 
 def test_an_enabled_but_unconfigured_tier_fails_loudly(monkeypatch):
-    monkeypatch.setattr(factory, "get_settings", lambda: _settings(llm_tier1_enabled=True))
+    # Priced, so the refusal under test is the factory's missing base URL and model
+    # rather than the settings' missing price.
+    monkeypatch.setattr(
+        factory,
+        "get_settings",
+        lambda: _settings(
+            llm_tier1_enabled=True, llm_tier1_price_in_per_mtok=0, llm_tier1_price_out_per_mtok=0
+        ),
+    )
 
     with pytest.raises(LLMError):
         factory.get_llm()

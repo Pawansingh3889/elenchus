@@ -170,8 +170,9 @@ class TierEconomics:
 
     params_b: float
     local: bool
-    price_in_per_mtok: float
-    price_out_per_mtok: float
+    # None when unstated, which settings only allow on a local or disabled tier.
+    price_in_per_mtok: float | None
+    price_out_per_mtok: float | None
 
 
 def economics_for(tier: int) -> TierEconomics | None:
@@ -209,8 +210,8 @@ def cost_usd(
     the same rate, which is why the draw is one number in settings rather than a
     calculation spread through here.
 
-    None means genuinely unknown: an unconfigured tier, or a hosted provider that
-    returned no usage block. Unknown is recorded as unknown rather than as zero, because
+    None means genuinely unknown: an unconfigured or unpriced tier, or a hosted provider
+    that returned no usage block. Unknown is recorded as unknown rather than as zero, because
     a zero would sum into the rollup and understate what the run cost.
     """
     if economics is None:
@@ -220,44 +221,14 @@ def cost_usd(
         hours = latency_ms / 1000.0 / SECONDS_PER_HOUR
         kilowatts = settings.hardware_watts / WATTS_PER_KILOWATT
         return round(hours * kilowatts * settings.electricity_price_per_kwh, COST_PLACES)
+    if economics.price_in_per_mtok is None or economics.price_out_per_mtok is None:
+        return None
     if prompt_tokens is None or completion_tokens is None:
         return None
     return round(
         prompt_tokens / TOKENS_PER_MILLION * economics.price_in_per_mtok
         + completion_tokens / TOKENS_PER_MILLION * economics.price_out_per_mtok,
         COST_PLACES,
-    )
-
-
-_UNPRICED_WARNED: set[int] = set()
-
-
-def _warn_once_if_unpriced(tier: int, economics: TierEconomics | None) -> None:
-    """Say so when a hosted tier is charging into a ledger that prices it at nothing.
-
-    Zero is a legitimate price: OpenRouter's free models really are free. It is also what
-    an unconfigured tier looks like, and the two are indistinguishable from here, so the
-    ledger records 0.0 either way. The failure mode is silent and slow: months of calls
-    accumulate reading as costless, and the number is only questioned when someone tries
-    to compare a hosted tier against a local one and finds the hosted one free.
-
-    Once per tier per process, so it is a startup-shaped notice rather than a line per
-    call, and it names the tier so the operator knows which LLM_TIER<n> to price.
-    """
-    if economics is None or economics.local:
-        return
-    if economics.price_in_per_mtok or economics.price_out_per_mtok:
-        return
-    if tier in _UNPRICED_WARNED:
-        return
-    _UNPRICED_WARNED.add(tier)
-    logger.warning(
-        "LLM tier %d is hosted but has no price configured, so its calls record as "
-        "costing 0. Set LLM_TIER%d_PRICE_IN_PER_MTOK and LLM_TIER%d_PRICE_OUT_PER_MTOK, "
-        "or ignore this if the tier is genuinely free.",
-        tier,
-        tier,
-        tier,
     )
 
 
@@ -279,7 +250,6 @@ def record(
     invisible in the very file that exists to explain the spend.
     """
     economics = economics_for(tier)
-    _warn_once_if_unpriced(tier, economics)
     prompt_tokens = _token_count(usage, "prompt_tokens")
     completion_tokens = _token_count(usage, "completion_tokens")
     cost = cost_usd(economics, prompt_tokens, completion_tokens, latency_ms)

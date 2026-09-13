@@ -6,8 +6,12 @@ rather than silently degrading (see ARCHITECTURE.md — no fallbacks).
 
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+PRICE_FIELDS = tuple(
+    f"llm_tier{tier}_price_{side}_per_mtok" for tier in range(1, 5) for side in ("in", "out")
+)
 
 
 class Settings(BaseSettings):
@@ -119,37 +123,92 @@ class Settings(BaseSettings):
     # measurement turns on: the same token count means one thing from a 3B model and
     # another from a 70B one. Zero reads as "not stated" in the ledger.
     #
-    # A local tier bills no tokens, so its prices stay zero and `local=True` prices it
+    # A local tier bills no tokens, so it needs no prices and `local=True` prices it
     # from wall clock against hardware_watts and electricity_price_per_kwh instead.
     # Without that flag a locally served run reports as free, which is the one number
     # that is certainly wrong.
+    #
+    # Prices have no default, because zero is a real price (a free model) and it was also
+    # what an unstated one looked like. Until 13 Sep 2026 no deployment set them, and
+    # 1,808 hosted calls went into the ledger as free with nothing to say so but a
+    # warning per process. An enabled hosted tier now has to state both, 0 included, or
+    # settings refuse to load.
     llm_tier1_params_b: float = Field(0.0, ge=0, description="Tier 1 model size in billions")
     llm_tier1_local: bool = Field(False, description="Tier 1 runs on our own hardware")
-    llm_tier1_price_in_per_mtok: float = Field(0.0, ge=0, description="Tier 1 USD/1M input")
-    llm_tier1_price_out_per_mtok: float = Field(0.0, ge=0, description="Tier 1 USD/1M output")
+    llm_tier1_price_in_per_mtok: float | None = Field(
+        None, ge=0, description="Tier 1 USD/1M input; required when enabled and hosted"
+    )
+    llm_tier1_price_out_per_mtok: float | None = Field(
+        None, ge=0, description="Tier 1 USD/1M output; required when enabled and hosted"
+    )
 
     llm_tier2_params_b: float = Field(0.0, ge=0, description="Tier 2 model size in billions")
     llm_tier2_local: bool = Field(False, description="Tier 2 runs on our own hardware")
-    llm_tier2_price_in_per_mtok: float = Field(0.0, ge=0, description="Tier 2 USD/1M input")
-    llm_tier2_price_out_per_mtok: float = Field(0.0, ge=0, description="Tier 2 USD/1M output")
+    llm_tier2_price_in_per_mtok: float | None = Field(
+        None, ge=0, description="Tier 2 USD/1M input; required when enabled and hosted"
+    )
+    llm_tier2_price_out_per_mtok: float | None = Field(
+        None, ge=0, description="Tier 2 USD/1M output; required when enabled and hosted"
+    )
 
     llm_tier3_params_b: float = Field(0.0, ge=0, description="Tier 3 model size in billions")
     llm_tier3_local: bool = Field(False, description="Tier 3 runs on our own hardware")
-    llm_tier3_price_in_per_mtok: float = Field(0.0, ge=0, description="Tier 3 USD/1M input")
-    llm_tier3_price_out_per_mtok: float = Field(0.0, ge=0, description="Tier 3 USD/1M output")
+    llm_tier3_price_in_per_mtok: float | None = Field(
+        None, ge=0, description="Tier 3 USD/1M input; required when enabled and hosted"
+    )
+    llm_tier3_price_out_per_mtok: float | None = Field(
+        None, ge=0, description="Tier 3 USD/1M output; required when enabled and hosted"
+    )
 
     # Tier 4 now defaults like the rest rather than describing the 3B local model that
     # used to be wired into it. Anyone filling the slot with a model they serve
     # themselves has to say so, which is what the .env.example note beside these is for.
     llm_tier4_params_b: float = Field(0.0, ge=0, description="Tier 4 model size in billions")
     llm_tier4_local: bool = Field(False, description="Tier 4 runs on our own hardware")
-    llm_tier4_price_in_per_mtok: float = Field(0.0, ge=0, description="Tier 4 USD/1M input")
-    llm_tier4_price_out_per_mtok: float = Field(0.0, ge=0, description="Tier 4 USD/1M output")
+    llm_tier4_price_in_per_mtok: float | None = Field(
+        None, ge=0, description="Tier 4 USD/1M input; required when enabled and hosted"
+    )
+    llm_tier4_price_out_per_mtok: float | None = Field(
+        None, ge=0, description="Tier 4 USD/1M output; required when enabled and hosted"
+    )
 
     # What the machine draws while it is serving a local tier, and what that energy
     # costs. Defaults are a mid-range desktop under load on a UK domestic tariff; both
     # are guesses until measured, and the ledger records what it was told rather than
     # pretending to know. Fold amortised hardware into the tariff if you want it counted.
+    @field_validator(*PRICE_FIELDS, mode="before")
+    @classmethod
+    def _a_blank_price_is_unstated(cls, value: object) -> object:
+        """Compose forwards a variable nobody set as an empty string. That means "not
+        stated", which has to stay distinguishable from 0, the price of a free model."""
+        return None if value == "" else value
+
+    @model_validator(mode="after")
+    def _hosted_tiers_state_their_prices(self) -> "Settings":
+        """Refuse to load when an enabled hosted tier has no price.
+
+        Loudly, at startup, rather than per call: the calls themselves succeed, the
+        survey works, and the only thing wrong is every cost figure, which is the kind of
+        failure nobody notices until the numbers are needed.
+        """
+        for tier in range(1, 5):
+            prefix = f"llm_tier{tier}"
+            if not getattr(self, f"{prefix}_enabled") or getattr(self, f"{prefix}_local"):
+                continue
+            missing = [
+                f"LLM_TIER{tier}_PRICE_{side.upper()}_PER_MTOK"
+                for side in ("in", "out")
+                if getattr(self, f"{prefix}_price_{side}_per_mtok") is None
+            ]
+            if missing:
+                raise ValueError(
+                    f"LLM tier {tier} is enabled and hosted, but {' and '.join(missing)} "
+                    f"{'is' if len(missing) == 1 else 'are'} not set, so every call it serves "
+                    "would be recorded as free. Set the "
+                    "provider's USD price per million tokens, or 0 for a genuinely free model."
+                )
+        return self
+
     hardware_watts: float = Field(
         200.0, ge=0, description="Power draw while serving a local tier, in watts"
     )

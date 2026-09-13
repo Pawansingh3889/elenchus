@@ -119,3 +119,39 @@ def test_that_check_rejects_a_local_tier_with_no_clock_to_bill() -> None:
             "ELECTRICITY_PRICE_PER_KWH": "${ELECTRICITY_PRICE_PER_KWH:-0.32}",
         }
     )
+
+
+PRICED_COMPOSE_FILES = (*COMPOSE_FILES, "docker-compose.demo.yml")
+
+
+def _prices_given_a_default(environment: dict[str, Any]) -> list[str]:
+    """Tier prices this environment fills in when the operator set nothing.
+
+    Any default is wrong, 0 most of all. Settings refuse an enabled hosted tier with no
+    price, and a compose default answers that question on the operator's behalf: with
+    ``:-0`` every hosted call was recorded as free and the refusal never fired.
+    """
+    return sorted(
+        name
+        for name, value in environment.items()
+        if name.startswith("LLM_TIER") and "_PRICE_" in name and _compose_default(value) != ""
+    )
+
+
+@pytest.mark.parametrize("compose_file", PRICED_COMPOSE_FILES)
+def test_no_compose_file_invents_a_price(compose_file: str) -> None:
+    offenders = _prices_given_a_default(_backend_environment(compose_file))
+    assert not offenders, (
+        f"{compose_file} defaults {offenders}, so an operator who never priced a tier "
+        f"gets a number instead of the refusal"
+    )
+
+
+def test_that_check_rejects_a_price_defaulted_to_zero() -> None:
+    """Planted, because the shipped files now pass without reaching the condition."""
+    assert _prices_given_a_default(
+        {
+            "LLM_TIER1_PRICE_IN_PER_MTOK": "${LLM_TIER1_PRICE_IN_PER_MTOK:-0}",
+            "LLM_TIER1_PRICE_OUT_PER_MTOK": "${LLM_TIER1_PRICE_OUT_PER_MTOK:-}",
+        }
+    ) == ["LLM_TIER1_PRICE_IN_PER_MTOK"]
