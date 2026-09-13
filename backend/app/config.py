@@ -12,6 +12,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 PRICE_FIELDS = tuple(
     f"llm_tier{tier}_price_{side}_per_mtok" for tier in range(1, 5) for side in ("in", "out")
 )
+CACHED_PRICE_FIELDS = tuple(f"llm_tier{tier}_price_cached_in_per_mtok" for tier in range(1, 5))
 
 
 class Settings(BaseSettings):
@@ -141,6 +142,12 @@ class Settings(BaseSettings):
     llm_tier1_price_out_per_mtok: float | None = Field(
         None, ge=0, description="Tier 1 USD/1M output; required when enabled and hosted"
     )
+    # Cached input, for a provider that discounts a repeated prefix (gpt-5.5 charges a
+    # tenth). Optional, unlike the two above: unset, cached tokens pay the full input
+    # rate, which overstates a turn's cost rather than hiding any of it.
+    llm_tier1_price_cached_in_per_mtok: float | None = Field(
+        None, ge=0, description="Tier 1 USD/1M cached input; unset means the input price"
+    )
 
     llm_tier2_params_b: float = Field(0.0, ge=0, description="Tier 2 model size in billions")
     llm_tier2_local: bool = Field(False, description="Tier 2 runs on our own hardware")
@@ -150,6 +157,9 @@ class Settings(BaseSettings):
     llm_tier2_price_out_per_mtok: float | None = Field(
         None, ge=0, description="Tier 2 USD/1M output; required when enabled and hosted"
     )
+    llm_tier2_price_cached_in_per_mtok: float | None = Field(
+        None, ge=0, description="Tier 2 USD/1M cached input; unset means the input price"
+    )
 
     llm_tier3_params_b: float = Field(0.0, ge=0, description="Tier 3 model size in billions")
     llm_tier3_local: bool = Field(False, description="Tier 3 runs on our own hardware")
@@ -158,6 +168,9 @@ class Settings(BaseSettings):
     )
     llm_tier3_price_out_per_mtok: float | None = Field(
         None, ge=0, description="Tier 3 USD/1M output; required when enabled and hosted"
+    )
+    llm_tier3_price_cached_in_per_mtok: float | None = Field(
+        None, ge=0, description="Tier 3 USD/1M cached input; unset means the input price"
     )
 
     # Tier 4 now defaults like the rest rather than describing the 3B local model that
@@ -171,12 +184,15 @@ class Settings(BaseSettings):
     llm_tier4_price_out_per_mtok: float | None = Field(
         None, ge=0, description="Tier 4 USD/1M output; required when enabled and hosted"
     )
+    llm_tier4_price_cached_in_per_mtok: float | None = Field(
+        None, ge=0, description="Tier 4 USD/1M cached input; unset means the input price"
+    )
 
     # What the machine draws while it is serving a local tier, and what that energy
     # costs. Defaults are a mid-range desktop under load on a UK domestic tariff; both
     # are guesses until measured, and the ledger records what it was told rather than
     # pretending to know. Fold amortised hardware into the tariff if you want it counted.
-    @field_validator(*PRICE_FIELDS, mode="before")
+    @field_validator(*PRICE_FIELDS, *CACHED_PRICE_FIELDS, mode="before")
     @classmethod
     def _a_blank_price_is_unstated(cls, value: object) -> object:
         """Compose forwards a variable nobody set as an empty string. That means "not

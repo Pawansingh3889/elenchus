@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
 
+
+## 2026-09-13. Cached and reasoning tokens are recorded, and cached input is priced
+
+A turn's two token totals could not explain its cost or its latency. `gpt-5.5` bills a
+cached prompt prefix at a tenth of the input rate, so a long prompt that was mostly cached
+cost far less than its total says; and a short answer can take seconds because the model
+spent them reasoning.
+
+- **Every ledger row now carries `cached_tokens` and `reasoning_tokens`**, read from
+  `prompt_tokens_details` and `completion_tokens_details`, the shapes OpenAI and
+  OpenRouter send. A provider that reports neither records unknown, not zero.
+- **Cached input is priced at `LLM_TIER<n>_PRICE_CACHED_IN_PER_MTOK`** where it is set.
+  Unset, cached tokens pay the full input rate, which overstates a call rather than
+  inventing a discount. A cached count larger than its own prompt is not trusted.
+- **Reasoning tokens are shown, not charged twice.** They are already inside the output
+  count the provider bills.
+- The new setting is forwarded by all three compose files, with no default.
+
 ## 2026-09-13. An enabled hosted tier states its price, or the app does not start
 
 No deployment had ever set a tier price, so 1,808 of the ledger's 1,841 calls were booked

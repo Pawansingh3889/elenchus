@@ -355,3 +355,68 @@ def test_a_block_where_every_tier_failed_names_nobody(ledger_file) -> None:
             error="boom",
         )
     assert (spend.last_tier, spend.last_model) == (None, None)
+
+
+# --------------------------------------------------------- cached and reasoning tokens
+
+# The usage block gpt-5.5 returned to a live probe on 13 Sep 2026, trimmed to the parts
+# the ledger reads.
+_GPT_55_USAGE = {
+    "prompt_tokens": 166,
+    "completion_tokens": 17,
+    "prompt_tokens_details": {"cached_tokens": 0, "audio_tokens": 0},
+    "completion_tokens_details": {"reasoning_tokens": 0, "audio_tokens": 0},
+}
+
+
+def test_cached_input_is_priced_at_its_own_rate() -> None:
+    tier = TierEconomics(
+        params_b=0,
+        local=False,
+        price_in_per_mtok=5.0,
+        price_out_per_mtok=30.0,
+        price_cached_in_per_mtok=0.5,
+    )
+    # 200k uncached at $5, 800k cached at $0.50, 100k out at $30: 1.0 + 0.4 + 3.0.
+    assert cost_usd(tier, 1_000_000, 100_000, 1, cached_tokens=800_000) == pytest.approx(4.4)
+
+
+def test_cached_input_with_no_cached_price_pays_the_full_input_rate() -> None:
+    """Overstating a turn is recoverable; inventing a discount the tier never gave is not."""
+    tier = TierEconomics(params_b=0, local=False, price_in_per_mtok=5.0, price_out_per_mtok=30.0)
+    assert cost_usd(tier, 1_000_000, 100_000, 1, cached_tokens=800_000) == pytest.approx(8.0)
+
+
+def test_a_cached_count_larger_than_its_prompt_is_not_trusted() -> None:
+    tier = TierEconomics(
+        params_b=0,
+        local=False,
+        price_in_per_mtok=5.0,
+        price_out_per_mtok=30.0,
+        price_cached_in_per_mtok=0.5,
+    )
+    assert cost_usd(tier, 1_000_000, 100_000, 1, cached_tokens=2_000_000) == pytest.approx(8.0)
+
+
+def test_cached_and_reasoning_tokens_are_written_as_reported(ledger_file) -> None:
+    """Zero is a reported count, so it is written as zero, not as unknown."""
+    ledger.record(
+        tier=4, model="gpt-5.5", op="tool_turn", usage=_GPT_55_USAGE, latency_ms=3489, status=200
+    )
+    (entry,) = _lines(ledger_file)
+    assert entry["cached_tokens"] == 0
+    assert entry["reasoning_tokens"] == 0
+
+
+def test_missing_or_malformed_token_details_record_unknown(ledger_file) -> None:
+    ledger.record(
+        tier=4,
+        model="m",
+        op="tool_turn",
+        usage={"prompt_tokens": 10, "completion_tokens": 2, "prompt_tokens_details": "n/a"},
+        latency_ms=10,
+        status=200,
+    )
+    (entry,) = _lines(ledger_file)
+    assert entry["cached_tokens"] is None
+    assert entry["reasoning_tokens"] is None

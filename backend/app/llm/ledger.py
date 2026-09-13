@@ -173,6 +173,8 @@ class TierEconomics:
     # None when unstated, which settings only allow on a local or disabled tier.
     price_in_per_mtok: float | None
     price_out_per_mtok: float | None
+    # Optional: None prices cached input at the full input rate.
+    price_cached_in_per_mtok: float | None = None
 
 
 def economics_for(tier: int) -> TierEconomics | None:
@@ -191,6 +193,7 @@ def economics_for(tier: int) -> TierEconomics | None:
         local=getattr(settings, f"{prefix}_local"),
         price_in_per_mtok=getattr(settings, f"{prefix}_price_in_per_mtok"),
         price_out_per_mtok=getattr(settings, f"{prefix}_price_out_per_mtok"),
+        price_cached_in_per_mtok=getattr(settings, f"{prefix}_price_cached_in_per_mtok"),
     )
 
 
@@ -199,6 +202,7 @@ def cost_usd(
     prompt_tokens: int | None,
     completion_tokens: int | None,
     latency_ms: int,
+    cached_tokens: int | None = None,
 ) -> float | None:
     """What one call cost: metered per token on a hosted tier, per second on your own.
 
@@ -225,8 +229,21 @@ def cost_usd(
         return None
     if prompt_tokens is None or completion_tokens is None:
         return None
+    # Cached input is part of prompt_tokens, not added to it, and is billed at its own
+    # rate where the tier has one. A count the provider did not send, or one larger than
+    # the prompt it belongs to, is not trusted: those tokens pay the full input rate,
+    # which overstates the call rather than inventing a discount.
+    cached = (
+        cached_tokens if cached_tokens is not None and 0 <= cached_tokens <= prompt_tokens else 0
+    )
+    cached_rate = (
+        economics.price_in_per_mtok
+        if economics.price_cached_in_per_mtok is None
+        else economics.price_cached_in_per_mtok
+    )
     return round(
-        prompt_tokens / TOKENS_PER_MILLION * economics.price_in_per_mtok
+        (prompt_tokens - cached) / TOKENS_PER_MILLION * economics.price_in_per_mtok
+        + cached / TOKENS_PER_MILLION * cached_rate
         + completion_tokens / TOKENS_PER_MILLION * economics.price_out_per_mtok,
         COST_PLACES,
     )
@@ -252,7 +269,9 @@ def record(
     economics = economics_for(tier)
     prompt_tokens = _token_count(usage, "prompt_tokens")
     completion_tokens = _token_count(usage, "completion_tokens")
-    cost = cost_usd(economics, prompt_tokens, completion_tokens, latency_ms)
+    cached_tokens = _detail_count(usage, "prompt_tokens_details", "cached_tokens")
+    reasoning_tokens = _detail_count(usage, "completion_tokens_details", "reasoning_tokens")
+    cost = cost_usd(economics, prompt_tokens, completion_tokens, latency_ms, cached_tokens)
 
     _append(
         {
@@ -272,6 +291,13 @@ def record(
             "local": economics.local if economics else None,
             "prompt_tokens": prompt_tokens,
             "completion_tokens": completion_tokens,
+            # Both inside the counts above rather than beside them: cached tokens are part
+            # of the prompt, billed cheaper, and reasoning tokens are part of the
+            # completion, billed the same. Recorded because they explain a cost and a
+            # latency the two totals cannot: a long prompt that was mostly cached, or a
+            # short answer that took seconds of thinking.
+            "cached_tokens": cached_tokens,
+            "reasoning_tokens": reasoning_tokens,
             "latency_ms": latency_ms,
             "status": status,
             "error": error,
@@ -318,6 +344,22 @@ def _token_count(usage: Any, key: str) -> int | None:
     if not isinstance(usage, dict):
         return None
     value = usage.get(key)
+    return value if isinstance(value, int) else None
+
+
+def _detail_count(usage: Any, block: str, key: str) -> int | None:
+    """A count from one of the usage block's nested details, or None when absent.
+
+    ``prompt_tokens_details.cached_tokens`` and ``completion_tokens_details.
+    reasoning_tokens`` are the shapes OpenAI and OpenRouter send. Tolerant for the same
+    reason ``_token_count`` is: this is metadata, recorded and never acted on.
+    """
+    if not isinstance(usage, dict):
+        return None
+    details = usage.get(block)
+    if not isinstance(details, dict):
+        return None
+    value = details.get(key)
     return value if isinstance(value, int) else None
 
 
