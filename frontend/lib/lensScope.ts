@@ -28,3 +28,25 @@ export function useLensScope(): [LensScope, (next: LensScope) => void] {
   );
   return [scope, setScope];
 }
+
+/**
+ * The captured call the interpretability pages are reading, kept in the URL beside the
+ * filter so the three pages read the same call and a reading can be linked. Changing the
+ * survey or run filter drops it, because the call may not be in the new slice.
+ */
+export function useSelectedAsk(): [string | null, (spanId: string | null) => void] {
+  const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const select = useCallback(
+    (spanId: string | null) => {
+      const query = new URLSearchParams(params.toString());
+      if (spanId) query.set("ask", spanId);
+      else query.delete("ask");
+      const text = query.toString();
+      router.replace(text ? `${pathname}?${text}` : pathname, { scroll: false });
+    },
+    [params, pathname, router],
+  );
+  return [params.get("ask"), select];
+}

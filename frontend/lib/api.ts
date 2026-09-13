@@ -12,6 +12,9 @@ import {
   duplicateReportSchema,
   groundingReportSchema,
   themeReportSchema,
+  capturedAskSchema,
+  interpStatusSchema,
+  storedAnalysisSchema,
   meSchema,
   spanSchema,
   tracedRunSchema,
@@ -189,6 +192,15 @@ export const api = {
   lensDuplicates: (surveyId: string) =>
     parsed(`/lens/surveys/${surveyId}/duplicates`, duplicateReportSchema),
   lensGrounding: () => parsed("/lens/grounding", groundingReportSchema),
+  lensInterpStatus: () => parsed("/lens/interp/status", interpStatusSchema),
+  lensInterpAsks: (scope: LensScope) =>
+    parsed(scoped("/lens/interp/asks", scope), z.array(capturedAskSchema)),
+  lensInterpAnalysis: (spanId: string) =>
+    parsed(`/lens/interp/asks/${spanId}`, storedAnalysisSchema),
+  lensInterpAnalyse: (spanId: string) =>
+    parsed(`/lens/interp/asks/${spanId}/analyse`, storedAnalysisSchema, { method: "POST" }),
+  lensInterpAttribute: (spanId: string) =>
+    parsed(`/lens/interp/asks/${spanId}/attribute`, storedAnalysisSchema, { method: "POST" }),
   /** Conduct prompt versions, file and saved, with what their traced turns cost. */
   promptFamily: () => parsed("/admin/prompts/conduct", promptFamilySchema),
   promptBody: (name: string) =>

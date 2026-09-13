@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
-import { api } from "./api";
+import { api, ApiError } from "./api";
 import type { LensScope } from "./lensScope";
 import { useUserStore } from "./store";
 
@@ -270,6 +270,73 @@ export function useLensGrounding(enabled: boolean) {
     queryFn: api.lensGrounding,
     enabled,
     retry: false,
+  });
+}
+
+/* The interpretability reads. An analysis runs a local model for minutes on a CPU, so it
+ * is never started by a read: only the Analyse mutation starts one, and a call that has not
+ * been analysed reads as null rather than as an error. */
+
+export function useInterpStatus(enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["lens", "interp", "status", userId],
+    queryFn: api.lensInterpStatus,
+    enabled,
+    retry: false,
+  });
+}
+
+export function useInterpAsks(scope: LensScope, enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["lens", "interp", "asks", scope.surveyId, scope.runId, userId],
+    queryFn: () => api.lensInterpAsks(scope),
+    enabled,
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useInterpAnalysis(spanId: string | null, enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["lens", "interp", "analysis", spanId, userId],
+    queryFn: async () => {
+      if (spanId === null) throw new Error("An analysis needs a call chosen.");
+      try {
+        return await api.lensInterpAnalysis(spanId);
+      } catch (error) {
+        // Not analysed yet is a state of the call, and the page offers to start one.
+        if (error instanceof ApiError && error.status === 404) return null;
+        throw error;
+      }
+    },
+    enabled: enabled && spanId !== null,
+    retry: false,
+  });
+}
+
+export function useAnalyse() {
+  const qc = useQueryClient();
+  const userId = useUserStore((s) => s.currentUserId);
+  return useMutation({
+    mutationFn: (spanId: string) => api.lensInterpAnalyse(spanId),
+    onSuccess: (stored) => {
+      qc.setQueryData(["lens", "interp", "analysis", stored.span_id, userId], stored);
+      void qc.invalidateQueries({ queryKey: ["lens", "interp", "asks"] });
+    },
+  });
+}
+
+export function useAttribute() {
+  const qc = useQueryClient();
+  const userId = useUserStore((s) => s.currentUserId);
+  return useMutation({
+    mutationFn: (spanId: string) => api.lensInterpAttribute(spanId),
+    onSuccess: (stored) => {
+      qc.setQueryData(["lens", "interp", "analysis", stored.span_id, userId], stored);
+      void qc.invalidateQueries({ queryKey: ["lens", "interp", "asks"] });
+    },
   });
 }
 

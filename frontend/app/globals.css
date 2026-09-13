@@ -1523,6 +1523,39 @@ select.field {
   font-weight: 600;
 }
 
+/* Interpretability pages: the chosen call, a running reading, words coloured by pull. */
+.lens-table tr[aria-selected="true"] td {
+  background: var(--highlight-soft);
+}
+.lens-running {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.lens-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+.lens-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  font-size: var(--text-md);
+  line-height: 1.8;
+}
+.lens-word {
+  padding-inline: var(--space-1);
+  border-radius: 4px;
+  color: var(--ink);
+}
+.lens-word-strong {
+  color: var(--on-slab);
+}
+
 /* Correlation matrix and prompt screen. */
 .lens-matrix td,
 .lens-matrix th {

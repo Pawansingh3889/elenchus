@@ -304,6 +304,130 @@ export const groundingReportSchema = z.object({
 });
 export type GroundingReport = z.infer<typeof groundingReportSchema>;
 
+/* The interpretability lens: a local model (Qwen3-0.6B) reading the exact prompt a hosted
+ * model was sent. Nothing here is the hosted model's internals. Probabilities are left
+ * unbounded above: a softmax summed in floating point can land a hair past 1. */
+
+export const interpStatusSchema = z.object({
+  enabled: z.boolean(),
+  reachable: z.boolean(),
+  model: z.string().nullable(),
+  revision: z.string().nullable(),
+  device: z.string().nullable(),
+  /** Why it is not reachable, in words, when it is not. */
+  detail: z.string().nullable(),
+});
+export type InterpStatus = z.infer<typeof interpStatusSchema>;
+
+export const capturedAskSchema = z.object({
+  span_id: z.string(),
+  run_id: z.string(),
+  survey_title: z.string(),
+  started_at: z.string(),
+  hosted_model: z.string().nullable(),
+  tools_offered: z.array(z.string()),
+  hosted_pick: z.string().nullable(),
+  outcome: z.string().nullable(),
+  hosted_ms: count,
+  hosted_prompt_tokens: count.nullable(),
+  hosted_cost_usd: z.number().nonnegative().nullable(),
+  analysed: z.boolean(),
+  attributed: z.boolean(),
+  qwen_pick: z.string().nullable(),
+  qwen_probability_of_hosted_pick: z.number().nonnegative().nullable(),
+  agrees: z.boolean().nullable(),
+  analysis_ms: count.nullable(),
+  analysis_cost_usd: z.number().nonnegative().nullable(),
+  attribution_ms: count.nullable(),
+  attribution_cost_usd: z.number().nonnegative().nullable(),
+});
+export type CapturedAsk = z.infer<typeof capturedAskSchema>;
+
+const promptSectionSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  kind: z.enum(["system", "tools", "message", "template"]),
+  role: z.string().nullable(),
+  tokens: count,
+});
+export type PromptSection = z.infer<typeof promptSectionSchema>;
+
+const tokenWeightSchema = z.object({
+  position: count,
+  text: z.string(),
+  section: z.string(),
+  weight: z.number(),
+});
+export type TokenWeight = z.infer<typeof tokenWeightSchema>;
+
+export const analysisSchema = z.object({
+  model: z.string(),
+  revision: z.string(),
+  device: z.string(),
+  dtype: z.string(),
+  prompt_tokens: count,
+  sections: z.array(promptSectionSchema),
+  calls_a_tool: z.number().nonnegative(),
+  tools: z.array(
+    z.object({ name: z.string(), logprob: z.number(), probability: z.number().nonnegative() }),
+  ),
+  pick: z.string(),
+  layers: z.array(
+    z.object({
+      layer: count,
+      norm: z.number().nonnegative(),
+      tool_probabilities: z.record(z.string(), z.number()),
+      top_token: z.string(),
+    }),
+  ),
+  attention: z.array(z.object({ layer: count, shares: z.record(z.string(), z.number()) })),
+  attended_tokens: z.array(tokenWeightSchema),
+  timings: z.object({ render_ms: count, read_ms: count, tools_ms: count, total_ms: count }),
+});
+export type Analysis = z.infer<typeof analysisSchema>;
+
+export const attributionResultSchema = z.object({
+  model: z.string(),
+  revision: z.string(),
+  device: z.string(),
+  prompt_tokens: count,
+  attribution: z.object({
+    /** The tool the hosted model called: the choice this explains. */
+    target: z.string(),
+    /** Shares of the total absolute attribution; positive plus negative over all adds to 1. */
+    sections: z.record(z.string(), z.object({ positive: z.number(), negative: z.number() })),
+    tokens: z.array(tokenWeightSchema),
+    respondent_words: z.array(z.object({ text: z.string(), score: z.number() })),
+  }),
+  render_ms: count,
+  attribution_ms: count,
+  total_ms: count,
+});
+export type AttributionResult = z.infer<typeof attributionResultSchema>;
+
+export const storedAnalysisSchema = z.object({
+  span_id: z.string(),
+  run_id: z.string().nullable(),
+  target_tool: z.string().nullable(),
+  analysed_at: z.string(),
+  duration_ms: count,
+  cost_usd: z.number().nonnegative().nullable(),
+  hosted_model: z.string().nullable(),
+  hosted_ms: count,
+  hosted_cost_usd: z.number().nonnegative().nullable(),
+  analysis: analysisSchema,
+  /** Asked for separately: it takes several times as long as the reading. */
+  attribution: z
+    .object({
+      attributed_at: z.string(),
+      duration_ms: count,
+      cost_usd: z.number().nonnegative().nullable(),
+      result: attributionResultSchema,
+    })
+    .nullable(),
+});
+export type StoredAnalysis = z.infer<typeof storedAnalysisSchema>;
+
 export const promptVersionSchema = z.object({
   name: z.string(),
   source: z.enum(["file", "database"]),
