@@ -258,6 +258,7 @@ def record(
     latency_ms: int,
     status: int,
     error: str | None = None,
+    first_token_ms: int | None = None,
 ) -> None:
     """Append one call attempt to the ledger, and add it to the enclosing run's spend.
 
@@ -299,6 +300,11 @@ def record(
             "cached_tokens": cached_tokens,
             "reasoning_tokens": reasoning_tokens,
             "latency_ms": latency_ms,
+            # How long before the model produced anything, of the latency above. None when
+            # the tier answered in one piece or nothing arrived, which is unknown, not 0.
+            # The gap between the two is the time spent writing; the rest was reading the
+            # prompt and, on a reasoning model, thinking.
+            "first_token_ms": first_token_ms,
             "status": status,
             "error": error,
             "cost_usd": cost,

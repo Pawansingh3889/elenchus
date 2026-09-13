@@ -420,3 +420,19 @@ def test_missing_or_malformed_token_details_record_unknown(ledger_file) -> None:
     (entry,) = _lines(ledger_file)
     assert entry["cached_tokens"] is None
     assert entry["reasoning_tokens"] is None
+
+
+def test_first_token_time_is_written_and_unknown_unless_given(ledger_file) -> None:
+    ledger.record(tier=4, model="m", op="tool_turn", usage=None, latency_ms=3489, status=200)
+    ledger.record(
+        tier=4,
+        model="m",
+        op="tool_turn",
+        usage=None,
+        latency_ms=3489,
+        first_token_ms=3393,
+        status=200,
+    )
+    unknown, timed = _lines(ledger_file)
+    assert unknown["first_token_ms"] is None
+    assert timed["first_token_ms"] == 3393

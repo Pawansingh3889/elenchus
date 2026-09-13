@@ -7,6 +7,27 @@ The project is not yet versioned, so entries are grouped by date. Newest first.
 
 
 
+
+## 2026-09-13. Every tier streams, and the ledger records when the first token came
+
+A call's total latency hid where the time went. On a live `gpt-5.5` tool call the model
+produced nothing for 3,393 ms and then wrote the whole answer in 96 ms: nearly all of the
+wait was reading the prompt and reasoning, which no amount of shorter output would fix.
+
+- **Every request streams with `stream_options.include_usage`**, and every ledger row
+  carries `first_token_ms` beside `latency_ms`. The difference is time spent writing.
+- **The stream is assembled back into the unstreamed body before anything reads it**, so
+  tool-call validation, salvage from text, truncation and failover behave exactly as
+  before. Text fragments are joined, tool-call arguments are rebuilt from their pieces.
+- **A stream cut before its usage chunk still yields its turn**, and books the call as
+  unmetered rather than free: OpenAI's docs say an interrupted stream may never send the
+  counts.
+- **A tier that ignores `stream: true`** and answers in one piece is still understood; it
+  records no first-token time, since it has none to give.
+- **A mid-answer hang-up stays a cheap, retried failure**, since holding the connection
+  for the whole answer makes one more likely.
+- An event that is not a JSON object fails loudly and is booked, like a non-JSON body.
+
 ## 2026-09-13. Cached and reasoning tokens are recorded, and cached input is priced
 
 A turn's two token totals could not explain its cost or its latency. `gpt-5.5` bills a

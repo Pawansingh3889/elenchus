@@ -14,6 +14,12 @@ text instead of into ``tool_calls``, and refusing to salvage would mean refusing
 whenever the chain reaches them. The mitigation is that salvage only ever *proposes* a
 tool call: the payload is validated against the same schema as any other, and the engine
 rejects it identically if it does not fit.
+
+Every call streams. That is for measurement, not for the respondent: the one number a
+whole response cannot give is how long the model took before it produced anything, and
+on a reasoning model that is nearly all of the wait (3.4 of 3.5 seconds on a live
+gpt-5.5 tool call). The stream is assembled back into the unstreamed body shape before
+anything reads it, so validation, salvage and failover see exactly what they saw before.
 """
 
 import asyncio
@@ -21,7 +27,7 @@ import json
 import logging
 import re
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from typing import Any, cast
 
 import httpx
@@ -96,6 +102,91 @@ class _Transient(Exception):
         self.error = error
 
 
+def _one_piece(raw: str, fail: Callable[[str], None]) -> dict[str, Any]:
+    """An unstreamed body, shape-checked the way every response was before streaming."""
+    try:
+        body = json.loads(raw)
+    except ValueError as exc:
+        fail("non-JSON body")
+        raise LLMError(f"LLM tier returned a non-JSON body: {raw[:200]}") from exc
+    if not isinstance(body, dict):
+        fail(f"{type(body).__name__} body")
+        raise LLMError(f"LLM tier returned {type(body).__name__}, expected a JSON object.")
+    return cast("dict[str, Any]", body)
+
+
+async def _assemble_stream(
+    response: httpx.Response,
+    mark_first_output: Callable[[], None],
+    fail: Callable[[str], None],
+) -> dict[str, Any]:
+    """Rebuild one Chat Completions body from a server-sent event stream.
+
+    The result has the unstreamed shape, so ``_first_tool_call`` validates a streamed turn
+    exactly as it validated a whole one. Text arrives as fragments; a tool call arrives as
+    fragments keyed by index, its name once and its arguments in pieces; ``finish_reason``
+    comes on the last chunk that has one; and usage comes on a final chunk with no choices,
+    or not at all if the stream is cut first.
+
+    An event that is not a JSON object fails loudly. Anything else is read tolerantly,
+    because the assembled body goes through the same strict checks as an unstreamed one.
+    """
+    content: list[str] = []
+    calls: dict[int, dict[str, str]] = {}
+    finish_reason: Any = None
+    usage: Any = None
+    async for line in response.aiter_lines():
+        if not line.startswith("data:"):
+            continue  # blank separators, keep-alive comments, event names
+        data = line[len("data:") :].strip()
+        if data == "[DONE]":
+            break
+        try:
+            chunk = json.loads(data)
+        except ValueError as exc:
+            fail("non-JSON event")
+            raise LLMError(f"LLM tier streamed a non-JSON event: {data[:200]}") from exc
+        if not isinstance(chunk, dict):
+            fail(f"{type(chunk).__name__} event")
+            raise LLMError(f"LLM tier streamed {type(chunk).__name__}, expected a JSON object.")
+        if chunk.get("usage") is not None:
+            usage = chunk["usage"]
+        choices = chunk.get("choices")
+        for choice in choices if isinstance(choices, list) else []:
+            if not isinstance(choice, dict):
+                continue
+            delta = choice.get("delta")
+            delta = delta if isinstance(delta, dict) else {}
+            text = delta.get("content")
+            if isinstance(text, str) and text:
+                mark_first_output()
+                content.append(text)
+            parts = delta.get("tool_calls")
+            for part in parts if isinstance(parts, list) else []:
+                if not isinstance(part, dict):
+                    continue
+                mark_first_output()
+                index = part.get("index", 0)
+                slot = calls.setdefault(
+                    index if isinstance(index, int) else 0, {"name": "", "arguments": ""}
+                )
+                function = part.get("function")
+                function = function if isinstance(function, dict) else {}
+                if isinstance(function.get("name"), str):
+                    slot["name"] += function["name"]
+                if isinstance(function.get("arguments"), str):
+                    slot["arguments"] += function["arguments"]
+            if choice.get("finish_reason"):
+                finish_reason = choice["finish_reason"]
+    message: dict[str, Any] = {"content": "".join(content)}
+    if calls:
+        message["tool_calls"] = [
+            {"function": {"name": slot["name"], "arguments": slot["arguments"] or "{}"}}
+            for _, slot in sorted(calls.items())
+        ]
+    return {"choices": [{"message": message, "finish_reason": finish_reason}], "usage": usage}
+
+
 class OpenAICompatibleLLMClient:
     """Force one schema-constrained tool call out of an OpenAI-compatible endpoint."""
 
@@ -144,9 +235,20 @@ class OpenAICompatibleLLMClient:
         headers = {"Content-Type": "application/json"}
         if self._api_key:
             headers["Authorization"] = f"Bearer {self._api_key}"
+        # include_usage is what keeps a streamed call metered: the counts arrive on one
+        # final chunk with no choices, and only when this is asked for.
+        payload = {**payload, "stream": True, "stream_options": {"include_usage": True}}
         # Monotonic, not wall clock: this becomes the cost of a locally served call, and
         # a clock adjustment mid-request would otherwise price the turn as negative.
         started = time.monotonic()
+        # Set once, by the stream reader, when the first content or tool-call fragment
+        # arrives. A list rather than a variable so the reader can set it, and so a stream
+        # that fails halfway still books the time its first fragment came.
+        first_output: list[float] = []
+
+        def mark_first_output() -> None:
+            if not first_output:
+                first_output.append(time.monotonic())
 
         def book(status: int, usage: Any, error: str | None) -> None:
             # Every attempt leaves a row, failures included. A ledger that only records
@@ -159,6 +261,7 @@ class OpenAICompatibleLLMClient:
                 op=op,
                 usage=usage,
                 latency_ms=int((time.monotonic() - started) * 1000),
+                first_token_ms=(int((first_output[0] - started) * 1000) if first_output else None),
                 status=status,
                 error=error,
             )
@@ -167,12 +270,36 @@ class OpenAICompatibleLLMClient:
             async with httpx.AsyncClient(
                 timeout=self._timeout, transport=self._transport
             ) as client:
-                response = await client.post(
-                    f"{self._base_url}/chat/completions", json=payload, headers=headers
-                )
+                async with client.stream(
+                    "POST",
+                    f"{self._base_url}/chat/completions",
+                    json=payload,
+                    headers=headers,
+                ) as response:
+                    status = response.status_code
+                    if status >= 400:
+                        said = (await response.aread()).decode(errors="replace")
+                        logger.error("llm tier returned %s: %s", status, said[:200])
+                        book(status, None, said[:200])
+                        error = LLMError(f"LLM tier rejected the request ({status}): {said[:200]}")
+                        if status in _RETRYABLE_STATUSES:
+                            raise _Transient(error)
+                        raise error
+
+                    def fail(reason: str) -> None:
+                        book(status, None, reason)
+
+                    if "text/event-stream" in response.headers.get("content-type", ""):
+                        body = await _assemble_stream(response, mark_first_output, fail)
+                    else:
+                        # A server that ignored stream: true and answered in one piece.
+                        # Still a valid answer; it just has no first-token time to give.
+                        raw = (await response.aread()).decode(errors="replace")
+                        body = _one_piece(raw, fail)
         except (httpx.ConnectError, httpx.ConnectTimeout, httpx.RemoteProtocolError) as exc:
-            # Nothing connected, or the server hung up mid-response: cheap to retry
-            # (the connect budget is seconds) and usually passing.
+            # Nothing connected, or the server hung up mid-response (which a stream makes
+            # more likely, since the connection is held for the whole answer): cheap to
+            # retry and usually passing.
             logger.error("llm tier call failed: %r", exc)
             book(0, None, repr(exc))
             raise _Transient(LLMError(f"Could not reach the LLM tier: {exc!r}")) from exc
@@ -192,41 +319,22 @@ class OpenAICompatibleLLMClient:
             logger.error("llm tier call failed: %r", exc)
             book(0, None, repr(exc))
             raise LLMError(f"Could not reach the LLM tier: {exc!r}") from exc
-        if response.status_code >= 400:
-            logger.error("llm tier returned %s: %s", response.status_code, response.text[:200])
-            book(response.status_code, None, response.text[:200])
-            error = LLMError(
-                f"LLM tier rejected the request ({response.status_code}): {response.text[:200]}"
-            )
-            if response.status_code in _RETRYABLE_STATUSES:
-                raise _Transient(error)
-            raise error
-        try:
-            body = response.json()
-        except ValueError as exc:
-            book(response.status_code, None, "non-JSON body")
-            raise LLMError(f"LLM tier returned a non-JSON body: {response.text[:200]}") from exc
-        if not isinstance(body, dict):
-            book(response.status_code, None, f"{type(body).__name__} body")
-            raise LLMError(f"LLM tier returned {type(body).__name__}, expected a JSON object.")
         # Logged after parsing so the token usage is in reach: any tier can serve any
         # live turn, and until now those tokens were spent with no record at all. One format
         # across tiers means one grep finds every tier's spend.
         #
         # `.get` is not a no-fallbacks shrug here: usage is optional provider metadata that
         # is recorded and never acted on, unlike the required data ARCHITECTURE.md 4 is
-        # about. A tier that omits it logs usage=None, which is the honest answer.
+        # about. A tier that omits it, or a stream cut before its usage chunk, logs
+        # usage=None, which is the honest answer.
         logger.info(
-            "llm tier call model=%s status=%s usage=%s",
-            self._model,
-            response.status_code,
-            body.get("usage"),
+            "llm tier call model=%s status=%s usage=%s", self._model, status, body.get("usage")
         )
         # The durable half of the same fact. The log line is for reading now; this is for
         # answering "what did that survey cost, on which model" months from now, when the
         # logs have rotated away.
-        book(response.status_code, body.get("usage"), None)
-        return cast("dict[str, Any]", body)
+        book(status, body.get("usage"), None)
+        return body
 
     @staticmethod
     def _salvage_from_content(said: Any) -> list[dict[str, Any]]:
