@@ -24,29 +24,51 @@ def _questions(key: str) -> list[dict]:
     ]
 
 
-def test_the_nine_scripted_scenarios_are_ported():
-    assert sorted(SCENARIOS) == sorted(
-        [
-            "max_length",
-            "skip_heavy",
-            "write_ins",
-            "numbers_dates",
-            "injection",
-            "out_of_order",
-            "multi_answer",
-            "forced_probe",
-            "probe_budget",
-        ]
-    )
+SCRIPTED = sorted(
+    [
+        "max_length",
+        "skip_heavy",
+        "write_ins",
+        "numbers_dates",
+        "injection",
+        "out_of_order",
+        "multi_answer",
+        "forced_probe",
+        "probe_budget",
+    ]
+)
+DRAFTED = {"broad": 10, "evasive": 5}
 
 
-@pytest.mark.parametrize("key", sorted(SCENARIOS))
+def test_the_nine_scripted_and_two_drafted_scenarios_are_ported():
+    assert sorted(SCENARIOS) == sorted([*SCRIPTED, *DRAFTED])
+    for key in SCRIPTED:
+        assert SCENARIOS[key].questions and SCENARIOS[key].brief is None
+    for key, count in DRAFTED.items():
+        scenario = SCENARIOS[key]
+        assert scenario.questions == [] and scenario.brief
+        assert scenario.question_count == count
+
+
+@pytest.mark.parametrize("key", SCRIPTED)
 def test_every_scripted_respondent_answers_every_question(key):
     scenario = SCENARIOS[key]
     assert max_turns(scenario) == 3 * len(scenario.questions) + 10
     for turn, question in enumerate(_questions(key)):
         reply = scenario.respond(question, "Next question.", 1, turn)
         assert isinstance(reply, str) and reply.strip()
+
+
+@pytest.mark.parametrize("key", sorted(DRAFTED))
+def test_a_drafted_respondent_says_its_lines_in_order_then_signs_off(key):
+    scenario = SCENARIOS[key]
+    question = {"id": "q", "answer_type": "rating", "text": "Rate it"}
+    lines = [scenario.respond(question, "", 1, turn) for turn in range(40)]
+    assert all(isinstance(line, str) and line.strip() for line in lines)
+    assert lines[-1] == "that's all, thanks" and lines[0] != lines[-1]
+    # The brief's count sets the ceiling until the drafted survey gives its own.
+    assert max_turns(scenario) == 3 * DRAFTED[key] + 10
+    assert max_turns(scenario, 7) == 3 * 7 + 10
 
 
 def test_the_numbers_checks_pass_a_sound_run_and_fail_a_broken_one():

@@ -14,11 +14,12 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.errors import ForbiddenError, ValidationError
 from app.evaluation.runner import EVALUATION_AUTHOR, EVALUATION_RESPONDENT
-from app.evaluation.scenarios import Check, Scenario, base_checks, q
+from app.evaluation.scenarios import Check, Scenario, base_checks, q, replies_in_order
 from app.evaluation.schemas import MIN_CAP_USD, EvalStartRequest
 from app.evaluation.service import EvaluationService
 from app.llm import ledger
-from app.llm.client import LLMError
+from app.llm.client import LLMError, ToolTurn
+from app.runs.models import SurveyRun
 from app.templates.enums import SurveyAudience
 from app.templates.models import SurveyTemplate
 from app.users.models import Band, Function, User
@@ -55,7 +56,40 @@ def _one_question(key: str) -> Scenario:
     )
 
 
-CATALOGUE = {"first": _one_question("first"), "second": _one_question("second")}
+def _drafted(key: str) -> Scenario:
+    return Scenario(
+        key=key,
+        title="Drafted from a brief",
+        survey_title="Role Check",
+        questions=[],
+        respond=replies_in_order(["line lead on nights"]),
+        check=base_checks,
+        brief="A check-in with one question: their role, Line lead or Operative.",
+        expected_questions=1,
+    )
+
+
+DRAFT = ToolTurn(
+    text="",
+    tool_name="draft_survey_template",
+    tool_input={
+        "title": "Role Check",
+        "note": "One closed question.",
+        "questions": [
+            {
+                "text": "What is your role?",
+                "answer_type": "single_select",
+                "options": ["Line lead", "Operative"],
+            }
+        ],
+    },
+)
+
+CATALOGUE = {
+    "first": _one_question("first"),
+    "second": _one_question("second"),
+    "drafted": _drafted("drafted"),
+}
 
 
 @pytest_asyncio.fixture
@@ -83,6 +117,10 @@ def _service(session, engine, make_llm, pending) -> EvaluationService:
 
 def _answering(tier: int) -> FakeLLM:
     return MeteredLLM(record("line lead"), move_on("Thanks."))
+
+
+def _drafting(tier: int) -> FakeLLM:
+    return MeteredLLM(DRAFT, record("Line lead"), move_on("Thanks."))
 
 
 async def test_a_scenario_runs_through_the_engine_and_keeps_its_checks(session, engine, admin):
@@ -173,6 +211,38 @@ async def test_a_batch_is_refused_before_anything_is_queued(session, engine, adm
     assert pending == [] and await service.eval_runs(admin) == []
 
 
+async def test_a_drafted_scenario_pays_for_its_survey_out_of_the_run(session, engine, admin):
+    pending: list = []
+    service = _service(session, engine, _drafting, pending)
+    await service.start_eval(admin, EvalStartRequest(scenarios=["drafted"], tier=1, cap_usd=5.0))
+    await pending[0]
+
+    (done,) = await service.eval_runs(admin)
+    assert done.status == "completed", done.error
+    assert done.hard_failures == 0 and done.answers == 1
+    template = await session.get(SurveyTemplate, done.template_id)
+    assert template.title == "Role Check" and template.audience is SurveyAudience.person
+    # The draft was a priced call the survey run never saw, so the evaluation row carries
+    # more than the run's own rollup.
+    run = await session.get(SurveyRun, done.run_id)
+    assert done.cost_usd > float(run.llm_cost_usd) > 0
+
+
+async def test_a_draft_that_spends_the_cap_stops_before_any_conversation(session, engine, admin):
+    pending: list = []
+    service = _service(session, engine, _drafting, pending)
+    await service.start_eval(
+        admin, EvalStartRequest(scenarios=["drafted", "first"], tier=1, cap_usd=MIN_CAP_USD)
+    )
+    await pending[0]
+
+    drafted, first = sorted(await service.eval_runs(admin), key=lambda run: run.position)
+    assert drafted.status == "capped" and "drafting" in (drafted.error or "")
+    assert drafted.template_id is not None and drafted.run_id is None and drafted.turns == 0
+    assert drafted.cost_usd > 0
+    assert first.status == "capped" and first.run_id is None
+
+
 def test_a_cap_outside_what_one_batch_may_spend_is_refused():
     with pytest.raises(ValueError):
         EvalStartRequest(scenarios=["first"], tier=1, cap_usd=0)
@@ -185,7 +255,9 @@ def test_a_cap_outside_what_one_batch_may_spend_is_refused():
 
 async def test_options_list_scenarios_tiers_and_prompt_versions(session, engine, admin):
     options = await _service(session, engine, _answering, []).eval_options(admin)
-    assert [s.key for s in options.scenarios] == ["first", "second"]
+    assert [s.key for s in options.scenarios] == ["first", "second", "drafted"]
+    assert [s.generated for s in options.scenarios] == [False, False, True]
+    assert options.scenarios[2].questions == 1
     assert "conduct_v7" in options.prompt_versions and "conduct_v8" in options.prompt_versions
     assert options.active_prompt.startswith("conduct_v")
 

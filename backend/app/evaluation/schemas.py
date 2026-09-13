@@ -144,8 +144,11 @@ class QualityReport(BaseModel):
 class ScenarioRead(BaseModel):
     key: str
     title: str
+    # For a drafted scenario, the count its brief asks for: the draft may differ.
     questions: int
     max_turns: int
+    # Drafted from a brief by the pinned tier before the conversation, at a cost.
+    generated: bool
 
 
 class TierRead(BaseModel):
@@ -161,7 +164,7 @@ class EvalOptions(BaseModel):
 
 
 class EvalStartRequest(BaseModel):
-    scenarios: list[str] = Field(min_length=1, max_length=9)
+    scenarios: list[str] = Field(min_length=1, max_length=11)
     tier: int = Field(ge=1, le=4)
     # None runs the conduct prompt that is active right now.
     prompt_version: str | None = None

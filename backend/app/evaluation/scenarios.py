@@ -6,8 +6,8 @@ built explicitly, a scripted respondent that answers by the question in front of
 checks that key on engine-guaranteed facts rather than on the model's mood. A check is
 hard when a failure is a defect and soft when it turns on judgement, as in the harness.
 
-The two prompt-generated scenarios (broad and evasive) are not here: they need a paid
-template generation before the conversation, and stay in the harness for now.
+Two scenarios, broad and evasive, carry a brief instead of questions: the runner has the
+pinned tier draft their survey first, and pays for the draft out of the batch's cap.
 """
 
 from collections.abc import Callable
@@ -89,6 +89,15 @@ class Scenario:
     questions: list[QuestionInput]
     respond: Respond
     check: Callable[[Transcript], list[Check]]
+    # A brief instead of questions: the survey is drafted from it by the pinned tier.
+    brief: str | None = None
+    # How many questions the brief asks for, shown before a run starts. Once drafted, the
+    # survey's own count sets the run's turn ceiling.
+    expected_questions: int = 0
+
+    @property
+    def question_count(self) -> int:
+        return len(self.questions) if self.brief is None else self.expected_questions
 
 
 def q(
@@ -643,6 +652,66 @@ def _check_probe(t: Transcript) -> list[Check]:
     return out
 
 
+# ------------------------------------------------------------------ drafted from a brief
+# Kept from the original harness: an awkward but cooperative respondent, and a deliberately
+# evasive one whose every reply should end honest. Evasive is the scenario that once
+# recorded "yes" from the single message "4" with every engine check passing.
+
+
+def replies_in_order(replies: list[str]) -> Respond:
+    """A respondent who says the next line whatever was asked, then signs off."""
+
+    def respond(question: dict[str, Any], last: str, seen: int, turn: int) -> str:
+        return replies[turn] if turn < len(replies) else "that's all, thanks"
+
+    return respond
+
+
+_BROAD_BRIEF = (
+    "An onboarding survey for people who joined in the last year. Ten "
+    "questions, one of each kind where you can: job title (short text), start "
+    "date (date), induction days (number), first-week rating, team (single "
+    "select), parts used (multi select), buddy (yes/no), what went well (long "
+    "text), what to change (long text), likely to stay (rating). Follow-ups on "
+    "the open-ended ones and the first-week rating. Make the buddy and stay "
+    "questions optional."
+)
+_BROAD_REPLIES = [
+    "data analyst, on the reporting side",
+    "i started on the 3rd of march this year",
+    "two days i think, maybe three including the IT bit",
+    "yeah it was alright, solid 4",
+    "reporting and insight",
+    "the handbook and the buddy scheme, and there was a slack channel too",
+    "yeah i had one",
+    "the team were really welcoming, people made time for me",
+    "less of the generic corporate video honestly",
+    "the compliance modules were the same ones everyone does regardless of role",
+    "hard to say really",
+    "probably a 3",
+    "that's me done",
+    "nothing else",
+]
+_EVASIVE_BRIEF = (
+    "A short check-in for warehouse staff about the new shift handover "
+    "process. Five questions: their role, how well handover works (rating), "
+    "one thing to change, which shift they work (single select), and whether "
+    "they'd recommend it. Follow-ups on the open-ended ones."
+)
+_EVASIVE_REPLIES = [
+    "i sort of run the line i guess",
+    "mostly making sure the handover actually happens",
+    "honestly it's been a bit of a mess",
+    "rather not say",
+    "eleven out of five",
+    "4",
+    "yeah fine",
+    "no",
+    "not really",
+    "that's all",
+]
+
+
 SCENARIOS: dict[str, Scenario] = {
     scenario.key: scenario
     for scenario in (
@@ -718,10 +787,33 @@ SCENARIOS: dict[str, Scenario] = {
             _probe_respond,
             _check_probe,
         ),
+        Scenario(
+            "broad",
+            "Drafted from a brief, awkward but cooperative",
+            "Onboarding",
+            [],
+            replies_in_order(_BROAD_REPLIES),
+            base_checks,
+            brief=_BROAD_BRIEF,
+            expected_questions=10,
+        ),
+        Scenario(
+            "evasive",
+            "Drafted from a brief, deliberately evasive",
+            "Shift Handover",
+            [],
+            replies_in_order(_EVASIVE_REPLIES),
+            base_checks,
+            brief=_EVASIVE_BRIEF,
+            expected_questions=5,
+        ),
     )
 }
 
 
-def max_turns(scenario: Scenario) -> int:
-    """The harness's ceiling on respondent replies, so a looping run always ends."""
-    return 3 * len(scenario.questions) + 10
+def max_turns(scenario: Scenario, questions: int | None = None) -> int:
+    """The harness's ceiling on respondent replies, so a looping run always ends.
+
+    A drafted survey passes its real question count once it exists.
+    """
+    return 3 * (scenario.question_count if questions is None else questions) + 10

@@ -3,9 +3,11 @@
 A batch is a list of scenarios run one after another, each pinned to one tier and one
 conduct prompt version, under one spend cap. Each scenario builds its own survey aimed at
 the evaluation respondent alone, holds the scripted conversation turn by turn, and checks
-the finished transcript. Cost is read from the run's rollup after every turn: a run that
-reaches what is left of the cap stops there as capped, and the scenarios after it never
-start. A scenario that fails is recorded with its error and the batch carries on.
+the finished transcript. A scenario with a brief has its survey drafted by the same pinned
+tier first, and the draft's cost is the run's. Cost is read from the run's rollup after
+every turn, plus any draft: a run that reaches what is left of the cap stops there as
+capped, and the scenarios after it never start. A scenario that fails is recorded with its
+error and the batch carries on.
 
 The runner opens its own sessions, because it outlives the request that started it.
 """
@@ -17,6 +19,7 @@ import time
 from collections import Counter
 from collections.abc import Callable, Coroutine
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
@@ -27,9 +30,11 @@ from app.evaluation.enums import EvalRunStatus
 from app.evaluation.models import EvalRun
 from app.evaluation.repository import EvaluationRepository
 from app.evaluation.scenarios import Scenario, Transcript, max_turns
+from app.llm import ledger
 from app.llm.client import LLMProtocol
 from app.runs.enums import MessageRole, RunStatus
 from app.templates.enums import SurveyAudience
+from app.templates.generation import GenerationService
 from app.templates.schemas import TemplateCreate
 from app.templates.service import TemplateService
 
@@ -106,27 +111,53 @@ async def _run_one(
     await session.commit()
 
     author, respondent = await repo.evaluation_accounts(EVALUATION_AUTHOR, EVALUATION_RESPONDENT)
+    llm = make_llm(row.tier)
     templates = TemplateService(session)
-    template = await templates.create_draft(
-        TemplateCreate(
-            title=f"{scenario.survey_title} (evaluation)",
-            description=f"Built by the {scenario.key} evaluation scenario.",
-            audience=SurveyAudience.person,
-            audience_user_id=respondent.id,
-            questions=scenario.questions,
-        ),
-        author,
-    )
-    await templates.publish(template.id, author)
-    engine = ConductEngine(session, llm=make_llm(row.tier), prompt_version=row.prompt_version)
-    run = await engine.start_run(template.id, respondent)
-    row.template_id, row.run_id = template.id, run.id
+    drafting = Decimal(0)
+    drafting_unmetered = 0
+    if scenario.brief is not None:
+        # The pinned tier drafts the survey. Its cost is measured here, because no survey
+        # run exists yet to roll it into, and it counts against the cap like any turn.
+        with ledger.measuring() as spend:
+            template, _ = await GenerationService(session, llm=llm).generate_draft(
+                scenario.brief, author, SurveyAudience.person, respondent.id
+            )
+        template_id = template.id
+        drafting = Decimal(str(spend.cost_usd))
+        drafting_unmetered = spend.unmetered_calls
+        row.template_id = template_id
+        row.cost_usd, row.unmetered_calls = drafting, drafting_unmetered
+        row.heartbeat_at = datetime.now(UTC)
+        await session.commit()
+        if float(drafting) >= remaining:
+            row.status = EvalRunStatus.capped
+            row.error = "The batch's cap was reached while drafting this scenario's survey."
+            row.duration_ms = int((time.monotonic() - started) * 1000)
+            row.finished_at = datetime.now(UTC)
+            await session.commit()
+            return float(drafting)
+    else:
+        template = await templates.create_draft(
+            TemplateCreate(
+                title=f"{scenario.survey_title} (evaluation)",
+                description=f"Built by the {scenario.key} evaluation scenario.",
+                audience=SurveyAudience.person,
+                audience_user_id=respondent.id,
+                questions=scenario.questions,
+            ),
+            author,
+        )
+        template_id = template.id
+    await templates.publish(template_id, author)
+    engine = ConductEngine(session, llm=llm, prompt_version=row.prompt_version)
+    run = await engine.start_run(template_id, respondent)
+    row.template_id, row.run_id = template_id, run.id
     await session.commit()
 
     transcript = Transcript(questions=await engine.questions(run), today=run.started_at.date())
     seen: dict[str, int] = {}
     capped = False
-    for turn in range(max_turns(scenario)):
+    for turn in range(max_turns(scenario, len(transcript.questions))):
         if run.status is not RunStatus.in_progress:
             break
         questions = await engine.questions(run)
@@ -141,11 +172,11 @@ async def _run_one(
         )
         run = await engine.handle_message(run.id, reply, respondent)
         row.turns = turn + 1
-        row.cost_usd = run.llm_cost_usd
-        row.unmetered_calls = run.llm_unmetered_calls
+        row.cost_usd = run.llm_cost_usd + drafting
+        row.unmetered_calls = run.llm_unmetered_calls + drafting_unmetered
         row.heartbeat_at = datetime.now(UTC)
         await session.commit()
-        if float(run.llm_cost_usd) >= remaining:
+        if float(run.llm_cost_usd + drafting) >= remaining:
             capped = True
             break
 
@@ -177,7 +208,7 @@ async def _run_one(
     row.duration_ms = int((time.monotonic() - started) * 1000)
     row.finished_at = datetime.now(UTC)
     await session.commit()
-    return float(run.llm_cost_usd)
+    return float(run.llm_cost_usd + drafting)
 
 
 def _in_order(messages: list[Any]) -> list[Any]:

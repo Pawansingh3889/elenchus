@@ -464,8 +464,9 @@ class EvaluationService:
                 ScenarioRead(
                     key=s.key,
                     title=s.title,
-                    questions=len(s.questions),
+                    questions=s.question_count,
                     max_turns=max_turns(s),
+                    generated=s.brief is not None,
                 )
                 for s in self._catalogue.values()
             ],
