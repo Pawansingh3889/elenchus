@@ -446,6 +446,10 @@ select {
   display: flex;
   align-items: center;
   gap: 8px;
+  /* Signed in, the user picker and the language select share one line in a bar of fixed
+     height, and a select sizes itself to its longest option: every page was 450px wide
+     on a 390px phone. Shrinking is the fix; wrapping would spill out of the bar. */
+  min-inline-size: 0;
 }
 .topbar-user-label {
   font-size: var(--text-xs);
@@ -454,6 +458,7 @@ select {
   color: var(--on-hero-muted);
 }
 .topbar-user select {
+  min-inline-size: 0;
   background: var(--canvas);
   color: var(--ink);
   border: 1px solid var(--border);
@@ -1216,6 +1221,23 @@ select.field {
 .lens-table .num {
   text-align: end;
 }
+/* Tables of what people said: a quote wraps instead of running the table past its card,
+   with a floor so a long one does not squeeze into a column a word wide. */
+.lens-table-prose td {
+  white-space: normal;
+  min-inline-size: 10rem;
+  overflow-wrap: anywhere;
+}
+.lens-table-prose td.num {
+  min-inline-size: 0;
+  white-space: nowrap;
+}
+.lens-table caption {
+  caption-side: top;
+  text-align: start;
+  padding-block: var(--space-2);
+  padding-inline: var(--space-3);
+}
 .lens-row-link {
   cursor: pointer;
 }
@@ -1395,9 +1417,13 @@ select.field {
   gap: var(--space-2);
   font-size: var(--text-sm);
   color: var(--muted);
+  /* A select sizes itself to its longest option; without these a run's label pushed the
+     filter row 60px past a 390px phone on every factor page. */
+  max-inline-size: 100%;
 }
 .lens-filter select {
   max-inline-size: 22rem;
+  min-inline-size: 0;
 }
 .lens-chart {
   display: flex;
@@ -1460,6 +1486,11 @@ select.field {
 }
 .lens-tooltip-name {
   color: var(--muted);
+}
+.lens-tooltip-said {
+  max-inline-size: 24rem;
+  color: var(--ink);
+  overflow-wrap: anywhere;
 }
 .lens-legend {
   display: flex;

@@ -34,6 +34,7 @@ import httpx
 
 from app.llm import ledger
 from app.llm.client import LLMError, NoToolCallError, ToolTurn, TruncatedTurnError
+from app.llm.ledger import TierEconomics
 
 logger = logging.getLogger("app.llm.openai_compatible")
 
@@ -201,6 +202,7 @@ class OpenAICompatibleLLMClient:
         tier: int = 0,
         prompt_cache: bool = False,
         max_completion_tokens: int = 4096,
+        priced_as: TierEconomics | None = None,
     ) -> None:
         if not base_url or not model:
             raise LLMError("This LLM tier is enabled but its base_url/model are not configured.")
@@ -212,13 +214,26 @@ class OpenAICompatibleLLMClient:
         self._tier = tier
         self._prompt_cache = prompt_cache
         self._max_completion_tokens = max_completion_tokens
+        # Set for a client outside the tier chain, which the ledger cannot price by tier.
+        self._priced_as = priced_as
 
-    async def _post(self, payload: dict[str, Any], op: str = "unknown") -> dict[str, Any]:
+    @property
+    def model(self) -> str:
+        return self._model
+
+    async def _post(
+        self,
+        payload: dict[str, Any],
+        op: str = "unknown",
+        path: str = "/chat/completions",
+        stream: bool = True,
+        produces_output: bool = True,
+    ) -> dict[str, Any]:
         """POST once, retrying the cheap transient failures, booking every attempt."""
         for attempt in range(1, MAX_ATTEMPTS + 1):
             try:
                 with ledger.from_call_site():
-                    return await self._attempt(payload, op)
+                    return await self._attempt(payload, op, path, stream, produces_output)
             except _Transient as exc:
                 if attempt == MAX_ATTEMPTS:
                     raise exc.error from None
@@ -231,13 +246,23 @@ class OpenAICompatibleLLMClient:
                 await asyncio.sleep(RETRY_BACKOFF_SECONDS * attempt)
         raise LLMError("unreachable")  # the loop either returns or raises
 
-    async def _attempt(self, payload: dict[str, Any], op: str) -> dict[str, Any]:
+    async def _attempt(
+        self,
+        payload: dict[str, Any],
+        op: str,
+        path: str,
+        stream: bool,
+        produces_output: bool,
+    ) -> dict[str, Any]:
         headers = {"Content-Type": "application/json"}
         if self._api_key:
             headers["Authorization"] = f"Bearer {self._api_key}"
         # include_usage is what keeps a streamed call metered: the counts arrive on one
         # final chunk with no choices, and only when this is asked for.
-        payload = {**payload, "stream": True, "stream_options": {"include_usage": True}}
+        # Chat calls only: an embeddings request has nothing to stream, and the endpoint
+        # would refuse the parameters.
+        if stream:
+            payload = {**payload, "stream": True, "stream_options": {"include_usage": True}}
         # Monotonic, not wall clock: this becomes the cost of a locally served call, and
         # a clock adjustment mid-request would otherwise price the turn as negative.
         started = time.monotonic()
@@ -264,6 +289,7 @@ class OpenAICompatibleLLMClient:
                 first_token_ms=(int((first_output[0] - started) * 1000) if first_output else None),
                 status=status,
                 error=error,
+                priced_as=self._priced_as,
             )
 
         try:
@@ -272,7 +298,7 @@ class OpenAICompatibleLLMClient:
             ) as client:
                 async with client.stream(
                     "POST",
-                    f"{self._base_url}/chat/completions",
+                    f"{self._base_url}{path}",
                     json=payload,
                     headers=headers,
                 ) as response:
@@ -333,7 +359,13 @@ class OpenAICompatibleLLMClient:
         # The durable half of the same fact. The log line is for reading now; this is for
         # answering "what did that survey cost, on which model" months from now, when the
         # logs have rotated away.
-        book(status, body.get("usage"), None)
+        usage = body.get("usage")
+        # An embeddings response reports prompt tokens only, because it makes no output.
+        # Zero output is a fact about the endpoint, not a missing figure, so it is booked as
+        # zero and the call is priced, rather than counted as unmetered for ever.
+        if not produces_output and isinstance(usage, dict) and "completion_tokens" not in usage:
+            usage = {**usage, "completion_tokens": 0}
+        book(status, usage, None)
         return body
 
     @staticmethod
@@ -528,3 +560,45 @@ class OpenAICompatibleLLMClient:
         data = await self._post(payload, op="tool_turn")
         name, arguments, said = self._first_tool_call(data)
         return ToolTurn(text=said.strip(), tool_name=name, tool_input=arguments)
+
+    async def embed(self, texts: list[str]) -> list[list[float]]:
+        """One vector per text, in the order given, from the embeddings endpoint.
+
+        Every item is shape-checked, and the vectors are placed by the index the provider
+        returns rather than by position, which the API does not promise. A count or index
+        that does not line up with the input fails loudly: a vector attached to the wrong
+        text is a silent wrong answer to every similarity question after it.
+        """
+        if not texts:
+            return []
+        body = await self._post(
+            {"model": self._model, "input": texts},
+            op="embed",
+            path="/embeddings",
+            stream=False,
+            produces_output=False,
+        )
+        items = body.get("data")
+        if not isinstance(items, list) or len(items) != len(texts):
+            raise LLMError(
+                f"Embeddings endpoint returned {len(items) if isinstance(items, list) else 'no'} "
+                f"vectors for {len(texts)} texts."
+            )
+        vectors: list[list[float] | None] = [None] * len(texts)
+        for item in items:
+            index = item.get("index") if isinstance(item, dict) else None
+            vector = item.get("embedding") if isinstance(item, dict) else None
+            if (
+                not isinstance(index, int)
+                or not 0 <= index < len(texts)
+                or vectors[index] is not None
+            ):
+                raise LLMError(f"Embeddings endpoint returned a bad or repeated index: {index!r}.")
+            if (
+                not isinstance(vector, list)
+                or not vector
+                or not all(isinstance(x, int | float) for x in vector)
+            ):
+                raise LLMError("Embeddings endpoint returned a malformed vector.")
+            vectors[index] = [float(x) for x in vector]
+        return [v for v in vectors if v is not None]

@@ -6,7 +6,7 @@ Every test runs without an API key because nothing below this line reaches a pro
 from typing import Any
 
 from app.llm import ledger
-from app.llm.client import ToolTurn
+from app.llm.client import LLMError, ToolTurn
 
 
 class FakeLLM:
@@ -111,3 +111,31 @@ def reply(text: str) -> ToolTurn:
 
 def move_on(say: str = "Next question.") -> ToolTurn:
     return ToolTurn(text=say, tool_name="move_on", tool_input={})
+
+
+class FakeEmbedder:
+    """Embeddings by lookup; an unknown text gets a vector from its letter counts.
+
+    Letter counts rather than zeros, so two different texts are never identical and the
+    same text always is, which is all the cache and near-duplicate logic rely on.
+    """
+
+    model = "fake-embed"
+
+    def __init__(self, vectors: dict[str, list[float]] | None = None, fail: bool = False) -> None:
+        self.vectors = vectors or {}
+        self.fail = fail
+        self.calls: list[list[str]] = []
+
+    async def embed(self, texts: list[str]) -> list[list[float]]:
+        self.calls.append(list(texts))
+        if self.fail:
+            raise LLMError("embeddings down")
+        return [self.vectors.get(t, _letters(t)) for t in texts]
+
+
+def _letters(text: str) -> list[float]:
+    counts = [0.0] * 27
+    for ch in text.lower():
+        counts[ord(ch) - 97 if "a" <= ch <= "z" else 26] += 1.0
+    return counts

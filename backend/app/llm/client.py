@@ -17,6 +17,14 @@ class LLMError(AppError):
     code = "llm_error"
 
 
+class EmbeddingsNotConfiguredError(AppError):
+    """Something asked for embeddings on a deployment that has none. 503: nothing retries
+    its way out of a missing setting, but the service is otherwise up."""
+
+    status_code = 503
+    code = "embeddings_not_configured"
+
+
 class NoToolCallError(LLMError):
     """The model did not produce exactly one tool call: none at all, or several at once.
 
@@ -73,3 +81,12 @@ class LLMProtocol(Protocol):
         max_tokens: int | None = None,
         cascade_on_no_tool_call: bool = ...,
     ) -> ToolTurn: ...
+
+
+class EmbedderProtocol(Protocol):
+    """One vector per text, in the order given. Tests substitute a fake at this boundary."""
+
+    @property
+    def model(self) -> str: ...
+
+    async def embed(self, texts: list[str]) -> list[list[float]]: ...

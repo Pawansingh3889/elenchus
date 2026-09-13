@@ -192,7 +192,13 @@ class Settings(BaseSettings):
     # costs. Defaults are a mid-range desktop under load on a UK domestic tariff; both
     # are guesses until measured, and the ledger records what it was told rather than
     # pretending to know. Fold amortised hardware into the tariff if you want it counted.
-    @field_validator(*PRICE_FIELDS, *CACHED_PRICE_FIELDS, mode="before")
+    @field_validator(
+        *PRICE_FIELDS,
+        *CACHED_PRICE_FIELDS,
+        "llm_embedding_price_per_mtok",
+        "grounding_similarity_margin",
+        mode="before",
+    )
     @classmethod
     def _a_blank_price_is_unstated(cls, value: object) -> object:
         """Compose forwards a variable nobody set as an empty string. That means "not
@@ -225,12 +231,77 @@ class Settings(BaseSettings):
                 )
         return self
 
+    @model_validator(mode="after")
+    def _embeddings_are_configured_before_use(self) -> "Settings":
+        """Refuse embeddings switched on half-configured, and semantic grounding without them."""
+        if self.llm_embedding_enabled:
+            missing = [
+                name
+                for name, value in (
+                    ("LLM_EMBEDDING_BASE_URL", self.llm_embedding_base_url),
+                    ("LLM_EMBEDDING_MODEL", self.llm_embedding_model),
+                )
+                if not value
+            ]
+            if self.llm_embedding_price_per_mtok is None:
+                missing.append("LLM_EMBEDDING_PRICE_PER_MTOK")
+            if missing:
+                raise ValueError(
+                    f"Embeddings are enabled but {', '.join(missing)} "
+                    f"{'is' if len(missing) == 1 else 'are'} not set."
+                )
+        if self.grounding_semantic_enabled:
+            if not self.llm_embedding_enabled:
+                raise ValueError(
+                    "GROUNDING_SEMANTIC_ENABLED needs embeddings: set LLM_EMBEDDING_ENABLED "
+                    "and its URL, model and price."
+                )
+            if self.grounding_similarity_margin is None:
+                raise ValueError(
+                    "GROUNDING_SEMANTIC_ENABLED needs GROUNDING_SIMILARITY_MARGIN, measured "
+                    "with backend/scripts/measure_semantic_grounding.py, not guessed."
+                )
+        return self
+
     hardware_watts: float = Field(
         200.0, ge=0, description="Power draw while serving a local tier, in watts"
     )
     electricity_price_per_kwh: float = Field(
         0.32, ge=0, description="Electricity price in USD per kWh"
     )
+    # Embeddings, for meaning where words fail: the answer map, themes across free text,
+    # and (when switched on below) a second chance for a choice the word check cannot
+    # ground. A separate endpoint from the chat tiers, because not every chat provider
+    # serves embeddings, and a price that is required once enabled, for the same reason
+    # tier prices are.
+    llm_embedding_enabled: bool = Field(False, description="Enable the embeddings endpoint")
+    llm_embedding_base_url: str = Field(
+        "", description="Embeddings base URL, e.g. https://api.openai.com/v1"
+    )
+    llm_embedding_api_key: str = Field("", description="Embeddings API key")
+    llm_embedding_model: str = Field("text-embedding-3-small", description="Embedding model id")
+    llm_embedding_timeout_seconds: float = Field(
+        30.0, gt=0, description="Read timeout for an embeddings call, in seconds"
+    )
+    llm_embedding_price_per_mtok: float | None = Field(
+        None, ge=0, description="Embeddings USD/1M input tokens; required when enabled"
+    )
+    # Semantic grounding: let a chosen option the word check rejects count as supported when
+    # it is the closest of its question's options to what the respondent said, by at least
+    # this margin over the runner-up. Off by default, and the margin has no default at all:
+    # it is measured on the labelled set in backend/tests/fixtures/grounding_pairs.json, and
+    # a guessed number here would be the gate that records answers nobody gave. Relative,
+    # not absolute: one absolute similarity threshold was measured and was too fragile.
+    grounding_semantic_enabled: bool = Field(
+        False, description="Accept a word-ungrounded choice when its meaning matches"
+    )
+    grounding_similarity_margin: float | None = Field(
+        None,
+        ge=0,
+        lt=1,
+        description="How far above the runner-up option a choice must be to count as supported",
+    )
+
     llm_ledger_path: str = Field(
         "var/llm_ledger.jsonl",
         description="Append-only JSONL record of every model call, for offline analysis",
