@@ -60,6 +60,10 @@ GUARDED_TYPES = frozenset(
         "AttemptRow",
         "DecisionRow",
         "CorrelationMatrix",
+        # What respondents typed, placed by meaning.
+        "AnswerMap",
+        "ThemeReport",
+        "DuplicateReport",
     }
 )
 
