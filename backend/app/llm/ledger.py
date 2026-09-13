@@ -17,14 +17,15 @@ own the HTTP calls, and by the conduct engine, which reads the rollup back.
 import inspect
 import json
 import logging
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
-from dataclasses import dataclass
-from datetime import UTC, datetime
+from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from app.config import get_settings
 
@@ -71,6 +72,41 @@ _PROMPT: ContextVar[str | None] = ContextVar("llm_prompt", default=None)
 _SOURCE_FILE: ContextVar[str | None] = ContextVar("llm_source_file", default=None)
 _SOURCE_LINE: ContextVar[int | None] = ContextVar("llm_source_line", default=None)
 
+SPAN_KINDS = frozenset({"turn", "decision", "attempt", "validation"})
+
+
+@dataclass
+class TraceSpan:
+    """One node of a trace, collected in memory and handed back to whoever opened it.
+
+    The ledger owns no session, so it cannot store these. ``tracing`` returns the list and
+    the caller writes it through a repository, in the same way ``measuring`` returns a
+    ``Spend`` for the caller to fold into its run.
+    """
+
+    kind: str
+    name: str
+    parent_id: UUID | None
+    started_at: datetime
+    id: UUID = field(default_factory=uuid4)
+    duration_ms: int = 0
+    error: str | None = None
+    prompt_version: str | None = None
+    tier: int | None = None
+    model: str | None = None
+    status: int | None = None
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    cached_tokens: int | None = None
+    reasoning_tokens: int | None = None
+    first_token_ms: int | None = None
+    cost_usd: float | None = None
+    attrs: dict[str, Any] = field(default_factory=dict)
+
+
+_TRACE: ContextVar[list[TraceSpan] | None] = ContextVar("llm_trace", default=None)
+_OPEN_SPAN: ContextVar[TraceSpan | None] = ContextVar("llm_open_span", default=None)
+
 
 @contextmanager
 def measuring(run_id: UUID | None = None) -> Iterator[Spend]:
@@ -92,6 +128,58 @@ def measuring(run_id: UUID | None = None) -> Iterator[Spend]:
     finally:
         _SPEND.reset(spend_token)
         _RUN_ID.reset(run_token)
+
+
+@contextmanager
+def tracing() -> Iterator[list[TraceSpan]]:
+    """Collect every span opened, and every call attempted, inside this block.
+
+    A context variable for the reason ``measuring`` is one: the transport records an
+    attempt without being told which turn or decision it serves, and the engine opens
+    those without the transport knowing. Nesting starts a fresh tree.
+    """
+    spans: list[TraceSpan] = []
+    trace_token = _TRACE.set(spans)
+    open_token = _OPEN_SPAN.set(None)
+    try:
+        yield spans
+    finally:
+        _OPEN_SPAN.reset(open_token)
+        _TRACE.reset(trace_token)
+
+
+@contextmanager
+def span(kind: str, name: str, **attrs: Any) -> Iterator[TraceSpan]:
+    """Open a span under whichever one is open, for as long as the block runs.
+
+    Outside ``tracing`` the span is built and dropped, so instrumented code needs no
+    branch for the untraced case. An exception leaving the block is written on the span
+    and re-raised: a failed decision is exactly the node worth reading.
+    """
+    if kind not in SPAN_KINDS:
+        raise ValueError(f"unknown span kind {kind!r}; expected one of {sorted(SPAN_KINDS)}")
+    parent = _OPEN_SPAN.get()
+    node = TraceSpan(
+        kind=kind,
+        name=name,
+        parent_id=parent.id if parent is not None else None,
+        started_at=datetime.now(UTC),
+        prompt_version=_PROMPT.get(),
+        attrs=dict(attrs),
+    )
+    spans = _TRACE.get()
+    if spans is not None:
+        spans.append(node)
+    started = time.monotonic()
+    token = _OPEN_SPAN.set(node)
+    try:
+        yield node
+    except Exception as exc:
+        node.error = f"{type(exc).__name__}: {exc}"[:500]
+        raise
+    finally:
+        node.duration_ms = int((time.monotonic() - started) * 1000)
+        _OPEN_SPAN.reset(token)
 
 
 @contextmanager
@@ -313,6 +401,31 @@ def record(
             "source_line": _SOURCE_LINE.get(),
         }
     )
+
+    spans = _TRACE.get()
+    if spans is not None:
+        parent = _OPEN_SPAN.get()
+        # An attempt is recorded when it ends, so its start is its end less its latency.
+        spans.append(
+            TraceSpan(
+                kind="attempt",
+                name=op,
+                parent_id=parent.id if parent is not None else None,
+                started_at=datetime.now(UTC) - timedelta(milliseconds=latency_ms),
+                duration_ms=latency_ms,
+                error=error,
+                prompt_version=_PROMPT.get(),
+                tier=tier,
+                model=model,
+                status=status,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                cached_tokens=cached_tokens,
+                reasoning_tokens=reasoning_tokens,
+                first_token_ms=first_token_ms,
+                cost_usd=cost,
+            )
+        )
 
     spend = _SPEND.get()
     if spend is None:

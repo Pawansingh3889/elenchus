@@ -26,6 +26,7 @@ from app.templates import models as _templates  # noqa: F401
 from app.templates.enums import AnswerType, FollowUpPolicy
 from app.templates.schemas import QuestionInput, TemplateCreate
 from app.templates.service import TemplateService
+from app.trace import models as _trace  # noqa: F401
 from app.users.models import Band, Function, User
 
 ADMIN_URL = "postgresql+asyncpg://elenchus:elenchus@localhost:5432/elenchus"

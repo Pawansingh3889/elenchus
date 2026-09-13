@@ -5,8 +5,35 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-09-13. Every turn leaves a trace: what it asked, what each call cost, what was decided
 
+The ledger could say what a run cost, never why. A turn whose cost doubled looked the same
+as any other two-call turn, whether the second call was a planned move-on or a retry after
+the engine refused the model's first answer.
 
+- **New `llm_spans` table**, one row per span, linked by `parent_id` into a tree per
+  respondent message: a `turn` span, a `decision` span for every ask of the model, an
+  `attempt` span for every HTTP call to a tier (failed ones included), and a `validation`
+  span for the engine's check of each action.
+- **A retry nests under the ask it retries**, so its cost belongs to the refusal that
+  caused it. A decision records the tools offered, whether it was a retry, and what it
+  resolved to; its validation span records the tool the model actually picked, the
+  outcome, and the refusal reason.
+- **Attempt spans carry what the ledger row carries**: tier, model, status, error, the
+  four token counts, first-token time and cost, so a page can read a tree with its costs
+  without opening the file.
+- **Spans are written in their own transaction**, after the turn commits or, when the
+  turn fails, before the error leaves. A failed turn keeps the record of what it tried.
+- **`run_id` and `parent_id` are indexed, not foreign keys.** The turn still holds
+  `FOR UPDATE` on its run while spans are written, and a foreign key check would wait on
+  that lock forever. Withdrawing a run deletes its spans explicitly for the same reason.
+- **Collection lives in the ledger**, in context variables like its spend accumulator, so
+  the transport records attempts without knowing which decision they serve. The ledger
+  still owns no session: `tracing()` hands the spans back and the engine writes them
+  through `SpanRepository`.
+- Conduct turns only, for now. Summaries and drafting are measured in the ledger but not
+  yet traced, and `app/trace` joins the layering contract when its router arrives with the
+  lens pages.
 
 ## 2026-09-13. Every tier streams, and the ledger records when the first token came
 

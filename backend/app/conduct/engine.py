@@ -36,6 +36,8 @@ from app.runs.service import flatten_answer
 from app.templates.enums import FollowUpPolicy, TemplateStatus
 from app.templates.reading import questions_of, setting_of
 from app.templates.visibility import next_visible, remaining_possible
+from app.trace.models import LLMSpan
+from app.trace.repository import SpanRepository
 from app.users.models import User
 
 logger = logging.getLogger("app.conduct")
@@ -313,8 +315,24 @@ class ConductEngine:
         # run in the same transaction as the answer it produced. A turn that fails partway
         # still committed nothing, and the ledger file keeps the calls it did make: the
         # rollup is the app's summary, the file is the record.
-        with ledger.measuring(run.id) as spend, ledger.using_prompt(PROMPT_VERSION):
-            utterance = await self._turn_loop(run, questions)
+        with (
+            ledger.measuring(run.id) as spend,
+            ledger.using_prompt(PROMPT_VERSION),
+            ledger.tracing() as spans,
+        ):
+            try:
+                with ledger.span(
+                    "turn",
+                    "respondent_message",
+                    question_index=run.current_question_index,
+                    transcript_messages=len(run.messages),
+                ):
+                    utterance = await self._turn_loop(run, questions)
+            except Exception:
+                # The turn commits nothing, and its spans are the only record of what it
+                # tried: which tiers failed, which action was refused, what the retry cost.
+                await self._keep_spans(run.id, spans)
+                raise
         add_llm_spend(run, spend)
         # Stamped from the spend rather than from settings, so it says which tier actually
         # answered rather than which one was meant to. On a turn that failed over, those
@@ -330,7 +348,29 @@ class ConductEngine:
             )
         )
         await self.session.commit()
+        await self._keep_spans(run.id, spans)
         return await self.load(run_id, respondent)
+
+    async def _keep_spans(self, run_id: UUID, spans: list[ledger.TraceSpan]) -> None:
+        """Write a turn's spans in their own transaction, on this session's engine.
+
+        Their own transaction, so a turn that fails and rolls back still leaves its trace.
+        This session's engine, so the spans land in whichever database the turn used.
+
+        Never fatal. Like the ledger file, the trace explains a survey and is not worth
+        one, so a write that fails is logged with its stack rather than raised into a
+        respondent's turn.
+        """
+        if not spans:
+            return
+        bind = self.session.bind
+        assert bind is not None, "a turn's session always has an engine"
+        try:
+            async with AsyncSession(bind, expire_on_commit=False) as own:
+                SpanRepository(own).add_all([LLMSpan.from_trace(run_id, node) for node in spans])
+                await own.commit()
+        except Exception:
+            logger.exception("could not write the trace for run=%s", run_id)
 
     async def request_clarification(
         self, run_id: UUID, question_id: UUID, author: User
@@ -482,6 +522,8 @@ class ConductEngine:
         session.
         """
         run = await self.load(run_id, respondent)
+        # Explicitly, because spans carry the run id without a foreign key to cascade on.
+        await SpanRepository(self.session).delete_for_run(run_id)
         await self.repo.delete(run)
         await self.session.commit()
         logger.info("run erased at the respondent's request: run=%s", run_id)
@@ -609,6 +651,39 @@ class ConductEngine:
         tools: list[dict[str, Any]],
         setting: str | None,
         previous_error: str | None,
+        probe_allowed: bool = True,
+    ) -> ToolTurn:
+        """One decision span per ask of the model.
+
+        The nudged retry after a refusal or a chatty answer calls back in here, so it nests
+        under the ask it retries, and a trace shows which refusal a retry's cost belongs to.
+        """
+        with ledger.span(
+            "decision",
+            "choose_action",
+            question_id=str(question["id"]),
+            tools_offered=sorted(t["name"] for t in tools),
+            retry=previous_error is not None,
+            follow_ups_used=state.get("follow_ups_used"),
+            transcript_messages=len(run.messages),
+        ) as node:
+            turn = await self._decide_unspanned(
+                run, questions, question, state, tools, setting, previous_error, probe_allowed
+            )
+            # What this ask resolved to, after any retry nested under it. The tool the
+            # model picked on each individual ask is on that ask's validation span.
+            node.attrs["resolved_to"] = turn.tool_name
+            return turn
+
+    async def _decide_unspanned(
+        self,
+        run: SurveyRun,
+        questions: list[dict[str, Any]],
+        question: dict[str, Any],
+        state: dict[str, Any],
+        tools: list[dict[str, Any]],
+        setting: str | None,
+        previous_error: str | None,
         # False on the fallback pass below, so the "ask instead of failing" path is
         # offered once and cannot recurse.
         probe_allowed: bool = True,
@@ -665,7 +740,11 @@ class ConductEngine:
                 setting,
                 f"{exc} You must call exactly one of the offered tools.",
             )
-        error = _rejection(question, state, tools, turn, _respondent_said(run))
+        with ledger.span("validation", "check_action", tool=turn.tool_name) as check:
+            error = _rejection(question, state, tools, turn, _respondent_said(run))
+            check.attrs["outcome"] = "accepted" if error is None else "refused"
+            if error is not None:
+                check.attrs["reason"] = error
         if error is None:
             return turn
         if previous_error is None:
