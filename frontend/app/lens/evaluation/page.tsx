@@ -1,13 +1,23 @@
 "use client";
 
 import { useState } from "react";
+import {
+  CartesianGrid,
+  ResponsiveContainer,
+  Scatter,
+  ScatterChart,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import { ErrorBanner } from "@/components/ErrorBanner";
-import { Gate } from "@/components/lens/Chart";
+import { axis, ChartCard, Gate, LensTooltip } from "@/components/lens/Chart";
 import { Tile } from "@/components/lens/LensStripView";
 import { probability } from "@/lib/interpFormat";
-import { dollars, median, milliseconds, moment } from "@/lib/lensFormat";
+import { dollars, median, milliseconds, moment, TOO_FEW } from "@/lib/lensFormat";
 import {
+  useComparison,
   useEvalItems,
   useEvalOptions,
   useEvalRuns,
@@ -19,6 +29,9 @@ import {
   useQuality,
 } from "@/lib/queries";
 import type {
+  Agreement,
+  ComparisonGroup,
+  ComparisonReport,
   EvalOptions,
   EvalRun,
   EvalItem,
@@ -61,6 +74,7 @@ export default function EvaluationPage() {
   const admin = me?.is_admin === true;
   const report = useFaithfulness(admin);
   const quality = useQuality(admin);
+  const comparison = useComparison(admin);
 
   return (
     <Gate admin={admin} loading={isLoading}>
@@ -85,6 +99,8 @@ export default function EvaluationPage() {
             groups={quality.data}
           />
         ) : null}
+        <ErrorBanner error={comparison.error} />
+        {comparison.data ? <Comparison report={comparison.data} /> : null}
         <Runs admin={admin} />
         <Queue admin={admin} />
       </div>
@@ -375,7 +391,8 @@ function Runs({ admin }: { admin: boolean }) {
         Scripted scenarios held through the real engine, pinned to one tier and one prompt
         version, under a spend cap for the whole batch. Each builds its own survey for an
         evaluation respondent who holds no job, so no reach count moves. A run stops at the
-        turn that reaches the cap, and the rest of the batch does not start.
+        turn that reaches the cap, and the rest of the batch does not start. Broad and evasive draft
+        their survey from a brief first, and the draft is paid from the same cap.
       </p>
       <ErrorBanner error={options.error ?? runs.error} />
       {options.data ? <StartForm options={options.data} history={runs.data ?? []} /> : null}
@@ -434,7 +451,11 @@ function StartForm({ options, history }: { options: EvalOptions; history: EvalRu
                 );
               }}
             />
-            {scenario.key} ({scenario.questions} questions)
+            {scenario.key} (
+            {scenario.generated
+              ? `drafted, ${scenario.questions} questions asked for`
+              : `${scenario.questions} questions`}
+            )
           </label>
         ))}
       </div>
@@ -591,5 +612,173 @@ function RunTable({ runs }: { runs: EvalRun[] }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+function Comparison({ report }: { report: ComparisonReport }) {
+  const points = report.groups.flatMap((group) =>
+    group.cost_per_run.value === null || group.clean_runs.value === null
+      ? []
+      : [{ name: group.name, cost: group.cost_per_run.value, clean: group.clean_runs.value * 100 }],
+  );
+  const scenarios = [...new Set(report.cells.map((cell) => cell.scenario))].sort();
+  const names = report.groups.map((group) => group.name);
+  return (
+    <section className="lens-section">
+      <h2 className="lens-heading">Accuracy against cost and latency</h2>
+      <p className="lens-note">
+        From completed evaluation runs only, by model and conduct prompt version. Accuracy is
+        the scripted hard checks: the share of runs where none failed, and the share of hard
+        checks that passed. Soft checks turn on judgement and are left out. Runs that were
+        capped, failed or are still going have no finished transcript, so they are counted
+        here and not scored: {report.left_out} of them.
+      </p>
+      <div className="lens-tiles">
+        <Tile label="Completed runs" value={String(report.completed_runs)} />
+        <Tile label="Left out" value={String(report.left_out)} />
+        <Tile label="Models and prompts compared" value={String(report.groups.length)} />
+      </div>
+      <ChartCard
+        title="Does a run that costs more pass its checks more often?"
+        sample={
+          points.length < TOO_FEW
+            ? `${points.length} ${points.length === 1 ? "model and prompt" : "models and prompts"}: too few to read a trend from yet`
+            : `${points.length} models and prompts, each point the median of its runs`
+        }
+        table={<GroupTable groups={report.groups} />}
+      >
+        <ResponsiveContainer width="100%" height="100%">
+          <ScatterChart margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
+            <CartesianGrid stroke="var(--border)" />
+            <XAxis
+              type="number"
+              dataKey="cost"
+              name="Median cost per run, USD"
+              {...axis}
+              domain={["auto", "auto"]}
+              tickFormatter={(v: number) => dollars(v)}
+            />
+            <YAxis
+              type="number"
+              dataKey="clean"
+              name="Runs with no hard failure, %"
+              {...axis}
+              domain={[0, 100]}
+              tickFormatter={(v: number) => `${v}%`}
+              width={44}
+            />
+            <Tooltip
+              cursor={{ stroke: "var(--border)" }}
+              content={(props) => (
+                <LensTooltip
+                  {...props}
+                  format={(v) => new Intl.NumberFormat("en-GB", { maximumFractionDigits: 4 }).format(v)}
+                  labelFormat={() => "One model and prompt"}
+                />
+              )}
+            />
+            <Scatter
+              isAnimationActive={false}
+              data={points}
+              fill="var(--series-1)"
+              stroke="var(--raised)"
+              strokeWidth={2}
+            />
+          </ScatterChart>
+        </ResponsiveContainer>
+      </ChartCard>
+      {scenarios.length > 0 ? (
+        <div className="lens-table-wrap">
+          <table className="lens-table">
+            <caption className="lens-note">
+              Each scenario under each model and prompt: runs with no hard failure, of runs, and
+              the median cost
+            </caption>
+            <thead>
+              <tr>
+                <th>Scenario</th>
+                {names.map((name) => (
+                  <th key={name}>{name}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {scenarios.map((scenario) => (
+                <tr key={scenario}>
+                  <td>{scenario}</td>
+                  {names.map((name) => {
+                    const cell = report.cells.find((c) => c.scenario === scenario && c.group === name);
+                    return (
+                      <td key={name} className={cell && cell.clean_runs < cell.runs ? "lens-refused" : undefined}>
+                        {cell
+                          ? `${cell.clean_runs} of ${cell.runs} clean, ${middle(cell.cost_per_run, (v) => dollars(v))}`
+                          : "not run"}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+      <AgreementTiles agreement={report.agreement} />
+    </section>
+  );
+}
+
+function GroupTable({ groups }: { groups: ComparisonGroup[] }) {
+  return (
+    <div className="lens-table-wrap">
+      <table className="lens-table">
+        <thead>
+          <tr>
+            <th>Model and prompt</th>
+            <th className="num">Runs</th>
+            <th>No hard failure</th>
+            <th>Hard checks passed</th>
+            <th>Median cost per run</th>
+            <th>Median time</th>
+            <th>Median turns</th>
+            <th>Scenarios</th>
+          </tr>
+        </thead>
+        <tbody>
+          {groups.map((group) => (
+            <tr key={group.name}>
+              <td>{group.name}</td>
+              <td className="num">{group.runs}</td>
+              <td>{rate(group.clean_runs)}</td>
+              <td>{rate(group.hard_checks)}</td>
+              <td>{middle(group.cost_per_run, (v) => dollars(v, group.unmetered_calls))}</td>
+              <td>{middle(group.duration_ms, milliseconds)}</td>
+              <td>{middle(group.turns, (v) => v.toFixed(1))}</td>
+              <td>{group.scenarios.join(", ")}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function AgreementTiles({ agreement }: { agreement: Agreement }) {
+  return (
+    <>
+      <h3 className="lens-heading">Does Qwen disagreeing predict trouble?</h3>
+      <p className="lens-note">
+        Qwen3-0.6B reading the same prompt on this machine, never the internals of the hosted
+        model. A reading counts where the hosted call succeeded and the engine checked it; the
+        last two split accepted answers by how a person labelled them.
+      </p>
+      <div className="lens-tiles">
+        <Tile label="Readings stored" value={String(agreement.analysed)} />
+        <Tile label="Qwen picked the same tool" value={rate(agreement.agrees)} />
+        <Tile label="Same tool, when the engine accepted" value={rate(agreement.when_accepted)} />
+        <Tile label="Same tool, when the engine refused" value={rate(agreement.when_refused)} />
+        <Tile label="Same tool, answer labelled supported" value={rate(agreement.on_supported)} />
+        <Tile label="Same tool, answer labelled invented" value={rate(agreement.on_invented)} />
+      </div>
+    </>
   );
 }

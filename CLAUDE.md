@@ -261,3 +261,17 @@ Alembic migrations from the first table; no `create_all` in application code.
   without one. Do not rebuild a prompt from recorded state to read an old call: calls
   before capture began have no request and are not read. Do not reach the service from
   anywhere but `app/interp/transport.py`, which an import contract holds.
+- **Evaluation scores accuracy from scripted checks, and a person's label is the truth.**
+  Decided 13 Sep 2026 for Phase 7. Accuracy per model is the share of completed evaluation
+  runs where no hard check failed and the share of hard checks passed, beside median cost,
+  time and turns, by model and conduct prompt version. Soft checks are left out because
+  they turn on judgement, and capped, failed or unfinished runs are counted as left out,
+  never as failures. Faithfulness is people's labels; the judge is scored against them and
+  never stands in for them. A drafted scenario pays for its draft from the batch cap.
+
+  **What not to do.** Do not compare groups that did not run the same scenarios: the report
+  lists each group's scenarios so the mismatch is visible, not so it can be ignored. Do not
+  read the Qwen agreement rates below twenty readings, or treat agreement as saying
+  anything about the hosted model before the label splits hold data. Do not start a paid
+  batch from code or a test: runs start only when an administrator asks, under a cap of at
+  most $25, and the suite fakes the model.

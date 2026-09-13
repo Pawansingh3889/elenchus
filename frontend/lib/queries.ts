@@ -371,6 +371,15 @@ export function useQuality(enabled: boolean) {
   });
 }
 
+export function useComparison(enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["lens", "evaluation", "comparison", userId],
+    queryFn: api.lensEvalComparison,
+    enabled,
+  });
+}
+
 export function useEvalOptions(enabled: boolean) {
   const userId = useUserStore((s) => s.currentUserId);
   return useQuery({

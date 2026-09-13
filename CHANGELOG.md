@@ -8,6 +8,26 @@ The project is not yet versioned, so entries are grouped by date. Newest first.
 
 
 
+## 2026-09-13. Evaluation: accuracy against cost, drafted scenarios and Qwen agreement
+
+Phase 7 closes with what it was planned to give: accuracy per model against its cost and
+latency.
+
+- **Accuracy beside cost and latency.** `/lens/evaluation` reads completed evaluation runs
+  by model and conduct prompt version: the share of runs where no hard check failed and the
+  share of hard checks passed, each with a Wilson interval, beside the median cost per run,
+  time and turns, and a matrix of each scenario under each group. Capped, failed and
+  unfinished runs are counted as left out and never scored. On dev data that is one group,
+  gpt-5.5 with `conduct_v8`, from the single `numbers_dates` run: 1 of 1 clean at $0.0853.
+- **Broad and evasive run from the lens.** The two scenarios the harness drafts from a
+  brief now run like the other nine. The pinned tier drafts the survey, the draft's cost is
+  measured around it and charged to the evaluation row and the batch cap, and a draft that
+  spends what is left stops as capped before any conversation starts.
+- **Does Qwen disagreeing predict trouble?** Each stored Qwen reading is linked through its
+  attempt to the engine's check and, for an accepted `record_answer`, to a person's label
+  on the answer it recorded. The four readings in dev agree with gpt-5.5 on 2 of 4, all
+  four calls were accepted and none is labelled, so every split reads too few or none yet.
+
 ## 2026-09-13. Evaluation: faithfulness, conversation quality and scripted runs
 
 Evaluation asks whether what got through was right, where Validation shows what the engine

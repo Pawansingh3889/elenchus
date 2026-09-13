@@ -73,6 +73,7 @@ GUARDED_TYPES = frozenset(
         "JudgeRunRead",
         "QualityReport",
         "EvalRunRead",
+        "ComparisonReport",
     }
 )
 

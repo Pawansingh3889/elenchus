@@ -17,6 +17,7 @@ import {
   faithfulnessReportSchema,
   judgeRunSchema,
   evalOptionsSchema,
+  comparisonReportSchema,
   evalRunSchema,
   qualityReportSchema,
   interpStatusSchema,
@@ -219,6 +220,7 @@ export const api = {
     }),
   lensEvalFaithfulness: () => parsed("/lens/evaluation/faithfulness", faithfulnessReportSchema),
   lensEvalQuality: () => parsed("/lens/evaluation/quality", qualityReportSchema),
+  lensEvalComparison: () => parsed("/lens/evaluation/comparison", comparisonReportSchema),
   lensEvalOptions: () => parsed("/lens/evaluation/scenario-options", evalOptionsSchema),
   lensEvalRuns: () => parsed("/lens/evaluation/scenario-runs", z.array(evalRunSchema)),
   lensEvalStart: (body: {

@@ -578,7 +578,14 @@ export type QualityReport = z.infer<typeof qualityReportSchema>;
 
 export const evalOptionsSchema = z.object({
   scenarios: z.array(
-    z.object({ key: z.string(), title: z.string(), questions: count, max_turns: count }),
+    z.object({
+      key: z.string(),
+      title: z.string(),
+      questions: count,
+      max_turns: count,
+      /** Drafted from a brief by the pinned tier first; questions is what the brief asks for. */
+      generated: z.boolean(),
+    }),
   ),
   tiers: z.array(z.object({ tier: z.number().int(), model: z.string() })),
   prompt_versions: z.array(z.string()),
@@ -619,3 +626,49 @@ export const evalRunSchema = z.object({
   stale: z.boolean(),
 });
 export type EvalRun = z.infer<typeof evalRunSchema>;
+
+/* Accuracy per model and prompt version, beside its cost and latency. */
+
+export const comparisonGroupSchema = z.object({
+  name: z.string(),
+  model: z.string(),
+  prompt_version: z.string(),
+  runs: count,
+  clean_runs: rateSchema,
+  hard_checks: rateSchema,
+  cost_per_run: medianSchema,
+  duration_ms: medianSchema,
+  turns: medianSchema,
+  unmetered_calls: count,
+  scenarios: z.array(z.string()),
+});
+export type ComparisonGroup = z.infer<typeof comparisonGroupSchema>;
+
+export const comparisonCellSchema = z.object({
+  scenario: z.string(),
+  group: z.string(),
+  runs: count,
+  clean_runs: count,
+  cost_per_run: medianSchema,
+  duration_ms: medianSchema,
+});
+export type ComparisonCell = z.infer<typeof comparisonCellSchema>;
+
+export const agreementSchema = z.object({
+  analysed: count,
+  agrees: rateSchema,
+  when_accepted: rateSchema,
+  when_refused: rateSchema,
+  on_supported: rateSchema,
+  on_invented: rateSchema,
+});
+export type Agreement = z.infer<typeof agreementSchema>;
+
+export const comparisonReportSchema = z.object({
+  completed_runs: count,
+  left_out: count,
+  groups: z.array(comparisonGroupSchema),
+  cells: z.array(comparisonCellSchema),
+  agreement: agreementSchema,
+});
+export type ComparisonReport = z.infer<typeof comparisonReportSchema>;

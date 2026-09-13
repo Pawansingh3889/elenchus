@@ -144,8 +144,11 @@ class QualityReport(BaseModel):
 class ScenarioRead(BaseModel):
     key: str
     title: str
+    # For a drafted scenario, the count its brief asks for: the draft may differ.
     questions: int
     max_turns: int
+    # Drafted from a brief by the pinned tier before the conversation, at a cost.
+    generated: bool
 
 
 class TierRead(BaseModel):
@@ -161,7 +164,7 @@ class EvalOptions(BaseModel):
 
 
 class EvalStartRequest(BaseModel):
-    scenarios: list[str] = Field(min_length=1, max_length=9)
+    scenarios: list[str] = Field(min_length=1, max_length=11)
     tier: int = Field(ge=1, le=4)
     # None runs the conduct prompt that is active right now.
     prompt_version: str | None = None
@@ -205,3 +208,59 @@ class EvalRunRead(BaseModel):
     heartbeat_at: datetime | None
     # Running, but not heard from in a while: the process that ran it has probably gone.
     stale: bool
+
+
+class ComparisonGroup(BaseModel):
+    """Completed evaluation runs of one model under one conduct prompt version."""
+
+    name: str
+    model: str
+    prompt_version: str
+    runs: int
+    # Runs where no hard check failed, out of the completed runs.
+    clean_runs: Rate
+    # Hard checks that passed, out of every hard check in those runs. Soft checks turn on
+    # judgement and are left out of accuracy for the reason they are soft.
+    hard_checks: Rate
+    cost_per_run: Median
+    duration_ms: Median
+    turns: Median
+    # Calls in these runs that reported no usage, so a cost here is a floor when non-zero.
+    unmetered_calls: int
+    scenarios: list[str]
+
+
+class ComparisonCell(BaseModel):
+    """One scenario under one group: the matrix a comparison is read from."""
+
+    scenario: str
+    group: str
+    runs: int
+    clean_runs: int
+    cost_per_run: Median
+    duration_ms: Median
+
+
+class Agreement(BaseModel):
+    """How often Qwen picked the tool the hosted model called, beside what followed.
+
+    Qwen3-0.6B's reading of the same prompt, never the hosted model's internals. Only
+    readings of an attempt the engine checked count toward the rates.
+    """
+
+    analysed: int
+    agrees: Rate
+    when_accepted: Rate
+    when_refused: Rate
+    # Accepted record_answer calls, by how a person labelled the answer they recorded.
+    on_supported: Rate
+    on_invented: Rate
+
+
+class ComparisonReport(BaseModel):
+    completed_runs: int
+    # Capped, failed, queued or running: no finished transcript, so not scored.
+    left_out: int
+    groups: list[ComparisonGroup]
+    cells: list[ComparisonCell]
+    agreement: Agreement
