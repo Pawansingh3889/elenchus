@@ -6,9 +6,12 @@ import { ErrorBanner } from "@/components/ErrorBanner";
 import { Gate } from "@/components/lens/Chart";
 import { Tile } from "@/components/lens/LensStripView";
 import { probability } from "@/lib/interpFormat";
-import { dollars, milliseconds } from "@/lib/lensFormat";
+import { dollars, median, milliseconds, moment } from "@/lib/lensFormat";
 import {
   useEvalItems,
+  useEvalOptions,
+  useEvalRuns,
+  useStartEval,
   useFaithfulness,
   useJudgeRun,
   useLabel,
@@ -16,6 +19,8 @@ import {
   useQuality,
 } from "@/lib/queries";
 import type {
+  EvalOptions,
+  EvalRun,
   EvalItem,
   FaithfulnessSlice,
   LabelVerdict,
@@ -80,6 +85,7 @@ export default function EvaluationPage() {
             groups={quality.data}
           />
         ) : null}
+        <Runs admin={admin} />
         <Queue admin={admin} />
       </div>
     </Gate>
@@ -350,6 +356,235 @@ function QualityTable({ title, slices }: { title: string; slices: QualitySlice[]
               <td>{middle(slice.cost_per_completed_run, (v) => dollars(v, slice.unmetered_calls))}</td>
               <td className="num">
                 {slice.cost_per_answer === null ? "none" : dollars(slice.cost_per_answer, slice.unmetered_calls)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function Runs({ admin }: { admin: boolean }) {
+  const options = useEvalOptions(admin);
+  const runs = useEvalRuns(admin);
+  return (
+    <section className="lens-section">
+      <h2 className="lens-heading">Evaluation runs</h2>
+      <p className="lens-note">
+        Scripted scenarios held through the real engine, pinned to one tier and one prompt
+        version, under a spend cap for the whole batch. Each builds its own survey for an
+        evaluation respondent who holds no job, so no reach count moves. A run stops at the
+        turn that reaches the cap, and the rest of the batch does not start.
+      </p>
+      <ErrorBanner error={options.error ?? runs.error} />
+      {options.data ? <StartForm options={options.data} history={runs.data ?? []} /> : null}
+      <RunTable runs={runs.data ?? []} />
+    </section>
+  );
+}
+
+function StartForm({ options, history }: { options: EvalOptions; history: EvalRun[] }) {
+  const [chosen, setChosen] = useState<string[]>([]);
+  const [tier, setTier] = useState<number | null>(options.tiers[0]?.tier ?? null);
+  const [prompt, setPrompt] = useState(options.active_prompt);
+  const [cap, setCap] = useState("1.00");
+  const [confirming, setConfirming] = useState(false);
+  const start = useStartEval();
+  const capValue = Number(cap);
+  const capOk = Number.isFinite(capValue) && capValue > 0 && capValue <= 25;
+
+  // An estimate only from earlier runs pinned the same way, never a guess.
+  const estimates = chosen.map((key) => {
+    const earlier = history.filter(
+      (run) =>
+        run.scenario === key &&
+        run.tier === tier &&
+        run.prompt_version === prompt &&
+        run.status === "completed",
+    );
+    return { key, cost: median(earlier.map((run) => run.cost_usd)), n: earlier.length };
+  });
+  const known = estimates.filter((e) => e.cost !== null);
+  const estimate =
+    chosen.length === 0
+      ? "Choose at least one scenario."
+      : known.length === 0
+        ? "No earlier run pinned this way to estimate from."
+        : `About ${dollars(known.reduce((sum, e) => sum + (e.cost ?? 0), 0))} for ${known.length} of ${chosen.length} scenarios, from earlier runs pinned this way.`;
+
+  if (options.tiers.length === 0) {
+    return <p className="lens-note">No tier is enabled on this deployment, so nothing can run.</p>;
+  }
+  return (
+    <div className="lens-eval-item">
+      <div className="lens-eval-meta">Scenarios</div>
+      <div className="lens-eval-actions">
+        {options.scenarios.map((scenario) => (
+          <label key={scenario.key} className="lens-toggle" title={scenario.title}>
+            <input
+              type="checkbox"
+              checked={chosen.includes(scenario.key)}
+              onChange={(event) => {
+                setConfirming(false);
+                setChosen(
+                  event.target.checked
+                    ? [...chosen, scenario.key]
+                    : chosen.filter((key) => key !== scenario.key),
+                );
+              }}
+            />
+            {scenario.key} ({scenario.questions} questions)
+          </label>
+        ))}
+      </div>
+      <div className="lens-eval-actions">
+        <label className="lens-filter">
+          <span>Tier</span>
+          <select
+            value={tier ?? ""}
+            onChange={(event) => {
+              setConfirming(false);
+              setTier(Number(event.target.value));
+            }}
+          >
+            {options.tiers.map((option) => (
+              <option key={option.tier} value={option.tier}>
+                Tier {option.tier}, {option.model}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="lens-filter">
+          <span>Prompt</span>
+          <select
+            value={prompt}
+            onChange={(event) => {
+              setConfirming(false);
+              setPrompt(event.target.value);
+            }}
+          >
+            {options.prompt_versions.map((name) => (
+              <option key={name} value={name}>
+                {name}
+                {name === options.active_prompt ? " (active)" : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="lens-filter">
+          <span>Cap, USD</span>
+          <input
+            type="number"
+            min="0.000001"
+            max="25"
+            step="0.01"
+            value={cap}
+            onChange={(event) => {
+              setConfirming(false);
+              setCap(event.target.value);
+            }}
+          />
+        </label>
+      </div>
+      <p className="lens-note">{estimate}</p>
+      <ErrorBanner error={start.error} />
+      <div className="lens-eval-actions">
+        {confirming ? (
+          <>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={start.isPending}
+              onClick={() =>
+                tier !== null &&
+                start.mutate(
+                  { scenarios: chosen, tier, prompt_version: prompt, cap_usd: capValue },
+                  { onSettled: () => setConfirming(false) },
+                )
+              }
+            >
+              Spend up to {dollars(capValue)}: start
+            </button>
+            <button type="button" className="btn btn-quiet" onClick={() => setConfirming(false)}>
+              Cancel
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={chosen.length === 0 || tier === null || !capOk}
+            onClick={() => setConfirming(true)}
+          >
+            Run {chosen.length} scenario{chosen.length === 1 ? "" : "s"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RunTable({ runs }: { runs: EvalRun[] }) {
+  if (runs.length === 0) {
+    return <p className="lens-note">No evaluation runs yet.</p>;
+  }
+  return (
+    <div className="lens-table-wrap">
+      <table className="lens-table">
+        <thead>
+          <tr>
+            <th>Queued</th>
+            <th>Scenario</th>
+            <th>Status</th>
+            <th>Tier, model</th>
+            <th>Prompt</th>
+            <th className="num">Turns</th>
+            <th className="num">Hard failures</th>
+            <th className="num">Soft failures</th>
+            <th className="num">Spent of cap</th>
+            <th className="num">Took</th>
+            <th>Checks</th>
+          </tr>
+        </thead>
+        <tbody>
+          {runs.map((run) => (
+            <tr key={run.id}>
+              <td>{moment(run.queued_at)}</td>
+              <td>{run.scenario}</td>
+              <td className={run.status === "failed" || run.hard_failures > 0 ? "lens-refused" : undefined}>
+                {run.status}
+                {run.stale ? ", stale" : ""}
+                {run.error ? `: ${run.error}` : ""}
+              </td>
+              <td>
+                {run.tier}, {run.model ?? "not yet"}
+              </td>
+              <td>{run.prompt_version}</td>
+              <td className="num">{run.turns}</td>
+              <td className="num">{run.hard_failures}</td>
+              <td className="num">{run.soft_failures}</td>
+              <td className="num">
+                {dollars(run.cost_usd, run.unmetered_calls)} of {dollars(run.cap_usd)}
+              </td>
+              <td className="num">{milliseconds(run.duration_ms)}</td>
+              <td>
+                {run.checks.length === 0 ? (
+                  ""
+                ) : (
+                  <details>
+                    <summary>
+                      {run.checks.length} check{run.checks.length === 1 ? "" : "s"}
+                    </summary>
+                    <ul>
+                      {run.checks.map((check, index) => (
+                        <li key={`${check.name}-${index}`} className={check.ok || !check.hard ? undefined : "lens-refused"}>
+                          {check.ok ? "passed" : check.hard ? "failed" : "soft fail"}: {check.name}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
               </td>
             </tr>
           ))}

@@ -573,3 +573,49 @@ export const qualityReportSchema = z.object({
   by_prompt: z.array(qualitySliceSchema),
 });
 export type QualityReport = z.infer<typeof qualityReportSchema>;
+
+/* Evaluation runs: scripted scenarios through the real engine, pinned and capped. */
+
+export const evalOptionsSchema = z.object({
+  scenarios: z.array(
+    z.object({ key: z.string(), title: z.string(), questions: count, max_turns: count }),
+  ),
+  tiers: z.array(z.object({ tier: z.number().int(), model: z.string() })),
+  prompt_versions: z.array(z.string()),
+  active_prompt: z.string(),
+});
+export type EvalOptions = z.infer<typeof evalOptionsSchema>;
+
+export const evalRunStatusSchema = z.enum(["queued", "running", "completed", "capped", "failed"]);
+
+export const evalRunSchema = z.object({
+  id: z.string(),
+  batch_id: z.string(),
+  position: count,
+  scenario: z.string(),
+  tier: z.number().int(),
+  model: z.string().nullable(),
+  prompt_version: z.string(),
+  status: evalRunStatusSchema,
+  cap_usd: z.number().nonnegative(),
+  run_id: z.string().nullable(),
+  template_id: z.string().nullable(),
+  turns: count,
+  answers: count,
+  hard_failures: count,
+  soft_failures: count,
+  checks: z.array(
+    z.object({ name: z.string(), ok: z.boolean(), hard: z.boolean(), detail: z.unknown() }),
+  ),
+  cost_usd: z.number().nonnegative(),
+  unmetered_calls: count,
+  duration_ms: count,
+  error: z.string().nullable(),
+  queued_at: z.string(),
+  started_at: z.string().nullable(),
+  finished_at: z.string().nullable(),
+  heartbeat_at: z.string().nullable(),
+  /** Running, but not heard from in a while: its process has probably gone. */
+  stale: z.boolean(),
+});
+export type EvalRun = z.infer<typeof evalRunSchema>;

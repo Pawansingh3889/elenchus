@@ -371,6 +371,37 @@ export function useQuality(enabled: boolean) {
   });
 }
 
+export function useEvalOptions(enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["lens", "evaluation", "options", userId],
+    queryFn: api.lensEvalOptions,
+    enabled,
+  });
+}
+
+export function useEvalRuns(enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["lens", "evaluation", "scenario-runs", userId],
+    queryFn: api.lensEvalRuns,
+    enabled,
+    // Polled only while something is still going, so an idle page makes no requests.
+    refetchInterval: (query) =>
+      query.state.data?.some((run) => run.status === "queued" || run.status === "running")
+        ? 4000
+        : false,
+  });
+}
+
+export function useStartEval() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.lensEvalStart,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["lens", "evaluation"] }),
+  });
+}
+
 export function useLabel() {
   const qc = useQueryClient();
   return useMutation({

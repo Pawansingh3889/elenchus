@@ -16,6 +16,8 @@ import {
   evalItemSchema,
   faithfulnessReportSchema,
   judgeRunSchema,
+  evalOptionsSchema,
+  evalRunSchema,
   qualityReportSchema,
   interpStatusSchema,
   storedAnalysisSchema,
@@ -217,6 +219,18 @@ export const api = {
     }),
   lensEvalFaithfulness: () => parsed("/lens/evaluation/faithfulness", faithfulnessReportSchema),
   lensEvalQuality: () => parsed("/lens/evaluation/quality", qualityReportSchema),
+  lensEvalOptions: () => parsed("/lens/evaluation/scenario-options", evalOptionsSchema),
+  lensEvalRuns: () => parsed("/lens/evaluation/scenario-runs", z.array(evalRunSchema)),
+  lensEvalStart: (body: {
+    scenarios: string[];
+    tier: number;
+    prompt_version: string;
+    cap_usd: number;
+  }) =>
+    parsed("/lens/evaluation/scenario-runs", z.array(evalRunSchema), {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   lensEvalJudgeRun: (runId: string) =>
     parsed(`/lens/evaluation/runs/${runId}/judge`, judgeRunSchema, { method: "POST" }),
   /** Conduct prompt versions, file and saved, with what their traced turns cost. */
