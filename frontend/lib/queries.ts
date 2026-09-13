@@ -224,6 +224,55 @@ export function useLensCorrelations(scope: LensScope, enabled: boolean) {
   });
 }
 
+/* The embedding reads are per survey and may spend money on first view, so they wait for
+ * a survey to be chosen and are not retried: a 503 means embeddings are switched off, and
+ * asking three more times changes nothing. */
+
+function surveyOf(surveyId: string | null): string {
+  if (surveyId === null) throw new Error("An embedding report needs a survey chosen.");
+  return surveyId;
+}
+
+export function useLensAnswerMap(surveyId: string | null, enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["lens", "embeddings", "map", surveyId, userId],
+    queryFn: () => api.lensAnswerMap(surveyOf(surveyId)),
+    enabled: enabled && surveyId !== null,
+    retry: false,
+  });
+}
+
+export function useLensThemes(surveyId: string | null, enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["lens", "embeddings", "themes", surveyId, userId],
+    queryFn: () => api.lensThemes(surveyOf(surveyId)),
+    enabled: enabled && surveyId !== null,
+    retry: false,
+  });
+}
+
+export function useLensDuplicates(surveyId: string | null, enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["lens", "embeddings", "duplicates", surveyId, userId],
+    queryFn: () => api.lensDuplicates(surveyOf(surveyId)),
+    enabled: enabled && surveyId !== null,
+    retry: false,
+  });
+}
+
+export function useLensGrounding(enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["lens", "embeddings", "grounding", userId],
+    queryFn: api.lensGrounding,
+    enabled,
+    retry: false,
+  });
+}
+
 export function usePromptFamily(enabled: boolean) {
   const userId = useUserStore((s) => s.currentUserId);
   return useQuery({ queryKey: ["prompts", "conduct", userId], queryFn: api.promptFamily, enabled });

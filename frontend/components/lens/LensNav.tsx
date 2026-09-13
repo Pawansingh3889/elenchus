@@ -16,6 +16,7 @@ const FACTORS = [
   { href: "/lens/validation", label: "Validation", filtered: true },
   { href: "/lens/relationships", label: "Relationships", filtered: true },
   { href: "/lens/chains", label: "Cause chains", filtered: true },
+  { href: "/lens/embeddings", label: "Embeddings", filtered: true },
   { href: "/lens/compare", label: "Compare runs", filtered: false },
   { href: "/lens/prompts", label: "Prompts", filtered: false },
 ] as const;

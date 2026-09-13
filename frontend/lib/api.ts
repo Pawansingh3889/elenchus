@@ -8,6 +8,10 @@ import {
   promptBodySchema,
   promptFamilySchema,
   lensStripSchema,
+  answerMapSchema,
+  duplicateReportSchema,
+  groundingReportSchema,
+  themeReportSchema,
   meSchema,
   spanSchema,
   tracedRunSchema,
@@ -179,6 +183,12 @@ export const api = {
     parsed(scoped("/lens/decisions", scope), z.array(decisionRowSchema)),
   lensCorrelations: (scope: LensScope) =>
     parsed(scoped("/lens/correlations", scope), correlationMatrixSchema),
+  lensAnswerMap: (surveyId: string) =>
+    parsed(`/lens/surveys/${surveyId}/answer-map`, answerMapSchema),
+  lensThemes: (surveyId: string) => parsed(`/lens/surveys/${surveyId}/themes`, themeReportSchema),
+  lensDuplicates: (surveyId: string) =>
+    parsed(`/lens/surveys/${surveyId}/duplicates`, duplicateReportSchema),
+  lensGrounding: () => parsed("/lens/grounding", groundingReportSchema),
   /** Conduct prompt versions, file and saved, with what their traced turns cost. */
   promptFamily: () => parsed("/admin/prompts/conduct", promptFamilySchema),
   promptBody: (name: string) =>

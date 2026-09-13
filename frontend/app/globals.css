@@ -1470,6 +1470,11 @@ select.field {
 .lens-tooltip-name {
   color: var(--muted);
 }
+.lens-tooltip-said {
+  max-inline-size: 24rem;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
 .lens-legend {
   display: flex;
   flex-wrap: wrap;

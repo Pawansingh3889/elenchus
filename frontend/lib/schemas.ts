@@ -187,6 +187,123 @@ export const correlationMatrixSchema = z.object({
 });
 export type CorrelationMatrix = z.infer<typeof correlationMatrixSchema>;
 
+/** What building one embedding report spent, measured from the ledger. A repeat view reads
+ *  the cache, so $0 with every text cached is the cache working, not a missing figure. */
+export const embeddingCostSchema = z.object({
+  texts: count,
+  cached: count,
+  embedded: count,
+  calls: count,
+  prompt_tokens: count,
+  cost_usd: z.number().nonnegative(),
+  /** Calls that reported no usage: the cost is then a floor. */
+  unmetered_calls: count,
+  duration_ms: count,
+});
+export type EmbeddingCost = z.infer<typeof embeddingCostSchema>;
+
+export const mapPointSchema = z.object({
+  answer_id: z.string(),
+  run_id: z.string(),
+  kind: z.string(),
+  recorded: z.string(),
+  said: z.string(),
+  x: z.number(),
+  y: z.number(),
+  neighbours: z.array(z.string()),
+});
+export type MapPoint = z.infer<typeof mapPointSchema>;
+
+export const mapQuestionSchema = z.object({
+  position: count,
+  text: z.string(),
+  answer_type: z.string(),
+  points: z.array(mapPointSchema),
+});
+export type MapQuestion = z.infer<typeof mapQuestionSchema>;
+
+export const answerMapSchema = z.object({
+  survey_title: z.string(),
+  model: z.string(),
+  unplaced: count,
+  questions: z.array(mapQuestionSchema),
+  cost: embeddingCostSchema,
+});
+export type AnswerMap = z.infer<typeof answerMapSchema>;
+
+export const themeSchema = z.object({
+  size: count,
+  runs: count,
+  representative: z.string(),
+  members: z.array(z.string()),
+});
+
+export const themeQuestionSchema = z.object({
+  position: count,
+  text: z.string(),
+  texts: count,
+  themes: z.array(themeSchema),
+});
+export type ThemeQuestion = z.infer<typeof themeQuestionSchema>;
+
+export const themeReportSchema = z.object({
+  survey_title: z.string(),
+  model: z.string(),
+  questions: z.array(themeQuestionSchema),
+  cost: embeddingCostSchema,
+});
+export type ThemeReport = z.infer<typeof themeReportSchema>;
+
+export const duplicatePairSchema = z.object({
+  first: z.string(),
+  second: z.string(),
+  first_run: z.string(),
+  second_run: z.string(),
+  similarity: z.number(),
+});
+
+export const duplicateReportSchema = z.object({
+  survey_title: z.string(),
+  model: z.string(),
+  threshold: z.number(),
+  texts: count,
+  pairs: z.array(duplicatePairSchema),
+  cost: embeddingCostSchema,
+});
+export type DuplicateReport = z.infer<typeof duplicateReportSchema>;
+
+export const groundingJudgedSchema = z.object({
+  said: z.string(),
+  option: z.string(),
+  options: z.array(z.string()),
+  language: z.string(),
+  supported: z.boolean(),
+  word_supported: z.boolean(),
+  similarity: z.number(),
+  /** The chosen option's similarity less the best other option's. */
+  margin: z.number(),
+});
+export type GroundingJudged = z.infer<typeof groundingJudgedSchema>;
+
+export const groundingReportSchema = z.object({
+  measured_at: z.string(),
+  model: z.string(),
+  pairs: count,
+  negatives: count,
+  word_false_accepts: count,
+  word_false_refusals: count,
+  recommended_margin: z.number().nullable(),
+  at_recommended_false_accepts: count.nullable(),
+  at_recommended_false_refusals: count.nullable(),
+  highest_negative_margin: z.number().nullable(),
+  lowest_positive_margin: z.number().nullable(),
+  sweep: z.array(z.object({ margin: z.number(), false_accepts: count, false_refusals: count })),
+  judged: z.array(groundingJudgedSchema),
+  semantic_enabled: z.boolean(),
+  configured_margin: z.number().nullable(),
+});
+export type GroundingReport = z.infer<typeof groundingReportSchema>;
+
 export const promptVersionSchema = z.object({
   name: z.string(),
   source: z.enum(["file", "database"]),
