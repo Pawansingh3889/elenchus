@@ -538,3 +538,38 @@ export const judgeRunSchema = z.object({
   judged_at: z.string(),
 });
 export type JudgeRun = z.infer<typeof judgeRunSchema>;
+
+export const medianSchema = z.object({
+  value: z.number().nullable(),
+  /** How many measurements the median is over. */
+  n: count,
+});
+export type Median = z.infer<typeof medianSchema>;
+
+export const qualitySliceSchema = z.object({
+  name: z.string(),
+  runs: count,
+  completion: rateSchema,
+  answers: count,
+  declined: rateSchema,
+  turns_per_answer: medianSchema,
+  respondent_chars: medianSchema,
+  minutes_to_complete: medianSchema,
+  wait_ms_per_turn: medianSchema,
+  follow_ups_asked: count,
+  follow_up_answers: count,
+  follow_up_new_words: medianSchema,
+  cost_per_completed_run: medianSchema,
+  cost_per_answer: z.number().nonnegative().nullable(),
+  unmetered_calls: count,
+});
+export type QualitySlice = z.infer<typeof qualitySliceSchema>;
+
+export const qualityReportSchema = z.object({
+  runs_without_conversation: count,
+  overall: qualitySliceSchema,
+  by_survey: z.array(qualitySliceSchema),
+  by_model: z.array(qualitySliceSchema),
+  by_prompt: z.array(qualitySliceSchema),
+});
+export type QualityReport = z.infer<typeof qualityReportSchema>;

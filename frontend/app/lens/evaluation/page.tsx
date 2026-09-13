@@ -7,8 +7,22 @@ import { Gate } from "@/components/lens/Chart";
 import { Tile } from "@/components/lens/LensStripView";
 import { probability } from "@/lib/interpFormat";
 import { dollars, milliseconds } from "@/lib/lensFormat";
-import { useEvalItems, useFaithfulness, useJudgeRun, useLabel, useMe } from "@/lib/queries";
-import type { EvalItem, FaithfulnessSlice, LabelVerdict, Rate } from "@/lib/schemas";
+import {
+  useEvalItems,
+  useFaithfulness,
+  useJudgeRun,
+  useLabel,
+  useMe,
+  useQuality,
+} from "@/lib/queries";
+import type {
+  EvalItem,
+  FaithfulnessSlice,
+  LabelVerdict,
+  Median,
+  QualitySlice,
+  Rate,
+} from "@/lib/schemas";
 
 const PAGE = 10;
 const VERDICTS: { verdict: LabelVerdict; label: string }[] = [
@@ -27,6 +41,11 @@ function rate(value: Rate): string {
   return `${probability(value.value)}${interval}${value.too_few ? ", too few" : ""}`;
 }
 
+/** A median with how many measurements it covers, or why there is none. */
+function middle(value: Median, format: (value: number) => string): string {
+  return value.value === null ? "none" : `${format(value.value)} (n ${value.n})`;
+}
+
 /**
  * Evaluation: was each recorded answer what the respondent said. A person's label is the
  * truth; the judge model's verdict is shown beside it and scored against it, never used in
@@ -36,6 +55,7 @@ export default function EvaluationPage() {
   const { data: me, isLoading } = useMe();
   const admin = me?.is_admin === true;
   const report = useFaithfulness(admin);
+  const quality = useQuality(admin);
 
   return (
     <Gate admin={admin} loading={isLoading}>
@@ -52,6 +72,14 @@ export default function EvaluationPage() {
         </p>
         <ErrorBanner error={report.error} />
         {report.data ? <Report overall={report.data.overall} slices={report.data} /> : null}
+        <ErrorBanner error={quality.error} />
+        {quality.data ? (
+          <Quality
+            overall={quality.data.overall}
+            skipped={quality.data.runs_without_conversation}
+            groups={quality.data}
+          />
+        ) : null}
         <Queue admin={admin} />
       </div>
     </Gate>
@@ -247,5 +275,86 @@ function Item({ item }: { item: EvalItem }) {
         </div>
       ) : null}
     </article>
+  );
+}
+
+function Quality({
+  overall,
+  skipped,
+  groups,
+}: {
+  overall: QualitySlice;
+  skipped: number;
+  groups: { by_survey: QualitySlice[]; by_model: QualitySlice[]; by_prompt: QualitySlice[] };
+}) {
+  return (
+    <section className="lens-section">
+      <h2 className="lens-heading">How the conversations went</h2>
+      <p className="lens-note">
+        Measured from what runs record, with no model asked for an opinion. {skipped} runs have
+        no respondent message, such as seeded sample data, and are counted here but not
+        measured.
+      </p>
+      <div className="lens-tiles">
+        <Tile label="Conversations" value={String(overall.runs)} />
+        <Tile label="Completed" value={rate(overall.completion)} />
+        <Tile label="Answers that record a refusal" value={rate(overall.declined)} />
+        <Tile label="Messages per recorded answer" value={middle(overall.turns_per_answer, (v) => v.toFixed(2))} />
+        <Tile label="Wait for each reply" value={middle(overall.wait_ms_per_turn, milliseconds)} />
+        <Tile label="Cost per completed run" value={middle(overall.cost_per_completed_run, (v) => dollars(v, overall.unmetered_calls))} />
+        <Tile label="Follow-ups asked, recorded" value={`${overall.follow_ups_asked}, ${overall.follow_up_answers}`} />
+        <Tile label="New words a follow-up drew" value={middle(overall.follow_up_new_words, probability)} />
+      </div>
+      <QualityTable title="By survey" slices={groups.by_survey} />
+      <QualityTable title="By model" slices={groups.by_model} />
+      <QualityTable title="By prompt version" slices={groups.by_prompt} />
+    </section>
+  );
+}
+
+function QualityTable({ title, slices }: { title: string; slices: QualitySlice[] }) {
+  return (
+    <div className="lens-table-wrap">
+      <table className="lens-table">
+        <caption className="lens-note">{title}</caption>
+        <thead>
+          <tr>
+            <th />
+            <th className="num">Runs</th>
+            <th>Completed</th>
+            <th>Refusals recorded</th>
+            <th>Messages per answer</th>
+            <th>Characters typed</th>
+            <th>Minutes to complete</th>
+            <th>Wait per reply</th>
+            <th>Follow-ups (asked, recorded, new words)</th>
+            <th>Cost per completed run</th>
+            <th className="num">Cost per answer</th>
+          </tr>
+        </thead>
+        <tbody>
+          {slices.map((slice) => (
+            <tr key={slice.name}>
+              <td>{slice.name}</td>
+              <td className="num">{slice.runs}</td>
+              <td>{rate(slice.completion)}</td>
+              <td>{rate(slice.declined)}</td>
+              <td>{middle(slice.turns_per_answer, (v) => v.toFixed(2))}</td>
+              <td>{middle(slice.respondent_chars, (v) => String(Math.round(v)))}</td>
+              <td>{middle(slice.minutes_to_complete, (v) => v.toFixed(1))}</td>
+              <td>{middle(slice.wait_ms_per_turn, milliseconds)}</td>
+              <td>
+                {slice.follow_ups_asked}, {slice.follow_up_answers},{" "}
+                {middle(slice.follow_up_new_words, probability)}
+              </td>
+              <td>{middle(slice.cost_per_completed_run, (v) => dollars(v, slice.unmetered_calls))}</td>
+              <td className="num">
+                {slice.cost_per_answer === null ? "none" : dollars(slice.cost_per_answer, slice.unmetered_calls)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

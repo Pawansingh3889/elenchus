@@ -362,6 +362,15 @@ export function useFaithfulness(enabled: boolean) {
   });
 }
 
+export function useQuality(enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["lens", "evaluation", "quality", userId],
+    queryFn: api.lensEvalQuality,
+    enabled,
+  });
+}
+
 export function useLabel() {
   const qc = useQueryClient();
   return useMutation({

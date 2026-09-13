@@ -16,6 +16,7 @@ import {
   evalItemSchema,
   faithfulnessReportSchema,
   judgeRunSchema,
+  qualityReportSchema,
   interpStatusSchema,
   storedAnalysisSchema,
   meSchema,
@@ -215,6 +216,7 @@ export const api = {
       body: JSON.stringify({ verdict, note }),
     }),
   lensEvalFaithfulness: () => parsed("/lens/evaluation/faithfulness", faithfulnessReportSchema),
+  lensEvalQuality: () => parsed("/lens/evaluation/quality", qualityReportSchema),
   lensEvalJudgeRun: (runId: string) =>
     parsed(`/lens/evaluation/runs/${runId}/judge`, judgeRunSchema, { method: "POST" }),
   /** Conduct prompt versions, file and saved, with what their traced turns cost. */
