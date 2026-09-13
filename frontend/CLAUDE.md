@@ -74,3 +74,16 @@ this directory.
   projection's axes mean nothing. The grounding section needs no survey: it draws the
   committed measurement, the margins of the pairs the word check refused and the mistakes
   at each margin, both marked at the recommended margin.
+- **The interpretability pages read one captured call, and spend time only on a click.**
+  Hidden layers, Attention and Token relationships share `components/lens/InterpAsks.tsx`:
+  the captured calls in scope, with the only controls that start the local model, Analyse
+  and Attribute, one at a time with its seconds counting where its button was. The chosen
+  call is the `ask` URL parameter (`useSelectedAsk`), carried between those three pages
+  and dropped when the survey or run filter changes. A call not yet read comes back as
+  null, not an error. Prompt sections are grouped into five parts (`lib/interpFormat.ts`):
+  four take the validated series hues and the chat template takes `--series-other`.
+  Tool lines take their colour from the tool's place in the offered list, never its
+  rank. Words are coloured like the correlation cells, mixing `--div-pos` or `--div-neg`
+  into `--div-mid`. Every page says it shows Qwen3-0.6B reading the prompt, never the
+  hosted model's internals, and a sentence that follows a value never carries an HTML
+  entity, because the compiler drops the space in front of it.

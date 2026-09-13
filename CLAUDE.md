@@ -39,7 +39,9 @@ A standalone, embeddable survey service, in two halves:
 See SPEC.md §3. Tables: `users`, `survey_templates`, `survey_questions`,
 `survey_runs`, `answers`, `run_messages`, `llm_spans` (the trace of every turn, see
 `app/trace/models.py`), `prompt_versions` with `prompt_activations`, and
-`embedding_vectors` (vectors keyed by a text's sha256 and the model, never the text).
+`embedding_vectors` (vectors keyed by a text's sha256 and the model, never the text),
+`llm_requests` (the exact messages and tools of each traced chat attempt) and
+`interp_analyses` (what the local interpretability model read in one).
 Alembic migrations from the first table; no `create_all` in application code.
 
 ## Conventions
@@ -236,3 +238,26 @@ Alembic migrations from the first table; no `create_all` in application code.
   O14: those are wrong answers the word check itself accepts, which no margin reaches.
   Thirty-five pairs is a small set, so add pairs when a live run finds a new case and
   re-measure before trusting the number further.
+- **One local model reads prompts, and only for the lens.** Decided 13 Sep 2026, amending
+  "Nothing is served locally" above with the reason that entry asks for: no hosted API
+  exposes hidden layers or attention, and log-probabilities do not reach inside a tool
+  call. `interp/` is its own uv project, Qwen3-0.6B pinned to revision c1899de, started
+  on the host with `make interp` rather than in the stack, so a Mac reads with its GPU.
+  Conduct never uses it. An administrator asks for one captured call at a time; the
+  backend sends the exact request stored in `llm_requests` and keeps the result in
+  `interp_analyses`, priced by wall clock in the ledger like any local tier.
+
+  **What it reports is Qwen's reading, never the hosted model's.** Every page says so,
+  and the Tool selection page shows how often Qwen picks the same tool as the hosted
+  model, which is how far the stand-in can be trusted. A reading (logit lens, attention
+  at the decision point, tool probabilities) and an attribution (gradient times input
+  toward the hosted pick) are separate requests, because on this laptop's CPU a
+  3,492-token prompt took 85 s to read and 285 s to attribute.
+
+  **What not to do.** Do not read attention from a whole-prompt eager pass: the fused
+  kernel reads the prompt and only the few tokens at the decision point run eagerly,
+  which took the same prompt from 7.6 minutes and 7.1 GB to 6.2 minutes and 4.8 GB. Do
+  not let the service listen beyond localhost without INTERP_TOKEN; it refuses to start
+  without one. Do not rebuild a prompt from recorded state to read an old call: calls
+  before capture began have no request and are not read. Do not reach the service from
+  anywhere but `app/interp/transport.py`, which an import contract holds.

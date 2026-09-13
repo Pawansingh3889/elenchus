@@ -8,6 +8,38 @@ The project is not yet versioned, so entries are grouped by date. Newest first.
 
 
 
+## 2026-09-13. Inside a model: hidden layers, attention and token relationships
+
+The hosted models expose no hidden layers or attention, so the lens now reads the exact
+prompt a hosted call was sent with a small open model, Qwen3-0.6B, running on the host.
+Every page says it shows that model's reading, never the hosted model's internals.
+
+- **Exact prompts are kept.** Every traced chat attempt stores the messages, tools and tool
+  choice it sent in `llm_requests`, deleted with the run. Calls before this release have
+  none and are not read.
+- **`interp/`** is its own service, pinned to revision c1899de and started with
+  `make interp`. It needs `INTERP_TOKEN`, because the backend container can only reach it
+  when it listens beyond localhost. The backend reaches it through one module and stores
+  each result in `interp_analyses`, with a ledger row priced by wall clock like any local
+  tier.
+- **Reading and attribution are separate requests, each timed and priced.** On this
+  laptop's CPU four gpt-5.5 calls of 3,326 to 3,481 prompt tokens each took 80 to 86 s to
+  read ($0.0014 to $0.0015 of electricity at 200 W), where the hosted calls took 2.3 to
+  4.2 s and cost $0.006 to $0.021. Attributing two of them took 229 s and 259 s ($0.0041
+  and $0.0046). Reading the whole prompt with eager attention had taken 7.6 minutes and
+  7.1 GB; the fused kernel with a short eager step brought it to 6.2 minutes and 4.8 GB.
+- **`/lens/hidden-layers`** reads every layer through the model's own output head as a
+  leaning between the offered tools, and marks the layer where Qwen settles. **`/lens/attention`**
+  shows where the decision point looks, per part of the prompt. **`/lens/tokens`** shows
+  gradient times input toward the hosted pick, per part of the prompt and for each word
+  the respondent last typed. **Tool selection** gains how often Qwen picks the same tool.
+- **First readings, on four calls.** Qwen picked the same tool as gpt-5.5 on 2 of 4, both
+  `record_answer` (with 99.6% and 53.6% on it), and picked `reply` where gpt-5.5 called
+  `flag_unanswerable` and `move_on`, giving those picks under 0.1%. At the decision point
+  92.8% of the last layer's attention rests on the chat template's own tokens and 0.3% on
+  the respondent's last message. Four calls demonstrate the pages; they do not measure
+  agreement.
+
 ## 2026-09-13. Embeddings: answers placed by meaning, and grounding by a measured margin
 
 Embeddings run through the same OpenAI-compatible client as every chat call, on hosted
