@@ -153,6 +153,16 @@ function total(costs: (EmbeddingCost | undefined)[]): EmbeddingCost | null {
   }));
 }
 
+/** The data's range plus a margin, so a dot at an extreme is drawn whole rather than
+ *  halved by the plot's edge; with two answers, both of them are extremes. */
+function padded(values: number[]): [number, number] {
+  if (values.length === 0) return [-1, 1];
+  const low = Math.min(...values);
+  const high = Math.max(...values);
+  const pad = high === low ? 1 : (high - low) * 0.12;
+  return [low - pad, high + pad];
+}
+
 function MapCard({ question }: { question: MapQuestion }) {
   const n = question.points.length;
   return (
@@ -164,8 +174,8 @@ function MapCard({ question }: { question: MapQuestion }) {
       <ResponsiveContainer width="100%" height="100%">
         <ScatterChart margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
           <CartesianGrid stroke="var(--border)" />
-          <XAxis type="number" dataKey="x" {...axis} tick={false} domain={["auto", "auto"]} />
-          <YAxis type="number" dataKey="y" {...axis} tick={false} width={8} domain={["auto", "auto"]} />
+          <XAxis type="number" dataKey="x" {...axis} tick={false} domain={padded(question.points.map((point) => point.x))} />
+          <YAxis type="number" dataKey="y" {...axis} tick={false} width={8} domain={padded(question.points.map((point) => point.y))} />
           <Tooltip cursor={false} content={(props) => <PointTooltip active={props.active} payload={props.payload} />} />
           <Scatter isAnimationActive={false} data={question.points} fill="var(--series-1)" stroke="var(--raised)" strokeWidth={2} />
         </ScatterChart>
@@ -194,7 +204,7 @@ function PointTooltip({
 function MapTable({ question }: { question: MapQuestion }) {
   const said = new Map(question.points.map((point) => [point.answer_id, point.said]));
   return (
-    <table className="lens-table">
+    <table className="lens-table lens-table-prose">
       <thead>
         <tr>
           <th>Said</th>
@@ -233,7 +243,7 @@ function Themes({ questions }: { questions: ThemeQuestion[] }) {
       ) : null}
       {questions.map((question) => (
         <div key={question.position} className="lens-table-wrap">
-          <table className="lens-table">
+          <table className="lens-table lens-table-prose">
             <caption className="lens-note">
               {question.text} · {question.texts} answers
             </caption>
@@ -281,7 +291,7 @@ function Duplicates({ report }: { report: DuplicateReport }) {
         here; so do two people who simply agree.
       </p>
       <div className="lens-table-wrap">
-        <table className="lens-table">
+        <table className="lens-table lens-table-prose">
           <thead>
             <tr>
               <th>One run said</th>
@@ -459,7 +469,7 @@ function JudgedTooltip({
 
 function GroundingTable({ pairs }: { pairs: GroundingJudged[] }) {
   return (
-    <table className="lens-table">
+    <table className="lens-table lens-table-prose">
       <thead>
         <tr>
           <th>Said</th>

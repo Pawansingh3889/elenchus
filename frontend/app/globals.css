@@ -1221,6 +1221,23 @@ select.field {
 .lens-table .num {
   text-align: end;
 }
+/* Tables of what people said: a quote wraps instead of running the table past its card,
+   with a floor so a long one does not squeeze into a column a word wide. */
+.lens-table-prose td {
+  white-space: normal;
+  min-inline-size: 10rem;
+  overflow-wrap: anywhere;
+}
+.lens-table-prose td.num {
+  min-inline-size: 0;
+  white-space: nowrap;
+}
+.lens-table caption {
+  caption-side: top;
+  text-align: start;
+  padding-block: var(--space-2);
+  padding-inline: var(--space-3);
+}
 .lens-row-link {
   cursor: pointer;
 }
