@@ -152,7 +152,6 @@ pipeline {
                                     pnpm install --frozen-lockfile --store-dir /pnpm-store
                                     pnpm exec tsc --noEmit
                                     pnpm exec eslint .
-                                    node scripts/check-tailwind-classes.mjs
                                     pnpm build
                                     pnpm test
                                 '

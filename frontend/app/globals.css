@@ -299,36 +299,20 @@
   color-scheme: dark;
 }
 
-/* ---------------------------------------------------------------------------
-   Element defaults, in a cascade layer.
-
-   `@layer base` rather than unlayered, and the distinction is load-bearing in
-   exactly one direction. Everything below this block is a *class* rule and stays
-   unlayered, so it still beats every Tailwind utility and the pages written
-   against it cannot move. These are *element* rules, and unlayered they beat
-   utilities too: `* { padding: 0 }` silently defeated every `px-*` on every new
-   component, and `a { color: inherit }` made a light-on-dark button render its
-   label in body ink, which is to say invisible. Both were found by reading the
-   computed styles off a rendered page, because both compile and lint clean.
-
-   Layered, they still beat the browser's own defaults, which is the whole job
-   they were doing. Nothing that reads them changes; what changes is that a
-   utility can now override one deliberately.
-   --------------------------------------------------------------------------- */
-@layer base {
-  * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-  }
-  a {
-    color: inherit;
-    text-decoration: none;
-  }
-  button {
-    font-family: inherit;
-    cursor: pointer;
-  }
+/* Element defaults. Unlayered now that nothing else competes in the cascade: these
+   existed in `@layer base` only so Tailwind utilities could override them. */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+button {
+  font-family: inherit;
+  cursor: pointer;
 }
 
 html,
@@ -615,6 +599,54 @@ select {
   border-radius: 9px;
   padding: 8px 12px;
   font-size: var(--text-sm);
+}
+
+/* Refusal in amber, anything else in red: the same split ErrorBanner makes in words. */
+.error-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  color: var(--err-text);
+  background: var(--err-fill);
+  border: 1px solid var(--err-border);
+  border-radius: 9px;
+  padding: var(--space-3);
+  font-size: var(--text-sm);
+}
+.error-banner-refusal {
+  color: var(--warn-text);
+  background: var(--warn-fill);
+  border-color: var(--warn-border);
+}
+.error-banner-title {
+  font-weight: 600;
+}
+
+.narrow {
+  max-width: 65ch;
+  margin-inline: auto;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.signin {
+  padding-block-start: var(--space-7);
+}
+.signin h1 {
+  font-size: var(--text-xl);
+  font-weight: 800;
+}
+.signin h2 {
+  font-size: var(--text-sm);
+  font-weight: 600;
 }
 
 .card {

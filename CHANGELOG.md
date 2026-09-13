@@ -5,6 +5,37 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+
+## 2026-09-13. The browser becomes the respondent path
+
+The frontend had grown to ten pages and about 14,700 lines around authoring, results and
+administration. It is now the four pages a respondent needs. This is the first step
+towards lens pages that show the model's workings (hidden layers, embeddings, attention,
+state, relationship, inference, tool selection, evaluation, validation), each with its
+cost and latency beside it.
+
+- **Kept:** `/`, `/signin`, `/respond` and `/runs/[id]`. The home page says what the
+  service is and offers one action.
+- **Removed from the browser:** the dashboard, builder, Results page, people admin and LLM
+  admin screens, with every component and library only they reached: 58 files. Every
+  endpoint behind those screens is still served and still covered by the backend suite,
+  so authoring is an API call now, and the README walkthrough shows it.
+- **Tailwind, shadcn/ui, Radix, TanStack Table, cva, clsx, tailwind-merge and lucide
+  removed.** The kept pages were already styled by `globals.css`, apart from three
+  skeletons, two buttons, a card and the error banner, which now use plain classes. The
+  element resets leave `@layer base`, which existed only so utilities could beat them.
+  Runtime dependencies go from 17 to 6, and the lockfile loses 60 packages.
+- **The Tailwind class guard goes with Tailwind**, from the Makefile, GitHub CI and
+  Jenkins. It proved utility classes compile. With no utilities it would check nothing and
+  still exit 0, which is the kind of gate this repo refuses to keep.
+- **One frontend test remains**, the harness smoke test. The tally, units, query
+  invalidation, draft questions and class guard tests went with the code they pinned.
+- `lib/api.ts`, `lib/queries.ts` and `lib/types.ts` keep only what the respondent path
+  calls: 12 endpoints and 13 hooks.
+- **Verified:** `make gate` (1,059 passed, 84 skipped, and both CSS guards ran against the
+  one stylesheet), and in a clean Node 22 container `tsc --noEmit` over 34 project files,
+  `eslint`, `next build` (the four routes and nothing else) and `vitest`.
+
 ## 2026-08-17. The class guard reads the plainest way to write a class
 
 It never had. The guard collects the regions of a file where a class may legitimately
