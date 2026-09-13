@@ -1,18 +1,19 @@
 """Every query the evaluation lens makes."""
 
 from datetime import datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.evaluation.enums import LabelVerdict
-from app.evaluation.models import AnswerLabel, CorpusLabel, JudgeRun, JudgeVerdict
+from app.evaluation.models import AnswerLabel, CorpusLabel, EvalRun, JudgeRun, JudgeVerdict
 from app.runs.models import Answer, RunMessage, SurveyRun
 from app.templates.models import SurveyQuestion, SurveyTemplate
 from app.trace.enums import SpanKind
 from app.trace.models import LLMSpan
+from app.users.models import User
 
 
 class EvaluationRepository:
@@ -135,3 +136,43 @@ class EvaluationRepository:
             for run_id, duration in (await self.session.execute(stmt)).all()
             if run_id is not None
         ]
+
+    async def evaluation_accounts(
+        self, author: tuple[str, str], respondent: tuple[str, str]
+    ) -> tuple[User, User]:
+        """The two accounts evaluation runs act as, made on first use.
+
+        No job on either, so they sit in no audience and no reach count. Inserted with
+        conflicts skipped, because two batches starting at once would otherwise race to
+        create the same address.
+        """
+        for email, name in (author, respondent):
+            await self.session.execute(
+                insert(User)
+                .values(id=uuid4(), email=email, display_name=name)
+                .on_conflict_do_nothing(index_elements=["email"])
+            )
+        stmt = select(User).where(User.email.in_([author[0], respondent[0]]))
+        found = {user.email: user for user in (await self.session.scalars(stmt))}
+        return found[author[0]], found[respondent[0]]
+
+    def add_eval_runs(self, rows: list[EvalRun]) -> None:
+        self.session.add_all(rows)
+
+    async def eval_run(self, eval_run_id: UUID) -> EvalRun | None:
+        return await self.session.get(EvalRun, eval_run_id, populate_existing=True)
+
+    async def eval_runs_in_batch(self, batch_id: UUID) -> list[EvalRun]:
+        stmt = select(EvalRun).where(EvalRun.batch_id == batch_id).order_by(EvalRun.position)
+        return list((await self.session.scalars(stmt)).all())
+
+    async def eval_runs(self, limit: int) -> list[EvalRun]:
+        # Fresh from the database: rows are moved on by the background runner, in its
+        # own sessions, while this session may still hold the queued copies it created.
+        stmt = (
+            select(EvalRun)
+            .order_by(EvalRun.queued_at.desc(), EvalRun.position)
+            .limit(limit)
+            .execution_options(populate_existing=True)
+        )
+        return list((await self.session.scalars(stmt)).all())

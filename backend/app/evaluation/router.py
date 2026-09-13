@@ -9,6 +9,9 @@ from app.auth.dependencies import require_admin
 from app.db.session import get_session
 from app.evaluation.schemas import (
     EvalItem,
+    EvalOptions,
+    EvalRunRead,
+    EvalStartRequest,
     FaithfulnessReport,
     JudgeRunRead,
     LabelRequest,
@@ -64,3 +67,28 @@ async def quality(
     session: AsyncSession = Depends(get_session),
 ) -> QualityReport:
     return await EvaluationService(session).quality(admin)
+
+
+@router.get("/scenario-options", response_model=EvalOptions)
+async def scenario_options(
+    admin: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> EvalOptions:
+    return await EvaluationService(session).eval_options(admin)
+
+
+@router.post("/scenario-runs", response_model=list[EvalRunRead])
+async def start_scenario_runs(
+    request: EvalStartRequest,
+    admin: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> list[EvalRunRead]:
+    return await EvaluationService(session).start_eval(admin, request)
+
+
+@router.get("/scenario-runs", response_model=list[EvalRunRead])
+async def scenario_runs(
+    admin: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> list[EvalRunRead]:
+    return await EvaluationService(session).eval_runs(admin)

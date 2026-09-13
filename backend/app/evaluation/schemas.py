@@ -6,9 +6,10 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from app.evaluation.enums import LabelVerdict
+from app.evaluation.enums import EvalRunStatus, LabelVerdict
 
 Source = Literal["corpus", "runs"]
+MIN_CAP_USD = 0.000001
 
 
 class EvalItem(BaseModel):
@@ -138,3 +139,69 @@ class QualityReport(BaseModel):
     by_survey: list[QualitySlice]
     by_model: list[QualitySlice]
     by_prompt: list[QualitySlice]
+
+
+class ScenarioRead(BaseModel):
+    key: str
+    title: str
+    questions: int
+    max_turns: int
+
+
+class TierRead(BaseModel):
+    tier: int
+    model: str
+
+
+class EvalOptions(BaseModel):
+    scenarios: list[ScenarioRead]
+    tiers: list[TierRead]
+    prompt_versions: list[str]
+    active_prompt: str
+
+
+class EvalStartRequest(BaseModel):
+    scenarios: list[str] = Field(min_length=1, max_length=9)
+    tier: int = Field(ge=1, le=4)
+    # None runs the conduct prompt that is active right now.
+    prompt_version: str | None = None
+    # The most the whole batch may spend; it stops at the turn that reaches this. The floor
+    # is one the column holds exactly: a smaller cap was stored as zero and every scenario
+    # in the batch was capped before it began.
+    cap_usd: float = Field(ge=MIN_CAP_USD, le=25)
+
+
+class CheckRead(BaseModel):
+    name: str
+    ok: bool
+    hard: bool
+    detail: Any
+
+
+class EvalRunRead(BaseModel):
+    id: UUID
+    batch_id: UUID
+    position: int
+    scenario: str
+    tier: int
+    model: str | None
+    prompt_version: str
+    status: EvalRunStatus
+    cap_usd: float
+    run_id: UUID | None
+    template_id: UUID | None
+    turns: int
+    answers: int
+    hard_failures: int
+    soft_failures: int
+    checks: list[CheckRead]
+    cost_usd: float
+    unmetered_calls: int
+    duration_ms: int
+    error: str | None
+    queued_at: datetime
+    started_at: datetime | None
+    finished_at: datetime | None
+    heartbeat_at: datetime | None
+    # Running, but not heard from in a while: the process that ran it has probably gone.
+    stale: bool

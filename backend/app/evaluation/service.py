@@ -3,25 +3,34 @@
 import re
 import time
 from collections import Counter
-from collections.abc import Callable
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.access import is_admin
+from app.conduct.engine import PROMPT_VERSION
 from app.config import get_settings
+from app.db.session import SessionFactory
 from app.errors import ForbiddenError, NotFoundError, ValidationError
+from app.evaluation import runner
 from app.evaluation.corpus import CorpusAnswer, load_corpus
-from app.evaluation.enums import LabelVerdict
+from app.evaluation.enums import EvalRunStatus, LabelVerdict
 from app.evaluation.judge import JUDGE_PROMPT_VERSION, ask_judge
-from app.evaluation.models import JudgeRun, JudgeVerdict
+from app.evaluation.models import EvalRun, JudgeRun, JudgeVerdict
 from app.evaluation.repository import EvaluationRepository
+from app.evaluation.scenarios import SCENARIOS, Scenario, max_turns
 from app.evaluation.schemas import (
+    CheckRead,
     EvalItem,
+    EvalOptions,
+    EvalRunRead,
+    EvalStartRequest,
     FaithfulnessReport,
     FaithfulnessSlice,
     JudgeRunRead,
@@ -30,17 +39,25 @@ from app.evaluation.schemas import (
     QualityReport,
     QualitySlice,
     Rate,
+    ScenarioRead,
     Source,
+    TierRead,
 )
 from app.evaluation.stats import MIN_LABELLED, median, wilson
 from app.llm import ledger
-from app.llm.client import LLMProtocol
-from app.llm.factory import get_llm
+from app.llm.client import LLMError, LLMProtocol
+from app.llm.factory import enabled_tiers, get_llm, get_llm_for_tier
+from app.llm.prompts import PROMPTS_DIR, PromptNotFoundError
+from app.prompts.repository import PromptRepository
+from app.prompts.service import PromptResolver
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
 from app.runs.models import Answer, RunMessage, SurveyRun
 from app.users.models import User
 
 ADMINS_ONLY = "The evaluation lens is for administrators: it shows what respondents typed."
+# A running scenario not heard from for this long has most likely lost its process.
+STALE_AFTER_SECONDS = 15 * 60
+EVAL_RUNS_SHOWN = 200
 CORPUS_PREFIX = "corpus:"
 ANSWER_PREFIX = "answer:"
 
@@ -199,11 +216,24 @@ class EvaluationService:
         session: AsyncSession,
         llm: LLMProtocol | None = None,
         corpus_dir: Path | None = None,
+        *,
+        sessions: async_sessionmaker[AsyncSession] | None = None,
+        make_llm: Callable[[int], LLMProtocol] | None = None,
+        catalogue: dict[str, Scenario] | None = None,
+        launch: Callable[[Coroutine[Any, Any, None]], None] | None = None,
     ) -> None:
         self.session = session
         self.repo = EvaluationRepository(session)
         self._llm = llm
         self._corpus_dir = corpus_dir
+        # Evaluation runs outlive the request, so they get their own sessions, a model per
+        # pinned tier, and a way to be started in the background. Tests swap each one.
+        self._sessions = SessionFactory if sessions is None else sessions
+        self._make_llm: Callable[[int], LLMProtocol] = (
+            get_llm_for_tier if make_llm is None else make_llm
+        )
+        self._catalogue = SCENARIOS if catalogue is None else catalogue
+        self._launch = runner.launch if launch is None else launch
 
     @property
     def llm(self) -> LLMProtocol:
@@ -422,3 +452,98 @@ class EvaluationService:
                 )
             )
         return items
+
+    async def eval_options(self, viewer: User) -> EvalOptions:
+        """What an evaluation batch can be made of on this deployment."""
+        self._require_admin(viewer)
+        prompts = PromptRepository(self.session)
+        files = {path.stem for path in PROMPTS_DIR.glob("conduct_v*.md")}
+        saved = {version.name for version, _ in await prompts.versions("conduct")}
+        return EvalOptions(
+            scenarios=[
+                ScenarioRead(
+                    key=s.key,
+                    title=s.title,
+                    questions=len(s.questions),
+                    max_turns=max_turns(s),
+                )
+                for s in self._catalogue.values()
+            ],
+            tiers=[TierRead(tier=tier, model=model) for tier, model in enabled_tiers()],
+            prompt_versions=sorted(files | saved, key=lambda name: (len(name), name)),
+            active_prompt=await prompts.active_name("conduct") or PROMPT_VERSION,
+        )
+
+    async def start_eval(self, viewer: User, request: EvalStartRequest) -> list[EvalRunRead]:
+        """Queue a batch and start it in the background. Every refusal happens here, first."""
+        self._require_admin(viewer)
+        unknown = [key for key in request.scenarios if key not in self._catalogue]
+        if unknown:
+            raise ValidationError(f"No such scenario: {', '.join(unknown)}.")
+        if len(set(request.scenarios)) != len(request.scenarios):
+            raise ValidationError("A batch runs each scenario once.")
+        try:
+            self._make_llm(request.tier)
+        except LLMError as exc:
+            raise ValidationError(str(exc)) from exc
+        prompt = request.prompt_version or (
+            await PromptRepository(self.session).active_name("conduct") or PROMPT_VERSION
+        )
+        try:
+            await PromptResolver(self.session).text(prompt)
+        except PromptNotFoundError as exc:
+            raise ValidationError(f"No conduct prompt version {prompt!r}.") from exc
+
+        batch_id = uuid4()
+        rows = runner.queued_rows(
+            batch_id,
+            request.scenarios,
+            tier=request.tier,
+            prompt_version=prompt,
+            cap_usd=Decimal(str(request.cap_usd)),
+            created_by=viewer.id,
+            at=datetime.now(UTC),
+        )
+        self.repo.add_eval_runs(rows)
+        await self.session.commit()
+        self._launch(runner.run_batch(self._sessions, batch_id, self._make_llm, self._catalogue))
+        return [self._eval_read(row) for row in rows]
+
+    async def eval_runs(self, viewer: User) -> list[EvalRunRead]:
+        """Recent evaluation runs, newest batch first."""
+        self._require_admin(viewer)
+        return [self._eval_read(row) for row in await self.repo.eval_runs(EVAL_RUNS_SHOWN)]
+
+    def _eval_read(self, row: EvalRun) -> EvalRunRead:
+        stale = (
+            row.status is EvalRunStatus.running
+            and row.heartbeat_at is not None
+            and (datetime.now(UTC) - row.heartbeat_at).total_seconds() > STALE_AFTER_SECONDS
+        )
+        return EvalRunRead(
+            id=row.id,
+            batch_id=row.batch_id,
+            position=row.position,
+            scenario=row.scenario,
+            tier=row.tier,
+            model=row.model,
+            prompt_version=row.prompt_version,
+            status=row.status,
+            cap_usd=float(row.cap_usd),
+            run_id=row.run_id,
+            template_id=row.template_id,
+            turns=row.turns or 0,
+            answers=row.answers or 0,
+            hard_failures=row.hard_failures or 0,
+            soft_failures=row.soft_failures or 0,
+            checks=[CheckRead(**check) for check in row.checks],
+            cost_usd=float(row.cost_usd or 0),
+            unmetered_calls=row.unmetered_calls or 0,
+            duration_ms=row.duration_ms or 0,
+            error=row.error,
+            queued_at=row.queued_at,
+            started_at=row.started_at,
+            finished_at=row.finished_at,
+            heartbeat_at=row.heartbeat_at,
+            stale=stale,
+        )
