@@ -37,8 +37,9 @@ A standalone, embeddable survey service, in two halves:
 ## Data model
 
 See SPEC.md §3. Tables: `users`, `survey_templates`, `survey_questions`,
-`survey_runs`, `answers`, `run_messages`, and `llm_spans` (the trace of every turn, see
-`app/trace/models.py`).
+`survey_runs`, `answers`, `run_messages`, `llm_spans` (the trace of every turn, see
+`app/trace/models.py`), `prompt_versions` with `prompt_activations`, and
+`embedding_vectors` (vectors keyed by a text's sha256 and the model, never the text).
 Alembic migrations from the first table; no `create_all` in application code.
 
 ## Conventions
@@ -212,4 +213,26 @@ Alembic migrations from the first table; no `create_all` in application code.
   3-2-1-1-0 rule, with a weekly restore test that fails loudly, because a check nobody
   has watched fail is decoration. The bucket does not exist yet and nothing has been
   restored, which that document says plainly.
+- **Meaning may overrule the word check only by a measured margin, and it ships off.**
+  Decided 13 Sep 2026 for O12, where "I work on the filleting line" could not record
+  Processing because no word matched. With `GROUNDING_SEMANTIC_ENABLED` a choice the word
+  check refuses is accepted when it is the closest of its question's options to the last
+  thing the respondent said, by at least `GROUNDING_SIMILARITY_MARGIN` over the runner-up.
+  It can only turn a refusal into an acceptance, and an embeddings outage leaves the
+  refusal standing. The similarities and margins are written on the validation span.
 
+  **Why relative, and why the midpoint.** An absolute cosine threshold was measured first
+  and rejected: short sentences and short option labels share a narrow band of similarity,
+  and the best threshold cleared the nearest wrong answer by 0.009. The margin is measured
+  by `backend/scripts/measure_semantic_grounding.py` on the labelled pairs in
+  `backend/tests/fixtures/grounding_pairs.json` (five languages, each with its question's
+  real options), and the recommendation is the middle of the gap between the highest
+  wrong answer the word check refused and the lowest real answer above it, not its lower
+  edge. The result is committed beside the code in
+  `app/embeddings/measurements/grounding.json` and drawn on `/lens/embeddings`.
+
+  **What not to do.** Do not set a margin that did not come from that script, do not reuse
+  a margin after changing the embedding model, and do not read a pass as covering O13 or
+  O14: those are wrong answers the word check itself accepts, which no margin reaches.
+  Thirty-five pairs is a small set, so add pairs when a live run finds a new case and
+  re-measure before trusting the number further.

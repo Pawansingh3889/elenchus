@@ -8,6 +8,40 @@ The project is not yet versioned, so entries are grouped by date. Newest first.
 
 
 
+## 2026-09-13. Embeddings: answers placed by meaning, and grounding by a measured margin
+
+Embeddings run through the same OpenAI-compatible client as every chat call, on hosted
+`text-embedding-3-small`, and stay off until `LLM_EMBEDDING_ENABLED` is set with a URL, a
+model and a price, which has no default. Every embed call is a ledger row with op `embed`,
+priced per input token; the four made while measuring cost $0.0000234 together.
+
+- **Vectors are cached, never the text.** `embedding_vectors` holds one vector per sha256
+  of a text and the model, so a text is embedded once and a repeat view costs nothing.
+  Withdrawing a run deletes the vectors of what it said, and two requests storing the same
+  vector at once no longer collide on the unique key.
+- **`/lens/embeddings`** reads one survey: an answer map per question placing each recorded
+  answer by the meaning of the message that produced it, with its three nearest answers;
+  themes in free text, grouped by spherical k-means and quoted by the answer nearest each
+  group's middle; and near duplicates across runs at similarity 0.95 or more. Tiles above
+  them show what the view spent, measured from the ledger: texts embedded now and read
+  from the cache, tokens, cost and time.
+- **Grounding by meaning, measured and switched off (O12).** With
+  `GROUNDING_SEMANTIC_ENABLED`, a choice the word check refuses is accepted when it is the
+  closest of its question's options to what was said, by `GROUNDING_SIMILARITY_MARGIN`
+  over the runner-up. An absolute similarity threshold was measured first and rejected:
+  the best one cleared the nearest wrong answer by 0.009. On 35 labelled pairs in five
+  languages the word check alone accepts 5 wrong answers and refuses 13 real ones. The
+  recommended margin, 0.021, is the middle of the gap between the highest refused wrong
+  answer (+0.0007) and the lowest real answer above it (+0.041), and accepts the same 5
+  while refusing 1. An embeddings outage leaves the refusal standing, and every similarity
+  and margin is written on the validation span. The page draws the margins and the
+  mistakes at each margin.
+- **Two open defects the measurement found.** O13: a message under four content words
+  skips the word check, so "i'm on the filleting line" grounds Dispatch as readily as
+  Processing. O14: one shared word grounds its opposite, so "I loved the training" can
+  record "No formal training". Both are wrong answers the word check itself accepts, which
+  no margin reaches.
+
 ## 2026-09-13. Relationships: what moves with cost and latency, and a versioned conduct prompt
 
 Three real surveys on AI problems and solutions around the world (healthcare in English,

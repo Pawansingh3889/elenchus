@@ -63,3 +63,14 @@ this directory.
   click rather than a browser dialog, makes a version live. The editor is keyed by version
   so opening another one mounts fresh state instead of copying text in an effect. Only
   the conduct prompt is editable here, by decision.
+- **The embeddings page reads one survey, and says what the view spent.** `/lens/embeddings`
+  needs a survey chosen in the filter row and ignores the run filter. Each report carries a
+  cost block measured from the ledger (texts embedded now, texts read from the cache,
+  tokens, cost, time), and the tiles sum the reports loaded, so a repeat view reading $0
+  is the cache working. Themes and near duplicates wait for the answer map, so a fresh
+  survey pays once for its texts instead of three reports embedding them in parallel. The
+  reads are not retried: a 503 means embeddings are switched off, and the banner says so.
+  The answer map is one series per question, faceted, with no axis units, because a
+  projection's axes mean nothing. The grounding section needs no survey: it draws the
+  committed measurement, the margins of the pairs the word check refused and the mistakes
+  at each margin, both marked at the recommended margin.

@@ -137,6 +137,8 @@ backend/
                        append-only log of which version is live
     trace/             llm_spans (every turn's tree of decisions, attempts and checks)
                        and the admin-only lens reads over it
+    embeddings/        vectors cached by text hash, the embedding lens reads, and the
+                       measured margin that lets meaning ground a choice
     auth/              dev-auth dependency
   migrations/          Alembic (async env)
   tests/               pytest against a real Postgres, LLM faked at the client boundary
@@ -154,6 +156,7 @@ frontend/
     lens/validation/   refusals, what they cost, and answers given up as unanswerable
     lens/relationships/  factor correlations with intervals, and the flow of asks
     lens/chains/       every question's asks in order, with what the chain cost
+    lens/embeddings/   answers placed by meaning, themes, near duplicates, grounding margin
     lens/compare/      two runs side by side, question by question
     lens/prompts/      conduct prompt versions: save a new one, activate, roll back
   lib/                 typed API client, TanStack Query hooks, Zustand store,
