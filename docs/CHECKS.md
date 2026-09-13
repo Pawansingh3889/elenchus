@@ -108,7 +108,7 @@ the host. Running `pnpm` on the host exits 127, which a script can misread as a 
 do not try:
 
 ```bash
-make front-gate    # tsc --noEmit, eslint, the Tailwind class guard, vitest
+make front-gate    # tsc --noEmit, eslint, vitest
 ```
 
 It needs the stack up (the frontend container is where it runs). It is kept out of
@@ -116,12 +116,10 @@ It needs the stack up (the frontend container is where it runs). It is kept out 
 would fail the backend gate whenever Docker happens to be down. `make all-gates` runs
 both halves when you have the stack up.
 
-The vitest suite is small by policy: a frontend test is written when something breaks, so
-each one names a bug that actually happened. There is no browser suite; rendering is
-verified by looking at the rendered page (screenshot, computed styles), not by a runner.
-The Tailwind class guard (`frontend/scripts/check-tailwind-classes.mjs`) fails on any
-class literal that produces no CSS, because an invented utility passes `tsc` and `eslint`
-and renders unstyled.
+The vitest suite is one smoke test by policy: a frontend test is written when something
+breaks, so each one names a bug that actually happened. There is no browser suite;
+rendering is verified by looking at the rendered page (screenshot, computed styles), not
+by a runner.
 
 CI also runs `next build`, which catches things the others miss.
 

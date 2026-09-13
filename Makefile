@@ -92,7 +92,6 @@ front-gate:
 	docker exec $(FRONT_CONTAINER) sh -c 'cd /app && \
 		./node_modules/.bin/tsc --noEmit && \
 		./node_modules/.bin/eslint . && \
-		node scripts/check-tailwind-classes.mjs && \
 		pnpm test'
 
 # Both halves, for when you want the whole repo checked and have the stack up.

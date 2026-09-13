@@ -8,8 +8,9 @@ is the source of truth for *what*; this file is the source of truth for *how*.
 A standalone, embeddable survey service, in two halves:
 
 - **Authoring** — an author builds a survey template either by describing it in natural
-  language (the LLM drafts it via a schema-constrained tool call) or by hand in a builder
-  UI. Both edit the same draft. Publishing opens the survey for answers.
+  language (the LLM drafts it via a schema-constrained tool call) or by hand, both through
+  the API: the browser has no authoring screens since 13 Sep 2026. Both edit the same
+  draft. Publishing opens the survey for answers.
 - **Conducting** — a respondent completes a published survey through a conversational,
   LLM-driven chat. The engine owns state; the model is a constrained collaborator.
 
@@ -92,9 +93,9 @@ Alembic migrations from the first table; no `create_all` in application code.
   Do not reintroduce an inference service to the stack without a reason that names
   what the hosted tiers cannot do.
 - **Frontend decisions live in `frontend/CLAUDE.md`**, which loads when working under that
-  directory. The Tailwind layering rule, the class guard and the unified Results page are
-  there: each only bites while editing frontend files, and this file is in context for
-  every session including the ones that never open it.
+  directory. The respondent-only scope, styling from `globals.css` alone and the
+  one-test policy are there: each only bites while editing frontend files, and this file
+  is in context for every session including the ones that never open it.
 - **One job per person, and every right derives from it.** Built 13 Aug 2026, replacing
   the three vocabularies this section used to describe (`role`, `CreatorDepartment`,
   `RespondentGroup` with its membership table), after the org chart showed the flaw:
