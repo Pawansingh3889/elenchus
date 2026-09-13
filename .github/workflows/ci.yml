@@ -108,9 +108,6 @@ jobs:
       - name: eslint
         run: pnpm exec eslint .
 
-      - name: tailwind classes produce css
-        run: node scripts/check-tailwind-classes.mjs
-
       - name: next build
         run: pnpm build
 

@@ -1,8 +1,8 @@
 # Elenchus Survey Service
 
-A standalone, embeddable survey service. Authors build survey templates (by natural
-language or a builder UI) and publish them; respondents complete published
-surveys through a conversational, LLM-driven runner that keeps the model on rails.
+A standalone, embeddable survey service. Authors build survey templates through the API
+(by natural language or by hand) and publish them; respondents complete published surveys
+in the browser, through a conversational, LLM-driven runner that keeps the model on rails.
 
 Full brief in [`trial-brief/`](trial-brief/README.md); what the app does
 in [`docs/OVERVIEW.md`](docs/OVERVIEW.md); build conventions in [`CLAUDE.md`](CLAUDE.md);
@@ -79,28 +79,31 @@ curl -s http://localhost:8000/api/v1/templates \
 
 ## Walk through it
 
-1. Sign in as **ava@elenchus.dev** in the top bar. The home page is a landing page;
-   **Dashboard** lists your surveys and how each is going. Write a survey or describe one
-   in the compose bar, pick who it is for beside it, then **Publish**. The publish dialog
-   shows the live headcount of the audience; publishing freezes the current draft as an
-   open for answers. Editing it afterwards changes it for everyone, including anyone
-   part-way through, so what each person was actually asked is recorded on their answers
-   rather than in a frozen copy of the survey.
+1. Author a survey as Ava through the API; the browser has no authoring screens. Describe
+   it, then publish the draft that comes back (its id is `template.id` in the response):
+
+   ```bash
+   AVA="X-User-Id: 00000000-0000-0000-0000-0000000000a1"
+   curl -s -X POST http://localhost:8000/api/v1/templates/generate -H "$AVA" \
+     -H "Content-Type: application/json" \
+     -d '{"prompt": "Five questions on how the new chiller rota is going", "audience": "everyone"}'
+   curl -s -X POST http://localhost:8000/api/v1/templates/<id>/publish -H "$AVA"
+   ```
+
+   Publishing freezes the survey, and what each person was actually asked is also recorded
+   on their answers.
 2. Sign in as **rosa@elenchus.dev** and open **Respond**. Start the survey and answer it in
    the chat. Chips, stars and date pickers appear with the question, but they only produce
    text: the engine validates every answer against the question's type either way.
-3. Sign back in as Ava and open the survey's **Results** page: the headline numbers and
-   flags first, a card per question below, and the whole page sliceable by any closed
-   answer. Individual runs sit behind it with their full transcripts; follow-ups the model
-   chose to ask are marked, and each question shows how many times it was probed.
-   **Generate summary** asks the model for the headline, key facts and notable quotes in
-   a response; quotes are checked verbatim against the recorded answers before they are
-   shown, and the survey-level recap has a fixed short shape whose caveat line is computed
-   by the engine, never written by the model.
+3. Read the results as Ava: `GET /api/v1/templates/<id>/report` gives the counts per
+   question, averages and spreads, and what the follow-ups drew out.
+   `POST /api/v1/templates/<id>/summary` asks the model for the survey recap; its quotes are
+   checked verbatim against the recorded answers, and its caveat line is computed by the
+   engine, never written by the model.
 
 Two more things worth trying:
 
-- **Conditional visibility.** In the builder, a question after the first can be set to show
+- **Conditional visibility.** A question after the first can carry a `show_when`, so it shows
   **only if…** an earlier answer matches. The engine skips it when the condition is not met,
   and the respondent's progress counts only what they will actually be asked.
 - **Leaving mid-survey.** Close the tab, or use **Finish later**. Every turn is already saved
@@ -135,16 +138,11 @@ backend/
   tests/               pytest against a real Postgres, LLM faked at the client boundary
 frontend/
   app/
-    page.tsx           landing page: what the service is, for a visitor with no user
-    dashboard/         your surveys and how each is going, plus the compose bar
-    templates/[id]/    the builder, with live preview
-    templates/[id]/results/   the one Results page: report, slicing, individual runs
+    page.tsx           the front door: what the service is, and a way to answer
+    signin/            sign-in with whichever providers the deployment has
     respond/           surveys open to the current user
     runs/[id]/         the conversational runner
-    people/            the admin screen: create accounts, change jobs and hats
-  lib/                 typed API client, TanStack Query hooks, Zustand store,
-                       conditions.ts (repointing show_when when questions move),
-                       tally.ts + slicing.ts (client-side retally for sliced views)
+  lib/                 typed API client, TanStack Query hooks, Zustand store
 docker-compose.yml        development stack: postgres, backend, frontend
 docker-compose.prod.yml   deployment: pinned digests, no seeding, no bind mounts
 ```
@@ -165,13 +163,13 @@ it ships on) and fakes the LLM at the client wrapper, so it needs no API key. If
 needs one, that is the bug. The tiers follow the same rule: the OpenAI-compatible client is
 driven through an in-process mock transport, so failover coverage runs offline too.
 
-The frontend's checks are `make front-gate` (`tsc --noEmit`, `eslint`, the Tailwind class
-guard and `vitest`), which runs inside the frontend container because the host has no
+The frontend's checks are `make front-gate` (`tsc --noEmit`, `eslint` and
+`vitest`), which runs inside the frontend container because the host has no
 node. There is no browser suite: rendering is verified by looking at the rendered page.
 
 GitHub Actions runs the same gates on every pull request: `alembic upgrade head` from an
 empty database, `ruff`, `black`, `mypy`, the import contracts, the guards and `pytest` for
-the backend; `tsc --noEmit`, `eslint`, the Tailwind class guard, `next build` and `vitest`
+the backend; `tsc --noEmit`, `eslint`, `next build` and `vitest`
 for the frontend. Both are required to pass before `main` will accept a merge.
 
 `.github/workflows/live-conduct.yml` is the opposite check: it drives real conversations

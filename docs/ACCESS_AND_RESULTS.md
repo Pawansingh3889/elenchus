@@ -117,8 +117,9 @@ administered by naming an address in `ADMIN_EMAILS`.
 
 ### Accounts are made in the app
 
-`POST` and `PUT /api/v1/admin/users` create accounts and change what somebody is, and
-`/people` is the screen where an administrator does it, jobs and hats included. Both
+`POST` and `PUT /api/v1/admin/users` create accounts and change what somebody is, jobs and
+hats included. There has been no screen for it since the browser was cut to the respondent
+path on 13 Sep 2026, so an administrator calls the API directly. Both
 routes are guarded by `require_admin`, which asks `is_admin` and never the job it is
 editing.
 

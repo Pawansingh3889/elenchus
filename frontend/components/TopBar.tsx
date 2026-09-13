@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import { LOCALES, isLocale, type Locale } from "@/lib/i18n";
 import { useDocumentLanguage, useT } from "@/lib/i18n/useT";
-import { useIdentify, useMe, useProviders, useUsers } from "@/lib/queries";
+import { useIdentify, useProviders, useUsers } from "@/lib/queries";
 import { useLocaleStore, useUserStore } from "@/lib/store";
 
 /**
@@ -82,11 +82,6 @@ export function TopBar() {
   const { topbar } = useT();
   useDocumentLanguage();
 
-  const currentUser = users?.find((u) => u.id === currentUserId);
-  const isAuthor = currentUser?.may_author === true;
-  const { data: me } = useMe();
-  const isAdmin = me?.is_admin ?? false;
-
   return (
     <header className="topbar">
       <div className="topbar-left">
@@ -99,18 +94,7 @@ export function TopBar() {
         </Link>
         <nav className="topbar-nav">
           <Link href="/">{topbar.home}</Link>
-          {/* Roles don't cross: authors build, respondents answer. People is author-only
-              for the same reason and on the server too: it answers "who are the two
-              people that survey reached", which is an authoring question. */}
-          {isAuthor ? (
-            <>
-              <Link href="/dashboard">{topbar.dashboard}</Link>
-              <Link href="/people">{topbar.people}</Link>
-            </>
-          ) : (
-            <Link href="/respond">{topbar.respond}</Link>
-          )}
-          {isAdmin && <Link href="/admin">Admin</Link>}
+          <Link href="/respond">{topbar.respond}</Link>
         </nav>
       </div>
       <div className="topbar-user">

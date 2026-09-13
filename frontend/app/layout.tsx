@@ -1,11 +1,6 @@
 import type { Metadata, Viewport } from "next";
 
 import { TopBar } from "@/components/TopBar";
-// Order matters: tailwind.css puts everything it emits in a cascade layer, and an
-// unlayered rule beats a layered one whatever the order of import. globals.css is
-// unlayered, so it wins every collision and the pages that predate Tailwind do not
-// move. See the header of tailwind.css.
-import "./tailwind.css";
 import "./globals.css";
 import { DemoBanner } from "@/components/DemoBanner";
 import { Providers } from "./providers";

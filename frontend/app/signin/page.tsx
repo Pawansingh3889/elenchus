@@ -3,7 +3,6 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 
-import { Card } from "@/components/ui/card";
 import { useT } from "@/lib/i18n/useT";
 import { useProviders, useSession } from "@/lib/queries";
 
@@ -36,7 +35,7 @@ export default function SignIn() {
   // Already signed in: this page has nothing to offer, and leaving it reachable would
   // let somebody sign in twice and wonder which one took.
   useEffect(() => {
-    if (session) router.replace("/dashboard");
+    if (session) router.replace("/respond");
   }, [session, router]);
 
   // The refusal the callback redirects with. `useSyncExternalStore` rather than an
@@ -57,10 +56,10 @@ export default function SignIn() {
   };
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-4 p-4 pt-12">
+    <div className="page narrow signin">
       <div>
-        <h1 className="text-xl font-semibold text-ink">{signin.title}</h1>
-        <p className="mt-1 text-sm text-muted">{signin.subtitle}</p>
+        <h1>{signin.title}</h1>
+        <p className="muted">{signin.subtitle}</p>
       </div>
 
       {/* Above the buttons, not below: somebody arriving here after a refusal needs the
@@ -71,7 +70,7 @@ export default function SignIn() {
         </p>
       ) : null}
 
-      <Card className="flex flex-col gap-2 p-4">
+      <div className="card stack">
         {providers.length > 0 ? (
           // Plain links. The browser has to navigate to the provider, which an XHR
           // cannot do, and only configured providers appear, so no button here can fail
@@ -79,7 +78,7 @@ export default function SignIn() {
           providers.map((p) => (
             <a
               key={p}
-              className="btn btn-primary text-center"
+              className="btn btn-primary"
               href={`${base}/api/v1/auth/${p}/login`}
             >
               {p === "microsoft" ? topbar.signInMicrosoft : topbar.signInGoogle}
@@ -88,13 +87,13 @@ export default function SignIn() {
         ) : (
           // A deployment with no provider configured has no way in at all, which is the
           // correct failure and a confusing one to meet without an explanation.
-          <p className="text-sm text-muted">{signin.noProviders}</p>
+          <p className="muted">{signin.noProviders}</p>
         )}
-      </Card>
+      </div>
 
       <div>
-        <h2 className="text-sm font-semibold text-ink">{signin.noAccountTitle}</h2>
-        <p className="mt-1 text-sm text-muted">{signin.noAccountBody}</p>
+        <h2>{signin.noAccountTitle}</h2>
+        <p className="muted">{signin.noAccountBody}</p>
       </div>
     </div>
   );

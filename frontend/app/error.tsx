@@ -4,14 +4,13 @@ import Link from "next/link";
 import { useEffect } from "react";
 
 import { ErrorBanner } from "@/components/ErrorBanner";
-import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n/useT";
 
 /**
  * The last resort when a render throws.
  *
  * Without this file Next renders its own generic error page and the whole app, top bar
- * included, disappears. What is left here is a page the author can still navigate out
+ * included, disappears. What is left here is a page the reader can still navigate out
  * of, with the failure stated rather than a blank screen.
  *
  * `reset` re-renders the segment, which is the right offer for a transient failure and
@@ -32,18 +31,17 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <div className="mx-auto flex max-w-prose flex-col gap-4 p-6">
+    <div className="page narrow">
       <ErrorBanner error={error} />
-      <div className="flex gap-2">
-        <Button variant="primary" onClick={reset}>
+      <div className="actions">
+        <button type="button" className="btn btn-primary" onClick={reset}>
           {errors.retry}
-        </Button>
-        {/* Home rather than the dashboard: this is the page a render crash lands on, and
-            it has to work for whoever hit it. `/` needs no user and makes no authenticated
-            request, where the dashboard needs both and can only fail a second time. */}
-        <Button variant="secondary" asChild>
-          <Link href="/">{common.backHome}</Link>
-        </Button>
+        </button>
+        {/* Home, because `/` needs no user and makes no authenticated request, so it is
+            the one place a render crash can always land. */}
+        <Link className="btn btn-secondary" href="/">
+          {common.backHome}
+        </Link>
       </div>
     </div>
   );
