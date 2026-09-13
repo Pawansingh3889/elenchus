@@ -1,0 +1,481 @@
+{
+  "about": "Labelled pairs for measuring semantic grounding. Each pair is what a respondent said, the options their question offered, the option a model chose, and whether that option is really supported by what they said. Written 13 Sep 2026, options added the same day when an absolute similarity threshold proved too fragile. Positives where the word check fails are the cases semantic grounding exists for; negatives are the answers the gate exists to refuse.",
+  "pairs": [
+    {
+      "said": "i'm on the filleting line",
+      "option": "Processing",
+      "options": [
+        "Processing",
+        "Packing",
+        "Dispatch",
+        "Maintenance",
+        "Quality control"
+      ],
+      "supported": true,
+      "language": "en",
+      "source": "O12, live run"
+    },
+    {
+      "said": "I load the lorries at the back most nights",
+      "option": "Dispatch",
+      "options": [
+        "Processing",
+        "Packing",
+        "Dispatch",
+        "Maintenance",
+        "Quality control"
+      ],
+      "supported": true,
+      "language": "en",
+      "source": "constructed"
+    },
+    {
+      "said": "we mostly check temperatures and fill in the HACCP sheets",
+      "option": "Quality control",
+      "options": [
+        "Processing",
+        "Packing",
+        "Dispatch",
+        "Maintenance",
+        "Quality control"
+      ],
+      "supported": true,
+      "language": "en",
+      "source": "constructed"
+    },
+    {
+      "said": "nobody showed me anything, I just picked it up as I went",
+      "option": "No formal training",
+      "options": [
+        "No formal training",
+        "Hands-on training",
+        "Classroom training",
+        "Online modules"
+      ],
+      "supported": true,
+      "language": "en",
+      "source": "constructed"
+    },
+    {
+      "said": "honestly it's brilliant, top marks from me",
+      "option": "Very satisfied",
+      "options": [
+        "Very satisfied",
+        "Satisfied",
+        "Neutral",
+        "Dissatisfied",
+        "Very dissatisfied"
+      ],
+      "supported": true,
+      "language": "en",
+      "source": "constructed"
+    },
+    {
+      "said": "machines will end up replacing people on the line",
+      "option": "It could lead to job losses",
+      "options": [
+        "It could lead to job losses",
+        "It could watch or track people too much",
+        "It could improve safety",
+        "It could make mistakes nobody catches"
+      ],
+      "supported": true,
+      "language": "en",
+      "source": "constructed"
+    },
+    {
+      "said": "trabajo en la línea de fileteado",
+      "option": "Processing",
+      "options": [
+        "Processing",
+        "Packing",
+        "Dispatch",
+        "Maintenance",
+        "Quality control"
+      ],
+      "supported": true,
+      "language": "es",
+      "source": "constructed, cross-language O12"
+    },
+    {
+      "said": "me preocupa que me quiten el trabajo",
+      "option": "It could lead to job losses",
+      "options": [
+        "It could lead to job losses",
+        "It could watch or track people too much",
+        "It could improve safety",
+        "It could make mistakes nobody catches"
+      ],
+      "supported": true,
+      "language": "es",
+      "source": "constructed"
+    },
+    {
+      "said": "sí, lo uso todos los días en el turno",
+      "option": "Every day",
+      "options": [
+        "Never",
+        "Tried it once or twice",
+        "Every so often",
+        "Most weeks",
+        "Every day"
+      ],
+      "supported": true,
+      "language": "es",
+      "source": "constructed"
+    },
+    {
+      "said": "nadie me enseñó nada, aprendí sola",
+      "option": "No formal training",
+      "options": [
+        "No formal training",
+        "Hands-on training",
+        "Classroom training",
+        "Online modules"
+      ],
+      "supported": true,
+      "language": "es",
+      "source": "constructed"
+    },
+    {
+      "said": "ich arbeite am Filetierband",
+      "option": "Processing",
+      "options": [
+        "Processing",
+        "Packing",
+        "Dispatch",
+        "Maintenance",
+        "Quality control"
+      ],
+      "supported": true,
+      "language": "de",
+      "source": "constructed, cross-language O12"
+    },
+    {
+      "said": "ich habe Angst, dass Maschinen unsere Arbeit übernehmen",
+      "option": "It could lead to job losses",
+      "options": [
+        "It could lead to job losses",
+        "It could watch or track people too much",
+        "It could improve safety",
+        "It could make mistakes nobody catches"
+      ],
+      "supported": true,
+      "language": "de",
+      "source": "constructed"
+    },
+    {
+      "said": "die Kameras beobachten uns viel zu genau",
+      "option": "It could watch or track people too much",
+      "options": [
+        "It could lead to job losses",
+        "It could watch or track people too much",
+        "It could improve safety",
+        "It could make mistakes nobody catches"
+      ],
+      "supported": true,
+      "language": "de",
+      "source": "constructed"
+    },
+    {
+      "said": "am liebsten praktisch, direkt an der Maschine lernen",
+      "option": "Hands-on training",
+      "options": [
+        "No formal training",
+        "Hands-on training",
+        "Classroom training",
+        "Online modules"
+      ],
+      "supported": true,
+      "language": "de",
+      "source": "constructed"
+    },
+    {
+      "said": "nag-iimpake ng mga kahon sa dulo ng linya",
+      "option": "Packing",
+      "options": [
+        "Processing",
+        "Packing",
+        "Dispatch",
+        "Maintenance",
+        "Quality control"
+      ],
+      "supported": true,
+      "language": "fil",
+      "source": "constructed"
+    },
+    {
+      "said": "pracuję przy filetowaniu ryb",
+      "option": "Processing",
+      "options": [
+        "Processing",
+        "Packing",
+        "Dispatch",
+        "Maintenance",
+        "Quality control"
+      ],
+      "supported": true,
+      "language": "pl",
+      "source": "constructed"
+    },
+    {
+      "said": "not much really, tried it once or twice",
+      "option": "Tried it once or twice",
+      "options": [
+        "Never",
+        "Tried it once or twice",
+        "Every so often",
+        "Most weeks",
+        "Every day"
+      ],
+      "supported": true,
+      "language": "en",
+      "source": "live run fixture, word check passes"
+    },
+    {
+      "said": "hands on training is the best way for me",
+      "option": "Hands-on training",
+      "options": [
+        "No formal training",
+        "Hands-on training",
+        "Classroom training",
+        "Online modules"
+      ],
+      "supported": true,
+      "language": "en",
+      "source": "constructed, word check passes"
+    },
+    {
+      "said": "training new starters, thats where wed feel it",
+      "option": "Nowhere I can see",
+      "options": [
+        "Paperwork and reporting",
+        "Planning and scheduling",
+        "Checking quality",
+        "Handovers and communication",
+        "Nowhere I can see"
+      ],
+      "supported": false,
+      "language": "en",
+      "source": "live run fixture, recorded as invented"
+    },
+    {
+      "said": "i'm on the filleting line",
+      "option": "Dispatch",
+      "options": [
+        "Processing",
+        "Packing",
+        "Dispatch",
+        "Maintenance",
+        "Quality control"
+      ],
+      "supported": false,
+      "language": "en",
+      "source": "constructed, wrong department (O13)"
+    },
+    {
+      "said": "i'm on the filleting line",
+      "option": "Maintenance",
+      "options": [
+        "Processing",
+        "Packing",
+        "Dispatch",
+        "Maintenance",
+        "Quality control"
+      ],
+      "supported": false,
+      "language": "en",
+      "source": "constructed, wrong department (O13)"
+    },
+    {
+      "said": "I loved the training, the trainer was great",
+      "option": "No formal training",
+      "options": [
+        "No formal training",
+        "Hands-on training",
+        "Classroom training",
+        "Online modules"
+      ],
+      "supported": false,
+      "language": "en",
+      "source": "constructed, shares a word and means the opposite (O14)"
+    },
+    {
+      "said": "machines will end up replacing people on the line",
+      "option": "It could improve safety",
+      "options": [
+        "It could lead to job losses",
+        "It could watch or track people too much",
+        "It could improve safety",
+        "It could make mistakes nobody catches"
+      ],
+      "supported": false,
+      "language": "en",
+      "source": "constructed, same topic, different claim"
+    },
+    {
+      "said": "cameras watching how fast I work all shift",
+      "option": "It could lead to job losses",
+      "options": [
+        "It could lead to job losses",
+        "It could watch or track people too much",
+        "It could improve safety",
+        "It could make mistakes nobody catches"
+      ],
+      "supported": false,
+      "language": "en",
+      "source": "constructed, same topic, different claim"
+    },
+    {
+      "said": "me preocupa que me quiten el trabajo",
+      "option": "It could improve safety",
+      "options": [
+        "It could lead to job losses",
+        "It could watch or track people too much",
+        "It could improve safety",
+        "It could make mistakes nobody catches"
+      ],
+      "supported": false,
+      "language": "es",
+      "source": "constructed"
+    },
+    {
+      "said": "trabajo en la línea de fileteado",
+      "option": "Dispatch",
+      "options": [
+        "Processing",
+        "Packing",
+        "Dispatch",
+        "Maintenance",
+        "Quality control"
+      ],
+      "supported": false,
+      "language": "es",
+      "source": "constructed, wrong department"
+    },
+    {
+      "said": "nunca lo he usado, ni una vez",
+      "option": "Every day",
+      "options": [
+        "Never",
+        "Tried it once or twice",
+        "Every so often",
+        "Most weeks",
+        "Every day"
+      ],
+      "supported": false,
+      "language": "es",
+      "source": "constructed, opposite"
+    },
+    {
+      "said": "ich arbeite am Filetierband",
+      "option": "Quality control",
+      "options": [
+        "Processing",
+        "Packing",
+        "Dispatch",
+        "Maintenance",
+        "Quality control"
+      ],
+      "supported": false,
+      "language": "de",
+      "source": "constructed, wrong department"
+    },
+    {
+      "said": "noch nie benutzt, ehrlich gesagt",
+      "option": "Every day",
+      "options": [
+        "Never",
+        "Tried it once or twice",
+        "Every so often",
+        "Most weeks",
+        "Every day"
+      ],
+      "supported": false,
+      "language": "de",
+      "source": "constructed, opposite"
+    },
+    {
+      "said": "die Kameras beobachten uns viel zu genau",
+      "option": "Hands-on training",
+      "options": [
+        "No formal training",
+        "Hands-on training",
+        "Classroom training",
+        "Online modules"
+      ],
+      "supported": false,
+      "language": "de",
+      "source": "constructed, unrelated"
+    },
+    {
+      "said": "never touched it, not once",
+      "option": "Every day",
+      "options": [
+        "Never",
+        "Tried it once or twice",
+        "Every so often",
+        "Most weeks",
+        "Every day"
+      ],
+      "supported": false,
+      "language": "en",
+      "source": "constructed, opposite"
+    },
+    {
+      "said": "the canteen coffee is awful though",
+      "option": "Very satisfied",
+      "options": [
+        "Very satisfied",
+        "Satisfied",
+        "Neutral",
+        "Dissatisfied",
+        "Very dissatisfied"
+      ],
+      "supported": false,
+      "language": "en",
+      "source": "constructed, off topic"
+    },
+    {
+      "said": "it's okay I guess, nothing special",
+      "option": "Very satisfied",
+      "options": [
+        "Very satisfied",
+        "Satisfied",
+        "Neutral",
+        "Dissatisfied",
+        "Very dissatisfied"
+      ],
+      "supported": false,
+      "language": "en",
+      "source": "constructed, weaker than the option"
+    },
+    {
+      "said": "somewhere in the middle of those, hard to say",
+      "option": "Every day",
+      "options": [
+        "Never",
+        "Tried it once or twice",
+        "Every so often",
+        "Most weeks",
+        "Every day"
+      ],
+      "supported": false,
+      "language": "en",
+      "source": "constructed, vague"
+    },
+    {
+      "said": "prefiero no contestar esa pregunta",
+      "option": "Hands-on training",
+      "options": [
+        "No formal training",
+        "Hands-on training",
+        "Classroom training",
+        "Online modules"
+      ],
+      "supported": false,
+      "language": "es",
+      "source": "constructed, declined"
+    }
+  ]
+}

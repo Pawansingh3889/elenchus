@@ -1,0 +1,725 @@
+{
+  "measured_at": "2026-09-13T06:08:27+00:00",
+  "model": "text-embedding-3-small",
+  "via": "tier 1 endpoint",
+  "pairs": 35,
+  "negatives": 17,
+  "word_check": {
+    "false_accepts": 5,
+    "false_refusals": 13
+  },
+  "recommended_margin": 0.021,
+  "headroom": {
+    "highest_negative": 0.0007,
+    "lowest_positive": 0.041
+  },
+  "at_recommended": {
+    "false_accepts": 5,
+    "false_refusals": 1
+  },
+  "judged": [
+    {
+      "said": "i'm on the filleting line",
+      "option": "Processing",
+      "options": [
+        "Processing",
+        "Packing",
+        "Dispatch",
+        "Maintenance",
+        "Quality control"
+      ],
+      "language": "en",
+      "supported": true,
+      "word_supported": true,
+      "similarity": 0.2712,
+      "margin": -0.0098
+    },
+    {
+      "said": "I load the lorries at the back most nights",
+      "option": "Dispatch",
+      "options": [
+        "Processing",
+        "Packing",
+        "Dispatch",
+        "Maintenance",
+        "Quality control"
+      ],
+      "language": "en",
+      "supported": true,
+      "word_supported": false,
+      "similarity": 0.2425,
+      "margin": -0.0298
+    },
+    {
+      "said": "we mostly check temperatures and fill in the HACCP sheets",
+      "option": "Quality control",
+      "options": [
+        "Processing",
+        "Packing",
+        "Dispatch",
+        "Maintenance",
+        "Quality control"
+      ],
+      "language": "en",
+      "supported": true,
+      "word_supported": false,
+      "similarity": 0.3969,
+      "margin": 0.1506
+    },
+    {
+      "said": "nobody showed me anything, I just picked it up as I went",
+      "option": "No formal training",
+      "options": [
+        "No formal training",
+        "Hands-on training",
+        "Classroom training",
+        "Online modules"
+      ],
+      "language": "en",
+      "supported": true,
+      "word_supported": false,
+      "similarity": 0.3596,
+      "margin": 0.0473
+    },
+    {
+      "said": "honestly it's brilliant, top marks from me",
+      "option": "Very satisfied",
+      "options": [
+        "Very satisfied",
+        "Satisfied",
+        "Neutral",
+        "Dissatisfied",
+        "Very dissatisfied"
+      ],
+      "language": "en",
+      "supported": true,
+      "word_supported": false,
+      "similarity": 0.3556,
+      "margin": 0.1014
+    },
+    {
+      "said": "machines will end up replacing people on the line",
+      "option": "It could lead to job losses",
+      "options": [
+        "It could lead to job losses",
+        "It could watch or track people too much",
+        "It could improve safety",
+        "It could make mistakes nobody catches"
+      ],
+      "language": "en",
+      "supported": true,
+      "word_supported": false,
+      "similarity": 0.4131,
+      "margin": 0.1143
+    },
+    {
+      "said": "trabajo en la línea de fileteado",
+      "option": "Processing",
+      "options": [
+        "Processing",
+        "Packing",
+        "Dispatch",
+        "Maintenance",
+        "Quality control"
+      ],
+      "language": "es",
+      "supported": true,
+      "word_supported": true,
+      "similarity": 0.2361,
+      "margin": 0.0079
+    },
+    {
+      "said": "me preocupa que me quiten el trabajo",
+      "option": "It could lead to job losses",
+      "options": [
+        "It could lead to job losses",
+        "It could watch or track people too much",
+        "It could improve safety",
+        "It could make mistakes nobody catches"
+      ],
+      "language": "es",
+      "supported": true,
+      "word_supported": false,
+      "similarity": 0.3682,
+      "margin": 0.1539
+    },
+    {
+      "said": "sí, lo uso todos los días en el turno",
+      "option": "Every day",
+      "options": [
+        "Never",
+        "Tried it once or twice",
+        "Every so often",
+        "Most weeks",
+        "Every day"
+      ],
+      "language": "es",
+      "supported": true,
+      "word_supported": false,
+      "similarity": 0.3818,
+      "margin": 0.1384
+    },
+    {
+      "said": "nadie me enseñó nada, aprendí sola",
+      "option": "No formal training",
+      "options": [
+        "No formal training",
+        "Hands-on training",
+        "Classroom training",
+        "Online modules"
+      ],
+      "language": "es",
+      "supported": true,
+      "word_supported": false,
+      "similarity": 0.3817,
+      "margin": 0.1317
+    },
+    {
+      "said": "ich arbeite am Filetierband",
+      "option": "Processing",
+      "options": [
+        "Processing",
+        "Packing",
+        "Dispatch",
+        "Maintenance",
+        "Quality control"
+      ],
+      "language": "de",
+      "supported": true,
+      "word_supported": true,
+      "similarity": 0.2488,
+      "margin": 0.0188
+    },
+    {
+      "said": "ich habe Angst, dass Maschinen unsere Arbeit übernehmen",
+      "option": "It could lead to job losses",
+      "options": [
+        "It could lead to job losses",
+        "It could watch or track people too much",
+        "It could improve safety",
+        "It could make mistakes nobody catches"
+      ],
+      "language": "de",
+      "supported": true,
+      "word_supported": false,
+      "similarity": 0.3136,
+      "margin": 0.0439
+    },
+    {
+      "said": "die Kameras beobachten uns viel zu genau",
+      "option": "It could watch or track people too much",
+      "options": [
+        "It could lead to job losses",
+        "It could watch or track people too much",
+        "It could improve safety",
+        "It could make mistakes nobody catches"
+      ],
+      "language": "de",
+      "supported": true,
+      "word_supported": false,
+      "similarity": 0.4973,
+      "margin": 0.237
+    },
+    {
+      "said": "am liebsten praktisch, direkt an der Maschine lernen",
+      "option": "Hands-on training",
+      "options": [
+        "No formal training",
+        "Hands-on training",
+        "Classroom training",
+        "Online modules"
+      ],
+      "language": "de",
+      "supported": true,
+      "word_supported": false,
+      "similarity": 0.4303,
+      "margin": 0.0903
+    },
+    {
+      "said": "nag-iimpake ng mga kahon sa dulo ng linya",
+      "option": "Packing",
+      "options": [
+        "Processing",
+        "Packing",
+        "Dispatch",
+        "Maintenance",
+        "Quality control"
+      ],
+      "language": "fil",
+      "supported": true,
+      "word_supported": false,
+      "similarity": 0.1603,
+      "margin": 0.041
+    },
+    {
+      "said": "pracuję przy filetowaniu ryb",
+      "option": "Processing",
+      "options": [
+        "Processing",
+        "Packing",
+        "Dispatch",
+        "Maintenance",
+        "Quality control"
+      ],
+      "language": "pl",
+      "supported": true,
+      "word_supported": false,
+      "similarity": 0.2157,
+      "margin": 0.0466
+    },
+    {
+      "said": "not much really, tried it once or twice",
+      "option": "Tried it once or twice",
+      "options": [
+        "Never",
+        "Tried it once or twice",
+        "Every so often",
+        "Most weeks",
+        "Every day"
+      ],
+      "language": "en",
+      "supported": true,
+      "word_supported": true,
+      "similarity": 0.7762,
+      "margin": 0.4075
+    },
+    {
+      "said": "hands on training is the best way for me",
+      "option": "Hands-on training",
+      "options": [
+        "No formal training",
+        "Hands-on training",
+        "Classroom training",
+        "Online modules"
+      ],
+      "language": "en",
+      "supported": true,
+      "word_supported": true,
+      "similarity": 0.7303,
+      "margin": 0.1962
+    },
+    {
+      "said": "training new starters, thats where wed feel it",
+      "option": "Nowhere I can see",
+      "options": [
+        "Paperwork and reporting",
+        "Planning and scheduling",
+        "Checking quality",
+        "Handovers and communication",
+        "Nowhere I can see"
+      ],
+      "language": "en",
+      "supported": false,
+      "word_supported": false,
+      "similarity": 0.1971,
+      "margin": -0.0105
+    },
+    {
+      "said": "i'm on the filleting line",
+      "option": "Dispatch",
+      "options": [
+        "Processing",
+        "Packing",
+        "Dispatch",
+        "Maintenance",
+        "Quality control"
+      ],
+      "language": "en",
+      "supported": false,
+      "word_supported": true,
+      "similarity": 0.2198,
+      "margin": -0.0613
+    },
+    {
+      "said": "i'm on the filleting line",
+      "option": "Maintenance",
+      "options": [
+        "Processing",
+        "Packing",
+        "Dispatch",
+        "Maintenance",
+        "Quality control"
+      ],
+      "language": "en",
+      "supported": false,
+      "word_supported": true,
+      "similarity": 0.1515,
+      "margin": -0.1296
+    },
+    {
+      "said": "I loved the training, the trainer was great",
+      "option": "No formal training",
+      "options": [
+        "No formal training",
+        "Hands-on training",
+        "Classroom training",
+        "Online modules"
+      ],
+      "language": "en",
+      "supported": false,
+      "word_supported": true,
+      "similarity": 0.3457,
+      "margin": -0.0839
+    },
+    {
+      "said": "machines will end up replacing people on the line",
+      "option": "It could improve safety",
+      "options": [
+        "It could lead to job losses",
+        "It could watch or track people too much",
+        "It could improve safety",
+        "It could make mistakes nobody catches"
+      ],
+      "language": "en",
+      "supported": false,
+      "word_supported": false,
+      "similarity": 0.2364,
+      "margin": -0.1767
+    },
+    {
+      "said": "cameras watching how fast I work all shift",
+      "option": "It could lead to job losses",
+      "options": [
+        "It could lead to job losses",
+        "It could watch or track people too much",
+        "It could improve safety",
+        "It could make mistakes nobody catches"
+      ],
+      "language": "en",
+      "supported": false,
+      "word_supported": false,
+      "similarity": 0.1391,
+      "margin": -0.29
+    },
+    {
+      "said": "me preocupa que me quiten el trabajo",
+      "option": "It could improve safety",
+      "options": [
+        "It could lead to job losses",
+        "It could watch or track people too much",
+        "It could improve safety",
+        "It could make mistakes nobody catches"
+      ],
+      "language": "es",
+      "supported": false,
+      "word_supported": false,
+      "similarity": 0.1736,
+      "margin": -0.1946
+    },
+    {
+      "said": "trabajo en la línea de fileteado",
+      "option": "Dispatch",
+      "options": [
+        "Processing",
+        "Packing",
+        "Dispatch",
+        "Maintenance",
+        "Quality control"
+      ],
+      "language": "es",
+      "supported": false,
+      "word_supported": true,
+      "similarity": 0.1416,
+      "margin": -0.0946
+    },
+    {
+      "said": "nunca lo he usado, ni una vez",
+      "option": "Every day",
+      "options": [
+        "Never",
+        "Tried it once or twice",
+        "Every so often",
+        "Most weeks",
+        "Every day"
+      ],
+      "language": "es",
+      "supported": false,
+      "word_supported": false,
+      "similarity": 0.1919,
+      "margin": -0.2587
+    },
+    {
+      "said": "ich arbeite am Filetierband",
+      "option": "Quality control",
+      "options": [
+        "Processing",
+        "Packing",
+        "Dispatch",
+        "Maintenance",
+        "Quality control"
+      ],
+      "language": "de",
+      "supported": false,
+      "word_supported": true,
+      "similarity": 0.2115,
+      "margin": -0.0372
+    },
+    {
+      "said": "noch nie benutzt, ehrlich gesagt",
+      "option": "Every day",
+      "options": [
+        "Never",
+        "Tried it once or twice",
+        "Every so often",
+        "Most weeks",
+        "Every day"
+      ],
+      "language": "de",
+      "supported": false,
+      "word_supported": false,
+      "similarity": 0.1602,
+      "margin": -0.174
+    },
+    {
+      "said": "die Kameras beobachten uns viel zu genau",
+      "option": "Hands-on training",
+      "options": [
+        "No formal training",
+        "Hands-on training",
+        "Classroom training",
+        "Online modules"
+      ],
+      "language": "de",
+      "supported": false,
+      "word_supported": false,
+      "similarity": 0.1211,
+      "margin": 0.0007
+    },
+    {
+      "said": "never touched it, not once",
+      "option": "Every day",
+      "options": [
+        "Never",
+        "Tried it once or twice",
+        "Every so often",
+        "Most weeks",
+        "Every day"
+      ],
+      "language": "en",
+      "supported": false,
+      "word_supported": false,
+      "similarity": 0.2463,
+      "margin": -0.2892
+    },
+    {
+      "said": "the canteen coffee is awful though",
+      "option": "Very satisfied",
+      "options": [
+        "Very satisfied",
+        "Satisfied",
+        "Neutral",
+        "Dissatisfied",
+        "Very dissatisfied"
+      ],
+      "language": "en",
+      "supported": false,
+      "word_supported": false,
+      "similarity": 0.0819,
+      "margin": -0.1244
+    },
+    {
+      "said": "it's okay I guess, nothing special",
+      "option": "Very satisfied",
+      "options": [
+        "Very satisfied",
+        "Satisfied",
+        "Neutral",
+        "Dissatisfied",
+        "Very dissatisfied"
+      ],
+      "language": "en",
+      "supported": false,
+      "word_supported": false,
+      "similarity": 0.261,
+      "margin": -0.0539
+    },
+    {
+      "said": "somewhere in the middle of those, hard to say",
+      "option": "Every day",
+      "options": [
+        "Never",
+        "Tried it once or twice",
+        "Every so often",
+        "Most weeks",
+        "Every day"
+      ],
+      "language": "en",
+      "supported": false,
+      "word_supported": false,
+      "similarity": 0.1509,
+      "margin": -0.0515
+    },
+    {
+      "said": "prefiero no contestar esa pregunta",
+      "option": "Hands-on training",
+      "options": [
+        "No formal training",
+        "Hands-on training",
+        "Classroom training",
+        "Online modules"
+      ],
+      "language": "es",
+      "supported": false,
+      "word_supported": false,
+      "similarity": 0.0327,
+      "margin": -0.0512
+    }
+  ],
+  "sweep": [
+    {
+      "margin": 0.0,
+      "false_accepts": 6,
+      "false_refusals": 1
+    },
+    {
+      "margin": 0.01,
+      "false_accepts": 5,
+      "false_refusals": 1
+    },
+    {
+      "margin": 0.02,
+      "false_accepts": 5,
+      "false_refusals": 1
+    },
+    {
+      "margin": 0.03,
+      "false_accepts": 5,
+      "false_refusals": 1
+    },
+    {
+      "margin": 0.04,
+      "false_accepts": 5,
+      "false_refusals": 1
+    },
+    {
+      "margin": 0.05,
+      "false_accepts": 5,
+      "false_refusals": 5
+    },
+    {
+      "margin": 0.06,
+      "false_accepts": 5,
+      "false_refusals": 5
+    },
+    {
+      "margin": 0.07,
+      "false_accepts": 5,
+      "false_refusals": 5
+    },
+    {
+      "margin": 0.08,
+      "false_accepts": 5,
+      "false_refusals": 5
+    },
+    {
+      "margin": 0.09,
+      "false_accepts": 5,
+      "false_refusals": 5
+    },
+    {
+      "margin": 0.1,
+      "false_accepts": 5,
+      "false_refusals": 6
+    },
+    {
+      "margin": 0.11,
+      "false_accepts": 5,
+      "false_refusals": 7
+    },
+    {
+      "margin": 0.12,
+      "false_accepts": 5,
+      "false_refusals": 8
+    },
+    {
+      "margin": 0.13,
+      "false_accepts": 5,
+      "false_refusals": 8
+    },
+    {
+      "margin": 0.14,
+      "false_accepts": 5,
+      "false_refusals": 10
+    },
+    {
+      "margin": 0.15,
+      "false_accepts": 5,
+      "false_refusals": 10
+    },
+    {
+      "margin": 0.16,
+      "false_accepts": 5,
+      "false_refusals": 12
+    },
+    {
+      "margin": 0.17,
+      "false_accepts": 5,
+      "false_refusals": 12
+    },
+    {
+      "margin": 0.18,
+      "false_accepts": 5,
+      "false_refusals": 12
+    },
+    {
+      "margin": 0.19,
+      "false_accepts": 5,
+      "false_refusals": 12
+    },
+    {
+      "margin": 0.2,
+      "false_accepts": 5,
+      "false_refusals": 12
+    },
+    {
+      "margin": 0.21,
+      "false_accepts": 5,
+      "false_refusals": 12
+    },
+    {
+      "margin": 0.22,
+      "false_accepts": 5,
+      "false_refusals": 12
+    },
+    {
+      "margin": 0.23,
+      "false_accepts": 5,
+      "false_refusals": 12
+    },
+    {
+      "margin": 0.24,
+      "false_accepts": 5,
+      "false_refusals": 13
+    },
+    {
+      "margin": 0.25,
+      "false_accepts": 5,
+      "false_refusals": 13
+    },
+    {
+      "margin": 0.26,
+      "false_accepts": 5,
+      "false_refusals": 13
+    },
+    {
+      "margin": 0.27,
+      "false_accepts": 5,
+      "false_refusals": 13
+    },
+    {
+      "margin": 0.28,
+      "false_accepts": 5,
+      "false_refusals": 13
+    },
+    {
+      "margin": 0.29,
+      "false_accepts": 5,
+      "false_refusals": 13
+    },
+    {
+      "margin": 0.3,
+      "false_accepts": 5,
+      "false_refusals": 13
+    }
+  ]
+}

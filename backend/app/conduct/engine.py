@@ -24,11 +24,21 @@ from app.conduct.validation import (
     validate_answer,
 )
 from app.config import get_settings
+from app.embeddings.math import cosine
+from app.embeddings.repository import EmbeddingRepository
+from app.embeddings.service import digest
 from app.errors import ConflictError, ForbiddenError, NotFoundError
 from app.i18n import language_note, translate
 from app.llm import ledger
-from app.llm.client import LLMError, LLMProtocol, NoToolCallError, ToolTurn
-from app.llm.factory import get_llm
+from app.llm.client import (
+    EmbedderProtocol,
+    EmbeddingsNotConfiguredError,
+    LLMError,
+    LLMProtocol,
+    NoToolCallError,
+    ToolTurn,
+)
+from app.llm.factory import get_embedder, get_llm
 from app.prompts.service import PromptResolver, ResolvedPrompt
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
 from app.runs.models import REPLY_PREFIX, Answer, RunMessage, SurveyRun, add_llm_spend
@@ -83,12 +93,25 @@ _CLOSED_TYPES: Final[frozenset[str]] = frozenset(
 
 
 class ConductEngine:
-    def __init__(self, session: AsyncSession, llm: LLMProtocol | None = None) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        llm: LLMProtocol | None = None,
+        embedder: EmbedderProtocol | None = None,
+    ) -> None:
         self.session = session
         self._llm = llm
+        # Built on first use, and only when semantic grounding is switched on.
+        self._embedder = embedder
         self.repo = RunRepository(session)
         # Set at the start of every model-backed turn; see handle_message.
         self._prompt = ResolvedPrompt(PROMPT_VERSION, "")
+
+    @property
+    def embedder(self) -> EmbedderProtocol:
+        if self._embedder is None:
+            self._embedder = get_embedder()
+        return self._embedder
 
     @property
     def llm(self) -> LLMProtocol:
@@ -532,6 +555,9 @@ class ConductEngine:
         run = await self.load(run_id, respondent)
         # Explicitly, because spans carry the run id without a foreign key to cascade on.
         await SpanRepository(self.session).delete_for_run(run_id)
+        # And the vectors of everything they said: a vector still carries meaning.
+        vectors = EmbeddingRepository(self.session)
+        await vectors.delete_digests([digest(text) for text in await vectors.run_texts(run_id)])
         await self.repo.delete(run)
         await self.session.commit()
         logger.info("run erased at the respondent's request: run=%s", run_id)
@@ -629,6 +655,69 @@ class ConductEngine:
         return run, await self.questions(run)
 
     # ------------------------------------------------------------------- engine
+
+    async def _option_margins(
+        self, question: dict[str, Any], turn: ToolTurn, run: SurveyRun
+    ) -> tuple[dict[str, float], dict[str, float]]:
+        """Similarity of what was last said to each option, and each refused choice's margin.
+
+        Only when semantic grounding is switched on, only for options the question offers,
+        and only where the word check has already said no, so this can only turn a refusal
+        into an acceptance, never the other way. The question it answers is relative: is the
+        chosen option the closest of this question's options to what was said, and by how
+        much over the runner-up? One absolute similarity threshold was measured first and was
+        too fragile to gate anyone with.
+
+        A failed embeddings call returns nothing, which leaves the word check's refusal
+        standing: an outage must not record answers nobody gave. The call is a traced attempt
+        like any other, so what the second chance cost is on the span.
+        """
+        if not get_settings().grounding_semantic_enabled:
+            return {}, {}
+        if turn.tool_name == RECORD:
+            raw = turn.tool_input.get("value")
+        elif turn.tool_name == FOLLOW_UP:
+            raw = turn.tool_input.get("answer_so_far")
+        else:
+            return {}, {}
+        options: list[str] = question["options"]
+        if len(options) < 2:
+            return {}, {}
+        # The model sends an option as its text, or a list of them for a multi-select; the
+        # same case-insensitive match validate_answer uses decides which option it means.
+        canonical = {option.casefold(): option for option in options}
+        if isinstance(raw, str):
+            picked = [raw]
+        elif isinstance(raw, list):
+            picked = [item for item in raw if isinstance(item, str)]
+        else:
+            return {}, {}
+        chosen = [
+            canonical[p.strip().casefold()] for p in picked if p.strip().casefold() in canonical
+        ]
+        said = _respondent_said(run)
+        refused = [
+            option for option in chosen if said and ungrounded_choice(option, said) is not None
+        ]
+        if not refused:
+            return {}, {}
+        try:
+            vectors = await self.embedder.embed([said[-1], *options])
+        except (LLMError, EmbeddingsNotConfiguredError) as exc:
+            logger.warning(
+                "semantic grounding unavailable, the word check stands: run=%s %s", run.id, exc
+            )
+            return {}, {}
+        similarity = {
+            option: cosine(vectors[0], vector)
+            for option, vector in zip(options, vectors[1:], strict=True)
+        }
+        margins = {
+            option: similarity[option]
+            - max(s for other, s in similarity.items() if other != option)
+            for option in refused
+        }
+        return similarity, margins
 
     async def _turn_loop(self, run: SurveyRun, questions: list[dict[str, Any]]) -> str:
         setting = await self.setting(run)
@@ -756,9 +845,20 @@ class ConductEngine:
                 setting,
                 f"{exc} You must call exactly one of the offered tools.",
             )
+        similarity, margins = await self._option_margins(question, turn, run)
+        required = get_settings().grounding_similarity_margin
+        supported = frozenset(
+            option
+            for option, margin in margins.items()
+            if required is not None and margin >= required
+        )
         with ledger.span("validation", "check_action", tool=turn.tool_name) as check:
-            error = _rejection(question, state, tools, turn, _respondent_said(run))
+            error = _rejection(question, state, tools, turn, _respondent_said(run), supported)
             check.attrs["outcome"] = "accepted" if error is None else "refused"
+            if similarity:
+                check.attrs["similarity"] = {k: round(v, 4) for k, v in similarity.items()}
+                check.attrs["margin"] = {k: round(v, 4) for k, v in margins.items()}
+                check.attrs["semantic_support"] = sorted(supported)
             if error is not None:
                 check.attrs["reason"] = error
         if error is None:
@@ -1381,6 +1481,7 @@ def _rejection(
     tools: list[dict[str, Any]],
     turn: ToolTurn,
     said: list[str],
+    semantically_supported: frozenset[str] = frozenset(),
 ) -> str | None:
     """Second gate: re-check the chosen action in code, whatever was offered."""
     allowed = {t["name"] for t in tools}
@@ -1416,7 +1517,11 @@ def _rejection(
                 "question their reply already contains, or null if it contained none"
             )
         banked = turn.tool_input["answer_so_far"]
-        return None if banked is None else _unrecordable(question, state, banked, said)
+        return (
+            None
+            if banked is None
+            else _unrecordable(question, state, banked, said, semantically_supported)
+        )
 
     if turn.tool_name == REPLY:
         if not str(turn.tool_input.get("reply_text", "")).strip():
@@ -1426,7 +1531,9 @@ def _rejection(
     if turn.tool_name == RECORD:
         if "value" not in turn.tool_input:
             return "record_answer requires a value"
-        return _unrecordable(question, state, turn.tool_input["value"], said)
+        return _unrecordable(
+            question, state, turn.tool_input["value"], said, semantically_supported
+        )
 
     return None
 
@@ -1436,6 +1543,7 @@ def _unrecordable(
     state: dict[str, Any],
     raw: Any,
     said: list[str],
+    semantically_supported: frozenset[str] = frozenset(),
 ) -> str | None:
     """Why this value may not be recorded, or None if it may.
 
@@ -1482,9 +1590,15 @@ def _unrecordable(
     # A write-in is prose the respondent supposedly typed, so it is judged as prose.
     if isinstance(value.get("other"), str):
         return ungrounded_text(value["other"], said)
+    # An option the engine measured as close in meaning to what was said has already been
+    # grounded, by similarity rather than by words; see ConductEngine._option_margins.
     if isinstance(value.get("option"), str):
+        if value["option"] in semantically_supported:
+            return None
         return ungrounded_choice(value["option"], said)
     for chosen in value.get("options", []) or []:
+        if chosen in semantically_supported:
+            continue
         problem = ungrounded_choice(chosen, said)
         if problem is not None:
             return problem
