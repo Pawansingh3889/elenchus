@@ -5,6 +5,99 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-09-13. Every turn leaves a trace: what it asked, what each call cost, what was decided
+
+The ledger could say what a run cost, never why. A turn whose cost doubled looked the same
+as any other two-call turn, whether the second call was a planned move-on or a retry after
+the engine refused the model's first answer.
+
+- **New `llm_spans` table**, one row per span, linked by `parent_id` into a tree per
+  respondent message: a `turn` span, a `decision` span for every ask of the model, an
+  `attempt` span for every HTTP call to a tier (failed ones included), and a `validation`
+  span for the engine's check of each action.
+- **A retry nests under the ask it retries**, so its cost belongs to the refusal that
+  caused it. A decision records the tools offered, whether it was a retry, and what it
+  resolved to; its validation span records the tool the model actually picked, the
+  outcome, and the refusal reason.
+- **Attempt spans carry what the ledger row carries**: tier, model, status, error, the
+  four token counts, first-token time and cost, so a page can read a tree with its costs
+  without opening the file.
+- **Spans are written in their own transaction**, after the turn commits or, when the
+  turn fails, before the error leaves. A failed turn keeps the record of what it tried.
+- **`run_id` and `parent_id` are indexed, not foreign keys.** The turn still holds
+  `FOR UPDATE` on its run while spans are written, and a foreign key check would wait on
+  that lock forever. Withdrawing a run deletes its spans explicitly for the same reason.
+- **Collection lives in the ledger**, in context variables like its spend accumulator, so
+  the transport records attempts without knowing which decision they serve. The ledger
+  still owns no session: `tracing()` hands the spans back and the engine writes them
+  through `SpanRepository`.
+- Conduct turns only, for now. Summaries and drafting are measured in the ledger but not
+  yet traced, and `app/trace` joins the layering contract when its router arrives with the
+  lens pages.
+
+## 2026-09-13. Every tier streams, and the ledger records when the first token came
+
+A call's total latency hid where the time went. On a live `gpt-5.5` tool call the model
+produced nothing for 3,393 ms and then wrote the whole answer in 96 ms: nearly all of the
+wait was reading the prompt and reasoning, which no amount of shorter output would fix.
+
+- **Every request streams with `stream_options.include_usage`**, and every ledger row
+  carries `first_token_ms` beside `latency_ms`. The difference is time spent writing.
+- **The stream is assembled back into the unstreamed body before anything reads it**, so
+  tool-call validation, salvage from text, truncation and failover behave exactly as
+  before. Text fragments are joined, tool-call arguments are rebuilt from their pieces.
+- **A stream cut before its usage chunk still yields its turn**, and books the call as
+  unmetered rather than free: OpenAI's docs say an interrupted stream may never send the
+  counts.
+- **A tier that ignores `stream: true`** and answers in one piece is still understood; it
+  records no first-token time, since it has none to give.
+- **A mid-answer hang-up stays a cheap, retried failure**, since holding the connection
+  for the whole answer makes one more likely.
+- An event that is not a JSON object fails loudly and is booked, like a non-JSON body.
+
+## 2026-09-13. Cached and reasoning tokens are recorded, and cached input is priced
+
+A turn's two token totals could not explain its cost or its latency. `gpt-5.5` bills a
+cached prompt prefix at a tenth of the input rate, so a long prompt that was mostly cached
+cost far less than its total says; and a short answer can take seconds because the model
+spent them reasoning.
+
+- **Every ledger row now carries `cached_tokens` and `reasoning_tokens`**, read from
+  `prompt_tokens_details` and `completion_tokens_details`, the shapes OpenAI and
+  OpenRouter send. A provider that reports neither records unknown, not zero.
+- **Cached input is priced at `LLM_TIER<n>_PRICE_CACHED_IN_PER_MTOK`** where it is set.
+  Unset, cached tokens pay the full input rate, which overstates a call rather than
+  inventing a discount. A cached count larger than its own prompt is not trusted.
+- **Reasoning tokens are shown, not charged twice.** They are already inside the output
+  count the provider bills.
+- The new setting is forwarded by all three compose files, with no default.
+
+## 2026-09-13. An enabled hosted tier states its price, or the app does not start
+
+No deployment had ever set a tier price, so 1,808 of the ledger's 1,841 calls were booked
+as free: about 5.6 million tokens, roughly $18 at the providers' listed rates on this
+date, $17.91 of it on `gpt-5.5`. Zero was both the price of a free model and the default
+for a price nobody set, and the only signal was one warning per process.
+
+- **Price settings have no default.** An enabled tier that is not local must state both
+  its input and output price, or settings refuse to load and name the variables. `0` is
+  still a price, so a free model loads.
+- **The compose files stop defaulting prices to `0`.** A price nobody set now reaches the
+  container empty, which settings read as unstated. Before, `:-0` answered the question
+  for the operator and the refusal could never fire. `test_compose_settings.py` checks all
+  three files and proves the check rejects a planted `:-0`.
+- **The once-per-process "no price configured" warning is removed**, because the refusal
+  replaces it. A call booked against an unpriced tier anyway records its cost as unknown,
+  never zero, and counts as unmetered.
+- **`.env.example` lists this date's listed prices** for the three tiers the chain
+  describes, in place of a tier 1 example that still carried `gpt-4o-mini`'s rates.
+- **Existing rows are left as they were recorded.** The ledger prices at call time by
+  design, so history is not restated; the lens pages will mark those rows as unpriced and
+  show an estimate beside them.
+
+A deployment with an enabled tier and no prices (the local `.env` here, and
+`docker-compose.prod.yml`, whose tier 1 defaults to enabled) will not start until the
+prices are set.
 
 ## 2026-09-13. The browser becomes the respondent path
 

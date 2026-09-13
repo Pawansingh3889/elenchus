@@ -10,7 +10,7 @@ from typing import Any
 import httpx
 import pytest
 
-from app.llm.client import LLMError, NoToolCallError, ToolTurn
+from app.llm.client import LLMError, NoToolCallError, ToolTurn, TruncatedTurnError
 from app.llm.failover import FailoverLLM
 from app.llm.openai_compatible import OpenAICompatibleLLMClient
 
@@ -686,3 +686,178 @@ async def test_a_chatty_tier_still_cascades_on_the_one_shot_path():
 
     assert await failover.tool_call(**_ARGS) == {"from": "t2"}
     assert tier1.tool_call_calls == 1
+
+
+# ------------------------------------------------------------------------- streaming
+
+
+def _sse(*events: dict[str, Any] | str) -> httpx.Response:
+    """A server-sent event stream, the way a streaming tier sends one."""
+    body = "".join(f"data: {e if isinstance(e, str) else json.dumps(e)}\n\n" for e in events)
+    return httpx.Response(200, headers={"content-type": "text/event-stream"}, content=body.encode())
+
+
+def _tool_delta(name: str | None = None, arguments: str | None = None) -> dict[str, Any]:
+    function: dict[str, Any] = {}
+    if name is not None:
+        function["name"] = name
+    if arguments is not None:
+        function["arguments"] = arguments
+    return {
+        "choices": [{"index": 0, "delta": {"tool_calls": [{"index": 0, "function": function}]}}]
+    }
+
+
+_FINISH: dict[str, Any] = {"choices": [{"index": 0, "delta": {}, "finish_reason": "tool_calls"}]}
+# The final chunk gpt-5.5 sent a live probe on 13 Sep 2026, trimmed: no choices, only usage.
+_USAGE: dict[str, Any] = {
+    "choices": [],
+    "usage": {
+        "prompt_tokens": 166,
+        "completion_tokens": 17,
+        "prompt_tokens_details": {"cached_tokens": 0},
+        "completion_tokens_details": {"reasoning_tokens": 0},
+    },
+}
+
+
+def _booked(path) -> list[dict[str, Any]]:
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+
+
+async def test_every_call_asks_to_stream_with_usage():
+    seen: dict[str, Any] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["body"] = json.loads(request.content)
+        return _tool_response("move_on", {"question_id": "q"})
+
+    await _client(handler).tool_turn(system="s", messages=[], tools=[])
+    assert seen["body"]["stream"] is True
+    assert seen["body"]["stream_options"] == {"include_usage": True}
+
+
+async def test_a_streamed_tool_call_is_reassembled_from_its_fragments():
+    """The shape gpt-5.5 streamed on 13 Sep 2026: the name once, then the arguments in
+    pieces, then a finish chunk and a usage chunk with no choices."""
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return _sse(
+            _tool_delta(name="record_answer", arguments=""),
+            _tool_delta(arguments='{"val'),
+            _tool_delta(arguments='ue": "Line'),
+            _tool_delta(arguments=' lead"}'),
+            _FINISH,
+            _USAGE,
+            "[DONE]",
+        )
+
+    turn = await _client(handler).tool_turn(system="s", messages=[], tools=[])
+    assert turn == ToolTurn(text="", tool_name="record_answer", tool_input={"value": "Line lead"})
+
+
+async def test_streamed_text_is_joined_and_kept_beside_the_tool_call():
+    def handler(_: httpx.Request) -> httpx.Response:
+        return _sse(
+            {"choices": [{"index": 0, "delta": {"content": "Thanks"}}]},
+            {"choices": [{"index": 0, "delta": {"content": " for that."}}]},
+            _tool_delta(name="move_on", arguments='{"question_id": "q"}'),
+            _FINISH,
+            "[DONE]",
+        )
+
+    turn = await _client(handler).tool_turn(system="s", messages=[], tools=[])
+    assert turn.text == "Thanks for that."
+    assert turn.tool_name == "move_on"
+
+
+async def test_a_tool_call_streamed_as_text_is_still_salvaged():
+    def handler(_: httpx.Request) -> httpx.Response:
+        call = '{"name": "move_on", "arguments": {"question_id": "q"}}'
+        return _sse({"choices": [{"index": 0, "delta": {"content": call}}]}, "[DONE]")
+
+    turn = await _client(handler).tool_turn(system="s", messages=[], tools=[])
+    assert turn.tool_name == "move_on"
+
+
+async def test_a_stream_that_runs_out_of_tokens_is_a_truncated_turn():
+    def handler(_: httpx.Request) -> httpx.Response:
+        return _sse(
+            {"choices": [{"index": 0, "delta": {"content": "I think"}, "finish_reason": "length"}]},
+            "[DONE]",
+        )
+
+    with pytest.raises(TruncatedTurnError):
+        await _client(handler).tool_turn(system="s", messages=[], tools=[])
+
+
+async def test_a_non_json_event_fails_loudly_and_is_booked(ledger_file):
+    def handler(_: httpx.Request) -> httpx.Response:
+        return _sse("not json at all")
+
+    with pytest.raises(LLMError, match="non-JSON event"):
+        await _client(handler).tool_turn(system="s", messages=[], tools=[])
+    (row,) = _booked(ledger_file)
+    assert row["error"] == "non-JSON event"
+
+
+async def test_a_streamed_call_books_its_usage_and_first_token_time(ledger_file):
+    def handler(_: httpx.Request) -> httpx.Response:
+        return _sse(_tool_delta(name="move_on", arguments='{"question_id": "q"}'), _FINISH, _USAGE)
+
+    await _client(handler).tool_turn(system="s", messages=[], tools=[])
+    (row,) = _booked(ledger_file)
+    assert (row["prompt_tokens"], row["completion_tokens"]) == (166, 17)
+    assert isinstance(row["first_token_ms"], int)
+    assert 0 <= row["first_token_ms"] <= row["latency_ms"]
+
+
+async def test_a_stream_cut_before_its_usage_chunk_is_booked_as_unmetered(ledger_file):
+    """Usage comes on the last chunk only, and OpenAI's own docs warn an interrupted
+    stream may never send it. The turn still stands; its tokens are unknown, not zero."""
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return _sse(_tool_delta(name="move_on", arguments='{"question_id": "q"}'), _FINISH)
+
+    turn = await _client(handler).tool_turn(system="s", messages=[], tools=[])
+    assert turn.tool_name == "move_on"
+    (row,) = _booked(ledger_file)
+    assert row["prompt_tokens"] is None
+    assert row["first_token_ms"] is not None
+
+
+async def test_a_tier_that_ignores_stream_is_still_understood(ledger_file):
+    """Some OpenAI-compatible servers answer in one piece whatever was asked. That is a
+    valid answer with no first-token time to give."""
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return _tool_response("move_on", {"question_id": "q"})
+
+    turn = await _client(handler).tool_turn(system="s", messages=[], tools=[])
+    assert turn.tool_name == "move_on"
+    (row,) = _booked(ledger_file)
+    assert row["first_token_ms"] is None
+
+
+async def test_a_stream_that_drops_mid_answer_is_retried():
+    """Holding the connection for the whole answer makes a mid-response hang-up more
+    likely than it was, so it has to stay in the cheap-to-retry class."""
+    attempts = {"n": 0}
+
+    async def dropped():
+        yield b"data: " + json.dumps(_tool_delta(name="move_on")).encode() + b"\n\n"
+        raise httpx.RemoteProtocolError("peer closed connection without sending complete body")
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        attempts["n"] += 1
+        if attempts["n"] == 1:
+            return httpx.Response(
+                200, headers={"content-type": "text/event-stream"}, content=dropped()
+            )
+        return _sse(
+            _tool_delta(name="move_on", arguments='{"question_id": "q"}'), _FINISH, "[DONE]"
+        )
+
+    turn = await _client(handler).tool_turn(system="s", messages=[], tools=[])
+    assert turn.tool_name == "move_on"
+    assert attempts["n"] == 2

@@ -17,14 +17,15 @@ own the HTTP calls, and by the conduct engine, which reads the rollup back.
 import inspect
 import json
 import logging
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
-from dataclasses import dataclass
-from datetime import UTC, datetime
+from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from app.config import get_settings
 
@@ -71,6 +72,41 @@ _PROMPT: ContextVar[str | None] = ContextVar("llm_prompt", default=None)
 _SOURCE_FILE: ContextVar[str | None] = ContextVar("llm_source_file", default=None)
 _SOURCE_LINE: ContextVar[int | None] = ContextVar("llm_source_line", default=None)
 
+SPAN_KINDS = frozenset({"turn", "decision", "attempt", "validation"})
+
+
+@dataclass
+class TraceSpan:
+    """One node of a trace, collected in memory and handed back to whoever opened it.
+
+    The ledger owns no session, so it cannot store these. ``tracing`` returns the list and
+    the caller writes it through a repository, in the same way ``measuring`` returns a
+    ``Spend`` for the caller to fold into its run.
+    """
+
+    kind: str
+    name: str
+    parent_id: UUID | None
+    started_at: datetime
+    id: UUID = field(default_factory=uuid4)
+    duration_ms: int = 0
+    error: str | None = None
+    prompt_version: str | None = None
+    tier: int | None = None
+    model: str | None = None
+    status: int | None = None
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    cached_tokens: int | None = None
+    reasoning_tokens: int | None = None
+    first_token_ms: int | None = None
+    cost_usd: float | None = None
+    attrs: dict[str, Any] = field(default_factory=dict)
+
+
+_TRACE: ContextVar[list[TraceSpan] | None] = ContextVar("llm_trace", default=None)
+_OPEN_SPAN: ContextVar[TraceSpan | None] = ContextVar("llm_open_span", default=None)
+
 
 @contextmanager
 def measuring(run_id: UUID | None = None) -> Iterator[Spend]:
@@ -92,6 +128,58 @@ def measuring(run_id: UUID | None = None) -> Iterator[Spend]:
     finally:
         _SPEND.reset(spend_token)
         _RUN_ID.reset(run_token)
+
+
+@contextmanager
+def tracing() -> Iterator[list[TraceSpan]]:
+    """Collect every span opened, and every call attempted, inside this block.
+
+    A context variable for the reason ``measuring`` is one: the transport records an
+    attempt without being told which turn or decision it serves, and the engine opens
+    those without the transport knowing. Nesting starts a fresh tree.
+    """
+    spans: list[TraceSpan] = []
+    trace_token = _TRACE.set(spans)
+    open_token = _OPEN_SPAN.set(None)
+    try:
+        yield spans
+    finally:
+        _OPEN_SPAN.reset(open_token)
+        _TRACE.reset(trace_token)
+
+
+@contextmanager
+def span(kind: str, name: str, **attrs: Any) -> Iterator[TraceSpan]:
+    """Open a span under whichever one is open, for as long as the block runs.
+
+    Outside ``tracing`` the span is built and dropped, so instrumented code needs no
+    branch for the untraced case. An exception leaving the block is written on the span
+    and re-raised: a failed decision is exactly the node worth reading.
+    """
+    if kind not in SPAN_KINDS:
+        raise ValueError(f"unknown span kind {kind!r}; expected one of {sorted(SPAN_KINDS)}")
+    parent = _OPEN_SPAN.get()
+    node = TraceSpan(
+        kind=kind,
+        name=name,
+        parent_id=parent.id if parent is not None else None,
+        started_at=datetime.now(UTC),
+        prompt_version=_PROMPT.get(),
+        attrs=dict(attrs),
+    )
+    spans = _TRACE.get()
+    if spans is not None:
+        spans.append(node)
+    started = time.monotonic()
+    token = _OPEN_SPAN.set(node)
+    try:
+        yield node
+    except Exception as exc:
+        node.error = f"{type(exc).__name__}: {exc}"[:500]
+        raise
+    finally:
+        node.duration_ms = int((time.monotonic() - started) * 1000)
+        _OPEN_SPAN.reset(token)
 
 
 @contextmanager
@@ -170,8 +258,11 @@ class TierEconomics:
 
     params_b: float
     local: bool
-    price_in_per_mtok: float
-    price_out_per_mtok: float
+    # None when unstated, which settings only allow on a local or disabled tier.
+    price_in_per_mtok: float | None
+    price_out_per_mtok: float | None
+    # Optional: None prices cached input at the full input rate.
+    price_cached_in_per_mtok: float | None = None
 
 
 def economics_for(tier: int) -> TierEconomics | None:
@@ -190,6 +281,7 @@ def economics_for(tier: int) -> TierEconomics | None:
         local=getattr(settings, f"{prefix}_local"),
         price_in_per_mtok=getattr(settings, f"{prefix}_price_in_per_mtok"),
         price_out_per_mtok=getattr(settings, f"{prefix}_price_out_per_mtok"),
+        price_cached_in_per_mtok=getattr(settings, f"{prefix}_price_cached_in_per_mtok"),
     )
 
 
@@ -198,6 +290,7 @@ def cost_usd(
     prompt_tokens: int | None,
     completion_tokens: int | None,
     latency_ms: int,
+    cached_tokens: int | None = None,
 ) -> float | None:
     """What one call cost: metered per token on a hosted tier, per second on your own.
 
@@ -209,8 +302,8 @@ def cost_usd(
     the same rate, which is why the draw is one number in settings rather than a
     calculation spread through here.
 
-    None means genuinely unknown: an unconfigured tier, or a hosted provider that
-    returned no usage block. Unknown is recorded as unknown rather than as zero, because
+    None means genuinely unknown: an unconfigured or unpriced tier, or a hosted provider
+    that returned no usage block. Unknown is recorded as unknown rather than as zero, because
     a zero would sum into the rollup and understate what the run cost.
     """
     if economics is None:
@@ -220,44 +313,27 @@ def cost_usd(
         hours = latency_ms / 1000.0 / SECONDS_PER_HOUR
         kilowatts = settings.hardware_watts / WATTS_PER_KILOWATT
         return round(hours * kilowatts * settings.electricity_price_per_kwh, COST_PLACES)
+    if economics.price_in_per_mtok is None or economics.price_out_per_mtok is None:
+        return None
     if prompt_tokens is None or completion_tokens is None:
         return None
+    # Cached input is part of prompt_tokens, not added to it, and is billed at its own
+    # rate where the tier has one. A count the provider did not send, or one larger than
+    # the prompt it belongs to, is not trusted: those tokens pay the full input rate,
+    # which overstates the call rather than inventing a discount.
+    cached = (
+        cached_tokens if cached_tokens is not None and 0 <= cached_tokens <= prompt_tokens else 0
+    )
+    cached_rate = (
+        economics.price_in_per_mtok
+        if economics.price_cached_in_per_mtok is None
+        else economics.price_cached_in_per_mtok
+    )
     return round(
-        prompt_tokens / TOKENS_PER_MILLION * economics.price_in_per_mtok
+        (prompt_tokens - cached) / TOKENS_PER_MILLION * economics.price_in_per_mtok
+        + cached / TOKENS_PER_MILLION * cached_rate
         + completion_tokens / TOKENS_PER_MILLION * economics.price_out_per_mtok,
         COST_PLACES,
-    )
-
-
-_UNPRICED_WARNED: set[int] = set()
-
-
-def _warn_once_if_unpriced(tier: int, economics: TierEconomics | None) -> None:
-    """Say so when a hosted tier is charging into a ledger that prices it at nothing.
-
-    Zero is a legitimate price: OpenRouter's free models really are free. It is also what
-    an unconfigured tier looks like, and the two are indistinguishable from here, so the
-    ledger records 0.0 either way. The failure mode is silent and slow: months of calls
-    accumulate reading as costless, and the number is only questioned when someone tries
-    to compare a hosted tier against a local one and finds the hosted one free.
-
-    Once per tier per process, so it is a startup-shaped notice rather than a line per
-    call, and it names the tier so the operator knows which LLM_TIER<n> to price.
-    """
-    if economics is None or economics.local:
-        return
-    if economics.price_in_per_mtok or economics.price_out_per_mtok:
-        return
-    if tier in _UNPRICED_WARNED:
-        return
-    _UNPRICED_WARNED.add(tier)
-    logger.warning(
-        "LLM tier %d is hosted but has no price configured, so its calls record as "
-        "costing 0. Set LLM_TIER%d_PRICE_IN_PER_MTOK and LLM_TIER%d_PRICE_OUT_PER_MTOK, "
-        "or ignore this if the tier is genuinely free.",
-        tier,
-        tier,
-        tier,
     )
 
 
@@ -270,6 +346,7 @@ def record(
     latency_ms: int,
     status: int,
     error: str | None = None,
+    first_token_ms: int | None = None,
 ) -> None:
     """Append one call attempt to the ledger, and add it to the enclosing run's spend.
 
@@ -279,10 +356,11 @@ def record(
     invisible in the very file that exists to explain the spend.
     """
     economics = economics_for(tier)
-    _warn_once_if_unpriced(tier, economics)
     prompt_tokens = _token_count(usage, "prompt_tokens")
     completion_tokens = _token_count(usage, "completion_tokens")
-    cost = cost_usd(economics, prompt_tokens, completion_tokens, latency_ms)
+    cached_tokens = _detail_count(usage, "prompt_tokens_details", "cached_tokens")
+    reasoning_tokens = _detail_count(usage, "completion_tokens_details", "reasoning_tokens")
+    cost = cost_usd(economics, prompt_tokens, completion_tokens, latency_ms, cached_tokens)
 
     _append(
         {
@@ -302,7 +380,19 @@ def record(
             "local": economics.local if economics else None,
             "prompt_tokens": prompt_tokens,
             "completion_tokens": completion_tokens,
+            # Both inside the counts above rather than beside them: cached tokens are part
+            # of the prompt, billed cheaper, and reasoning tokens are part of the
+            # completion, billed the same. Recorded because they explain a cost and a
+            # latency the two totals cannot: a long prompt that was mostly cached, or a
+            # short answer that took seconds of thinking.
+            "cached_tokens": cached_tokens,
+            "reasoning_tokens": reasoning_tokens,
             "latency_ms": latency_ms,
+            # How long before the model produced anything, of the latency above. None when
+            # the tier answered in one piece or nothing arrived, which is unknown, not 0.
+            # The gap between the two is the time spent writing; the rest was reading the
+            # prompt and, on a reasoning model, thinking.
+            "first_token_ms": first_token_ms,
             "status": status,
             "error": error,
             "cost_usd": cost,
@@ -311,6 +401,31 @@ def record(
             "source_line": _SOURCE_LINE.get(),
         }
     )
+
+    spans = _TRACE.get()
+    if spans is not None:
+        parent = _OPEN_SPAN.get()
+        # An attempt is recorded when it ends, so its start is its end less its latency.
+        spans.append(
+            TraceSpan(
+                kind="attempt",
+                name=op,
+                parent_id=parent.id if parent is not None else None,
+                started_at=datetime.now(UTC) - timedelta(milliseconds=latency_ms),
+                duration_ms=latency_ms,
+                error=error,
+                prompt_version=_PROMPT.get(),
+                tier=tier,
+                model=model,
+                status=status,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                cached_tokens=cached_tokens,
+                reasoning_tokens=reasoning_tokens,
+                first_token_ms=first_token_ms,
+                cost_usd=cost,
+            )
+        )
 
     spend = _SPEND.get()
     if spend is None:
@@ -348,6 +463,22 @@ def _token_count(usage: Any, key: str) -> int | None:
     if not isinstance(usage, dict):
         return None
     value = usage.get(key)
+    return value if isinstance(value, int) else None
+
+
+def _detail_count(usage: Any, block: str, key: str) -> int | None:
+    """A count from one of the usage block's nested details, or None when absent.
+
+    ``prompt_tokens_details.cached_tokens`` and ``completion_tokens_details.
+    reasoning_tokens`` are the shapes OpenAI and OpenRouter send. Tolerant for the same
+    reason ``_token_count`` is: this is metadata, recorded and never acted on.
+    """
+    if not isinstance(usage, dict):
+        return None
+    details = usage.get(block)
+    if not isinstance(details, dict):
+        return None
+    value = details.get(key)
     return value if isinstance(value, int) else None
 
 

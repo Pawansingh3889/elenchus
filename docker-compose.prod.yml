@@ -116,28 +116,30 @@ services:
       LLM_TIER4_MAX_COMPLETION_TOKENS: ${LLM_TIER4_MAX_COMPLETION_TOKENS:-1024}
       # What each tier costs, for the spend ledger. Forwarded for the same reason the
       # connection settings above are: compose reads .env only to interpolate ${...}
-      # here, so a variable not named on this list never reaches the container. Left
-      # off, prices fall back to the code defaults of zero, and a deployment billing
-      # real money to a real provider records every call as free. That is the failure
-      # the ledger exists to prevent, and it cannot be corrected afterwards, since
-      # prices are applied at call time rather than recomputed from the file.
+      # here, so a variable not named on this list never reaches the container.
       #
-      # The prices stay 0 by default rather than carrying a figure for the default
-      # tier-1 model: a rate hard-coded here goes stale silently, whereas an unpriced
-      # hosted tier logs "no price configured" on the first call and counts every one of
-      # them in llm_unmetered_calls, so the gap is visible in the rollup.
+      # Prices have no default here and none in code. One that nobody set arrives
+      # empty, and settings refuse to start an enabled hosted tier without both, so
+      # this deployment will not boot until LLM_TIER1_PRICE_IN_PER_MTOK and
+      # LLM_TIER1_PRICE_OUT_PER_MTOK are set (0 for a free model). They used to default
+      # to 0, with a warning on the first call, and every hosted call went into the
+      # ledger as free: a warning in a log is not a number anyone reads, and prices are
+      # applied at call time, so the gap cannot be corrected afterwards.
       LLM_TIER1_PARAMS_B: ${LLM_TIER1_PARAMS_B:-0}
       LLM_TIER1_LOCAL: ${LLM_TIER1_LOCAL:-false}
-      LLM_TIER1_PRICE_IN_PER_MTOK: ${LLM_TIER1_PRICE_IN_PER_MTOK:-0}
-      LLM_TIER1_PRICE_OUT_PER_MTOK: ${LLM_TIER1_PRICE_OUT_PER_MTOK:-0}
+      LLM_TIER1_PRICE_IN_PER_MTOK: ${LLM_TIER1_PRICE_IN_PER_MTOK:-}
+      LLM_TIER1_PRICE_OUT_PER_MTOK: ${LLM_TIER1_PRICE_OUT_PER_MTOK:-}
+      LLM_TIER1_PRICE_CACHED_IN_PER_MTOK: ${LLM_TIER1_PRICE_CACHED_IN_PER_MTOK:-}
       LLM_TIER2_PARAMS_B: ${LLM_TIER2_PARAMS_B:-0}
       LLM_TIER2_LOCAL: ${LLM_TIER2_LOCAL:-false}
-      LLM_TIER2_PRICE_IN_PER_MTOK: ${LLM_TIER2_PRICE_IN_PER_MTOK:-0}
-      LLM_TIER2_PRICE_OUT_PER_MTOK: ${LLM_TIER2_PRICE_OUT_PER_MTOK:-0}
+      LLM_TIER2_PRICE_IN_PER_MTOK: ${LLM_TIER2_PRICE_IN_PER_MTOK:-}
+      LLM_TIER2_PRICE_OUT_PER_MTOK: ${LLM_TIER2_PRICE_OUT_PER_MTOK:-}
+      LLM_TIER2_PRICE_CACHED_IN_PER_MTOK: ${LLM_TIER2_PRICE_CACHED_IN_PER_MTOK:-}
       LLM_TIER3_PARAMS_B: ${LLM_TIER3_PARAMS_B:-0}
       LLM_TIER3_LOCAL: ${LLM_TIER3_LOCAL:-false}
-      LLM_TIER3_PRICE_IN_PER_MTOK: ${LLM_TIER3_PRICE_IN_PER_MTOK:-0}
-      LLM_TIER3_PRICE_OUT_PER_MTOK: ${LLM_TIER3_PRICE_OUT_PER_MTOK:-0}
+      LLM_TIER3_PRICE_IN_PER_MTOK: ${LLM_TIER3_PRICE_IN_PER_MTOK:-}
+      LLM_TIER3_PRICE_OUT_PER_MTOK: ${LLM_TIER3_PRICE_OUT_PER_MTOK:-}
+      LLM_TIER3_PRICE_CACHED_IN_PER_MTOK: ${LLM_TIER3_PRICE_CACHED_IN_PER_MTOK:-}
       # Tier 4 defaults to a hosted pricing shape because the slot is empty. If you fill
       # it with a locally served model, set LLM_TIER4_LOCAL=true and a real PARAMS_B:
       # a local tier bills no tokens but costs the machine for as long as it runs, so it
@@ -145,8 +147,9 @@ services:
       # that is certainly wrong.
       LLM_TIER4_PARAMS_B: ${LLM_TIER4_PARAMS_B:-0}
       LLM_TIER4_LOCAL: ${LLM_TIER4_LOCAL:-false}
-      LLM_TIER4_PRICE_IN_PER_MTOK: ${LLM_TIER4_PRICE_IN_PER_MTOK:-0}
-      LLM_TIER4_PRICE_OUT_PER_MTOK: ${LLM_TIER4_PRICE_OUT_PER_MTOK:-0}
+      LLM_TIER4_PRICE_IN_PER_MTOK: ${LLM_TIER4_PRICE_IN_PER_MTOK:-}
+      LLM_TIER4_PRICE_OUT_PER_MTOK: ${LLM_TIER4_PRICE_OUT_PER_MTOK:-}
+      LLM_TIER4_PRICE_CACHED_IN_PER_MTOK: ${LLM_TIER4_PRICE_CACHED_IN_PER_MTOK:-}
       HARDWARE_WATTS: ${HARDWARE_WATTS:-200}
       ELECTRICITY_PRICE_PER_KWH: ${ELECTRICITY_PRICE_PER_KWH:-0.32}
       LLM_LEDGER_PATH: ${LLM_LEDGER_PATH:-var/llm_ledger.jsonl}

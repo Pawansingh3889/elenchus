@@ -37,7 +37,8 @@ A standalone, embeddable survey service, in two halves:
 ## Data model
 
 See SPEC.md §3. Tables: `users`, `survey_templates`, `survey_questions`,
-`survey_runs`, `answers`, `run_messages`.
+`survey_runs`, `answers`, `run_messages`, and `llm_spans` (the trace of every turn, see
+`app/trace/models.py`).
 Alembic migrations from the first table; no `create_all` in application code.
 
 ## Conventions
