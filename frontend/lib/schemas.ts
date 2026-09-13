@@ -457,3 +457,84 @@ export const promptBodySchema = z.object({
   body: z.string(),
 });
 export type PromptBody = z.infer<typeof promptBodySchema>;
+
+/* The evaluation lens: people's labels on recorded answers, and a judge scored against
+ * them. A label is the truth here; the judge's verdict is an opinion shown beside it. */
+
+export const labelVerdictSchema = z.enum(["supported", "invented", "unsure"]);
+export type LabelVerdict = z.infer<typeof labelVerdictSchema>;
+
+export const evalItemSchema = z.object({
+  /** "corpus:<fixture>:<index>" or "answer:<uuid>". */
+  key: z.string(),
+  source: z.enum(["corpus", "runs"]),
+  origin: z.string(),
+  run_id: z.string().nullable(),
+  model: z.string().nullable(),
+  when: z.string().nullable(),
+  question_text: z.string(),
+  answer_type: z.string(),
+  options: z.array(z.string()),
+  kind: z.string(),
+  value: z.record(z.string(), z.unknown()),
+  said: z.array(z.string()),
+  judge_supported: z.boolean().nullable(),
+  judge_why: z.string().nullable(),
+  judge_prompt: z.string().nullable(),
+  marked_invented: z.boolean(),
+  label: labelVerdictSchema.nullable(),
+  note: z.string().nullable(),
+  labelled_at: z.string().nullable(),
+});
+export type EvalItem = z.infer<typeof evalItemSchema>;
+
+export const rateSchema = z.object({
+  numerator: count,
+  denominator: count,
+  value: z.number().nonnegative().nullable(),
+  low: z.number().nonnegative().nullable(),
+  high: z.number().nonnegative().nullable(),
+  /** Below the minimum labelled: shown for reference, never read as a finding. */
+  too_few: z.boolean(),
+});
+export type Rate = z.infer<typeof rateSchema>;
+
+export const faithfulnessSliceSchema = z.object({
+  name: z.string(),
+  items: count,
+  labelled: count,
+  supported: count,
+  invented: count,
+  unsure: count,
+  invention_rate: rateSchema,
+  judged_and_labelled: count,
+  judge_precision: rateSchema,
+  judge_recall: rateSchema,
+  judge_false_alarms: rateSchema,
+});
+export type FaithfulnessSlice = z.infer<typeof faithfulnessSliceSchema>;
+
+export const faithfulnessReportSchema = z.object({
+  min_labelled: count,
+  overall: faithfulnessSliceSchema,
+  by_source: z.array(faithfulnessSliceSchema),
+  by_answer_type: z.array(faithfulnessSliceSchema),
+  by_model: z.array(faithfulnessSliceSchema),
+});
+export type FaithfulnessReport = z.infer<typeof faithfulnessReportSchema>;
+
+export const judgeRunSchema = z.object({
+  id: z.string(),
+  run_id: z.string(),
+  prompt_version: z.string(),
+  model: z.string().nullable(),
+  tier: z.number().int().nullable(),
+  answers: count,
+  flagged: count,
+  cost_usd: z.number().nonnegative(),
+  /** Calls that reported no usage: the cost is then a floor. */
+  unmetered_calls: count,
+  duration_ms: count,
+  judged_at: z.string(),
+});
+export type JudgeRun = z.infer<typeof judgeRunSchema>;

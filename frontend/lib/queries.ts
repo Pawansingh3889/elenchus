@@ -340,6 +340,52 @@ export function useAttribute() {
   });
 }
 
+/* The evaluation reads. Labelling changes every rate on the page, so a label refreshes the
+ * whole evaluation lens rather than patching one row. */
+
+export function useEvalItems(source: "corpus" | "runs", unlabelled: boolean, enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["lens", "evaluation", "items", source, unlabelled, userId],
+    queryFn: () => api.lensEvalItems(source, unlabelled),
+    enabled,
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useFaithfulness(enabled: boolean) {
+  const userId = useUserStore((s) => s.currentUserId);
+  return useQuery({
+    queryKey: ["lens", "evaluation", "faithfulness", userId],
+    queryFn: api.lensEvalFaithfulness,
+    enabled,
+  });
+}
+
+export function useLabel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      key,
+      verdict,
+      note,
+    }: {
+      key: string;
+      verdict: "supported" | "invented" | "unsure";
+      note: string | null;
+    }) => api.lensEvalLabel(key, verdict, note),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["lens", "evaluation"] }),
+  });
+}
+
+export function useJudgeRun() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (runId: string) => api.lensEvalJudgeRun(runId),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["lens", "evaluation"] }),
+  });
+}
+
 export function usePromptFamily(enabled: boolean) {
   const userId = useUserStore((s) => s.currentUserId);
   return useQuery({ queryKey: ["prompts", "conduct", userId], queryFn: api.promptFamily, enabled });
