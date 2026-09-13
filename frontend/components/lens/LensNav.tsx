@@ -20,6 +20,7 @@ const FACTORS = [
   { href: "/lens/hidden-layers", label: "Hidden layers", filtered: true },
   { href: "/lens/attention", label: "Attention", filtered: true },
   { href: "/lens/tokens", label: "Token relationships", filtered: true },
+  { href: "/lens/evaluation", label: "Evaluation", filtered: false },
   { href: "/lens/compare", label: "Compare runs", filtered: false },
   { href: "/lens/prompts", label: "Prompts", filtered: false },
 ] as const;

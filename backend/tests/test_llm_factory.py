@@ -164,3 +164,18 @@ def test_configured_embeddings_build_a_priced_client(monkeypatch):
     )
     embedder = factory.get_embedder()
     assert embedder.model == "text-embedding-3-small"
+
+
+def test_a_pinned_tier_is_that_tier_alone_and_one_that_is_off_is_refused(monkeypatch) -> None:
+    """An evaluation pinned to a model must fail when that model does, never fall through."""
+    monkeypatch.setattr(factory, "_merged_settings", lambda: _settings(**_OPENAI, **_GROQ))
+
+    client = factory.get_llm_for_tier(2)
+
+    assert isinstance(client, OpenAICompatibleLLMClient)
+    assert client.model == "llama-3.3-70b-versatile"
+    assert factory.enabled_tiers() == [(1, "gpt-test"), (2, "llama-3.3-70b-versatile")]
+    with pytest.raises(LLMError, match="Tier 3 is not enabled"):
+        factory.get_llm_for_tier(3)
+    with pytest.raises(LLMError, match="There is no tier 5"):
+        factory.get_llm_for_tier(5)

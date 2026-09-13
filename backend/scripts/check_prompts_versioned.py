@@ -36,6 +36,7 @@ PROMPT_CONSTANTS = (
     "VERIFY_PROMPT_VERSION",
     "GENERATE_PROMPT_VERSION",
     "REFINE_PROMPT_VERSION",
+    "JUDGE_PROMPT_VERSION",
 )
 
 # The loader itself. A literal argument names a prompt just as surely as a constant

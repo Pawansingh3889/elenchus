@@ -76,6 +76,32 @@ def get_llm() -> LLMProtocol:
     return FailoverLLM(*chain)
 
 
+def enabled_tiers() -> list[tuple[int, str]]:
+    """Every enabled tier and the model it serves, in chain order."""
+    settings = _merged_settings()
+    return [
+        (tier, str(getattr(settings, f"{prefix}_model")))
+        for tier, prefix in enumerate(TIER_PREFIXES, start=1)
+        if getattr(settings, f"{prefix}_enabled")
+    ]
+
+
+def get_llm_for_tier(tier: int) -> OpenAICompatibleLLMClient:
+    """One tier's client alone, with no failover behind it.
+
+    For evaluation runs pinned to a model. A run that says it measured tier 2 must fail
+    when tier 2 does, not be answered quietly by tier 3 and recorded under tier 2's name,
+    which is exactly what the failover chain exists to do for respondents.
+    """
+    if not 1 <= tier <= len(TIER_PREFIXES):
+        raise LLMError(f"There is no tier {tier}; tiers run 1 to {len(TIER_PREFIXES)}.")
+    settings = _merged_settings()
+    prefix = TIER_PREFIXES[tier - 1]
+    if not getattr(settings, f"{prefix}_enabled"):
+        raise LLMError(f"Tier {tier} is not enabled on this deployment.")
+    return _client_for(settings, prefix, tier)
+
+
 def get_embedder() -> EmbedderProtocol:
     """The embeddings client, or a loud 503 on a deployment that has not configured one."""
     settings = _merged_settings()

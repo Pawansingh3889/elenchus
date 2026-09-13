@@ -13,6 +13,12 @@ import {
   groundingReportSchema,
   themeReportSchema,
   capturedAskSchema,
+  evalItemSchema,
+  faithfulnessReportSchema,
+  judgeRunSchema,
+  evalOptionsSchema,
+  evalRunSchema,
+  qualityReportSchema,
   interpStatusSchema,
   storedAnalysisSchema,
   meSchema,
@@ -201,6 +207,32 @@ export const api = {
     parsed(`/lens/interp/asks/${spanId}/analyse`, storedAnalysisSchema, { method: "POST" }),
   lensInterpAttribute: (spanId: string) =>
     parsed(`/lens/interp/asks/${spanId}/attribute`, storedAnalysisSchema, { method: "POST" }),
+  lensEvalItems: (source: "corpus" | "runs", unlabelled: boolean) =>
+    parsed(
+      `/lens/evaluation/items?source=${source}&unlabelled=${unlabelled}`,
+      z.array(evalItemSchema),
+    ),
+  lensEvalLabel: (key: string, verdict: "supported" | "invented" | "unsure", note: string | null) =>
+    parsed(`/lens/evaluation/items/${encodeURIComponent(key)}/label`, evalItemSchema, {
+      method: "PUT",
+      body: JSON.stringify({ verdict, note }),
+    }),
+  lensEvalFaithfulness: () => parsed("/lens/evaluation/faithfulness", faithfulnessReportSchema),
+  lensEvalQuality: () => parsed("/lens/evaluation/quality", qualityReportSchema),
+  lensEvalOptions: () => parsed("/lens/evaluation/scenario-options", evalOptionsSchema),
+  lensEvalRuns: () => parsed("/lens/evaluation/scenario-runs", z.array(evalRunSchema)),
+  lensEvalStart: (body: {
+    scenarios: string[];
+    tier: number;
+    prompt_version: string;
+    cap_usd: number;
+  }) =>
+    parsed("/lens/evaluation/scenario-runs", z.array(evalRunSchema), {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  lensEvalJudgeRun: (runId: string) =>
+    parsed(`/lens/evaluation/runs/${runId}/judge`, judgeRunSchema, { method: "POST" }),
   /** Conduct prompt versions, file and saved, with what their traced turns cost. */
   promptFamily: () => parsed("/admin/prompts/conduct", promptFamilySchema),
   promptBody: (name: string) =>
