@@ -20,6 +20,7 @@ from app.evaluation.service import EvaluationService
 from app.evaluation.stats import MIN_LABELLED, wilson
 from app.llm import ledger
 from app.llm.client import LLMError
+from app.llm.ledger import TierEconomics
 from app.users.models import Band, Function, User
 from tests.fakes import FakeLLM, move_on, record
 
@@ -122,6 +123,11 @@ async def test_the_report_scores_the_judge_only_against_peoples_labels(session, 
     assert overall.invention_rate.low is not None and overall.invention_rate.low < 0.5
 
 
+# The judge's price is stated here, never borrowed from settings: CI configures no tier, so
+# a test that needs a price from .env passes on a laptop and fails in the pipeline.
+JUDGE_PRICE = TierEconomics(params_b=0, local=False, price_in_per_mtok=5.0, price_out_per_mtok=30.0)
+
+
 class JudgeLLM:
     """Answers the judge's tool call with scripted verdicts, booked like a real call."""
 
@@ -138,6 +144,7 @@ class JudgeLLM:
             usage={"prompt_tokens": 1200, "completion_tokens": 80},
             latency_ms=900,
             status=200,
+            priced_as=JUDGE_PRICE,
         )
         return {"verdicts": self.verdicts}
 
@@ -162,7 +169,8 @@ async def test_a_run_is_judged_whole_priced_and_shown_beside_its_answers(
     judging = await service.judge_run(admin, run_id)
 
     assert (judging.answers, judging.flagged, judging.prompt_version) == (1, 0, "judge_answers_v1")
-    assert judging.model == "gpt-5.5" and judging.cost_usd > 0
+    # 1,200 tokens in at $5 and 80 out at $30 per million.
+    assert judging.model == "gpt-5.5" and math.isclose(judging.cost_usd, 0.0084)
     sent = json.loads(llm.prompts[0]["prompt"])
     assert sent["respondent_messages"] == ["line lead on nights"]
     (item,) = await service.items(admin, "runs", False)
