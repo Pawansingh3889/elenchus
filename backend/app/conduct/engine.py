@@ -99,9 +99,13 @@ class ConductEngine:
         session: AsyncSession,
         llm: LLMProtocol | None = None,
         embedder: EmbedderProtocol | None = None,
+        prompt_version: str | None = None,
     ) -> None:
         self.session = session
         self._llm = llm
+        # A conduct prompt version to use instead of the active one, for evaluation runs
+        # that compare versions. None, as for every respondent, follows the activation log.
+        self._pinned_prompt = prompt_version
         # Built on first use, and only when semantic grounding is switched on.
         self._embedder = embedder
         self.repo = RunRepository(session)
@@ -346,7 +350,12 @@ class ConductEngine:
         # rollup is the app's summary, the file is the record.
         # Resolved once per turn, so every ask in it, its ledger rows, its spans and the
         # reply it produces all name the same version even if it is switched mid-turn.
-        self._prompt = await PromptResolver(self.session).active("conduct", PROMPT_VERSION)
+        resolver = PromptResolver(self.session)
+        self._prompt = (
+            await resolver.active("conduct", PROMPT_VERSION)
+            if self._pinned_prompt is None
+            else ResolvedPrompt(self._pinned_prompt, await resolver.text(self._pinned_prompt))
+        )
         with (
             ledger.measuring(run.id) as spend,
             ledger.using_prompt(self._prompt.name),
