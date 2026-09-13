@@ -1,3 +1,6 @@
+import { z, type ZodType } from "zod";
+
+import { lensStripSchema, meSchema, spanSchema, tracedRunSchema } from "./schemas";
 import { useLocaleStore, useUserStore } from "./store";
 import type { ResumableRun, Run, TemplateSummary, User } from "./types";
 
@@ -12,6 +15,35 @@ export class ApiError extends Error {
     this.name = "ApiError";
     this.status = status;
   }
+}
+
+/**
+ * The server answered, and the answer is not the shape this page renders from.
+ *
+ * Separate from `ApiError` on purpose. An `ApiError` is the server refusing, and its
+ * message is for the person reading it. This is the contract breaking, and its message is
+ * for whoever fixes it, so it names the paths that failed.
+ */
+export class ApiContractError extends Error {
+  readonly issues: string[];
+
+  constructor(path: string, issues: string[]) {
+    super(`${path} answered in an unexpected shape: ${issues.join("; ")}`);
+    this.name = "ApiContractError";
+    this.issues = issues;
+  }
+}
+
+/** Validate a parsed body against the schema for this endpoint, or throw loudly. */
+function parseBody<S extends ZodType>(path: string, schema: S, body: unknown): z.infer<S> {
+  const result = schema.safeParse(body);
+  if (result.success) return result.data;
+  // Capped: a wholesale shape change produces an issue per field, and thirty of them in
+  // one message helps nobody read the first three.
+  const issues = result.error.issues
+    .slice(0, 5)
+    .map((issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`);
+  throw new ApiContractError(path, issues);
 }
 
 /** Our own errors carry `detail` as a string, but FastAPI's request validation returns a
@@ -66,6 +98,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
+async function parsed<S extends ZodType>(path: string, schema: S): Promise<z.infer<S>> {
+  return parseBody(path, schema, await request<unknown>(path));
+}
+
 export const api = {
   listUsers: () => request<User[]>("/users"),
   /** Which real sign-in providers this deployment offers. Unauthenticated: the browser
@@ -108,4 +144,9 @@ export const api = {
   rewindRun: (id: string) => request<Run>(`/runs/${id}/rewind`, { method: "POST" }),
   /** Erase a run and everything in it. 204, so there is nothing to unwrap. */
   deleteRun: (id: string) => request<void>(`/runs/${id}`, { method: "DELETE" }),
+  /** The caller as the server sees them; `is_admin` decides whether the lens is shown. */
+  me: () => parsed("/me", meSchema),
+  lensStrip: () => parsed("/lens/strip", lensStripSchema),
+  lensRuns: () => parsed("/lens/runs", z.array(tracedRunSchema)),
+  lensSpans: (runId: string) => parsed(`/lens/runs/${runId}/spans`, z.array(spanSchema)),
 };
