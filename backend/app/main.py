@@ -25,6 +25,7 @@ from app.embeddings.router import router as embeddings_router
 from app.errors import register_error_handlers
 from app.llm.router import router as llm_admin_router
 from app.prompts.router import router as prompts_router
+from app.roles.router import router as roles_router
 from app.runs.router import dashboard_router
 from app.runs.router import router as results_router
 from app.seed import seed
@@ -142,6 +143,7 @@ app.include_router(llm_admin_router)
 # service, like the admin screens above it.
 app.include_router(lens_router)
 app.include_router(prompts_router)
+app.include_router(roles_router)
 app.include_router(embeddings_router)
 app.include_router(templates_router)
 app.include_router(results_router)

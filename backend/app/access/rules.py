@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Final
 from uuid import UUID
 
+from app.roles.models import Permission
 from app.templates.enums import SurveyAudience
 from app.users.models import BAND_RANK, Band, Function, Hat, User
 
@@ -46,15 +47,24 @@ class AccessDecision:
 
 
 def may_author(user: User) -> bool:
-    """Whether this person may build surveys: manager band and up, any function.
+    """Whether this person may build surveys: manager band and up, any function, or a
+    role that grants it outright.
 
     Derived from the job rather than stored, which is what deleted the `role` column.
     The old stored role could disagree with the org chart (an "author" respondent, a
     shift manager refused authoring), and the Entra id was meant to decide it even
     though line leaders hold ERP logins without being survey authors. The band answers
     the question the role column was guessing at.
+
+    The role branch is deliberately inside this function rather than duplicated at
+    every caller: `_colleague` and the `managers` audience both read `may_author`, so a
+    role-granted `survey_author` permission makes its holder behave exactly as a
+    manager-band person would everywhere that matters, which is one fact rather than
+    one re-typed per call site.
     """
-    return user.band is not None and BAND_RANK[user.band] >= _AUTHORING_RANK
+    return (user.band is not None and BAND_RANK[user.band] >= _AUTHORING_RANK) or (
+        Permission.survey_author in user.granted_permissions
+    )
 
 
 def is_admin(user: User, admin_emails: frozenset[str]) -> bool:
@@ -75,6 +85,13 @@ def is_admin(user: User, admin_emails: frozenset[str]) -> bool:
     """
     if user.function is Function.it:
         logger.info("admin granted by function: user=%s", user.id)
+        return True
+    if Permission.admin_all in user.granted_permissions:
+        # A third route to the same reach the function branch above already accepted
+        # as a cost: `app.roles`' admin routes already require an existing admin to
+        # create or attach a role carrying this, so nothing new can grant it that a
+        # human administrator did not choose to.
+        logger.info("admin granted by role: user=%s", user.id)
         return True
     granted = user.email.casefold() in {e.casefold() for e in admin_emails}
     if granted:
@@ -157,6 +174,8 @@ def may_list(
         return AccessDecision(True, "author of this survey")
     if admin:
         return AccessDecision(True, "admin")
+    if Permission.survey_list in user.granted_permissions:
+        return AccessDecision(True, "granted by role")
     if reads_all_surveys(user):
         return AccessDecision(True, "site leadership")
     if _colleague(user, creator_function):
@@ -302,6 +321,8 @@ def may_edit(user: User, created_by: UUID, admin: bool) -> AccessDecision:
         return AccessDecision(True, "author of this survey")
     if admin:
         return AccessDecision(True, "admin")
+    if Permission.survey_edit in user.granted_permissions:
+        return AccessDecision(True, "granted by role")
     return AccessDecision(False, "only the author and an admin can change this survey")
 
 
@@ -329,6 +350,8 @@ def may_read_rows(
         return AccessDecision(True, "author of this survey")
     if admin:
         return AccessDecision(True, "admin")
+    if Permission.results_read_rows in user.granted_permissions:
+        return AccessDecision(True, "granted by role")
     if reads_all_surveys(user):
         return AccessDecision(True, "site leadership")
     if _colleague(user, creator_function):
@@ -356,4 +379,6 @@ def may_read_totals(
     """
     if may_read_rows(user, created_by, admin, creator_function=creator_function):
         return AccessDecision(True, "may read rows, so may read totals")
+    if Permission.results_read_totals in user.granted_permissions:
+        return AccessDecision(True, "granted by role")
     return may_answer(user, audience, created_by, admin, target=target)

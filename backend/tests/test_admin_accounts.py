@@ -409,6 +409,7 @@ def test_me_reports_what_the_browser_could_not_work_out(admin):
         band=admin.band,
         may_author=True,
         is_admin=True,
+        permissions=[],
     )
     assert me.is_admin
     assert me.may_author

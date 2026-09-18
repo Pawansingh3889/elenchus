@@ -25,6 +25,13 @@ Ambiguity fails closed. A survey with no audience, or an account with no job, is
 by the narrowest branch that still holds, and the caller is told which piece was missing
 rather than being handed a quiet default. The dangerous failure here is not a refusal, it
 is a survey shown to people it was not meant for.
+
+A second, independent source sits beside the job: `app.roles`. An admin-defined role
+bundles named `Permission`s and can be attached to any account regardless of its job,
+the way an IAM policy is attached to a user without describing their place in an org
+chart. Every rule above reads `user.granted_permissions` as one more OR-branch, strictly
+additive: a role can only widen what the job already allows, never narrow it, and there
+is no explicit-deny. See `app.roles` for what that costs.
 """
 
 from app.access.rules import (

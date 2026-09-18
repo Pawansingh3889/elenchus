@@ -7,6 +7,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.access import in_audience, may_author
+from app.roles.models import Permission
 from app.templates.enums import SurveyAudience
 from app.users.models import Band, Function, Hat, User
 
@@ -56,6 +57,10 @@ class PersonRead(BaseModel):
     function: Function | None
     band: Band | None
     hats: list[Hat]
+    # Roles granted on top of the job (see `app.roles`), by name rather than id: this
+    # page explains what somebody can do, and a role's permissions are what that name
+    # stands for, not a second id to resolve.
+    roles: list[str]
     may_author: bool
     # Whether this account carries an Entra object id, not the id itself. The screen
     # uses it to mark someone at authoring band who has none: they build surveys today
@@ -85,6 +90,7 @@ class PersonRead(BaseModel):
             # a person's badges could shuffle between refreshes for no reason a reader
             # could see, which reads as the data changing when nothing has.
             hats=sorted(user.hats, key=lambda h: h.value),
+            roles=sorted({ur.role.name for ur in user.role_rows}),
             audiences=[
                 audience
                 for audience in SurveyAudience
@@ -120,6 +126,10 @@ class MeRead(BaseModel):
     band: Band | None
     may_author: bool
     is_admin: bool
+    # Extra grants from `app.roles`, beyond what the job already gives. Additive only:
+    # this is never smaller than what `may_author`/`is_admin` above would derive from
+    # a role alone, and a caller with no roles reads an empty list, not an omission.
+    permissions: list[Permission]
 
 
 class AccountWrite(BaseModel):
@@ -350,6 +360,7 @@ class AccountRead(BaseModel):
     microsoft_id: str | None
     created_by: UUID | None
     hats: list[Hat]
+    roles: list[str]
 
     @classmethod
     def of(cls, user: User) -> "AccountRead":
@@ -362,9 +373,5 @@ class AccountRead(BaseModel):
             microsoft_id=user.microsoft_id,
             created_by=user.created_by,
             hats=sorted(user.hats, key=lambda h: h.value),
-            audiences=[
-                audience
-                for audience in SurveyAudience
-                if audience is not SurveyAudience.person and in_audience(user, audience)
-            ],
+            roles=sorted({ur.role.name for ur in user.role_rows}),
         )

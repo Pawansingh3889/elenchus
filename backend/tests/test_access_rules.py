@@ -33,6 +33,7 @@ from app.access import (
     reads_all_surveys,
 )
 from app.access.rules import is_admin
+from app.roles.models import Permission, Role, RolePermission, UserRole
 from app.templates.enums import SurveyAudience
 from app.users.models import Band, Function, Hat, User, UserHat
 
@@ -57,6 +58,17 @@ def _user(
     # rows: one source of truth, and no way for a test to set up a user the database could
     # not produce.
     user.hat_rows = [UserHat(user_id=user.id, hat=h) for h in hats]
+    return user
+
+
+def _with_role(user: User, *permissions: Permission, name: str = "Test Role") -> User:
+    """The same user, carrying one role that bundles the given permissions.
+
+    Built the way `_user` builds hats: assigned rows in memory rather than written and
+    read back, so the rule is exercised directly and no test here needs a database.
+    """
+    role = Role(name=name, permission_rows=[RolePermission(permission=p) for p in permissions])
+    user.role_rows = [UserRole(user_id=user.id, role=role)]
     return user
 
 
@@ -355,6 +367,59 @@ def test_the_it_function_grants_admin():
     assert is_admin(_user(Function.it, Band.operative), frozenset())
     assert is_admin(_user(Function.it, Band.manager), frozenset())
     assert not is_admin(_user(Function.executive, Band.director), frozenset())
+
+
+# ------------------------------------------------- roles: additive beyond the job
+
+
+def test_a_granted_survey_author_permission_makes_a_jobless_account_an_author():
+    granted = _with_role(_user(None, None, id=uuid4()), Permission.survey_author)
+    assert may_author(granted)
+
+
+def test_a_role_alone_reaches_no_further_than_the_permission_it_carries():
+    """Granting `survey_author` does not also grant admin, or anything else nobody
+    listed: additive means the union of what is named, never a bundle of everything a
+    manager band happens to imply elsewhere."""
+    granted = _with_role(_user(None, None, id=uuid4()), Permission.survey_author)
+    assert not is_admin(granted, frozenset())
+    assert not may_edit(granted, created_by=AUTHOR_ID, admin=False)
+
+
+def test_a_role_can_grant_full_administration():
+    granted = _with_role(_user(None, None, id=uuid4()), Permission.admin_all)
+    assert is_admin(granted, frozenset())
+
+
+def test_a_role_can_grant_editing_a_survey_that_is_not_ones_own():
+    granted = _with_role(_user(None, None, id=uuid4()), Permission.survey_edit)
+    assert may_edit(granted, created_by=AUTHOR_ID, admin=False)
+
+
+def test_a_role_can_grant_reading_rows_across_every_survey():
+    """The shape a custom "Survey Auditor" role takes: nobody's colleague, no band, and
+    still able to read what respondents said."""
+    auditor = _with_role(_user(None, None, id=uuid4()), Permission.results_read_rows)
+    assert may_read_rows(auditor, created_by=AUTHOR_ID, admin=False)
+
+
+def test_a_role_grant_of_totals_does_not_imply_rows():
+    granted = _with_role(_user(None, None, id=uuid4()), Permission.results_read_totals)
+    assert not may_read_rows(granted, created_by=AUTHOR_ID, admin=False)
+    assert may_read_totals(granted, SurveyAudience.everyone, created_by=AUTHOR_ID, admin=False)
+
+
+def test_a_role_can_grant_seeing_every_survey_in_listings():
+    granted = _with_role(_user(None, None, id=uuid4()), Permission.survey_list)
+    assert may_list(granted, SurveyAudience.qa, created_by=AUTHOR_ID, admin=False)
+
+
+def test_no_role_is_the_same_as_no_extra_grant():
+    """An account with no roles reads exactly as one built before `app.roles` existed:
+    `granted_permissions` is empty, not merely absent."""
+    plain = _user(Function.production, Band.operative)
+    assert plain.granted_permissions == frozenset()
+    assert not may_edit(plain, created_by=AUTHOR_ID, admin=False)
 
 
 # ------------------------------------------------------------------- completeness

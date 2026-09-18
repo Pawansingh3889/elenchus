@@ -21,6 +21,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.roles.models import Permission, UserRole
 
 
 class Function(str, enum.Enum):
@@ -148,6 +149,15 @@ class User(Base):
         back_populates="user", lazy="selectin", cascade="all, delete-orphan"
     )
 
+    # Roles carried on top of the job (see `app.roles`): named, admin-defined bundles
+    # of `Permission`, additive only. `viewonly` because a grant is written through
+    # `RoleService.grant`/`revoke`, not by reassigning this collection the way
+    # `hat_rows` is reassigned on a full account replace — a role is not a property of
+    # the job, so there is no `AccountUpdate` field that owns this list.
+    role_rows: Mapped[list[UserRole]] = relationship(
+        lazy="selectin", viewonly=True, primaryjoin="User.id == UserRole.user_id"
+    )
+
     def __init__(self, **kw: Any) -> None:
         """Start with an empty, *loaded* hats collection unless one was given.
 
@@ -160,6 +170,11 @@ class User(Base):
         collection with an empty one.
         """
         kw.setdefault("hat_rows", [])
+        # Same fix, same reason, for the role grants: a `User` built in Python (the
+        # preview hypothetical, tests, the seed script) never queried `user_roles`, and
+        # `granted_permissions` reading an unloaded `role_rows` would raise
+        # MissingGreenlet the first time an access rule touches it.
+        kw.setdefault("role_rows", [])
         super().__init__(**kw)
 
     @property
@@ -170,6 +185,19 @@ class User(Base):
         of truth and no way for the two to disagree.
         """
         return frozenset(h.hat for h in self.hat_rows)
+
+    @property
+    def granted_permissions(self) -> frozenset[Permission]:
+        """Every permission this person's roles bundle, flattened to one set.
+
+        Additive over the job, never a substitute for it: `app.access` reads this
+        alongside band and function, and nothing here can narrow what those already
+        grant. A `User` built in Python without querying (tests, the seed script,
+        `UserService`'s preview hypothetical) simply has no role rows and reads as
+        having none, which is the correct answer for an account nothing has granted a
+        role to yet.
+        """
+        return frozenset(p for ur in self.role_rows for p in ur.role.permissions)
 
 
 class AccountChange(Base):

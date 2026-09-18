@@ -93,6 +93,18 @@ every production operative a colleague of the shift manager surveying them. Wort
 what colleague access costs: answers are read by people the respondent never dealt with,
 which is wider than the pseudonymity below might suggest to them.
 
+**Roles** are a second, independent grant beside the job (`app.roles`). An admin defines
+a named bundle of permissions (`survey_author`, `survey_edit`, `survey_list`,
+`results_read_rows`, `results_read_totals`, `admin_all`) and attaches it to any account,
+regardless of that account's function or band — an auditor who holds no job on the plant
+at all can still be granted `results_read_rows`. Every rule above reads a role's grants
+as one more way in, never a way to take something away: a role can only widen what the
+job already allows. There is no explicit-deny and no resource scoping, on purpose —
+see the decision log in the root `CLAUDE.md` for what that trades away and what it costs
+against the one-job-per-person model above. Attaching or detaching a role writes to the
+same `account_changes` audit table a band or hat edit does, so it is admin-only and
+always has a name attached.
+
 ## What an answer is worth to the person who gave it
 
 Responses carry pseudonyms, not names, on every read path including leadership's. The

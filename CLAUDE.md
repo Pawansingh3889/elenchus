@@ -236,3 +236,40 @@ Alembic migrations from the first table; no `create_all` in application code.
   O14: those are wrong answers the word check itself accepts, which no margin reaches.
   Thirty-five pairs is a small set, so add pairs when a live run finds a new case and
   re-measure before trusting the number further.
+- **A second, independent grant sits beside the job: named roles, additive only.**
+  Added 18 Sep 2026, asked for directly as "something like IAM roles" on top of the
+  function/band/hat model. `app.roles` owns it: an admin-defined `Role` bundles a fixed
+  vocabulary of `Permission`s (`survey_author`, `survey_edit`, `survey_list`,
+  `results_read_rows`, `results_read_totals`, `admin_all`) and can be attached to any
+  account regardless of its job, the way an IAM policy is attached to a user without
+  describing their place in an org chart. `app.access` reads `user.granted_permissions`
+  as one more OR-branch in every rule; a role can only widen what the job already
+  allows, never narrow it, and there is no explicit-deny. That is a deliberate
+  simplification against real IAM: allow/deny precedence and resource-scoped
+  conditions are exactly the policy-evaluation complexity this project passed on once
+  already when it rejected Oso, OpenFGA, SpiceDB, Cerbos and pycasbin for `app.access`
+  itself, and a second, half-built policy engine bolted on beside it would be worse
+  than the first.
+
+  **What this costs, named because it is the kind of thing that surfaces later as a
+  mystery.** The one-job-per-person model exists specifically to make an impossible
+  overlap (a line leader who is also QA) unrepresentable. A role that grants
+  `results_read_rows` to an account with no job at all, or a different function
+  entirely, can reintroduce exactly that overlap, deliberately: that is the whole
+  point of a grant that does not describe a position. The mitigation is not blocking
+  it technically, it is making it visible: attach/detach rides through the same
+  `account_changes` audit table a band or hat edit already writes to, so "why can this
+  person read QA's answers" always has an admin's name and a timestamp attached.
+
+  **Deliberately not folded into `AccountUpdate`.** Assigning a role is not a property
+  of the job, so it is its own pair of actions
+  (`POST`/`DELETE /api/v1/admin/roles/{role_id}/grant/{user_id}`), attach/detach and
+  idempotent both ways, rather than a field on the careful full-replacement
+  `AccountUpdate` already carries for function/band/hats. That keeps the self-lockout
+  check and the live-reach preview it drives untouched, and it is closer to how AWS's
+  own `AttachRolePolicy`/`DetachRolePolicy` work than a field on `UpdateUser` would be.
+
+  **No browser screen.** The admin API is the whole of it, consistent with the
+  respondent-only browser decision below: `frontend/CLAUDE.md` removed the people-admin
+  screen on 13 Sep 2026 and says plainly not to rebuild an authoring screen to get one
+  back. Role definition and grant/revoke are API calls, the same as authoring already is.
