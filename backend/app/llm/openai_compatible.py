@@ -516,34 +516,53 @@ class OpenAICompatibleLLMClient:
             message["cache_control"] = {"type": "ephemeral"}
         return message
 
-    def _check_context_window(
-        self,
-        *,
-        system: str,
-        messages: list[dict[str, str]],
-        tools: list[dict[str, Any]],
-        max_tokens: int,
-    ) -> None:
-        """Refuse a prompt that would not fit this tier's stated context, before it is sent.
+    def _check_context_window(self, *, payload: dict[str, Any], op: str) -> None:
+        """Refuse a prompt that would not fit this tier's stated context, before it is
+        sent, and book the refusal the same way ``_attempt`` books any other failed
+        attempt, so it is a row in the trace rather than a gap where one should be.
 
-        Uses ``app.llm.tokens.estimate_tokens``, a bound to catch the case that actually
-        happens — several long_text answers pushing a small local tier past its window —
-        not a precise accounting; see that module for why no real tokenizer is vendored.
-        Never allowed to invent a limit: a tier that has not stated `context_window` is
-        not checked at all, unstated stays unstated, never 0.
+        Booking here, not just raising, matters for exactly the reason this check
+        exists: a caller reading the trace to understand what a run cost or why a tier
+        was skipped must see this the same way it sees a timeout or a 429, not lose it
+        because this failure happens to be caught before a request ever leaves the
+        process. ``FailoverLLM`` still moves on to the next tier either way; only
+        whether the attempt is visible afterward changes.
+
+        Uses ``app.llm.tokens.estimate_tokens``, a bound to catch the case that
+        actually happens — several long_text answers pushing a small local tier past
+        its window — not a precise accounting; see that module for why no real
+        tokenizer is vendored. Never allowed to invent a limit: a tier that has not
+        stated `context_window` is not checked at all, unstated stays unstated, never 0.
         """
         if self._context_window is None:
             return
-        text = system + "".join(m.get("content", "") for m in messages) + json.dumps(tools)
+        system = payload["messages"][0]["content"]
+        rest = "".join(m.get("content", "") for m in payload["messages"][1:])
+        text = system + rest + json.dumps(payload["tools"])
+        max_tokens = payload["max_completion_tokens"]
         estimated_prompt_tokens = max(1, estimate_tokens(text))
-        if estimated_prompt_tokens + max_tokens > self._context_window:
-            raise ContextWindowExceededError(
-                f"Tier {self._tier} ({self._model}) is configured for a "
-                f"{self._context_window}-token context, but this prompt is an estimated "
-                f"{estimated_prompt_tokens} tokens plus {max_tokens} reserved for the reply "
-                f"({estimated_prompt_tokens + max_tokens} total). Refused before sending "
-                "rather than left for the provider to reject."
+        if estimated_prompt_tokens + max_tokens <= self._context_window:
+            return
+        message = (
+            f"Tier {self._tier} ({self._model}) is configured for a "
+            f"{self._context_window}-token context, but this prompt is an estimated "
+            f"{estimated_prompt_tokens} tokens plus {max_tokens} reserved for the reply "
+            f"({estimated_prompt_tokens + max_tokens} total). Refused before sending "
+            "rather than left for the provider to reject."
+        )
+        with ledger.from_call_site():
+            ledger.record(
+                tier=self._tier,
+                model=self._model,
+                op=op,
+                usage=None,
+                latency_ms=0,
+                status=0,
+                error=message,
+                priced_as=self._priced_as,
+                request=_request_of(payload),
             )
+        raise ContextWindowExceededError(message)
 
     async def tool_call(
         self,
@@ -558,12 +577,6 @@ class OpenAICompatibleLLMClient:
         max_tokens = max_tokens or self._max_completion_tokens
         tools = self._as_openai_tools(
             [{"name": tool_name, "description": tool_description, "input_schema": input_schema}]
-        )
-        self._check_context_window(
-            system=system,
-            messages=[{"role": "user", "content": prompt}],
-            tools=tools,
-            max_tokens=max_tokens,
         )
         payload = {
             "model": self._model,
@@ -585,6 +598,7 @@ class OpenAICompatibleLLMClient:
             # multi-call answers regardless, so the guard holds either way.
             "parallel_tool_calls": False,
         }
+        self._check_context_window(payload=payload, op="tool_call")
         data = await self._post(payload, op="tool_call")
         name, arguments, _ = self._first_tool_call(data)
         if name != tool_name:
@@ -605,9 +619,6 @@ class OpenAICompatibleLLMClient:
     ) -> ToolTurn:
         max_tokens = max_tokens or self._max_completion_tokens
         openai_tools = self._as_openai_tools(tools)
-        self._check_context_window(
-            system=system, messages=messages, tools=openai_tools, max_tokens=max_tokens
-        )
         payload = {
             "model": self._model,
             # The newer spelling, for the reason given in tool_call above.
@@ -620,6 +631,7 @@ class OpenAICompatibleLLMClient:
             "tool_choice": "required",
             "parallel_tool_calls": False,
         }
+        self._check_context_window(payload=payload, op="tool_turn")
         data = await self._post(payload, op="tool_turn")
         name, arguments, said = self._first_tool_call(data)
         return ToolTurn(text=said.strip(), tool_name=name, tool_input=arguments)

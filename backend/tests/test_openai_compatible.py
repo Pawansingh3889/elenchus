@@ -683,6 +683,36 @@ async def test_a_call_that_never_connected_is_booked_with_status_zero(ledger_fil
     assert all("refused" in row["error"] for row in rows)
 
 
+async def test_a_context_window_refusal_is_booked_like_any_other_failed_attempt(ledger_file):
+    """A refusal caught before the request leaves the process must still be a row in
+    the trace, or an admin reading it sees a gap where an attempt should be rather than
+    the reason a tier was skipped."""
+    client = OpenAICompatibleLLMClient(
+        base_url="http://tier.local/v1",
+        api_key="k",
+        model="tiny-local",
+        transport=httpx.MockTransport(_never_called),
+        tier=4,
+        context_window=32,
+    )
+
+    with pytest.raises(ContextWindowExceededError):
+        await client.tool_turn(
+            system="s" * 200,
+            messages=[{"role": "user", "content": "m" * 200}],
+            tools=[],
+            max_tokens=16,
+        )
+
+    rows = [json.loads(line) for line in ledger_file.read_text(encoding="utf-8").splitlines()]
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["tier"] == 4
+    assert row["model"] == "tiny-local"
+    assert row["status"] == 0
+    assert "32-token context" in row["error"]
+
+
 # ------------------------------------------- failover leaves the nudge to the engine
 
 
