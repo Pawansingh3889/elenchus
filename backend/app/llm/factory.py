@@ -54,6 +54,7 @@ def _client_for(settings: Settings, prefix: str, tier: int) -> OpenAICompatibleL
         tier=tier,
         prompt_cache=getattr(settings, f"{prefix}_prompt_cache", False),
         max_completion_tokens=getattr(settings, f"{prefix}_max_completion_tokens", 4096),
+        context_window=getattr(settings, f"{prefix}_context_window", None),
     )
 
 

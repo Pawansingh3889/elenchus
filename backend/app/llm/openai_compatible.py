@@ -33,7 +33,13 @@ from typing import Any, cast
 import httpx
 
 from app.llm import ledger
-from app.llm.client import LLMError, NoToolCallError, ToolTurn, TruncatedTurnError
+from app.llm.client import (
+    ContextWindowExceededError,
+    LLMError,
+    NoToolCallError,
+    ToolTurn,
+    TruncatedTurnError,
+)
 from app.llm.ledger import TierEconomics
 
 logger = logging.getLogger("app.llm.openai_compatible")
@@ -214,6 +220,7 @@ class OpenAICompatibleLLMClient:
         prompt_cache: bool = False,
         max_completion_tokens: int = 4096,
         priced_as: TierEconomics | None = None,
+        context_window: int | None = None,
     ) -> None:
         if not base_url or not model:
             raise LLMError("This LLM tier is enabled but its base_url/model are not configured.")
@@ -227,6 +234,9 @@ class OpenAICompatibleLLMClient:
         self._max_completion_tokens = max_completion_tokens
         # Set for a client outside the tier chain, which the ledger cannot price by tier.
         self._priced_as = priced_as
+        # None on a tier that has not stated one, which leaves _check_context_window
+        # with nothing to check against rather than a guessed number to check against.
+        self._context_window = context_window
 
     @property
     def model(self) -> str:
@@ -505,6 +515,37 @@ class OpenAICompatibleLLMClient:
             message["cache_control"] = {"type": "ephemeral"}
         return message
 
+    def _check_context_window(
+        self,
+        *,
+        system: str,
+        messages: list[dict[str, str]],
+        tools: list[dict[str, Any]],
+        max_tokens: int,
+    ) -> None:
+        """Refuse a prompt that would not fit this tier's stated context, before it is sent.
+
+        No tokenizer is vendored here for the same reason no provider SDK is: four tiers
+        can mean four different tokenizers, and getting one exactly right would not make
+        the other three correct. The estimate below (~4 characters per token, the usual
+        rule of thumb for English) is a bound to catch the case that actually happens —
+        several long_text answers pushing a small local tier past its window — not a
+        precise accounting, and it is never allowed to invent a limit: a tier that has not
+        stated `context_window` is not checked at all: unstated stays unstated, never 0.
+        """
+        if self._context_window is None:
+            return
+        text = system + "".join(m.get("content", "") for m in messages) + json.dumps(tools)
+        estimated_prompt_tokens = max(1, len(text) // 4)
+        if estimated_prompt_tokens + max_tokens > self._context_window:
+            raise ContextWindowExceededError(
+                f"Tier {self._tier} ({self._model}) is configured for a "
+                f"{self._context_window}-token context, but this prompt is an estimated "
+                f"{estimated_prompt_tokens} tokens plus {max_tokens} reserved for the reply "
+                f"({estimated_prompt_tokens + max_tokens} total). Refused before sending "
+                "rather than left for the provider to reject."
+            )
+
     async def tool_call(
         self,
         *,
@@ -516,6 +557,15 @@ class OpenAICompatibleLLMClient:
         max_tokens: int | None = None,
     ) -> dict[str, Any]:
         max_tokens = max_tokens or self._max_completion_tokens
+        tools = self._as_openai_tools(
+            [{"name": tool_name, "description": tool_description, "input_schema": input_schema}]
+        )
+        self._check_context_window(
+            system=system,
+            messages=[{"role": "user", "content": prompt}],
+            tools=tools,
+            max_tokens=max_tokens,
+        )
         payload = {
             "model": self._model,
             # "max_completion_tokens", not "max_tokens". The gpt-5 and o-series models
@@ -528,9 +578,7 @@ class OpenAICompatibleLLMClient:
                 self._system_message(system),
                 {"role": "user", "content": prompt},
             ],
-            "tools": self._as_openai_tools(
-                [{"name": tool_name, "description": tool_description, "input_schema": input_schema}]
-            ),
+            "tools": tools,
             "tool_choice": {"type": "function", "function": {"name": tool_name}},
             # One call, not several: the engines act on exactly one tool per turn, and
             # a provider that answers with two forces this client to choose for them.
@@ -557,12 +605,16 @@ class OpenAICompatibleLLMClient:
         cascade_on_no_tool_call: bool = True,
     ) -> ToolTurn:
         max_tokens = max_tokens or self._max_completion_tokens
+        openai_tools = self._as_openai_tools(tools)
+        self._check_context_window(
+            system=system, messages=messages, tools=openai_tools, max_tokens=max_tokens
+        )
         payload = {
             "model": self._model,
             # The newer spelling, for the reason given in tool_call above.
             "max_completion_tokens": max_tokens,
             "messages": [self._system_message(system), *messages],
-            "tools": self._as_openai_tools(tools),
+            "tools": openai_tools,
             # "required" alone means at least one call, not exactly one. The second half
             # of "exactly" is parallel_tool_calls, and the belt for endpoints that
             # ignore it is _first_tool_call refusing multi-call answers.

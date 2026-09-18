@@ -88,6 +88,7 @@ services:
       LLM_TIER1_TIMEOUT_SECONDS: ${LLM_TIER1_TIMEOUT_SECONDS:-120}
       LLM_TIER1_PROMPT_CACHE: ${LLM_TIER1_PROMPT_CACHE:-false}
       LLM_TIER1_MAX_COMPLETION_TOKENS: ${LLM_TIER1_MAX_COMPLETION_TOKENS:-4096}
+      LLM_TIER1_CONTEXT_WINDOW: ${LLM_TIER1_CONTEXT_WINDOW:-}
       # Tiers 2 and 3 are the failover, and they carry real default models for the same
       # reason tier 1 does: enabling one is then a key plus a boolean, rather than a
       # boolean that boots green and 503s because the model string is empty.
@@ -98,6 +99,7 @@ services:
       LLM_TIER2_TIMEOUT_SECONDS: ${LLM_TIER2_TIMEOUT_SECONDS:-120}
       LLM_TIER2_PROMPT_CACHE: ${LLM_TIER2_PROMPT_CACHE:-false}
       LLM_TIER2_MAX_COMPLETION_TOKENS: ${LLM_TIER2_MAX_COMPLETION_TOKENS:-4096}
+      LLM_TIER2_CONTEXT_WINDOW: ${LLM_TIER2_CONTEXT_WINDOW:-}
       LLM_TIER3_ENABLED: ${LLM_TIER3_ENABLED:-false}
       LLM_TIER3_BASE_URL: ${LLM_TIER3_BASE_URL:-https://openrouter.ai/api/v1}
       LLM_TIER3_API_KEY: ${LLM_TIER3_API_KEY:-}
@@ -105,6 +107,7 @@ services:
       LLM_TIER3_TIMEOUT_SECONDS: ${LLM_TIER3_TIMEOUT_SECONDS:-120}
       LLM_TIER3_PROMPT_CACHE: ${LLM_TIER3_PROMPT_CACHE:-false}
       LLM_TIER3_MAX_COMPLETION_TOKENS: ${LLM_TIER3_MAX_COMPLETION_TOKENS:-1024}
+      LLM_TIER3_CONTEXT_WINDOW: ${LLM_TIER3_CONTEXT_WINDOW:-}
       # Tier 4 is unconfigured and off. It ran a local Ollama here until 8 Aug 2026;
       # the slot survives so any OpenAI-compatible server can take it from .env alone.
       LLM_TIER4_ENABLED: ${LLM_TIER4_ENABLED:-false}
@@ -114,6 +117,7 @@ services:
       LLM_TIER4_TIMEOUT_SECONDS: ${LLM_TIER4_TIMEOUT_SECONDS:-300}
       LLM_TIER4_PROMPT_CACHE: ${LLM_TIER4_PROMPT_CACHE:-false}
       LLM_TIER4_MAX_COMPLETION_TOKENS: ${LLM_TIER4_MAX_COMPLETION_TOKENS:-1024}
+      LLM_TIER4_CONTEXT_WINDOW: ${LLM_TIER4_CONTEXT_WINDOW:-}
       # What each tier costs, for the spend ledger. Forwarded for the same reason the
       # connection settings above are: compose reads .env only to interpolate ${...}
       # here, so a variable not named on this list never reaches the container.

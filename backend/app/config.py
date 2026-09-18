@@ -68,6 +68,15 @@ class Settings(BaseSettings):
     llm_tier1_max_completion_tokens: int = Field(
         4096, gt=0, description="Default max completion tokens for tier 1 tool calls"
     )
+    # Unstated by default, like the prices below: no provider reports its own window, and
+    # guessing one would be exactly the silent wrong number ARCHITECTURE.md's "no
+    # fallbacks" rule exists to rule out. Set, it lets openai_compatible refuse a prompt
+    # that would not fit before sending it, rather than learning that from the provider's
+    # 400. A tier states its own; nothing here is shared across tiers, because context
+    # size is a property of the model behind it, not of the chain.
+    llm_tier1_context_window: int | None = Field(
+        None, gt=0, description="Tier 1 total context tokens; unset skips the pre-flight check"
+    )
 
     llm_tier2_enabled: bool = Field(False, description="Enable tier 2, tried when tier 1 fails")
     llm_tier2_base_url: str = Field(
@@ -84,6 +93,9 @@ class Settings(BaseSettings):
     llm_tier2_max_completion_tokens: int = Field(
         4096, gt=0, description="Default max completion tokens for tier 2 tool calls"
     )
+    llm_tier2_context_window: int | None = Field(
+        None, gt=0, description="Tier 2 total context tokens; unset skips the pre-flight check"
+    )
 
     llm_tier3_enabled: bool = Field(False, description="Enable tier 3, tried when 1 and 2 fail")
     llm_tier3_base_url: str = Field(
@@ -99,6 +111,9 @@ class Settings(BaseSettings):
     )
     llm_tier3_max_completion_tokens: int = Field(
         1024, gt=0, description="Default max completion tokens for tier 3 tool calls"
+    )
+    llm_tier3_context_window: int | None = Field(
+        None, gt=0, description="Tier 3 total context tokens; unset skips the pre-flight check"
     )
 
     # Last resort, and an empty slot by default. This held a local Ollama shipped in
@@ -118,6 +133,13 @@ class Settings(BaseSettings):
     )
     llm_tier4_max_completion_tokens: int = Field(
         1024, gt=0, description="Default max completion tokens for tier 4 tool calls"
+    )
+    # The tier most worth setting this for: whatever fills the empty slot is likeliest to
+    # be a small local model, and a survey with several long_text answers is exactly the
+    # shape that can walk past a small window without TRANSCRIPT_WINDOW's message count
+    # noticing anything wrong.
+    llm_tier4_context_window: int | None = Field(
+        None, gt=0, description="Tier 4 total context tokens; unset skips the pre-flight check"
     )
 
     # What each tier costs and what is serving it, for the spend ledger. Separate from

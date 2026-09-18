@@ -49,6 +49,22 @@ class TruncatedTurnError(LLMError):
     code = "llm_truncated_turn"
 
 
+class ContextWindowExceededError(LLMError):
+    """The outgoing prompt would not fit this tier's configured context window.
+
+    Caught before the request leaves, not learned from a provider's 400: a run with
+    several long_text answers against a small tier can overflow a local model's context
+    long before TRANSCRIPT_WINDOW's message count says anything is wrong. A plain
+    ``LLMError``, deliberately, so ``FailoverLLM`` treats it like any other tier failure
+    and falls through to the next tier, which may simply have more room.
+
+    Only raised when the tier states a context window at all: an unstated one means the
+    check has nothing to check against, not that the prompt is assumed to fit.
+    """
+
+    code = "llm_context_window_exceeded"
+
+
 @dataclass(frozen=True)
 class ToolTurn:
     """One model turn: what it said, and the single tool it chose."""
