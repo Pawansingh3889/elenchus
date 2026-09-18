@@ -820,10 +820,22 @@ class ConductEngine:
         briefing = _briefing(
             questions, run.current_question_index, question, state, setting, previous_error
         )
-        messages = _transcript(run)
+        # The briefing rides in `messages`, not `system`, on purpose. `system` is now
+        # exactly prompt_file + language_note — the same bytes on every turn of every
+        # run in this language, on this prompt version — so a caching-capable tier
+        # (openai_compatible._system_message, gated by prompt_cache) actually reuses it
+        # instead of re-pricing conduct_v8.md's ~10KB on every single turn. The briefing
+        # changes every turn (question index, follow-ups used, today's date), so folding
+        # it into `system` was invalidating that whole prefix for a few lines of state.
+        # It lands as a user turn instead: the closest analogue this protocol has to a
+        # "developer" message, and the same convention the correction nudge below
+        # already used for engine-authored, mid-conversation content.
+        messages = [*_transcript(run), {"role": "user", "content": briefing}]
         if previous_error is not None:
-            # Deliver the correction in-band too: small models weight the last user
-            # message far above a line buried at the tail of the system prompt.
+            # Deliver the correction in-band too, as the very last message: small models
+            # weight the last user message far above a line buried earlier in the
+            # context, which is also why this stays after the briefing rather than
+            # folded into it.
             messages = [
                 *messages,
                 {
@@ -836,7 +848,7 @@ class ConductEngine:
             ]
         try:
             turn = await self.llm.tool_turn(
-                system="\n\n".join((self._prompt.text, language_note(run.language), briefing)),
+                system="\n\n".join((self._prompt.text, language_note(run.language))),
                 messages=messages,
                 tools=tools,
                 # The first attempt keeps its tier: this caller owns the nudged retry

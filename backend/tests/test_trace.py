@@ -145,8 +145,10 @@ async def test_every_attempt_of_a_turn_keeps_the_request_it_sent(session, respon
     assert len(requests) == 2 and all(r is not None and r.run_id == run.id for r in requests)
     first = requests[0]
     assert first is not None
-    # Exactly what the model was sent: the briefing first, then the transcript, then tools.
-    assert first.messages[0] == {"role": "system", "content": llm.briefings[0]}
+    # Exactly what the model was sent: the stable system prompt first (prompt_file +
+    # language_note, cacheable across turns), then the transcript with the per-turn
+    # briefing appended as its own trailing message, then tools.
+    assert first.messages[0] == {"role": "system", "content": llm.systems[0]}
     assert first.messages[1:] == llm.messages_seen[0]
     assert [t["function"]["name"] for t in first.tools] == llm.offered[0]
     assert first.tool_choice == "required"
