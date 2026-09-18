@@ -41,6 +41,7 @@ from app.llm.client import (
     TruncatedTurnError,
 )
 from app.llm.ledger import TierEconomics
+from app.llm.tokens import estimate_tokens
 
 logger = logging.getLogger("app.llm.openai_compatible")
 
@@ -525,18 +526,16 @@ class OpenAICompatibleLLMClient:
     ) -> None:
         """Refuse a prompt that would not fit this tier's stated context, before it is sent.
 
-        No tokenizer is vendored here for the same reason no provider SDK is: four tiers
-        can mean four different tokenizers, and getting one exactly right would not make
-        the other three correct. The estimate below (~4 characters per token, the usual
-        rule of thumb for English) is a bound to catch the case that actually happens —
-        several long_text answers pushing a small local tier past its window — not a
-        precise accounting, and it is never allowed to invent a limit: a tier that has not
-        stated `context_window` is not checked at all: unstated stays unstated, never 0.
+        Uses ``app.llm.tokens.estimate_tokens``, a bound to catch the case that actually
+        happens — several long_text answers pushing a small local tier past its window —
+        not a precise accounting; see that module for why no real tokenizer is vendored.
+        Never allowed to invent a limit: a tier that has not stated `context_window` is
+        not checked at all, unstated stays unstated, never 0.
         """
         if self._context_window is None:
             return
         text = system + "".join(m.get("content", "") for m in messages) + json.dumps(tools)
-        estimated_prompt_tokens = max(1, len(text) // 4)
+        estimated_prompt_tokens = max(1, estimate_tokens(text))
         if estimated_prompt_tokens + max_tokens > self._context_window:
             raise ContextWindowExceededError(
                 f"Tier {self._tier} ({self._model}) is configured for a "
