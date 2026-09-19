@@ -10,7 +10,13 @@ from typing import Any
 import httpx
 import pytest
 
-from app.llm.client import LLMError, NoToolCallError, ToolTurn, TruncatedTurnError
+from app.llm.client import (
+    ContextWindowExceededError,
+    LLMError,
+    NoToolCallError,
+    ToolTurn,
+    TruncatedTurnError,
+)
 from app.llm.failover import FailoverLLM
 from app.llm.openai_compatible import OpenAICompatibleLLMClient
 
@@ -208,6 +214,57 @@ async def test_missing_tool_call_fails_loudly():
 
     with pytest.raises(LLMError, match="no tool call"):
         await _client(handler).tool_turn(system="s", messages=[], tools=[])
+
+
+# ---------------------------------------------------------------- context window
+
+
+def _never_called(_: httpx.Request) -> httpx.Response:
+    raise AssertionError("the request should have been refused before it was sent")
+
+
+async def test_a_prompt_over_the_stated_context_window_is_refused_before_sending():
+    client = OpenAICompatibleLLMClient(
+        base_url="http://tier.local/v1",
+        api_key="k",
+        model="tiny-local",
+        transport=httpx.MockTransport(_never_called),
+        context_window=32,
+    )
+
+    with pytest.raises(ContextWindowExceededError, match="32-token context"):
+        await client.tool_turn(
+            system="s" * 200,
+            messages=[{"role": "user", "content": "m" * 200}],
+            tools=[],
+            max_tokens=16,
+        )
+
+
+async def test_an_unstated_context_window_is_never_checked():
+    """No context_window means nothing to check against, not a guessed one."""
+    turn = await _client(lambda _: _tool_response("move_on", {})).tool_turn(
+        system="s" * 200, messages=[{"role": "user", "content": "m" * 5_000}], tools=[]
+    )
+    assert turn.tool_name == "move_on"
+
+
+async def test_a_context_window_exceeded_error_is_an_llm_error_and_cascades():
+    """FailoverLLM only special-cases NoToolCallError; anything else that is an LLMError,
+    this included, falls through to the next tier the same as a downed provider."""
+
+    class _TooBig:
+        async def tool_turn(self, **_: Any) -> ToolTurn:
+            raise ContextWindowExceededError("too big for tier 1")
+
+    second = _StubLLM(turn=ToolTurn(text="", tool_name="move_on", tool_input={}))
+
+    turn = await FailoverLLM(_TooBig(), second).tool_turn(
+        system="s", messages=[], tools=[], cascade_on_no_tool_call=False
+    )
+
+    assert turn.tool_name == "move_on"
+    assert second.tool_turn_calls == 1
 
 
 async def test_tool_call_written_into_content_is_salvaged():
@@ -624,6 +681,36 @@ async def test_a_call_that_never_connected_is_booked_with_status_zero(ledger_fil
     assert len(rows) == 3  # every attempt is an event, not just the last
     assert all(row["status"] == 0 for row in rows)
     assert all("refused" in row["error"] for row in rows)
+
+
+async def test_a_context_window_refusal_is_booked_like_any_other_failed_attempt(ledger_file):
+    """A refusal caught before the request leaves the process must still be a row in
+    the trace, or an admin reading it sees a gap where an attempt should be rather than
+    the reason a tier was skipped."""
+    client = OpenAICompatibleLLMClient(
+        base_url="http://tier.local/v1",
+        api_key="k",
+        model="tiny-local",
+        transport=httpx.MockTransport(_never_called),
+        tier=4,
+        context_window=32,
+    )
+
+    with pytest.raises(ContextWindowExceededError):
+        await client.tool_turn(
+            system="s" * 200,
+            messages=[{"role": "user", "content": "m" * 200}],
+            tools=[],
+            max_tokens=16,
+        )
+
+    rows = [json.loads(line) for line in ledger_file.read_text(encoding="utf-8").splitlines()]
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["tier"] == 4
+    assert row["model"] == "tiny-local"
+    assert row["status"] == 0
+    assert "32-token context" in row["error"]
 
 
 # ------------------------------------------- failover leaves the nudge to the engine

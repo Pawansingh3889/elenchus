@@ -40,6 +40,7 @@ from app.llm.client import (
     ToolTurn,
 )
 from app.llm.factory import get_embedder, get_llm
+from app.llm.tokens import estimate_tokens
 from app.prompts.service import PromptResolver, ResolvedPrompt
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
 from app.runs.models import REPLY_PREFIX, Answer, RunMessage, SurveyRun, add_llm_spend
@@ -70,7 +71,15 @@ MAX_MODEL_TURNS = 3  # per respondent message
 # (a file, or one saved from the prompt screen) replaces it from the next turn; see
 # app/prompts.
 PROMPT_VERSION = "conduct_v8"
-TRANSCRIPT_WINDOW = 12  # messages replayed per turn; the briefing restates the question
+TRANSCRIPT_WINDOW = 12  # messages replayed per turn, at most; the briefing restates the question
+# A message count treats twelve short yes/no exchanges and twelve long_text answers as
+# the same size, and only the second can still overflow a small tier inside that count.
+# ~12,000 characters at app.llm.tokens's estimate: room for a handful of substantial
+# answers, well under a small local tier's context alongside the system prompt, briefing
+# and tools, while the hard backstop for the case this budget still misses is
+# openai_compatible's own context_window check, which refuses (and fails over) rather
+# than silently sending something too big.
+TRANSCRIPT_TOKEN_BUDGET = 3_000
 _REJECTED = "run=%s question=%s tool=%s raw_input=%r raw_text=%r error=%s"
 # Said when the model supplies no closing line of its own. Resolved per run rather than
 # fixed, because it is the engine's own sentence: unlike a question's text, no author
@@ -820,10 +829,22 @@ class ConductEngine:
         briefing = _briefing(
             questions, run.current_question_index, question, state, setting, previous_error
         )
-        messages = _transcript(run)
+        # The briefing rides in `messages`, not `system`, on purpose. `system` is now
+        # exactly prompt_file + language_note — the same bytes on every turn of every
+        # run in this language, on this prompt version — so a caching-capable tier
+        # (openai_compatible._system_message, gated by prompt_cache) actually reuses it
+        # instead of re-pricing conduct_v8.md's ~10KB on every single turn. The briefing
+        # changes every turn (question index, follow-ups used, today's date), so folding
+        # it into `system` was invalidating that whole prefix for a few lines of state.
+        # It lands as a user turn instead: the closest analogue this protocol has to a
+        # "developer" message, and the same convention the correction nudge below
+        # already used for engine-authored, mid-conversation content.
+        messages = [*_transcript(run), {"role": "user", "content": briefing}]
         if previous_error is not None:
-            # Deliver the correction in-band too: small models weight the last user
-            # message far above a line buried at the tail of the system prompt.
+            # Deliver the correction in-band too, as the very last message: small models
+            # weight the last user message far above a line buried earlier in the
+            # context, which is also why this stays after the briefing rather than
+            # folded into it.
             messages = [
                 *messages,
                 {
@@ -836,7 +857,7 @@ class ConductEngine:
             ]
         try:
             turn = await self.llm.tool_turn(
-                system="\n\n".join((self._prompt.text, language_note(run.language), briefing)),
+                system="\n\n".join((self._prompt.text, language_note(run.language))),
                 messages=messages,
                 tools=tools,
                 # The first attempt keeps its tier: this caller owns the nudged retry
@@ -1190,12 +1211,20 @@ def _last_assistant(run: SurveyRun) -> str:
 
 
 def _transcript(run: SurveyRun) -> list[dict[str, str]]:
-    """The last TRANSCRIPT_WINDOW messages, always opening on a user turn.
+    """At most TRANSCRIPT_WINDOW messages within TRANSCRIPT_TOKEN_BUDGET, opening on a
+    user turn.
 
     Windowing is safe by construction: the briefing restates the current question, type,
     options, and budgets every turn, so distant history is never needed to act — and an
     unbounded replay overflows the small context of a local model long before a survey
     ends.
+
+    The message count is only the coarser of the two caps. Twelve short yes/no exchanges
+    and twelve long_text answers are very different payloads, and only the second can
+    still overflow a small tier inside that count, so once the count cap has applied, the
+    result is trimmed further, oldest first, until it fits the token budget too — except
+    the single most recent message, which is never dropped: it is what the respondent
+    just said, and the turn cannot act on nothing.
 
     The leading user turn is not cosmetic. It was forced by the old Anthropic tier, which
     rejects a message list starting with the assistant: every run opens with the engine's
@@ -1208,9 +1237,16 @@ def _transcript(run: SurveyRun) -> list[dict[str, str]]:
         {"role": "assistant" if m.role is MessageRole.assistant else "user", "content": m.content}
         for m in run.messages
     ]
-    if len(messages) > TRANSCRIPT_WINDOW:
-        head: dict[str, str] = {"role": "user", "content": "[earlier conversation omitted]"}
-        messages = [head, *messages[-TRANSCRIPT_WINDOW:]]
+    trimmed = len(messages) > TRANSCRIPT_WINDOW
+    if trimmed:
+        messages = messages[-TRANSCRIPT_WINDOW:]
+    while len(messages) > 1 and estimate_tokens("".join(m["content"] for m in messages)) > (
+        TRANSCRIPT_TOKEN_BUDGET
+    ):
+        messages = messages[1:]
+        trimmed = True
+    if trimmed:
+        messages = [{"role": "user", "content": "[earlier conversation omitted]"}, *messages]
     if messages and messages[0]["role"] != "user":
         messages = [{"role": "user", "content": "[survey started]"}, *messages]
     return messages

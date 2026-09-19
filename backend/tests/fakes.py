@@ -33,6 +33,7 @@ class FakeLLM:
         self._serves_as = serves_as
         self.calls = 0
         self.offered: list[list[str]] = []
+        self.systems: list[str] = []
         self.briefings: list[str] = []
         self.messages_seen: list[list[dict[str, str]]] = []
         self.tools_seen: list[list[dict[str, Any]]] = []
@@ -50,7 +51,13 @@ class FakeLLM:
         cascade_on_no_tool_call: bool = True,
     ) -> ToolTurn:
         self.offered.append([t["name"] for t in tools])
-        self.briefings.append(system)
+        self.systems.append(system)
+        # The per-turn briefing rides in `messages` now, not `system` (engine.py's
+        # cache-split: `system` is just prompt_file + language_note, stable across
+        # turns so a caching tier can reuse it). `briefings` still means "everything
+        # engine-authored the model was shown this turn", so it joins both rather than
+        # assuming which exact message carries the state a test is asserting on.
+        self.briefings.append("\n\n".join((system, *(m["content"] for m in messages))))
         self.messages_seen.append(messages)
         self.tools_seen.append(tools)
         self.cascade_flags.append(cascade_on_no_tool_call)

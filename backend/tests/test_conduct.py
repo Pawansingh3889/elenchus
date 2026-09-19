@@ -13,6 +13,7 @@ from app.conduct.engine import (
     MAX_FOLLOW_UPS,
     MAX_REPLIES,
     PROMPT_VERSION,
+    TRANSCRIPT_TOKEN_BUDGET,
     TRANSCRIPT_WINDOW,
     ConductEngine,
     _transcript,
@@ -590,6 +591,52 @@ def test_transcript_is_windowed_for_small_contexts():
     assert len(windowed) == TRANSCRIPT_WINDOW + 1
     assert windowed[0]["content"] == "[earlier conversation omitted]"
     assert windowed[-1]["content"] == "message 29"
+
+
+def test_transcript_is_windowed_further_by_token_budget_for_long_text_answers():
+    """Twelve long_text answers are not the same payload as twelve yes/no exchanges: the
+    message count alone would replay all of them, so a run with a few substantial answers
+    still needs trimming the count cap does not do."""
+    # Comfortably under TRANSCRIPT_WINDOW messages, comfortably over the token budget:
+    # each reply is ~1,000 estimated tokens (app.llm.tokens: ~4 chars/token), and the
+    # budget is 3,000, so only the last two or three should survive.
+    run = SimpleNamespace(
+        messages=[
+            RunMessage(
+                role=MessageRole.assistant if i % 2 == 0 else MessageRole.user,
+                content=f"reply {i} " + "word " * 800,
+            )
+            for i in range(8)
+        ]
+    )
+    windowed = _transcript(cast("SurveyRun", run))
+    assert len(windowed) < 8
+    assert windowed[0]["content"] == "[earlier conversation omitted]"
+    # The most recent message always survives: it is what the respondent just said, and
+    # the turn cannot act on nothing.
+    assert "reply 7" in windowed[-1]["content"]
+    total_estimated_tokens = sum(len(m["content"]) for m in windowed[1:]) // 4
+    assert total_estimated_tokens <= TRANSCRIPT_TOKEN_BUDGET
+
+
+def test_transcript_token_budget_never_drops_the_only_message():
+    """A single reply larger than the budget is still the whole of what there is to send;
+    trimming it away would leave the model nothing to act on."""
+    run = SimpleNamespace(messages=[RunMessage(role=MessageRole.user, content="word " * 5_000)])
+    windowed = _transcript(cast("SurveyRun", run))
+    assert len(windowed) == 1
+    assert windowed[0]["content"].startswith("word ")
+
+
+def test_transcript_short_messages_are_unaffected_by_the_token_budget():
+    """The common case (short exchanges) should never see the token cap engage at all;
+    only the message count should bound it, exactly as before this budget existed."""
+    run = SimpleNamespace(
+        messages=[RunMessage(role=MessageRole.user, content=f"message {i}") for i in range(5)]
+    )
+    windowed = _transcript(cast("SurveyRun", run))
+    assert len(windowed) == 5
+    assert windowed[0]["content"] == "message 0"
 
 
 def test_transcript_always_opens_on_a_user_turn():
