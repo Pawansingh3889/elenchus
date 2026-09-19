@@ -1,9 +1,5 @@
 name: elenchus
 
-# Load environment variables from .env file for docker-compose
-env_file:
-  - .env
-
 services:
   postgres:
     image: postgres:17-alpine
