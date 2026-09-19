@@ -1,67 +1,73 @@
 /* ---------------------------------------------------------------------------
-   The plant palette: NHS blue on a cool off-white.
+   The portfolio palette: cream ink on near-black, terracotta for the one
+   accent that means "act on this."
 
-   Taken from the health Q&A this service is joining up with, so the two read as
-   one product to the people who use both. Blue rather than the old steel because
-   it is the colour the audience already associates with health and safety
-   notices, and because a survey about a chill-chain breach should not look like
-   a developer tool.
+   Pulled from pawankapkoti.dev (localhost:8787 while it's in dev) so the
+   survey service and the author's own site read as one hand. There is only
+   one theme in the source: no light variant exists to carry over, so the
+   three blocks below (base, prefers-color-scheme, data-theme) hold the same
+   values rather than drifting apart. A manual toggle that disagrees with the
+   automatic one is worse than no toggle, per the decision this file already
+   made once for the palette it's replacing.
 
-   Every text pair below is measured by backend/scripts/check_contrast.py against
-   both this palette and the dark one. The ratios in the comments are what it
-   computes, not estimates.
+   Every text pair below is measured by backend/scripts/check_contrast.py
+   against all three blocks. The ratios in the comments are what it computes,
+   not estimates.
    --------------------------------------------------------------------------- */
 :root {
-  --ink: #0b1222;
-  --canvas: #f4f6f9;
-  --surface: #edf0f5;
-  --raised: #ffffff;
-  --on-ink: #f4f6f9;
+  --ink: #f1ecdf;
+  --canvas: #0c0b0a;
+  --surface: #17140f;
+  --raised: #1e1a13;
+  --on-ink: #f1ecdf;
   /* Text greys are chosen by contrast, not by eye. --muted carries real sentences
      (.empty, .muted), so it has to clear 4.5:1 on all three backgrounds it can land
-     on: card, field and page. The health app's own #8896ab was the obvious import and
-     fails all three at about 2.9:1, so this is that hue carried down until it passes.
-     --muted-light is deliberately untouched by that rule: it is never text, only
-     borders and the typing dots, where text contrast does not apply. */
-  --muted: #5b6a83;
-  --muted-light: #cbd5e1;
-  --secondary: #3d4f6f;
-  --accent: #41b6e6;
-  /* Focus keeps its own token even though it now holds the same value as
-     --accent-strong. --accent is the decorative light blue and cannot reach the 3:1 a
-     focus ring needs; that these two agree today is a property of this palette, not a
-     reason to merge them, because the next palette can move one without the other. */
-  --focus: #005eb8;
-  --accent-strong: #005eb8;
-  --highlight: #d97706;
-  --highlight-soft: #e8f4fd;
-  --border: #dce3ed;
-  --border-faint: rgba(11, 18, 34, 0.06);
-  --warn-fill: #fffbeb;
-  --warn-text: #92400e;
-  --warn-border: rgba(146, 64, 14, 0.25);
-  --green-soft: #f0fdf4;
-  --green: #16a34a;
-  --border-green: rgba(22, 163, 74, 0.25);
-  --err-fill: #fef2f2;
-  --err-text: #b02a1a;
-  --err-border: rgba(176, 42, 26, 0.25);
-  --ai-fill: #e8f4fd;
-  --ai-border: rgba(0, 94, 184, 0.2);
+     on: card, field and page. --muted-light is deliberately untouched by that rule:
+     it is never text, only borders and the typing dots, where text contrast does
+     not apply. */
+  --muted: #a89d89;
+  --muted-light: #4a3d2c;
+  --secondary: #c9bfa8;
+  --accent: #c8492e;
+  /* Focus keeps its own token even though it sits in the same terracotta family as
+     --accent-strong. --accent is the decorative, lower-contrast swatch (progress
+     bars, field borders) and cannot reliably reach the 3:1 a focus ring needs; that
+     these two are close today is a property of this palette, not a reason to merge
+     them, because the next palette can move one without the other. */
+  --focus: #f0a57c;
+  --accent-strong: #e8714f;
+  --highlight: #d99a4e;
+  --highlight-soft: #241c10;
+  --border: rgba(241, 236, 223, 0.09);
+  --border-strong: rgba(241, 236, 223, 0.22);
+  --border-faint: rgba(241, 236, 223, 0.05);
+  --warn-fill: #2a1d0a;
+  --warn-text: #e8b567;
+  --warn-border: rgba(232, 181, 103, 0.28);
+  --green-soft: #12241a;
+  --green: #3ddc97;
+  --border-green: rgba(61, 220, 151, 0.28);
+  --err-fill: #2a1310;
+  --err-text: #ff8a75;
+  --err-border: rgba(255, 138, 117, 0.28);
+  --ai-fill: #241209;
+  --ai-border: rgba(200, 73, 46, 0.3);
   /* The home page's own surface, and the only gradient in the app.
      Two stops as separate opaque tokens rather than one gradient string, because that
      is what lets check_contrast.py measure the heading against each end: text over a
      gradient is only as readable as its worst point, and an average would pass a
-     heading that disappears at one edge. Both ends are measured, so both are pairs. */
-  --hero-from: #00417f;
-  --hero-to: #0b6fb8;
-  --on-hero: #ffffff;
+     heading that disappears at one edge. Both ends are measured, so both are pairs.
+     Both stops sit inside the same near-black family as --canvas and --raised, so the
+     bar reads as depth rather than as a second, louder colour dropped into the page. */
+  --hero-from: #050504;
+  --hero-to: #1e1a13;
+  --on-hero: #f1ecdf;
   /* The quieter text on the hero: subtitles, the bar's nav links, the label over the
      user picker. An opaque colour rather than --on-hero at reduced opacity, because the
-     first build used opacity 0.85 and that resolves to #dae9f4 over the bright stop,
-     which is 4.26:1: under the floor, and invisible to the checker, which cannot see
-     through alpha. This is the softest colour that still clears 4.5:1 at that stop. */
-  --on-hero-muted: #e8f1f8;
+     first build used opacity 0.85 and that resolves to under the floor at one stop,
+     and invisible to the checker, which cannot see through alpha. This is --secondary,
+     already opaque and already clearing 4.5:1 on a card. */
+  --on-hero-muted: #c9bfa8;
   /* ---------------------------------------------------------------------------
      The band ramp, for the People page.
 
@@ -69,28 +75,26 @@
      across the reach map and the same tint follows a person into the table below
      it. A ramp rather than six hues because a band is ordered data and ordered data
      gets an ordered scale, and because lightness survives colour-vision deficiency
-     where hue does not. Neutral rather than blue, deliberately: on that page the
-     accent blue means exactly one thing, "reached by the selected audience", and a
-     director cell that was also blue would fight the lit cell beside it.
+     where hue does not. Neutral rather than terracotta, deliberately: on that page
+     the accent means exactly one thing, "reached by the selected audience", and a
+     director cell that was also terracotta would fight the lit cell beside it.
 
      Each step carries its own text colour, because the ramp crosses over at step 5:
-     the light steps take the page's ink and the dark ones take white, and every one
-     of the six pairs is measured by check_contrast.py. The lowest is 5.06:1.
+     the light steps take the page's ink and the dark ones take cream, and every one
+     of the six pairs is measured by check_contrast.py. The lowest is 4.71:1.
      --------------------------------------------------------------------------- */
-  --band-1: #e9edf3;
-  --band-2: #d8dfe8;
-  --band-3: #bfc8d5;
-  --band-4: #96a3b5;
-  --band-5: #5e6d83;
-  --band-6: #2f3d52;
-  --on-band-1: #0b1222;
-  --on-band-2: #0b1222;
-  --on-band-3: #0b1222;
-  --on-band-4: #0b1222;
-  --on-band-5: #ffffff;
-  --on-band-6: #ffffff;
-  /* 14px, from the health app. Softer than the 8px this used, and the reason the
-     cards there read as cards rather than as panels. */
+  --band-1: #efe7d6;
+  --band-2: #d6c7a9;
+  --band-3: #b3a17c;
+  --band-4: #94845f;
+  --band-5: #5c4f38;
+  --band-6: #332a1c;
+  --on-band-1: #201a10;
+  --on-band-2: #201a10;
+  --on-band-3: #201a10;
+  --on-band-4: #201a10;
+  --on-band-5: #f1ecdf;
+  --on-band-6: #f1ecdf;
   /* ---------------------------------------------------------------------------
      Chart series.
 
@@ -99,28 +103,37 @@
      groups on the same question, because a tally of options is one series and colouring
      each bar there would say the options differ in kind when they differ only in count.
 
-     Chosen by running the palette validator rather than by eye: all four sit inside the
-     lightness band, clear the chroma floor, keep adjacent-pair separation under
-     colour-vision deficiency, and reach 3:1 against the card. A fifth candidate either
-     read as grey or collided with the amber below, which is why there are four.
-
-     Amber, red and green are absent on purpose. They are the status colours, and a
-     series that borrows one spends the meaning the status colours are rationed to keep.
+     Amber, red and green are absent from the first three on purpose: they are the
+     status colours, and a series that borrows one spends the meaning the status
+     colours are rationed to keep. --series-2 is the one exception, reused from
+     --green, because a fourth hue distinct from blue, terracotta and gold read as
+     grey at this lightness on both canvases.
      --------------------------------------------------------------------------- */
-  --series-1: #005eb8;
-  --series-2: #0d9488;
-  --series-3: #7c3aed;
-  --series-4: #b6357a;
-  --series-other: #64748b;
+  --series-1: #5470ff;
+  --series-2: #3ddc97;
+  --series-3: #e8714f;
+  --series-4: #d9b64f;
+  --series-other: #746a58;
 
   /* Diverging, for a correlation: a cool pole for positive, a warm pole for negative, and
-     a neutral grey midpoint that reads as nothing. A cell mixes toward a pole by |rho|. */
-  --div-pos: #005eb8;
-  --div-neg: #c2410c;
-  --div-mid: #eef1f5;
+     a neutral midpoint that reads as nothing. A cell mixes toward a pole by |rho|. */
+  --div-pos: #5470ff;
+  --div-neg: #c8492e;
+  --div-mid: #201a13;
 
   --radius: 14px;
-  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* The three families are self-hosted by next/font (see app/layout.tsx) and handed
+     down as CSS variables on <html>; these tokens are the only place that reads
+     them, so the family name lives in exactly one spot. */
+  --font: var(--font-inter), -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+  /* The display face carries h1s and the brand mark alone: Archivo Black ships one
+     weight, so it is never asked to be anything but itself. The mono face marks the
+     small uppercase labels (nav, tile labels, pills, badges) that already read as
+     data rather than prose, the way the source site uses it for its own chrome. */
+  --font-display: var(--font-archivo-black), var(--font);
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Consolas,
+    monospace;
 
   /* Motion, as tokens so every surface moves at the same speed. Short enough to feel
      like response rather than animation: past ~200ms a hover reads as lag. Every use
@@ -159,101 +172,90 @@
   --leading: 1.5;
   --leading-loose: 1.75;
 
-  /* The last four colours that lived in rules. Shadows are tokens because a shadow
-     tuned for a light page is invisible on a dark one, and the overlays because the
-     top bar tints itself against whatever it sits on. */
   /* The slab: the primary button, and nothing else since the top bar turned white
-     under a blue rule. Separate from --ink because --ink is body text, and in a dark
-     theme text goes light while a slab must not. */
-  --slab: #005eb8;
-  --on-slab: #ffffff;
+     under a blue rule. Separate from --ink because --ink is body text; here the two
+     land in the same family on purpose (terracotta), but the slab is its own token
+     because the next palette can move one without the other. Darker than --accent
+     itself: the decorative swatch reads at 4.0:1 under cream text, short of the 4.5:1
+     a button's label needs, so the slab is stepped down until it clears the floor. */
+  --slab: #a83a22;
+  --on-slab: #f1ecdf;
 
-  /* --overlay-weak and --overlay-line went with the dark top bar. They existed to tint
-     controls against it, and a white bar dresses its controls from the ordinary
-     surface tokens, so nothing was left to paint. */
-  --shadow-sm: 0 1px 3px rgba(11, 18, 34, 0.05), 0 1px 2px rgba(11, 18, 34, 0.03);
-  --shadow-md: 0 4px 12px rgba(11, 18, 34, 0.06), 0 2px 4px rgba(11, 18, 34, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
 
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 /* ---------------------------------------------------------------------------
-   Dark theme.
+   The same theme, mirrored rather than swapped.
 
-   Values only. No rule below this point names a colour, which is the property
-   that makes a second theme a palette swap rather than a second stylesheet.
+   The source design has exactly one look: there is no light variant of the portfolio
+   site to carry over. Rather than invent one, both the system-preference block and the
+   manual-toggle block below repeat the values above verbatim, so a reader's OS setting
+   or a future preference control cannot land them on a palette nobody designed. Values
+   only, still: no rule past this point names a colour, which is what keeps a theme a
+   token swap rather than a second stylesheet.
 
-   Every text pair here was chosen by contrast and is enforced by
-   backend/scripts/check_contrast.py, which reads both palettes: a dark theme
-   that has never been measured is where accessibility regressions hide, since
-   the person who built it was looking at the light one.
-
-   `color-scheme` tells the browser to render its own furniture, meaning
-   scrollbars, form controls and the caret, to match. Without it those stay
-   light and the page looks half-converted.
+   Every text pair here is measured by backend/scripts/check_contrast.py against all
+   three blocks, so keeping them identical is checked, not just intended.
    --------------------------------------------------------------------------- */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --canvas: #0e1420;
-    --surface: #151d2b;
-    --raised: #1a2333;
-    --ink: #e8ecf3;
-    --on-ink: #e8ecf3;
-    /* The slab dresses the primary button, not the bar. A readable blue rather than
-       the light palette's #005eb8, which is too dark to sit on this canvas. */
-    --slab: #1f7ac4;
-    --on-slab: #ffffff;
-    --muted: #97a5bb;
-    --muted-light: #3c4759;
-    --secondary: #b4c0d2;
-    --accent: #41b6e6;
-    --accent-strong: #7cc4ee;
-    --focus: #62b0dc;
-    --highlight: #e0a44a;
-    --highlight-soft: #1b2739;
-    --border: rgba(255, 255, 255, 0.12);
-    --border-faint: rgba(255, 255, 255, 0.07);
-    --warn-fill: #3a2a0a;
-    --warn-text: #f0cd8c;
-    --warn-border: rgba(240, 205, 140, 0.25);
-    --green-soft: #1a2e1a;
-    --green: #22c55e;
-    --border-green: rgba(34, 197, 94, 0.25);
-    --err-fill: #3a1a12;
-    --err-text: #f4b3a3;
-    --err-border: rgba(244, 179, 163, 0.25);
-    --ai-fill: #16283a;
-    --ai-border: rgba(124, 196, 238, 0.22);
-    /* Darker than the light palette's, for the same reason --slab is: the light
-       theme's blues are lit to sit on white and glare on this canvas. */
-    --hero-from: #0d2947;
-    --hero-to: #17456e;
-    --on-hero: #eaf2fa;
-    --on-hero-muted: #c4d3e3;
-    --band-1: #243043;
-    --band-2: #2f3d55;
-    --band-3: #3d4d6a;
-    --band-4: #526482;
-    --band-5: #7891ae;
-    --band-6: #aebdd0;
-    --on-band-1: #e8ecf3;
-    --on-band-2: #e8ecf3;
-    --on-band-3: #e8ecf3;
-    --on-band-4: #e8ecf3;
-    --on-band-5: #0b1222;
-    --on-band-6: #0b1222;
-    /* Elevation reads as light on a dark surface, not as a cast shadow. */
+    --canvas: #0c0b0a;
+    --surface: #17140f;
+    --raised: #1e1a13;
+    --ink: #f1ecdf;
+    --on-ink: #f1ecdf;
+    --slab: #a83a22;
+    --on-slab: #f1ecdf;
+    --muted: #a89d89;
+    --muted-light: #4a3d2c;
+    --secondary: #c9bfa8;
+    --accent: #c8492e;
+    --accent-strong: #e8714f;
+    --focus: #f0a57c;
+    --highlight: #d99a4e;
+    --highlight-soft: #241c10;
+    --border: rgba(241, 236, 223, 0.09);
+    --border-strong: rgba(241, 236, 223, 0.22);
+    --border-faint: rgba(241, 236, 223, 0.05);
+    --warn-fill: #2a1d0a;
+    --warn-text: #e8b567;
+    --warn-border: rgba(232, 181, 103, 0.28);
+    --green-soft: #12241a;
+    --green: #3ddc97;
+    --border-green: rgba(61, 220, 151, 0.28);
+    --err-fill: #2a1310;
+    --err-text: #ff8a75;
+    --err-border: rgba(255, 138, 117, 0.28);
+    --ai-fill: #241209;
+    --ai-border: rgba(200, 73, 46, 0.3);
+    --hero-from: #050504;
+    --hero-to: #1e1a13;
+    --on-hero: #f1ecdf;
+    --on-hero-muted: #c9bfa8;
+    --band-1: #efe7d6;
+    --band-2: #d6c7a9;
+    --band-3: #b3a17c;
+    --band-4: #94845f;
+    --band-5: #5c4f38;
+    --band-6: #332a1c;
+    --on-band-1: #201a10;
+    --on-band-2: #201a10;
+    --on-band-3: #201a10;
+    --on-band-4: #201a10;
+    --on-band-5: #f1ecdf;
+    --on-band-6: #f1ecdf;
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
-    /* Stepped for the dark card, not flipped: the light steps sat below 3:1 on it.
-       Adjacent marks only; no three of these pass all-pairs on dark, so all-pairs
-       forms use one series and facet. */
-    --series-1: #2f84d8;
-    --series-2: #12a191;
-    --series-3: #8f67f0;
-    --series-4: #d0529a;
-    --div-pos: #2f84d8;
-    --div-neg: #e0703a;
-    --div-mid: #232d3d;
+    --series-1: #5470ff;
+    --series-2: #3ddc97;
+    --series-3: #e8714f;
+    --series-4: #d9b64f;
+    --series-other: #746a58;
+    --div-pos: #5470ff;
+    --div-neg: #c8492e;
+    --div-mid: #201a13;
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
     color-scheme: dark;
   }
@@ -264,60 +266,60 @@
    one is worse than no toggle. Nothing sets this attribute yet; it is the hook a
    preference control will use. */
 :root[data-theme="dark"] {
-  --canvas: #0e1420;
-  --surface: #151d2b;
-  --raised: #1a2333;
-  --ink: #e8ecf3;
-  --on-ink: #e8ecf3;
-  /* The slab dresses the primary button, not the bar. A readable blue rather than
-     the light palette's #005eb8, which is too dark to sit on this canvas. */
-  --slab: #1f7ac4;
-  --on-slab: #ffffff;
-  --muted: #97a5bb;
-  --muted-light: #3c4759;
-  --secondary: #b4c0d2;
-  --accent: #41b6e6;
-  --accent-strong: #7cc4ee;
-  --focus: #62b0dc;
-  --highlight: #e0a44a;
-  --highlight-soft: #1b2739;
-  --border: rgba(255, 255, 255, 0.12);
-  --border-faint: rgba(255, 255, 255, 0.07);
-  --warn-fill: #3a2a0a;
-  --warn-text: #f0cd8c;
-  --warn-border: rgba(240, 205, 140, 0.25);
-  --green-soft: #1a2e1a;
-  --green: #22c55e;
-  --border-green: rgba(34, 197, 94, 0.25);
-  --err-fill: #3a1a12;
-  --err-text: #f4b3a3;
-  --err-border: rgba(244, 179, 163, 0.25);
-  --ai-fill: #16283a;
-  --ai-border: rgba(124, 196, 238, 0.22);
-  --hero-from: #0d2947;
-  --hero-to: #17456e;
-  --on-hero: #eaf2fa;
-  --on-hero-muted: #c4d3e3;
-  --band-1: #243043;
-  --band-2: #2f3d55;
-  --band-3: #3d4d6a;
-  --band-4: #526482;
-  --band-5: #7891ae;
-  --band-6: #aebdd0;
-  --on-band-1: #e8ecf3;
-  --on-band-2: #e8ecf3;
-  --on-band-3: #e8ecf3;
-  --on-band-4: #e8ecf3;
-  --on-band-5: #0b1222;
-  --on-band-6: #0b1222;
+  --canvas: #0c0b0a;
+  --surface: #17140f;
+  --raised: #1e1a13;
+  --ink: #f1ecdf;
+  --on-ink: #f1ecdf;
+  --slab: #a83a22;
+  --on-slab: #f1ecdf;
+  --muted: #a89d89;
+  --muted-light: #4a3d2c;
+  --secondary: #c9bfa8;
+  --accent: #c8492e;
+  --accent-strong: #e8714f;
+  --focus: #f0a57c;
+  --highlight: #d99a4e;
+  --highlight-soft: #241c10;
+  --border: rgba(241, 236, 223, 0.09);
+  --border-strong: rgba(241, 236, 223, 0.22);
+  --border-faint: rgba(241, 236, 223, 0.05);
+  --warn-fill: #2a1d0a;
+  --warn-text: #e8b567;
+  --warn-border: rgba(232, 181, 103, 0.28);
+  --green-soft: #12241a;
+  --green: #3ddc97;
+  --border-green: rgba(61, 220, 151, 0.28);
+  --err-fill: #2a1310;
+  --err-text: #ff8a75;
+  --err-border: rgba(255, 138, 117, 0.28);
+  --ai-fill: #241209;
+  --ai-border: rgba(200, 73, 46, 0.3);
+  --hero-from: #050504;
+  --hero-to: #1e1a13;
+  --on-hero: #f1ecdf;
+  --on-hero-muted: #c9bfa8;
+  --band-1: #efe7d6;
+  --band-2: #d6c7a9;
+  --band-3: #b3a17c;
+  --band-4: #94845f;
+  --band-5: #5c4f38;
+  --band-6: #332a1c;
+  --on-band-1: #201a10;
+  --on-band-2: #201a10;
+  --on-band-3: #201a10;
+  --on-band-4: #201a10;
+  --on-band-5: #f1ecdf;
+  --on-band-6: #f1ecdf;
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
-  --series-1: #2f84d8;
-  --series-2: #12a191;
-  --series-3: #8f67f0;
-  --series-4: #d0529a;
-  --div-pos: #2f84d8;
-  --div-neg: #e0703a;
-  --div-mid: #232d3d;
+  --series-1: #5470ff;
+  --series-2: #3ddc97;
+  --series-3: #e8714f;
+  --series-4: #d9b64f;
+  --series-other: #746a58;
+  --div-pos: #5470ff;
+  --div-neg: #c8492e;
+  --div-mid: #201a13;
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
   color-scheme: dark;
 }
@@ -349,6 +351,26 @@ body {
   font-size: var(--text-base);
   line-height: var(--leading);
   -webkit-font-smoothing: antialiased;
+}
+
+/* The two accent faces from the source theme. Headings take the display face; the
+   small uppercase labels that already read as data rather than prose (nav, tile
+   labels, pills, badges) take the mono face, the way the source site uses it for
+   its own chrome. Named here, once, rather than repeated on each selector below. */
+h1,
+.topbar-brand {
+  font-family: var(--font-display);
+}
+.topbar-nav,
+.topbar-user-label,
+.pill,
+.lens-tile-label,
+.lens-kind,
+.lens-badge,
+.lens-tooltip-label,
+.chat-progress,
+.demo-banner-text {
+  font-family: var(--font-mono);
 }
 
 /* Scripts whose glyphs need more vertical room than a Latin-tuned scale gives them.
