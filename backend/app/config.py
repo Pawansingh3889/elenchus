@@ -13,6 +13,7 @@ PRICE_FIELDS = tuple(
     f"llm_tier{tier}_price_{side}_per_mtok" for tier in range(1, 5) for side in ("in", "out")
 )
 CACHED_PRICE_FIELDS = tuple(f"llm_tier{tier}_price_cached_in_per_mtok" for tier in range(1, 5))
+CONTEXT_WINDOW_FIELDS = tuple(f"llm_tier{tier}_context_window" for tier in range(1, 5))
 
 
 # The interp service refuses a shorter token; the backend refuses to start with one.
@@ -221,14 +222,19 @@ class Settings(BaseSettings):
     @field_validator(
         *PRICE_FIELDS,
         *CACHED_PRICE_FIELDS,
+        *CONTEXT_WINDOW_FIELDS,
         "llm_embedding_price_per_mtok",
         "grounding_similarity_margin",
         mode="before",
     )
     @classmethod
-    def _a_blank_price_is_unstated(cls, value: object) -> object:
-        """Compose forwards a variable nobody set as an empty string. That means "not
-        stated", which has to stay distinguishable from 0, the price of a free model."""
+    def _a_blank_optional_number_is_unstated(cls, value: object) -> object:
+        """Compose forwards a variable nobody set as an empty string, not as an absent
+        key, so pydantic sees `''` where an unset optional number needs `None` — and
+        for a price, that has to stay distinguishable from 0, the price of a free
+        model. Every `int | None` / `float | None` setting fed from a
+        `${VAR:-}`-style compose default needs this, not just the price fields the
+        name used to promise."""
         return None if value == "" else value
 
     @model_validator(mode="after")
