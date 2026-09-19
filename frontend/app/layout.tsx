@@ -1,9 +1,23 @@
 import type { Metadata, Viewport } from "next";
+import { Archivo_Black, Inter, JetBrains_Mono } from "next/font/google";
 
 import { TopBar } from "@/components/TopBar";
 import "./globals.css";
 import { DemoBanner } from "@/components/DemoBanner";
 import { Providers } from "./providers";
+
+/* The three faces the theme in globals.css names as --font, --font-display and
+ * --font-mono. next/font self-hosts them at build time (no third-party request at
+ * runtime, no flash of fallback text), and exposes each as a CSS variable that the
+ * stylesheet's font tokens read straight from, rather than duplicating the family
+ * name in two places. */
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const archivoBlack = Archivo_Black({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-archivo-black",
+});
+const jetBrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono" });
 
 export const metadata: Metadata = {
   title: "Elenchus",
@@ -25,7 +39,10 @@ const isDemo = process.env.NEXT_PUBLIC_APP_ENV === "demo";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html
+      lang="en"
+      className={`${inter.variable} ${archivoBlack.variable} ${jetBrainsMono.variable}`}
+    >
       <body>
         <Providers>
           <TopBar />
