@@ -22,8 +22,10 @@ Requested direction:
 - Offer a short needs conversation before a visitor chooses a subscription.
 - Keep the roadmap and design references in the repository for continued improvement.
 
-Still proposals: the first customer segment, final design, tier details, pricing,
-allowances, and specialist implementation sequence. No launch date was agreed.
+Still proposals: final design (the current app theme stays as-is; the three design
+concepts in `docs/design/` remain reference only, not adopted), tier details, pricing,
+allowances, and specialist implementation sequence. No launch date was agreed. The first
+customer segment is settled: employee feedback (§4).
 
 ## 2. Customer journey
 
@@ -86,14 +88,15 @@ here and must be checked before a pricing decision.
 
 | Category | Example uses | Proposed sequence |
 |---|---|---|
-| Employee feedback | Onboarding, engagement, workplace improvements | Suggested first pilot, not a selected market |
+| Employee feedback | Onboarding, engagement, workplace improvements | **Selected pilot category** |
 | Customer experience | Satisfaction, service feedback, churn reasons | Candidate expansion |
 | Product research | Concept testing, feature feedback, usability interviews | Candidate expansion |
 | Market research | Audience studies and purchase preferences | Later; recruitment remains a separate concern |
 
-Employee feedback is the suggested starting point because the existing project has
-workplace concepts. Choose the first category based on accessible pilot customers and
-their needs, then complete its full journey before expanding.
+Employee feedback is the selected pilot category: the existing project already has
+workplace concepts, and it is the starting point Stage 2 of the roadmap builds against.
+Complete its full journey (draft, review, publish, interview, results) before expanding
+to another category.
 
 ## 5. Shared specialist capabilities
 
@@ -176,8 +179,10 @@ uncommitted Docker startup changes are separate from this product plan.
 - [x] Recover the voice-session plan and consolidate it into a repository Markdown file.
 - [x] Preserve the existing HTML concept under `docs/design/`, with a standalone browser
   preview and editing instructions.
-- [ ] Choose or combine design directions A, B, and C.
-- [ ] Choose the first customer segment and identify pilot users.
+- [x] Choose or combine design directions A, B, and C: none of them — the current app
+  theme (§1) stays as the design; A/B/C remain preserved as reference only.
+- [x] Choose the first customer segment: employee feedback (§4). Identifying actual
+  pilot users is still open.
 - [ ] Build a clickable needs-conversation and recommendation demo using clearly labeled
   sample plans, without presenting undecided prices as real offers.
 - [ ] Confirm the first category's end-to-end scope before production implementation.
