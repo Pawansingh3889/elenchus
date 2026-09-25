@@ -259,7 +259,7 @@ def identity_of(provider: Provider, profile: dict[str, Any]) -> tuple[str, str |
         email = profile.get("mail") or profile.get("userPrincipalName") or ""
         return str(email).strip().casefold(), profile.get("id")
     email = profile.get("email") or ""
-    if not profile.get("email_verified", True):
+    if profile.get("email_verified") is not True:
         # An unverified address on a provider that reports it is somebody else's account
         # waiting to happen, since this system matches people by address.
         raise SignInError("That account's email address is not verified with the provider.")

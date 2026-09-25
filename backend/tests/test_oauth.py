@@ -9,11 +9,12 @@ import time
 from uuid import uuid4
 
 import pytest
+from pydantic import ValidationError
 
 from app.auth import oauth
 from app.auth.dependencies import get_current_user
 from app.auth.router import callback
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.errors import UnauthorizedError
 
 
@@ -28,6 +29,13 @@ def _secret(monkeypatch):
 def test_a_signed_value_comes_back_unchanged():
     token = oauth.sign("hello", 60)
     assert oauth.unsign(token) == "hello"
+
+
+@pytest.mark.parametrize("environment", ["production", "staging", ""])
+def test_misspelled_environment_cannot_enable_development_auth(monkeypatch, environment):
+    monkeypatch.setenv("APP_ENV", environment)
+    with pytest.raises(ValidationError, match="app_env"):
+        Settings(_env_file=None)
 
 
 def test_a_tampered_payload_is_refused():
@@ -108,17 +116,26 @@ def test_google_refuses_an_unverified_address():
         oauth.identity_of(provider, {"email": "someone@gmail.com", "email_verified": False})
 
 
-async def test_dev_header_works_for_public_access(session, author, monkeypatch):
-    """The dev header is now accepted in all environments to support public survey
-    access via seeded users."""
-    # In production
+@pytest.mark.parametrize(
+    "claim", [{}, {"email_verified": None}, {"email_verified": "false"}, {"email_verified": 1}]
+)
+def test_google_needs_explicit_email_verification(claim):
+    provider = oauth.providers()["google"]
+    with pytest.raises(oauth.SignInError):
+        oauth.identity_of(provider, {"email": "someone@example.com", **claim})
+
+
+async def test_production_refuses_a_known_user_id_without_a_session(session, author, monkeypatch):
+    """Knowing an account id must not let a stranger sign in as that account."""
     monkeypatch.setenv("APP_ENV", "prod")
     get_settings.cache_clear()
-    user = await get_current_user(x_user_id=author.id, elenchus_session=None, session=session)
-    assert user.id == author.id
+    with pytest.raises(UnauthorizedError):
+        await get_current_user(x_user_id=author.id, elenchus_session=None, session=session)
 
-    # In development
-    monkeypatch.setenv("APP_ENV", "dev")
+
+@pytest.mark.parametrize("environment", ["dev", "demo"])
+async def test_development_and_demo_keep_the_header_shim(session, author, monkeypatch, environment):
+    monkeypatch.setenv("APP_ENV", environment)
     get_settings.cache_clear()
     user = await get_current_user(x_user_id=author.id, elenchus_session=None, session=session)
     assert user.id == author.id

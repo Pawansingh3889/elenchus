@@ -7,7 +7,7 @@ sign-in. This is the real one, and in production it is the only one.
 
 **The `X-User-Id` header**, which is the development shim: a caller is whoever they say
 they are. That was the entire authentication story here for a long time, and it is
-exactly as weak as it sounds, so it is now refused outside development. It survives
+exactly as weak as it sounds, so it is refused in production. It survives in dev and demo
 because the test suite and local work should not need a provider, a network round trip
 or a client secret, and because the seeded users have no provider accounts to sign in
 with.
@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.access import is_admin_by_config, may_author
 from app.auth import oauth
+from app.config import get_settings
 from app.db.session import get_session
 from app.errors import ForbiddenError, UnauthorizedError
 from app.users.models import User
@@ -48,7 +49,7 @@ async def get_current_user(
             raise UnauthorizedError("That account no longer exists.")
         return user
 
-    if x_user_id is None:
+    if x_user_id is None or get_settings().app_env == "prod":
         # No cookie and no header is nobody, and nobody is a 401.
         #
         # This branch used to substitute a hardcoded seeded id so the deployed app could

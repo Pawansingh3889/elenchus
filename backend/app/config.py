@@ -5,6 +5,7 @@ rather than silently degrading (see ARCHITECTURE.md — no fallbacks).
 """
 
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -413,7 +414,7 @@ class Settings(BaseSettings):
         "survey published here that does not carry its own. Never shown to respondents.",
     )
 
-    app_env: str = Field("dev", description="dev | demo | prod")
+    app_env: Literal["dev", "demo", "prod"] = Field("dev", description="dev | demo | prod")
     frontend_origin: str = Field(
         "http://localhost:3000", description="Allowed CORS origin for the browser app"
     )
