@@ -286,3 +286,15 @@ def test_the_sign_in_routes_are_mounted_where_the_browser_looks():
         "/api/v1/auth/logout",
         "/api/v1/auth/me",
     }
+
+
+@pytest.mark.parametrize("environment,offered", [("dev", True), ("prod", False)])
+async def test_address_sign_in_is_offered_only_where_it_is_mounted(
+    monkeypatch, environment, offered
+):
+    """Production has no /dev/identify, so its top bar must not draw the box that calls it."""
+    from app.auth.router import sign_in_options
+
+    monkeypatch.setenv("APP_ENV", environment)
+    get_settings.cache_clear()
+    assert (await sign_in_options()).address_sign_in is offered

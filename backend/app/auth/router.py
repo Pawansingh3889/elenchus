@@ -8,6 +8,7 @@ import logging
 
 from fastapi import APIRouter, Cookie, Depends
 from fastapi.responses import RedirectResponse
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import oauth
@@ -31,14 +32,23 @@ def _redirect_uri(provider: str) -> str:
     return f"{get_settings().public_base_url.rstrip('/')}/api/v1/auth/{provider}/callback"
 
 
-@router.get("/providers")
-async def sign_in_options() -> dict[str, list[str]]:
-    """Which providers this deployment can offer, so the page draws only real buttons.
+class SignInOptions(BaseModel):
+    providers: list[str]
+    # Whether POST /dev/identify is mounted, so the browser never draws a box that 404s.
+    address_sign_in: bool
+
+
+@router.get("/providers", response_model=SignInOptions)
+async def sign_in_options() -> SignInOptions:
+    """Which ways in this deployment offers, so the page draws only real controls.
 
     Unauthenticated of necessity, like the dev picker, and unlike it this leaks nothing:
-    the answer is which of two well-known products the deployment is wired to.
+    the answer is which of two well-known products the deployment is wired to, and
+    whether it is a development build.
     """
-    return {"providers": oauth.enabled()}
+    return SignInOptions(
+        providers=oauth.enabled(), address_sign_in=get_settings().app_env != "prod"
+    )
 
 
 @router.get("/{provider}/login")
