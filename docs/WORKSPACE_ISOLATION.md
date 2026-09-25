@@ -35,16 +35,28 @@ Before ordinary queries, a narrow SELECT policy permits looking up exactly the a
 identified by a validated session or provider identity. The temporary identity hint is
 cleared immediately after lookup. No bootstrap hint authorizes writes.
 
-- Production requires a signed session. `X-User-Id` is only a development/demo shim.
+- Production requires a signed session. `X-User-Id` is only a development shim.
 - Google must explicitly return `email_verified: true`, matching an existing account.
 - Microsoft must return the Graph object ID already linked in `users.microsoft_id`.
   Matching a mutable email or UPN does not link an account or permit sign-in. Existing
   Microsoft accounts without a trusted pre-linked ID will be refused until provisioned.
 - Unknown identities never create accounts or join a company from an email domain.
 
-Roster invitations, ownership verification for first-time Microsoft linking, shared-link
-entry, and customer provisioning still need complete product workflows. Do not enable
-development/demo authentication for real customers.
+A company's first account is made in the deployment's shell, because nobody can sign in
+to make it:
+
+```sh
+python -m app.provision "Acme Foods" owner@acme.test "Ada Owner" \
+    --function executive --band director [--microsoft-id <Entra object id>]
+```
+
+It creates the workspace and its owner in one transaction under the runtime role, records
+the owner's creation with no actor, and leaves an address that already has an account
+alone. The owner then creates everyone else from the admin screen.
+
+Roster invitations, ownership verification for first-time Microsoft linking, and
+shared-link entry still need complete product workflows. Do not enable development
+authentication for real customers.
 
 ## Separate deployment and runtime credentials
 

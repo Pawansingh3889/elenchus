@@ -476,3 +476,36 @@ async def test_downgrade_refuses_to_merge_two_companies(strict_engine, companies
             assert await connection.scalar(text("SELECT count(*) FROM workspaces")) == 2
     finally:
         await admin.dispose()
+
+
+async def test_provisioning_makes_a_company_and_its_owner_under_the_runtime_role(
+    strict_engine, monkeypatch
+):
+    """Production has no seed, so this is the only way its first account comes to be."""
+    from app import provision
+    from app.access import is_workspace_admin, may_author
+    from app.users.models import AccountChange
+    from app.users.schemas import AccountCreate
+
+    monkeypatch.setattr(
+        provision, "SessionFactory", async_sessionmaker(strict_engine, expire_on_commit=False)
+    )
+    data = AccountCreate(
+        email=" Owner@Acme.test ",
+        display_name="Ada Owner",
+        function=Function.executive,
+        band=Band.director,
+    )
+    owner, created = await provision.provision("Acme Foods", data)
+    again, created_again = await provision.provision("Another name", data)
+
+    assert created and not created_again and again.id == owner.id
+    assert owner.email == "owner@acme.test" and owner.workspace_role is WorkspaceRole.owner
+    assert owner.workspace_id != LEGACY_WORKSPACE_ID
+    assert is_workspace_admin(owner) and may_author(owner)
+    async with AsyncSession(strict_engine, info={"workspace_id": owner.workspace_id}) as s:
+        assert (await s.get(Workspace, owner.workspace_id)).name == "Acme Foods"
+        (change,) = (await s.scalars(select(AccountChange))).all()
+        assert change.user_id == owner.id and change.changed_by is None
+    async with AsyncSession(strict_engine, info={"workspace_id": LEGACY_WORKSPACE_ID}) as s:
+        assert await s.get(User, owner.id) is None
