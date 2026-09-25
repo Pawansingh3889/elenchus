@@ -7,6 +7,12 @@ The project is not yet versioned, so entries are grouped by date. Newest first.
 
 ## 2026-09-25. Demo mode removed, production provisioning
 
+- Retheme to the FloorMind palette and type: navy ink on white, electric blue with cyan,
+  Space Grotesk headings over Inter, a white sticky top bar. `/` is now a commercial page
+  in that style (how it works, the rails, a proof strip, pilot plans with no invented
+  prices, security, and a call to act), and the respondent's "Answer a survey" stays the
+  first button.
+
 - Removed demo mode: `APP_ENV` is now `dev` or `prod`. Gone with it are the startup seed,
   the unauthenticated `POST /api/v1/dev/reset` wipe (which was also mounted in
   development), the demo banner and its reset button, `demo_mode` on the health

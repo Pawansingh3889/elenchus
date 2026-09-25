@@ -29,10 +29,12 @@ Requested direction:
 - Offer a short needs conversation before a visitor chooses a subscription.
 - Keep the roadmap and design references in the repository for continued improvement.
 
-Still proposals: final design (the current app theme stays as-is; the three design
-concepts in `docs/design/` remain reference only, not adopted), tier details, pricing,
+Still proposals: tier details, pricing,
 allowances, and specialist implementation sequence. No launch date was agreed. The first
-customer segment is settled: employee feedback (§4).
+customer segment is settled: employee feedback (§4). The design is settled too: on 25 Sep
+2026 the app took the FloorMind palette and type (floormind.pages.dev: navy ink, electric
+blue with cyan, Space Grotesk over Inter), and `/` became a commercial page in that style.
+The three concepts in `docs/design/` remain reference only.
 
 ## 2. Customer journey
 
@@ -198,8 +200,8 @@ uncommitted Docker startup changes are separate from this product plan.
 - [x] Recover the voice-session plan and consolidate it into a repository Markdown file.
 - [x] Preserve the existing HTML concept under `docs/design/`, with a standalone browser
   preview and editing instructions.
-- [x] Choose or combine design directions A, B, and C: none of them — the current app
-  theme (§1) stays as the design; A/B/C remain preserved as reference only.
+- [x] Choose or combine design directions A, B, and C: none of them. The app took the
+  FloorMind palette and type on 25 Sep 2026 (§1); A/B/C remain preserved as reference only.
 - [x] Choose the first customer segment: employee feedback (§4). Identifying actual
   pilot users is still open.
 - [ ] Build a clickable needs-conversation and recommendation demo using clearly labeled

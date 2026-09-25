@@ -8,7 +8,9 @@ this directory.
   directly. Four pages remain: `/`, `/signin`, `/respond` and `/runs/[id]`. The dashboard,
   builder, Results page, people admin and LLM admin screens are gone from the browser;
   every endpoint behind them is still served and still covered by the backend suite, so
-  authoring is an API call. The only planned additions are the lens pages, one per factor
+  authoring is an API call. `/` is the commercial page (25 Sep 2026, after
+  floormind.pages.dev): every claim on it is something the code does today, and it names
+  no price, because prices wait for measured operating cost. The only planned additions are the lens pages, one per factor
   (hidden layers, embeddings, attention, state, relationship, inference, tool selection,
   evaluation, validation), each showing cost and latency beside what it explains. Do not
   rebuild an authoring screen to get there.
@@ -22,12 +24,11 @@ this directory.
   the lens pages without a reason that names what plain classes cannot do.
 - **`recharts` is the one charting dependency, and chart colour is validated, not chosen.**
   Series colours are `--series-1` to `--series-4` in all three token blocks of
-  `globals.css` (light, dark by media query, dark by `data-theme`), checked with the
-  dataviz palette script on 13 Sep 2026 against `--raised`. All four pass for adjacent marks
-  (bars, stacks, lines). Only the first three pass for all-pairs forms in light, and no
-  three pass on dark, so a scatter or small multiple uses one series and facets instead of
-  seating more hues. Dark steps are their own values, not the light ones flipped: the
-  light steps sat below 3:1 on the dark card. Colour follows the entity, never its rank;
+  `globals.css` (base, dark by media query, dark by `data-theme`, which all hold the same
+  light FloorMind values), checked with the dataviz palette script on 25 Sep 2026 against
+  white. All four pass for adjacent marks (bars, stacks, lines); only the first three pass
+  all-pairs, so a scatter or small multiple uses one series and facets instead of seating
+  more hues. Colour follows the entity, never its rank;
   text wears text tokens, never a series colour.
 - **Every lens chart has a table twin and its sample size.** `ChartCard` in
   `components/lens/Chart.tsx` gives each plot a subtitle naming n and a "Show as a table"

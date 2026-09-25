@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Archivo_Black, Inter, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 
 import { TopBar } from "@/components/TopBar";
 import "./globals.css";
@@ -11,10 +11,10 @@ import { Providers } from "./providers";
  * stylesheet's font tokens read straight from, rather than duplicating the family
  * name in two places. */
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const archivoBlack = Archivo_Black({
+const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
-  weight: "400",
-  variable: "--font-archivo-black",
+  weight: ["500", "600", "700"],
+  variable: "--font-space-grotesk",
 });
 const jetBrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono" });
 
@@ -38,7 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${archivoBlack.variable} ${jetBrainsMono.variable}`}
+      className={`${inter.variable} ${spaceGrotesk.variable} ${jetBrainsMono.variable}`}
     >
       <body>
         <Providers>
