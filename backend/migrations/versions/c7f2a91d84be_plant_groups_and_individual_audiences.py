@@ -58,11 +58,7 @@ def _rebuild_enum(
     sidesteps both, and leaves no intermediate state for a failure to strand.
     """
     cases = "".join(f" WHEN {old!r} THEN {new!r}" for old, new in (remap or {}).items())
-    using = (
-        f"(CASE {column}::text{cases} ELSE {column}::text END)::{name}_new"
-        if cases
-        else f"{column}::text::{name}_new"
-    )
+    using = f"(CASE {column}::text{cases} ELSE {column}::text END)::{name}_new" if cases else f"{column}::text::{name}_new"
     op.execute(f"CREATE TYPE {name}_new AS ENUM ({', '.join(repr(v) for v in values)})")
     op.execute(f"ALTER TABLE {table} ALTER COLUMN {column} TYPE {name}_new USING {using}")
     op.execute(f"DROP TYPE {name}")

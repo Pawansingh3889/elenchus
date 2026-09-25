@@ -72,7 +72,9 @@ def downgrade() -> None:
     op.create_table(
         "survey_template_versions",
         sa.Column("id", sa.UUID(), primary_key=True),
-        sa.Column("template_id", sa.UUID(), sa.ForeignKey("survey_templates.id"), nullable=False),
+        sa.Column(
+            "template_id", sa.UUID(), sa.ForeignKey("survey_templates.id"), nullable=False
+        ),
         sa.Column("version", sa.Integer(), nullable=False),
         sa.Column("definition", sa.dialects.postgresql.JSONB(), nullable=False),
         sa.Column(
