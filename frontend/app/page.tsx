@@ -1,11 +1,11 @@
 import Link from "next/link";
 
 /**
- * The commercial front door, styled after floormind.pages.dev.
+ * The front door, styled after floormind.pages.dev.
  *
- * Every claim on it is something the code does today, and nothing is priced: the plan
- * (docs/COMMERCIAL_PLAN.md) says prices and allowances wait for measured operating cost,
- * and never to invent them. A respondent still gets one click to their survey.
+ * Free with sign-in since 25 Sep 2026: anyone who signs in gets an account and can answer
+ * the open surveys. Every claim on the page is something the code does today, and it
+ * says plainly what signing in stores.
  */
 
 const REPO = "https://github.com/Pawansingh3889/elenchus";
@@ -51,36 +51,11 @@ const PROOF = [
   { value: "90 days", label: "default response retention" },
 ];
 
-const PLANS = [
-  {
-    name: "Pilot",
-    audience: "Employee feedback for one company, in its own private workspace.",
-    price: "By arrangement",
-    cadence: "Terms agreed with each pilot company",
-    features: [
-      "Owner, admin, author, analyst and respondent roles",
-      "Google or Microsoft sign-in",
-      "Conversational surveys in 8 languages",
-      "Retention set by the workspace owner",
-    ],
-    popular: true,
-  },
-  {
-    name: "Starter",
-    audience: "One person running occasional surveys.",
-    price: "After the pilot",
-    cadence: "Priced once operating costs are measured",
-    features: ["Survey categories as they are added", "A monthly allowance of completed responses"],
-    popular: false,
-  },
-  {
-    name: "Team",
-    audience: "Shared workspaces, collaboration and higher usage.",
-    price: "After the pilot",
-    cadence: "Priced once operating costs are measured",
-    features: ["Everything in Starter", "Named seats for authors and analysts"],
-    popular: false,
-  },
+const FREE = [
+  "Sign in with Google or Microsoft, and your account is made on the spot",
+  "Answer every survey that is open to anyone signed in",
+  "Talk it through in any of 8 languages, on your phone",
+  "Your answers are recorded as you said them, and checked before they are kept",
 ];
 
 const SECURITY = [
@@ -90,7 +65,11 @@ const SECURITY = [
   },
   {
     area: "Sign-in",
-    how: "Google with a verified address, or Microsoft with an account linked in advance. An unknown identity is refused, never created.",
+    how: "Google with a verified address, or Microsoft. Your first sign-in creates a respondent account; an address that already has an account is never taken over by another sign-in.",
+  },
+  {
+    area: "What we store",
+    how: "Your email address, your name as the provider gives it, the time of each sign-in, and the answers and conversation of each survey you take.",
   },
   {
     area: "Access",
@@ -110,7 +89,7 @@ export default function Home() {
   return (
     <div className="landing">
       <section className="landing-hero">
-        <span className="eyebrow">Employee feedback, as a conversation</span>
+        <span className="eyebrow">Free with sign-in</span>
         <h1>
           Surveys your people <span className="grad">answer by talking</span>
         </h1>
@@ -120,15 +99,15 @@ export default function Home() {
           nothing it says is kept until it has been checked.
         </p>
         <div className="landing-ctas">
-          <Link className="btn btn-primary btn-lg" href="/respond">
-            Answer a survey
+          <Link className="btn btn-primary btn-lg" href="/signin">
+            Sign in free
           </Link>
-          <Link className="btn btn-secondary btn-lg" href="#pricing">
-            See the pilot
+          <Link className="btn btn-secondary btn-lg" href="/respond">
+            Answer a survey
           </Link>
         </div>
         <div className="landing-badges">
-          <span className="badge">Private workspace per company</span>
+          <span className="badge">Free, no card</span>
           <span className="badge">Google and Microsoft sign-in</span>
           <span className="badge">8 languages</span>
           <span className="badge">Every answer traceable</span>
@@ -180,27 +159,28 @@ export default function Home() {
       <section className="landing-section" id="pricing">
         <div className="section-head">
           <span className="eyebrow">Pricing</span>
-          <h2>Start with a pilot</h2>
+          <h2>Free. Sign in and start</h2>
           <p className="subtitle">
-            Plans are priced from measured running costs, so none is published until those
-            numbers exist. Pilots run now, on agreed terms.
+            There is no plan to choose and nothing to pay. Signing in is the whole of
+            signing up.
           </p>
         </div>
-        <div className="landing-grid three plans">
-          {PLANS.map((plan) => (
-            <div className={plan.popular ? "plan popular" : "plan"} key={plan.name}>
-              {plan.popular ? <span className="plan-flag">Open now</span> : null}
-              <h3>{plan.name}</h3>
-              <p className="for">{plan.audience}</p>
-              <p className="price">{plan.price}</p>
-              <p className="cadence">{plan.cadence}</p>
-              <ul>
-                {plan.features.map((feature) => (
-                  <li key={feature}>{feature}</li>
-                ))}
-              </ul>
-            </div>
-          ))}
+        <div className="landing-grid one plans">
+          <div className="plan popular">
+            <span className="plan-flag">Free</span>
+            <h3>Free</h3>
+            <p className="for">For anyone with a Google or Microsoft account.</p>
+            <p className="price">£0</p>
+            <p className="cadence">No card, no trial that ends</p>
+            <ul>
+              {FREE.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+            <Link className="btn btn-primary btn-lg plan-cta" href="/signin">
+              Sign in free
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -239,7 +219,7 @@ export default function Home() {
         </p>
         <div className="landing-ctas">
           <Link className="btn btn-primary btn-lg" href="/signin">
-            Sign in
+            Sign in free
           </Link>
           <a className="btn btn-ghost btn-lg" href={REPO}>
             View the repository

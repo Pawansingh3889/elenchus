@@ -1793,6 +1793,13 @@ select.field {
 .landing-grid.three {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
+.landing-grid.one {
+  max-inline-size: 520px;
+}
+.landing .plan-cta {
+  justify-content: center;
+  margin-block-start: 1.6rem;
+}
 .landing-grid.four {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
