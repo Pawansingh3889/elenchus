@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import require_author
+from app.auth.dependencies import require_author, require_results_reader
 from app.db.session import get_session
 from app.runs.schemas import (
     AnswersMatrix,
@@ -39,7 +39,7 @@ dashboard_router = APIRouter(prefix="/api/v1/dashboard", tags=["dashboard"])
 
 @dashboard_router.get("", response_model=list[DashboardRow])
 async def dashboard(
-    author: User = Depends(require_author),
+    author: User = Depends(require_results_reader),
     session: AsyncSession = Depends(get_session),
 ) -> list[DashboardRow]:
     """Every survey this author owns and how each is going, in one request."""
@@ -49,7 +49,7 @@ async def dashboard(
 @router.get("/{template_id}/runs", response_model=list[RunSummary])
 async def list_runs(
     template_id: UUID,
-    author: User = Depends(require_author),
+    author: User = Depends(require_results_reader),
     session: AsyncSession = Depends(get_session),
 ) -> list[RunSummary]:
     return await ResultsService(session).list_runs(template_id, author)
@@ -58,7 +58,7 @@ async def list_runs(
 @router.get("/{template_id}/report", response_model=SurveyReport)
 async def survey_report(
     template_id: UUID,
-    author: User = Depends(require_author),
+    author: User = Depends(require_results_reader),
     session: AsyncSession = Depends(get_session),
 ) -> SurveyReport:
     """What the survey found, question by question. Declared before /{template_id}/runs
@@ -70,7 +70,7 @@ async def survey_report(
 @router.get("/{template_id}/answers", response_model=AnswersMatrix)
 async def answers_matrix(
     template_id: UUID,
-    author: User = Depends(require_author),
+    author: User = Depends(require_results_reader),
     session: AsyncSession = Depends(get_session),
 ) -> AnswersMatrix:
     """Every answer on the current version, by respondent, with nothing tallied.
@@ -85,7 +85,7 @@ async def answers_matrix(
 @router.get("/{template_id}/respondents", response_model=list[RespondentRow])
 async def list_respondents(
     template_id: UUID,
-    author: User = Depends(require_author),
+    author: User = Depends(require_results_reader),
     session: AsyncSession = Depends(get_session),
 ) -> list[RespondentRow]:
     """All respondents for a survey with their participation summary and current status.
@@ -100,7 +100,7 @@ async def list_respondents(
 @router.get("/{template_id}/respondents/stream")
 async def stream_respondents(
     template_id: UUID,
-    author: User = Depends(require_author),
+    author: User = Depends(require_results_reader),
 ) -> StreamingResponse:
     """Real-time stream of respondent status updates using Server-Sent Events.
 
@@ -116,7 +116,7 @@ async def stream_respondents(
         last_keepalive = datetime.now()
 
         # Get initial state
-        async with SessionFactory() as session:
+        async with SessionFactory(info={"workspace_id": author.workspace_id}) as session:
             service = ResultsService(session)
             previous_respondents = await service.respondents(template_id, author)
 
@@ -129,7 +129,7 @@ async def stream_respondents(
                 await asyncio.sleep(2)
 
                 # Get current respondent state with fresh session
-                async with SessionFactory() as session:
+                async with SessionFactory(info={"workspace_id": author.workspace_id}) as session:
                     service = ResultsService(session)
                     current_respondents = await service.respondents(template_id, author)
 
@@ -193,7 +193,7 @@ def _respondents_changed(previous: list[RespondentRow], current: list[Respondent
 @router.get("/{template_id}/summary", response_model=SurveyRecapStatus)
 async def survey_recap(
     template_id: UUID,
-    author: User = Depends(require_author),
+    author: User = Depends(require_results_reader),
     session: AsyncSession = Depends(get_session),
 ) -> SurveyRecapStatus:
     """The recap this survey already has, if the results have not moved past it.

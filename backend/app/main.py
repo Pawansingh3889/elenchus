@@ -20,7 +20,7 @@ from app.auth.dependencies import require_admin
 from app.auth.router import router as auth_router
 from app.conduct.router import router as runs_router
 from app.config import get_settings
-from app.db.session import get_session
+from app.db.session import SessionFactory, get_session
 from app.embeddings.router import router as embeddings_router
 from app.errors import register_error_handlers
 from app.evaluation.router import router as evaluation_router
@@ -36,6 +36,8 @@ from app.users.models import User
 from app.users.router import admin_router, dev_router, me_router
 from app.users.router import directory_router as people_router
 from app.users.router import router as users_router
+from app.workspaces.repository import WorkspaceRepository
+from app.workspaces.router import router as workspace_router
 
 
 def _configure_logging() -> None:
@@ -78,6 +80,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     alone and only genuinely missing rows are added. The /dev/reset endpoint is the
     explicit way to wipe back to the seed's clean state.
     """
+    if get_settings().app_env == "prod":
+        async with SessionFactory() as session:
+            await WorkspaceRepository(session).verify_runtime_role()
     if get_settings().app_env == "demo":
         logger.info("demo mode: seeding data on startup")
         await seed()
@@ -151,6 +156,7 @@ app.include_router(templates_router)
 app.include_router(results_router)
 app.include_router(dashboard_router)
 app.include_router(runs_router)
+app.include_router(workspace_router)
 
 
 class HealthRead(BaseModel):

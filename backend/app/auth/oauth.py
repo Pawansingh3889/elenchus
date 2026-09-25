@@ -14,11 +14,10 @@ crypto dependency, a key cache and a rotation story. The code was exchanged for 
 token over TLS against the provider's own token endpoint moments earlier, so asking the
 same provider who it belongs to is the same trust with less machinery.
 
-**An unknown address is refused, never created.** Every right in this system derives
-from a job, and an account created by a first sign-in holds no job: it can be surveyed
-by nobody, appears in no audience, and quietly widens every denominator it touches. So
-sign-in matches an account an administrator already made, and says so plainly when it
-cannot.
+**An unknown identity is refused, never created.** Google must report an explicitly
+verified email matching an existing account. Microsoft must match a pre-linked Graph
+object id: its mutable email fields cannot establish account ownership. Neither path
+creates an account or chooses a company from an email domain.
 """
 
 from __future__ import annotations
@@ -252,8 +251,8 @@ def identity_of(provider: Provider, profile: dict[str, Any]) -> tuple[str, str |
 
     Microsoft Graph puts a work address in `mail` and leaves it null for accounts that
     have only a UPN, which is why the fallback exists rather than being defensive
-    padding. The subject is the Entra object id, and it is what gets written to
-    `users.microsoft_id` on a first sign-in so the link survives an address change.
+    padding. The subject is the Entra object id, which must already be linked in
+    `users.microsoft_id`. The callback never links an account from its email alone.
     """
     if provider.name == "microsoft":
         email = profile.get("mail") or profile.get("userPrincipalName") or ""

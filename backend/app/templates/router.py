@@ -6,12 +6,13 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import HTTP_201_CREATED, HTTP_204_NO_CONTENT
 
-from app.auth.dependencies import get_current_user, require_author
+from app.auth.dependencies import get_current_user, require_admin, require_author
 from app.db.session import get_session
 from app.templates.enums import TemplateStatus
 from app.templates.generation import GenerationService
 from app.templates.models import SurveyTemplate
 from app.templates.schemas import (
+    AnalystAssignmentRead,
     GeneratedTemplate,
     GenerateRequest,
     RefineRequest,
@@ -156,3 +157,28 @@ async def close_template(
     """Stop the survey taking new answers. Conversations already under way finish."""
     template = await TemplateService(session).close(template_id, author)
     return TemplateRead.model_validate(template)
+
+
+@router.put(
+    "/{template_id}/analysts/{analyst_id}",
+    response_model=AnalystAssignmentRead,
+    status_code=HTTP_201_CREATED,
+)
+async def assign_analyst(
+    template_id: UUID,
+    analyst_id: UUID,
+    admin: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> AnalystAssignmentRead:
+    assignment = await TemplateService(session).assign_analyst(template_id, analyst_id, admin)
+    return AnalystAssignmentRead.model_validate(assignment)
+
+
+@router.delete("/{template_id}/analysts/{analyst_id}", status_code=HTTP_204_NO_CONTENT)
+async def remove_analyst(
+    template_id: UUID,
+    analyst_id: UUID,
+    admin: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> None:
+    await TemplateService(session).remove_analyst(template_id, analyst_id, admin)

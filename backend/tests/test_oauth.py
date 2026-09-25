@@ -223,12 +223,14 @@ async def test_the_callback_refuses_a_mismatched_state(session, monkeypatch):
     assert "sign_in_error=state_mismatch" in response.headers["location"]
 
 
-async def test_a_microsoft_sign_in_links_the_object_id(session, author, monkeypatch):
-    """Filled in on first use so a later address change does not orphan the account."""
+@pytest.mark.parametrize("stored_id", [None, "different-subject"])
+async def test_a_microsoft_mail_address_cannot_claim_an_account(
+    session, author, monkeypatch, stored_id
+):
     monkeypatch.setenv("OAUTH_MICROSOFT_CLIENT_ID", "id")
     monkeypatch.setenv("OAUTH_MICROSOFT_CLIENT_SECRET", "secret")
     get_settings.cache_clear()
-    author.microsoft_id = None
+    author.microsoft_id = stored_id
     await session.commit()
 
     async def fake_exchange(*_args, **_kwargs):
@@ -237,11 +239,33 @@ async def test_a_microsoft_sign_in_links_the_object_id(session, author, monkeypa
     monkeypatch.setattr(oauth, "exchange", fake_exchange)
     _url, state = oauth.authorize_url(oauth.get_provider("microsoft"), "http://x/cb")
     nonce = oauth.unsign(state).split(":", 2)[1]
-    await callback(
+    response = await callback(
         provider="microsoft", code="abc", state=nonce, session=session, elenchus_oauth=state
     )
     await session.refresh(author)
-    assert author.microsoft_id == "entra-oid-42"
+    assert author.microsoft_id == stored_id
+    assert "sign_in_error=no_account" in response.headers["location"]
+    assert "set-cookie" not in response.headers
+
+
+async def test_linked_microsoft_subject_survives_a_changed_email(session, author, monkeypatch):
+    monkeypatch.setenv("OAUTH_MICROSOFT_CLIENT_ID", "id")
+    monkeypatch.setenv("OAUTH_MICROSOFT_CLIENT_SECRET", "secret")
+    get_settings.cache_clear()
+    author.microsoft_id = "entra-linked-subject"
+    await session.commit()
+
+    async def fake_exchange(*_args, **_kwargs):
+        return {"mail": "changed@example.test", "id": "entra-linked-subject"}
+
+    monkeypatch.setattr(oauth, "exchange", fake_exchange)
+    _url, state = oauth.authorize_url(oauth.get_provider("microsoft"), "http://x/cb")
+    nonce = oauth.unsign(state).split(":", 2)[1]
+    response = await callback(
+        provider="microsoft", code="abc", state=nonce, session=session, elenchus_oauth=state
+    )
+    assert "sign_in_error" not in response.headers["location"]
+    assert oauth.SESSION_COOKIE in response.headers["set-cookie"]
 
 
 def test_the_sign_in_routes_are_mounted_where_the_browser_looks():

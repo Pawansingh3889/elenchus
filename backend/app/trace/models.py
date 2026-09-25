@@ -29,12 +29,13 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
 from app.trace.enums import SpanKind
+from app.workspaces.models import WorkspaceOwned
 
 if TYPE_CHECKING:
     from app.llm.ledger import TraceSpan
 
 
-class LLMSpan(Base):
+class LLMSpan(WorkspaceOwned, Base):
     __tablename__ = "llm_spans"
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
@@ -87,7 +88,7 @@ class LLMSpan(Base):
         )
 
 
-class LLMRequest(Base):
+class LLMRequest(WorkspaceOwned, Base):
     """The exact request of one traced chat attempt: the messages and tools it was sent.
 
     Kept so a local model can read precisely what the hosted one read. A prompt rebuilt

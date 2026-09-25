@@ -87,6 +87,7 @@ class UserService:
             function=data.function,
             band=data.band,
             microsoft_id=data.microsoft_id,
+            workspace_role=data.workspace_role,
             created_by=admin.id,
             hat_rows=[UserHat(hat=h) for h in data.hats],
         )
@@ -126,6 +127,7 @@ class UserService:
         user.function = data.function
         user.band = data.band
         user.microsoft_id = data.microsoft_id
+        user.workspace_role = data.workspace_role
         user.hat_rows = [UserHat(hat=h) for h in data.hats]
 
         self._refuse_self_lockout(user, admin)

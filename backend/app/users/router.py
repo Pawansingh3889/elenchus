@@ -113,6 +113,10 @@ async def identify(
     their own address a useful error.
     """
     email = data.email.strip().casefold()
+    from app.workspaces.repository import WorkspaceRepository
+
+    if not await WorkspaceRepository(session).resolve_identity(email=email):
+        raise NotFoundError(f"No account for {email}.")
     user = await UserRepository(session).get_by_email(email)
     if user is None:
         raise NotFoundError(f"No account for {email}.")
@@ -161,6 +165,7 @@ async def read_me(user: User = Depends(get_current_user)) -> MeRead:
         band=user.band,
         may_author=may_author(user),
         is_admin=is_admin_by_config(user),
+        workspace_role=user.workspace_role,
     )
 
 

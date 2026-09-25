@@ -416,7 +416,9 @@ class ConductEngine:
         bind = self.session.bind
         assert bind is not None, "a turn's session always has an engine"
         try:
-            async with AsyncSession(bind, expire_on_commit=False) as own:
+            async with AsyncSession(
+                bind, expire_on_commit=False, info=dict(self.session.info)
+            ) as own:
                 repo = SpanRepository(own)
                 repo.add_all([LLMSpan.from_trace(run_id, node) for node in spans])
                 # The exact requests go in the same transaction as their spans, so an

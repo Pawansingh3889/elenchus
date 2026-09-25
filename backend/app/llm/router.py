@@ -11,9 +11,9 @@ router = APIRouter(prefix="/api/v1/admin/llm", tags=["llm-admin"])
 
 @router.get("/report", response_model=LlmReport)
 async def llm_report(
-    _: User = Depends(require_admin),
+    viewer: User = Depends(require_admin),
 ) -> LlmReport:
-    return get_llm_report()
+    return get_llm_report(viewer.workspace_id)
 
 
 @router.get("/eval-accuracy", response_model=EvalAccuracyReport)
@@ -27,17 +27,17 @@ async def llm_eval_accuracy(
 
 @router.get("/ledger", response_model=LlmLedger)
 async def llm_ledger(
-    _: User = Depends(require_admin),
+    viewer: User = Depends(require_admin),
 ) -> LlmLedger:
-    return get_llm_ledger()
+    return get_llm_ledger(viewer.workspace_id)
 
 
 @router.get("/run/{run_id}", response_model=list[LlmEntry])
 async def llm_run_entries(
     run_id: str = Path(..., min_length=1),
-    _: User = Depends(require_admin),
+    viewer: User = Depends(require_admin),
 ) -> list[LlmEntry]:
-    entries = get_llm_run_entries(run_id)
+    entries = get_llm_run_entries(run_id, viewer.workspace_id)
     if not entries:
         raise HTTPException(status_code=404, detail="No ledger entries found for this run")
     return entries

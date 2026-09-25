@@ -17,6 +17,7 @@ from app.db.session import get_session
 from app.users.models import User
 from app.users.repository import UserRepository
 from app.users.schemas import UserRead
+from app.workspaces.repository import WorkspaceRepository
 
 logger = logging.getLogger("app.auth")
 
@@ -98,24 +99,25 @@ async def callback(
 
     profile = await oauth.exchange(p, code, verifier, _redirect_uri(provider))
     email, subject = oauth.identity_of(p, profile)
-    if not email:
-        return refuse("no_email")
-
     users = UserRepository(session)
-    user = await users.get_by_email(email)
+    workspaces = WorkspaceRepository(session)
+    if provider == "microsoft":
+        # Graph's stable object id must already be linked by an administrator.
+        # A mutable mail address alone cannot choose a company or claim its account.
+        if not subject or not await workspaces.resolve_identity(microsoft_id=subject):
+            return refuse("no_account")
+        user = await users.get_by_microsoft_id(subject)
+    else:
+        if not email:
+            return refuse("no_email")
+        if not await workspaces.resolve_identity(email=email):
+            return refuse("no_account")
+        user = await users.get_by_email(email)
     if user is None:
         # The decision this system rests on: an account is made by an administrator, who
         # gives it a job, and every right derives from that job. A sign-in cannot invent
         # one.
         return refuse("no_account")
-
-    # Link the provider's stable id on first use, so a later address change does not
-    # orphan the account. Only ever filled in, never overwritten: two different subjects
-    # on one address is a conflict a person should look at, not something to silently
-    # resolve.
-    if provider == "microsoft" and subject and not user.microsoft_id:
-        user.microsoft_id = subject
-        await session.commit()
 
     response = RedirectResponse(front, status_code=307)
     # Cross-origin (Vercel frontend → Railway backend) requires SameSite=None + Secure

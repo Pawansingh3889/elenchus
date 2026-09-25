@@ -68,7 +68,8 @@ services:
     image: elenchus-backend:0.1.0
     build: ./backend
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-elenchus}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD before deploying}@postgres:5432/${POSTGRES_DB:-elenchus}
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL to the restricted application role}
+      MIGRATION_DATABASE_URL: ${MIGRATION_DATABASE_URL:?set MIGRATION_DATABASE_URL to the deployment role}
       APP_ENV: prod
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:?set FRONTEND_ORIGIN to the browser app's origin}
       # Empty by default, so a deployment that says nothing has no administrators rather
@@ -188,8 +189,7 @@ services:
     volumes:
       - backend-var:/app/var
     command: >-
-      sh -c "alembic upgrade head &&
-             uvicorn app.main:app --host 0.0.0.0 --port 8000"
+      sh scripts/start.sh uvicorn app.main:app --host 0.0.0.0 --port 8000
     restart: unless-stopped
     healthcheck:
       # Readiness, not liveness: /api/v1/health answers 503 when it cannot reach the

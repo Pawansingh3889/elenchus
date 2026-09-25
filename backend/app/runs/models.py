@@ -28,6 +28,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.runs.enums import AnswerKind, MessageRole, RunStatus
+from app.workspaces.models import WorkspaceOwned
 
 if TYPE_CHECKING:
     from app.llm.ledger import Spend as LLMSpend
@@ -39,7 +40,7 @@ if TYPE_CHECKING:
 REPLY_PREFIX = "reply:"
 
 
-class SurveyRun(Base):
+class SurveyRun(WorkspaceOwned, Base):
     __tablename__ = "survey_runs"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -121,7 +122,7 @@ def add_llm_spend(run: SurveyRun, spend: "LLMSpend") -> None:
     run.llm_cost_usd += Decimal(str(spend.cost_usd))
 
 
-class Answer(Base):
+class Answer(WorkspaceOwned, Base):
     __tablename__ = "answers"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -142,7 +143,7 @@ class Answer(Base):
     run: Mapped["SurveyRun"] = relationship(back_populates="answers")
 
 
-class RunMessage(Base):
+class RunMessage(WorkspaceOwned, Base):
     __tablename__ = "run_messages"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)

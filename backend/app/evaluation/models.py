@@ -29,12 +29,13 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
 from app.evaluation.enums import EvalRunStatus, LabelVerdict
+from app.workspaces.models import WorkspaceOwned
 
 # One enum type in the database, shared by both label tables.
 LABEL_VERDICT = SAEnum(LabelVerdict, name="label_verdict")
 
 
-class AnswerLabel(Base):
+class AnswerLabel(WorkspaceOwned, Base):
     __tablename__ = "answer_labels"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -47,10 +48,15 @@ class AnswerLabel(Base):
     labelled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
-class CorpusLabel(Base):
+class CorpusLabel(WorkspaceOwned, Base):
     __tablename__ = "corpus_labels"
     __table_args__ = (
-        UniqueConstraint("fixture", "answer_index", name="uq_corpus_labels_fixture_answer"),
+        UniqueConstraint(
+            "workspace_id",
+            "fixture",
+            "answer_index",
+            name="uq_corpus_labels_workspace_fixture_answer",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -62,7 +68,7 @@ class CorpusLabel(Base):
     labelled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
-class JudgeRun(Base):
+class JudgeRun(WorkspaceOwned, Base):
     """One judging of a run's answers: one model call, with what it cost."""
 
     __tablename__ = "judge_runs"
@@ -83,7 +89,7 @@ class JudgeRun(Base):
     judged_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
-class JudgeVerdict(Base):
+class JudgeVerdict(WorkspaceOwned, Base):
     __tablename__ = "judge_verdicts"
     __table_args__ = (
         UniqueConstraint("judge_run_id", "answer_id", name="uq_judge_verdicts_run_answer"),
@@ -100,7 +106,7 @@ class JudgeVerdict(Base):
     why: Mapped[str] = mapped_column(Text)
 
 
-class EvalRun(Base):
+class EvalRun(WorkspaceOwned, Base):
     """One scripted scenario, run through the real engine as part of a capped batch."""
 
     __tablename__ = "eval_runs"

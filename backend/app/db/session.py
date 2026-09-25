@@ -5,6 +5,8 @@ from collections.abc import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import get_settings
+from app.workspaces import repository as _workspace_context  # noqa: F401
+from app.workspaces.context import workspace_scope
 
 engine = create_async_engine(
     get_settings().database_url,
@@ -19,5 +21,6 @@ SessionFactory = async_sessionmaker(engine, expire_on_commit=False)
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """Yield a request-scoped async session."""
-    async with SessionFactory() as session:
-        yield session
+    with workspace_scope(None):
+        async with SessionFactory() as session:
+            yield session

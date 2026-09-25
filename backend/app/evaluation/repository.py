@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -110,7 +110,9 @@ class EvaluationRepository:
         stmt = (
             insert(CorpusLabel)
             .values(fixture=fixture, answer_index=index, **values)
-            .on_conflict_do_update(index_elements=["fixture", "answer_index"], set_=values)
+            .on_conflict_do_update(
+                index_elements=["workspace_id", "fixture", "answer_index"], set_=values
+            )
         )
         await self.session.execute(stmt)
 
@@ -149,6 +151,11 @@ class EvaluationRepository:
         conflicts skipped, because two batches starting at once would otherwise race to
         create the same address.
         """
+        workspace_id = await self.session.scalar(select(func.current_setting("app.workspace_id")))
+        if not workspace_id:
+            raise ValueError("Evaluation accounts require a workspace.")
+        author = (f"{workspace_id}.{author[0]}", author[1])
+        respondent = (f"{workspace_id}.{respondent[0]}", respondent[1])
         for email, name in (author, respondent):
             await self.session.execute(
                 insert(User)

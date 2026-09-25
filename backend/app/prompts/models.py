@@ -14,19 +14,23 @@ the history an unexplained change in cost or behaviour is traced back through.
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
+from app.workspaces.models import WorkspaceOwned
 
 
-class PromptVersion(Base):
+class PromptVersion(WorkspaceOwned, Base):
     __tablename__ = "prompt_versions"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "name", name="uq_prompt_versions_workspace_name"),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     # The family is the name without its version: "conduct" for "conduct_v9".
     family: Mapped[str] = mapped_column(String(64), index=True)
-    name: Mapped[str] = mapped_column(String(64), unique=True)
+    name: Mapped[str] = mapped_column(String(64))
     body: Mapped[str] = mapped_column(Text)
     note: Mapped[str | None] = mapped_column(Text, default=None)
     created_by: Mapped[UUID | None] = mapped_column(
@@ -37,7 +41,7 @@ class PromptVersion(Base):
     )
 
 
-class PromptActivation(Base):
+class PromptActivation(WorkspaceOwned, Base):
     __tablename__ = "prompt_activations"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)

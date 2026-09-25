@@ -15,9 +15,10 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
+from app.workspaces.models import WorkspaceOwned
 
 
-class InterpAnalysis(Base):
+class InterpAnalysis(WorkspaceOwned, Base):
     __tablename__ = "interp_analyses"
 
     span_id: Mapped[UUID] = mapped_column(primary_key=True)

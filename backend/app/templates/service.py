@@ -10,15 +10,22 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.access import is_admin_by_config, may_answer, may_edit, may_list, reads_all_surveys
+from app.access import (
+    is_admin_by_config,
+    is_workspace_admin,
+    may_answer,
+    may_edit,
+    may_list,
+    reads_all_surveys,
+)
 from app.errors import ConflictError, ForbiddenError, NotFoundError
 from app.templates.enums import TemplateStatus
 from app.templates.estimate import estimated_minutes
-from app.templates.models import SurveyQuestion, SurveyTemplate
+from app.templates.models import SurveyAccessChange, SurveyAnalyst, SurveyQuestion, SurveyTemplate
 from app.templates.reading import questions_of
 from app.templates.repository import TemplateRepository
 from app.templates.schemas import QuestionInput, TemplateCreate, TemplateUpdate
-from app.users.models import User
+from app.users.models import User, WorkspaceRole
 from app.users.repository import UserRepository
 
 logger = logging.getLogger("app.templates")
@@ -66,9 +73,10 @@ class TemplateService:
         function would silently show them a sliver of it."""
         admin = is_admin_by_config(author)
         functions = await self.users.functions_by_id()
+        assigned = await self.repo.assigned_template_ids(author.id)
         creators = (
             set(functions)
-            if reads_all_surveys(author)
+            if reads_all_surveys(author) or author.workspace_role is WorkspaceRole.analyst
             else {author.id} | await self.users.ids_in_function(author.function)
         )
         return [
@@ -81,6 +89,7 @@ class TemplateService:
                 admin,
                 target=row[0].audience_user_id,
                 creator_function=functions.get(row[0].created_by),
+                assigned_analyst=row[0].id in assigned,
             )
         ]
 
@@ -240,6 +249,7 @@ class TemplateService:
             is_admin_by_config(author),
             target=template.audience_user_id,
             creator_function=functions.get(template.created_by),
+            assigned_analyst=await self.repo.is_assigned_analyst(template.id, author.id),
         )
         if not decision:
             logger.info(
@@ -250,6 +260,56 @@ class TemplateService:
             )
             raise NotFoundError("Template not found.")
         return template
+
+    async def assign_analyst(
+        self, template_id: UUID, analyst_id: UUID, admin: User
+    ) -> SurveyAnalyst:
+        """Grant identified-response access and append its audit event atomically."""
+        if not is_workspace_admin(admin):
+            raise ForbiddenError("Only the workspace owner or an admin can assign analysts.")
+        template = await self.repo.get(template_id)
+        if template is None:
+            raise NotFoundError("Template not found.")
+        analyst = await self.users.get(analyst_id)
+        if analyst is None or analyst.workspace_role is not WorkspaceRole.analyst:
+            raise ConflictError("The selected account is not an analyst in this workspace.")
+        if await self.repo.is_assigned_analyst(template_id, analyst_id):
+            raise ConflictError("That analyst is already assigned to this survey.")
+        assignment = SurveyAnalyst(
+            template_id=template_id,
+            analyst_id=analyst_id,
+            assigned_by=admin.id,
+        )
+        self.session.add(assignment)
+        self.session.add(
+            SurveyAccessChange(
+                template_id=template_id,
+                analyst_id=analyst_id,
+                changed_by=admin.id,
+                action="assigned",
+            )
+        )
+        await self.session.commit()
+        return assignment
+
+    async def remove_analyst(self, template_id: UUID, analyst_id: UUID, admin: User) -> None:
+        if not is_workspace_admin(admin):
+            raise ForbiddenError("Only the workspace owner or an admin can remove analysts.")
+        assignment = await self.session.get(
+            SurveyAnalyst, {"template_id": template_id, "analyst_id": analyst_id}
+        )
+        if assignment is None:
+            raise NotFoundError("Analyst assignment not found.")
+        await self.session.delete(assignment)
+        self.session.add(
+            SurveyAccessChange(
+                template_id=template_id,
+                analyst_id=analyst_id,
+                changed_by=admin.id,
+                action="removed",
+            )
+        )
+        await self.session.commit()
 
     async def _get_for_edit_or_404(self, template_id: UUID, author: User) -> SurveyTemplate:
         """The same fetch, asking whether this user may *change* the survey.

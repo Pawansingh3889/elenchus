@@ -37,6 +37,7 @@ from app.templates.enums import SurveyAudience
 from app.templates.generation import GenerationService
 from app.templates.schemas import TemplateCreate
 from app.templates.service import TemplateService
+from app.workspaces.context import workspace_scope
 
 logger = logging.getLogger(__name__)
 
@@ -62,12 +63,26 @@ async def run_batch(
     batch_id: UUID,
     make_llm: Callable[[int], LLMProtocol],
     catalogue: dict[str, Scenario],
+    *,
+    workspace_id: UUID,
 ) -> None:
-    async with sessions() as session:
+    with workspace_scope(workspace_id):
+        await _run_batch(sessions, batch_id, make_llm, catalogue, workspace_id=workspace_id)
+
+
+async def _run_batch(
+    sessions: async_sessionmaker[AsyncSession],
+    batch_id: UUID,
+    make_llm: Callable[[int], LLMProtocol],
+    catalogue: dict[str, Scenario],
+    *,
+    workspace_id: UUID,
+) -> None:
+    async with sessions(info={"workspace_id": workspace_id}) as session:
         ids = [row.id for row in await EvaluationRepository(session).eval_runs_in_batch(batch_id)]
     spent = 0.0
     for eval_run_id in ids:
-        async with sessions() as session:
+        async with sessions(info={"workspace_id": workspace_id}) as session:
             row = await EvaluationRepository(session).eval_run(eval_run_id)
             if row is None:
                 continue
@@ -79,11 +94,11 @@ async def run_batch(
                 await session.commit()
                 continue
         try:
-            async with sessions() as session:
+            async with sessions(info={"workspace_id": workspace_id}) as session:
                 spent += await _run_one(session, eval_run_id, make_llm, catalogue, remaining)
         except Exception as exc:
             logger.exception("evaluation run failed: eval_run=%s", eval_run_id)
-            async with sessions() as session:
+            async with sessions(info={"workspace_id": workspace_id}) as session:
                 row = await EvaluationRepository(session).eval_run(eval_run_id)
                 if row is not None:
                     row.status = EvalRunStatus.failed

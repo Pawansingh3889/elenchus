@@ -21,6 +21,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.workspaces.models import WorkspaceOwned
 
 
 class Function(str, enum.Enum):
@@ -69,6 +70,20 @@ class Band(str, enum.Enum):
     director = "director"
 
 
+class WorkspaceRole(str, enum.Enum):
+    """The permission role inside one customer workspace.
+
+    Jobs and bands remain audience facts. This role is the product permission fact and
+    must not be inferred from a factory job.
+    """
+
+    owner = "owner"
+    admin = "admin"
+    author = "author"
+    analyst = "analyst"
+    respondent = "respondent"
+
+
 # The order, spelled out once. `list(Band)` would encode the same fact implicitly, but
 # a reorder of the enum for readability would then silently change who may author.
 BAND_RANK: dict[Band, int] = {
@@ -94,7 +109,7 @@ class Hat(str, enum.Enum):
     health_safety = "health_safety"
 
 
-class User(Base):
+class User(WorkspaceOwned, Base):
     __tablename__ = "users"
     __table_args__ = (
         # A job is a pair or nothing. Half a job (a function with no band, a band with
@@ -117,6 +132,11 @@ class User(Base):
     # Nullable because most of a plant signs in by link, and unique because two people
     # sharing one would be two people sharing an identity.
     microsoft_id: Mapped[str | None] = mapped_column(String(64), unique=True, default=None)
+    # Nullable only for rows created before workspace roles were introduced. New account
+    # writes and the next provisioning workflow must set it explicitly.
+    workspace_role: Mapped[WorkspaceRole | None] = mapped_column(
+        SAEnum(WorkspaceRole, name="workspace_role"), default=None
+    )
     # The job. Nullable as a pair (see the check constraint): a service or
     # administration account has no place on any ladder, is in no audience, and may
     # author nothing. Every real person has one.
@@ -172,7 +192,7 @@ class User(Base):
         return frozenset(h.hat for h in self.hat_rows)
 
 
-class AccountChange(Base):
+class AccountChange(WorkspaceOwned, Base):
     """One admin edit to one account, written in the same transaction as the edit.
 
     Append-only, and the reason it exists is the live-reach decision: who a survey is for
@@ -201,7 +221,7 @@ class AccountChange(Base):
     change: Mapped[dict[str, Any]] = mapped_column(JSONB)
 
 
-class UserHat(Base):
+class UserHat(WorkspaceOwned, Base):
     """One person carrying one cross-cutting responsibility.
 
     The pair is the primary key, so the same hat cannot be recorded twice and no

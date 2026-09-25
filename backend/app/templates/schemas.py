@@ -218,6 +218,13 @@ class TemplateUpdate(TemplateWrite):
     audience: SurveyAudience
 
 
+class AnalystAssignmentRead(BaseModel):
+    template_id: UUID
+    analyst_id: UUID
+    assigned_by: UUID
+    assigned_at: datetime
+
+
 class GenerateRequest(AudienceTarget):
     """A description to draft from, plus who the result is for.
 

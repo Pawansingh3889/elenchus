@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.runs.enums import RunStatus
 from app.runs.models import SurveyRun
 from app.templates.enums import TemplateStatus
-from app.templates.models import SurveyQuestion, SurveyTemplate
+from app.templates.models import SurveyAccessChange, SurveyAnalyst, SurveyQuestion, SurveyTemplate
 
 
 class TemplateRepository:
@@ -104,5 +104,29 @@ class TemplateRepository:
             .where(SurveyTemplate.status == TemplateStatus.published)
             .options(selectinload(SurveyTemplate.questions))
             .order_by(SurveyTemplate.updated_at.desc())
+        )
+        return list((await self.session.execute(stmt)).scalars().all())
+
+    async def analyst_ids_for(self, template_id: UUID) -> set[UUID]:
+        stmt = select(SurveyAnalyst.analyst_id).where(SurveyAnalyst.template_id == template_id)
+        return set((await self.session.execute(stmt)).scalars().all())
+
+    async def assigned_template_ids(self, analyst_id: UUID) -> set[UUID]:
+        stmt = select(SurveyAnalyst.template_id).where(SurveyAnalyst.analyst_id == analyst_id)
+        return set((await self.session.execute(stmt)).scalars().all())
+
+    async def is_assigned_analyst(self, template_id: UUID, analyst_id: UUID) -> bool:
+        stmt = select(SurveyAnalyst.analyst_id).where(
+            SurveyAnalyst.template_id == template_id,
+            SurveyAnalyst.analyst_id == analyst_id,
+        )
+        return (await self.session.execute(stmt)).scalar_one_or_none() is not None
+
+    async def access_history(self, template_id: UUID) -> list[SurveyAccessChange]:
+        stmt = (
+            select(SurveyAccessChange)
+            .where(SurveyAccessChange.template_id == template_id)
+            .order_by(SurveyAccessChange.changed_at.desc(), SurveyAccessChange.id)
+            .limit(200)
         )
         return list((await self.session.execute(stmt)).scalars().all())

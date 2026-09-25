@@ -13,12 +13,15 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
+from app.workspaces.models import WorkspaceOwned
 
 
-class EmbeddingVector(Base):
+class EmbeddingVector(WorkspaceOwned, Base):
     __tablename__ = "embedding_vectors"
     __table_args__ = (
-        UniqueConstraint("digest", "model", name="uq_embedding_vectors_digest_model"),
+        UniqueConstraint(
+            "workspace_id", "digest", "model", name="uq_embedding_vectors_workspace_digest_model"
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)

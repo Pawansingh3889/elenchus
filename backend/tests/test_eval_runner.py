@@ -141,11 +141,14 @@ async def test_a_scenario_runs_through_the_engine_and_keeps_its_checks(session, 
     assert "run reached completed" in [check.name for check in done.checks]
 
     # The evaluation accounts hold no job, and the survey is aimed at the respondent alone.
-    emails = (EVALUATION_AUTHOR[0], EVALUATION_RESPONDENT[0])
+    emails = tuple(
+        f"{admin.workspace_id}.{email}"
+        for email in (EVALUATION_AUTHOR[0], EVALUATION_RESPONDENT[0])
+    )
     accounts = (await session.scalars(select(User).where(User.email.in_(emails)))).all()
     assert len(accounts) == 2 and all(u.function is None and u.band is None for u in accounts)
     template = await session.get(SurveyTemplate, done.template_id)
-    respondent = next(u for u in accounts if u.email == EVALUATION_RESPONDENT[0])
+    respondent = next(u for u in accounts if u.email == emails[1])
     assert template.audience is SurveyAudience.person
     assert template.audience_user_id == respondent.id
 
