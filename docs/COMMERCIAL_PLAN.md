@@ -4,6 +4,13 @@ Consolidated on 18 September 2026 from the voice planning session on this device
 This document separates the requested direction, proposed choices, and completed work.
 It is a product roadmap, not a claim that the commercial features are implemented.
 
+Working update, 21 September 2026: the audit branch adds database-enforced company
+isolation and scoped cost-ledger reads. Deployment and remaining limitations are in
+[WORKSPACE_ISOLATION.md](WORKSPACE_ISOLATION.md). The current
+[commercial contract](COMMERCIAL_READINESS.md) records owner-only spending approval,
+owner/admin-only analyst assignment, and owner-configurable 90-day response retention.
+These policies still require implementation; the isolation foundation is not a launch.
+
 ## 1. Goal and working approach
 
 Turn Elenchus into a subscription survey product. Improve the customer-facing design
@@ -97,6 +104,18 @@ Employee feedback is the selected pilot category: the existing project already h
 workplace concepts, and it is the starting point Stage 2 of the roadmap builds against.
 Complete its full journey (draft, review, publish, interview, results) before expanding
 to another category.
+
+The pilot release contract is recorded in [COMMERCIAL_READINESS.md](COMMERCIAL_READINESS.md).
+It settles the initial tenancy shape: multiple customer companies, one private workspace
+per company, one company per account, and up to 100 simultaneous respondents overall.
+Respondents use a shared link followed by verified email sign-in, and the address must be
+invited or on an approved employee roster. Workspace roles are owner, admin, author,
+analyst, and respondent. Factory jobs describe audiences only.
+
+Publishing freezes the survey. A changed survey is duplicated, and a survey with any run
+cannot be deleted. Subscription usage is a monthly allowance of completed responses plus
+seats. Once the allowance is exhausted, new starts stop, active sessions finish, and an
+explicit owner-approved top-up is required.
 
 ## 5. Shared specialist capabilities
 

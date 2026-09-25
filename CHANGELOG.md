@@ -5,6 +5,49 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-09-21. Company-isolation foundation (working branch)
+
+- Added workspace ownership to customer data, forced PostgreSQL row policies, and
+  tenant-consistent parent references. Existing rows migrate to one explicit legacy
+  workspace; multi-company downgrade is refused.
+- Scoped prompt and embedding reuse, evaluation accounts, background work, traces, and
+  file-ledger reads to the authenticated company. Unattributed legacy ledger entries
+  are excluded from customer reports.
+- Split migration and runtime credentials. Production refuses superuser, RLS-bypass,
+  or object-owner runtime roles and tables without forced row security.
+- Required a pre-linked Microsoft object ID, removing automatic account linking by
+  mutable email. Google still requires an explicitly verified existing address.
+- Added two-company regressions, migration/startup tests, and migration-only metadata
+  so generated revisions preserve composite tenant constraints without changing ORM joins.
+- Added explicit workspace roles, survey-scoped analyst grants, owner/admin-only assignment,
+  and append-only access-change auditing. Legacy unlabelled accounts retain the job-based
+  compatibility path until provisioning and backfill are complete.
+- Added owner-configured response retention with confirmation for shortening, protected
+  purge of response content and derived traces, deletion audits, and non-identifying
+  monthly usage totals.
+- Added workspace invitations and approved employee-roster records, one-time invitation
+  token storage, and append-only access-change history. Verified-email redemption and
+  account provisioning from those records remain open.
+- Documented deployment limitations and recorded owner-only spending, audited
+  owner/admin analyst assignment, and owner-configurable 90-day retention requirements.
+- Not deployed or commercial-ready. Role authorization, retention, invitations, billing,
+  disclosure, restore verification, and load testing remain release blockers.
+
+## 2026-09-19. Commercial readiness contract and telemetry corrections
+
+- Added `docs/COMMERCIAL_READINESS.md`, recording the pilot tenancy, verified-email
+  eligibility, workspace role matrix, identified-response disclosure, allowance behavior,
+  KPI definitions, spike detection contract, drilldown path, telemetry fields, and the
+  proposed live evaluation envelope.
+- Corrected production authentication so a known account id cannot substitute for a
+  session, and constrained `APP_ENV` to `dev`, `demo`, or `prod`.
+- Required Google sign-in profiles to report `email_verified` explicitly as true.
+- Kept missing cached and reasoning token counts distinct from measured zero in the lens
+  API and frontend, with regression tests for both cases.
+- This is not a commercial-ready release. Tenant isolation, workspace roles, billing,
+  allowance enforcement, invitations, disclosed transcript access, restore evidence, and
+  100-respondent load evidence remain open as documented blockers.
+
 
 
 

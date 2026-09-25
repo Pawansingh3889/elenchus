@@ -6,6 +6,13 @@ links to the rest of the story: how to [run it](../README.md), what each check i
 asking of the code in [CHECKS.md](CHECKS.md), and
 [how it was built, step by step](../CHANGELOG.md).
 
+Status note, 21 September 2026: this tour mixes historical trial screens with the product
+direction. The current browser is respondent and lens focused; authoring and results are
+available through backend APIs, not the full browser journey described below. Company
+isolation, workspace roles, and the retention purge path are implemented on the audit
+branch. Billing, privacy disclosures, and scheduled retention execution are still planned. The
+[commercial contract](COMMERCIAL_READINESS.md) separates requirements from shipped work.
+
 ## In one sentence
 
 Elenchus replaces boring online forms with a friendly chat: instead of filling in boxes
@@ -35,12 +42,9 @@ Imagine an HR manager who wants to know how new employees are settling in. They 
 When the author is happy, they hit **Publish**. Publishing is like printing an exam
 paper and pinning it to the noticeboard: from that moment people can answer it.
 
-Editing it afterwards changes the survey **for everyone**, including anyone part-way
-through answering. It used to work the other way, freezing each publication so a
-response could always be read against the exact wording it was given; that was removed
-on 16 August 2026 by request. What survives as the record of what somebody was actually
-asked is that every stored answer keeps a copy of its question's text as it stood at the
-moment it was answered.
+Publishing freezes the survey. Different questions require a new survey, so answers
+cannot be silently reinterpreted under changed wording. A duplicate action is planned
+but is not yet implemented. A survey with any run cannot be deleted.
 
 ### The Respondent — the person who answers
 
@@ -53,11 +57,12 @@ time, in a warm, natural way.
   then returns to the survey.
 - They can quit halfway and come back later — nothing is lost.
 
-Afterwards, the author opens the survey's **Results** page: the headline numbers first,
-a card per question below, the whole page sliceable by any closed answer, and the full
-conversation behind each response, so they know not just *what* someone answered, but
-*how* they said it. Answers wear pseudonyms rather than names, and a respondent can
-withdraw their response afterwards.
+The backend results APIs provide headline numbers, question summaries, answer filters,
+and response conversations. The commercial Results screen still needs to be built.
+The agreed pilot policy is identified responses, with disclosure before answering:
+the survey author and assigned analysts may read them, and owner/admin access must be
+disclosed and audited. That access model and disclosure are not implemented yet. Current
+pseudonyms do not guarantee anonymity because transcripts may identify people.
 
 > Want to try both roles yourself? The [README's walkthrough](../README.md#walk-through-it)
 > takes you from building a survey as Ava (an author) to answering it as Rosa
@@ -114,8 +119,9 @@ enforced in code:
 - **Honest formatting slips are fixed, guesses are not.** If the AI writes the number
   4 as text ("4"), that's corrected automatically; if it writes "four" or invents a
   value, it's refused.
-- **Everything is auditable.** Every stored answer is tied to the exact survey version
-  answered and to the full transcript of how it was arrived at.
+- **Stored question wording.** Answers retain the question text recorded with them and
+  link to the run's conversation. Publishing freezes the survey itself; there is no
+  separate survey-version table. This is not yet an audit trail of who read a response.
 
 Each of these rules exists because a test attacks it on every code change. What each
 check is asking, and the misbehaviour that earned it, is in [CHECKS.md](CHECKS.md);
@@ -155,10 +161,10 @@ Nobody has a stored role; each right below derives from the person's job.
 
 | Who | What they do |
 |------|--------------|
-| **Manager band and up** | Build/draft surveys, publish versions, read the results, in any function |
-| **Anyone with a job** | Complete a published survey aimed at them through the chat runner |
-| **The executive function** | Reads every survey and its results, edits none |
-| **IT (or the email allowlist)** | Administers accounts on the People screen |
+| **Pilot workspace owner, admin, author** | Manage the workspace or build and publish surveys according to the workspace role |
+| **Assigned analyst** | Read identified answers and transcripts for assigned surveys |
+| **Eligible respondent** | Complete a published survey aimed at them through the chat runner |
+| **Factory job** | Describes audience reach only; it does not grant workspace permissions |
 
 (Dev auth is deliberately thin: each request identifies its caller with an
 `X-User-Id` header, obtained by typing a seeded email address in the top bar; a real
@@ -167,11 +173,11 @@ deployment swaps that for a proper identity provider.)
 ## A typical end-to-end flow
 
 1. An author signs in, drafts *"Onboarding check-in"* (by hand or with AI), and
-   **publishes** it as version 1.
+   **publishes** it.
 2. A respondent opens the survey and answers it in chat; the engine validates each
    answer and records the transcript.
-3. The author edits the survey and **publishes version 2** — anyone mid-way through
-   v1 is unaffected.
+3. The author duplicates the frozen survey, changes the copy, and publishes the new
+   survey when a new question set is needed.
 4. The author opens **Results** and reads the report, the structured answers and the
    full transcript for each run.
 
