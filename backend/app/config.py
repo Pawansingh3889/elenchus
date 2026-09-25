@@ -6,6 +6,7 @@ rather than silently degrading (see ARCHITECTURE.md — no fallbacks).
 
 from functools import lru_cache
 from typing import Literal
+from uuid import UUID
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -415,6 +416,12 @@ class Settings(BaseSettings):
     )
 
     app_env: Literal["dev", "prod"] = Field("dev", description="dev | prod")
+    # Open sign-up: when set, a first Google or Microsoft sign-in by somebody unknown
+    # creates a respondent account in this workspace instead of being refused. Unset, the
+    # old rule holds: an account is made by an administrator before anyone signs in.
+    open_signup_workspace_id: UUID | None = Field(
+        None, description="Workspace that self-signed-up people join as respondents"
+    )
     frontend_origin: str = Field(
         "http://localhost:3000", description="Allowed CORS origin for the browser app"
     )

@@ -14,10 +14,12 @@ crypto dependency, a key cache and a rotation story. The code was exchanged for 
 token over TLS against the provider's own token endpoint moments earlier, so asking the
 same provider who it belongs to is the same trust with less machinery.
 
-**An unknown identity is refused, never created.** Google must report an explicitly
-verified email matching an existing account. Microsoft must match a pre-linked Graph
-object id: its mutable email fields cannot establish account ownership. Neither path
-creates an account or chooses a company from an email domain.
+**An unknown identity is refused unless open sign-up is on.** Google must report an
+explicitly verified email; Microsoft is matched on its Graph object id, because its email
+fields are mutable and cannot establish ownership of an existing account. With
+`OPEN_SIGNUP_WORKSPACE_ID` set, an identity that matches nobody gets a new respondent
+account in that one workspace; an address that already has an account is never linked.
+No path chooses a company from an email domain.
 """
 
 from __future__ import annotations
@@ -263,3 +265,10 @@ def identity_of(provider: Provider, profile: dict[str, Any]) -> tuple[str, str |
         # waiting to happen, since this system matches people by address.
         raise SignInError("That account's email address is not verified with the provider.")
     return str(email).strip().casefold(), profile.get("sub")
+
+
+def display_name_of(profile: dict[str, Any], email: str) -> str:
+    """What to call somebody signing up. Google says `name`, Graph says `displayName`;
+    a profile with neither is named by its address, which is what the person typed."""
+    name = profile.get("name") or profile.get("displayName")
+    return str(name).strip()[:200] if name else email

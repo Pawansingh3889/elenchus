@@ -274,6 +274,9 @@ def may_answer(
             return AccessDecision(True, "admin")
         return AccessDecision(False, "your account holds no job on the plant")
 
+    if audience is SurveyAudience.signed_in:
+        return AccessDecision(True, "signed in, and the survey is for anyone signed in")
+
     membership = _in_derived_audience(user, audience)
     if membership:
         return membership

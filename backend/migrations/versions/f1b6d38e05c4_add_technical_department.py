@@ -10,8 +10,8 @@ from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = 'f1b6d38e05c4'
-down_revision: str | None = 'e4a7c92b1f68'
+revision: str = "f1b6d38e05c4"
+down_revision: str | None = "e4a7c92b1f68"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

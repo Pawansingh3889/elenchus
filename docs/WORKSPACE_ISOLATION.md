@@ -40,7 +40,10 @@ cleared immediately after lookup. No bootstrap hint authorizes writes.
 - Microsoft must return the Graph object ID already linked in `users.microsoft_id`.
   Matching a mutable email or UPN does not link an account or permit sign-in. Existing
   Microsoft accounts without a trusted pre-linked ID will be refused until provisioned.
-- Unknown identities never create accounts or join a company from an email domain.
+- Unknown identities never join a company from an email domain. They are refused unless
+  `OPEN_SIGNUP_WORKSPACE_ID` is set, in which case they become respondents in that one
+  workspace; an address that already has an account is never linked. Every sign-in is
+  recorded in `sign_ins`.
 
 A company's first account is made in the deployment's shell, because nobody can sign in
 to make it:

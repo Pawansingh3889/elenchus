@@ -144,7 +144,10 @@ export const api = {
   listUsers: () => request<User[]>("/users"),
   /** Which real sign-in providers this deployment offers. Unauthenticated: the browser
    *  has to ask before anyone is signed in. */
-  providers: () => request<{ providers: string[]; address_sign_in: boolean }>("/auth/providers"),
+  providers: () =>
+    request<{ providers: string[]; address_sign_in: boolean; open_sign_up: boolean }>(
+      "/auth/providers",
+    ),
   /** Who the session cookie says this is, or null when there is no live session.
    *
    *  A 401 here is an answer, not a failure: the browser cannot read an HttpOnly cookie,

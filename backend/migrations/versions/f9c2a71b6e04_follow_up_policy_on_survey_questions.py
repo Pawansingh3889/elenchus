@@ -11,14 +11,12 @@ from collections.abc import Sequence
 from alembic import op
 import sqlalchemy as sa
 
-revision: str = 'f9c2a71b6e04'
-down_revision: str | None = 'd17c4a9e60b3'
+revision: str = "f9c2a71b6e04"
+down_revision: str | None = "d17c4a9e60b3"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-FOLLOW_UP_POLICY = sa.Enum(
-    "never", "when_unclear", "always_once", name="follow_up_policy"
-)
+FOLLOW_UP_POLICY = sa.Enum("never", "when_unclear", "always_once", name="follow_up_policy")
 
 
 def upgrade() -> None:
@@ -29,9 +27,7 @@ def upgrade() -> None:
     # probing" is not a state a question can be in, and every question already had one.
     op.add_column(
         "survey_questions",
-        sa.Column(
-            "follow_up_policy", FOLLOW_UP_POLICY, nullable=False, server_default="never"
-        ),
+        sa.Column("follow_up_policy", FOLLOW_UP_POLICY, nullable=False, server_default="never"),
     )
 
     # The backfill makes the column true of history rather than merely populated. A
@@ -39,8 +35,7 @@ def upgrade() -> None:
     # what the old boolean bought; one that did not behaved as never. Nothing already
     # drafted changes how it is conducted.
     op.execute(
-        "UPDATE survey_questions SET follow_up_policy = 'when_unclear' "
-        "WHERE allow_follow_ups"
+        "UPDATE survey_questions SET follow_up_policy = 'when_unclear' " "WHERE allow_follow_ups"
     )
 
     op.drop_column("survey_questions", "allow_follow_ups")
@@ -52,13 +47,10 @@ def downgrade() -> None:
     # becomes one that may probe, rather than one that never does.
     op.add_column(
         "survey_questions",
-        sa.Column(
-            "allow_follow_ups", sa.Boolean(), nullable=False, server_default=sa.false()
-        ),
+        sa.Column("allow_follow_ups", sa.Boolean(), nullable=False, server_default=sa.false()),
     )
     op.execute(
-        "UPDATE survey_questions SET allow_follow_ups = true "
-        "WHERE follow_up_policy <> 'never'"
+        "UPDATE survey_questions SET allow_follow_ups = true " "WHERE follow_up_policy <> 'never'"
     )
     op.drop_column("survey_questions", "follow_up_policy")
     bind = op.get_bind()

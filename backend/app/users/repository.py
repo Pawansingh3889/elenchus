@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from app.users.models import AccountChange, Function, User
+from app.users.models import AccountChange, Function, SignIn, User
 
 
 class UserRepository:
@@ -22,6 +22,14 @@ class UserRepository:
     def add_change(self, change: AccountChange) -> None:
         """Append one audit row. There is no update or delete counterpart on purpose."""
         self.session.add(change)
+
+    def add_sign_in(self, sign_in: SignIn) -> None:
+        """Append one sign-in. Like the audit rows, never updated or deleted."""
+        self.session.add(sign_in)
+
+    async def recent_sign_ins(self, limit: int) -> list[SignIn]:
+        stmt = select(SignIn).order_by(SignIn.signed_in_at.desc(), SignIn.id).limit(limit)
+        return list((await self.session.scalars(stmt)).all())
 
     async def history_for(self, user_id: UUID) -> list[tuple[AccountChange, str | None]]:
         """This account's audit rows, newest first, each with its editor's name.

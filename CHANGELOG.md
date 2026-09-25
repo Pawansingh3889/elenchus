@@ -7,6 +7,12 @@ The project is not yet versioned, so entries are grouped by date. Newest first.
 
 ## 2026-09-25. Demo mode removed, production provisioning
 
+- Free with sign-in: with `OPEN_SIGNUP_WORKSPACE_ID` set, a first Google or Microsoft
+  sign-in creates a respondent account in that workspace. Every sign-in is stored in the
+  new `sign_ins` table and listed at `GET /api/v1/admin/users/sign-ins`. A `signed_in`
+  audience reaches everyone with an account. The home page is free, with no plans, and
+  the sign-in page says what is stored.
+
 - Retheme to the FloorMind palette and type: navy ink on white, electric blue with cyan,
   Space Grotesk headings over Inter, a white sticky top bar. `/` is now a commercial page
   in that style (how it works, the rails, a proof strip, pilot plans with no invented

@@ -39,6 +39,10 @@ class SurveyAudience(str, enum.Enum):
     managers = "managers"
     qa = "qa"
     health_safety = "health_safety"
+    # Anyone with an account in the workspace, job or not. Added 25 Sep 2026 for open
+    # sign-up: a person who signed themselves in holds no job, so `everyone` never
+    # reaches them, and this is the audience a free survey is aimed at.
+    signed_in = "signed_in"
     person = "person"
 
 

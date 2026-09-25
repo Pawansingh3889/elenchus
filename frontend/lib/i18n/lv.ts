@@ -203,6 +203,9 @@ export const lv: Messages = {
     noProviders: "Pieteikšanās šajā vidē vēl nav iestatīta. Lūdziet IT konfigurēt pakalpojumu sniedzēju.",
     needsSignIn: "Šai lapai jāzina, kas jūs esat.",
     goToSignIn: "Doties uz pieteikšanos",
+    openTitle: "Pirmo reizi šeit?",
+    openBody:
+      "Pierakstoties tiek izveidots jūsu bezmaksas konts. Mēs saglabājam jūsu e-pasta adresi un katras pierakstīšanās laiku, un aptaujas veidotāji var lasīt jūsu atbildes.",
     noAccountTitle: "Vēl nav konta?",
     noAccountBody:
       "Kontus izveido administrators, jo jūsu tiesības šeit izriet no amata. Lūdziet vadītājam vai IT jūs pievienot.",

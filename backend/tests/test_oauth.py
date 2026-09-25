@@ -298,3 +298,107 @@ async def test_address_sign_in_is_offered_only_where_it_is_mounted(
     monkeypatch.setenv("APP_ENV", environment)
     get_settings.cache_clear()
     assert (await sign_in_options()).address_sign_in is offered
+
+
+async def _call_back(session, monkeypatch, provider, profile):
+    """Drive one provider round trip with a faked token exchange."""
+    monkeypatch.setenv(f"OAUTH_{provider.upper()}_CLIENT_ID", "id")
+    monkeypatch.setenv(f"OAUTH_{provider.upper()}_CLIENT_SECRET", "secret")
+    get_settings.cache_clear()
+
+    async def fake_exchange(*_args, **_kwargs):
+        return profile
+
+    monkeypatch.setattr(oauth, "exchange", fake_exchange)
+    _url, state = oauth.authorize_url(oauth.get_provider(provider), "http://x/cb")
+    nonce = oauth.unsign(state).split(":", 2)[1]
+    return await callback(
+        provider=provider, code="abc", state=nonce, session=session, elenchus_oauth=state
+    )
+
+
+async def test_open_sign_up_makes_a_respondent_and_records_every_sign_in(session, monkeypatch):
+    """Free with sign-in: a stranger with a verified Google address gets a respondent
+    account in the open workspace, and each visit is written down for the owner."""
+    from sqlalchemy import select
+
+    from app.users.models import AccountChange, SignIn, User, WorkspaceRole
+    from app.workspaces.models import LEGACY_WORKSPACE_ID
+
+    monkeypatch.setenv("OPEN_SIGNUP_WORKSPACE_ID", str(LEGACY_WORKSPACE_ID))
+    profile = {"email": "Stranger@Example.com", "email_verified": True, "name": "Sam Stranger"}
+    first = await _call_back(session, monkeypatch, "google", profile)
+    again = await _call_back(session, monkeypatch, "google", profile)
+
+    assert "sign_in_error" not in first.headers["location"]
+    assert oauth.SESSION_COOKIE in again.headers["set-cookie"]
+    (user,) = (
+        await session.scalars(select(User).where(User.email == "stranger@example.com"))
+    ).all()
+    assert user.display_name == "Sam Stranger"
+    assert user.workspace_role is WorkspaceRole.respondent and user.function is None
+    assert user.workspace_id == LEGACY_WORKSPACE_ID
+    rows = (await session.scalars(select(SignIn).order_by(SignIn.signed_in_at))).all()
+    assert [(r.email, r.provider, r.created_account) for r in rows] == [
+        ("stranger@example.com", "google", True),
+        ("stranger@example.com", "google", False),
+    ]
+    (change,) = (await session.scalars(select(AccountChange))).all()
+    assert change.change["kind"] == "signed_up" and change.changed_by is None
+
+
+async def test_open_sign_up_never_links_an_existing_address_through_microsoft(
+    session, author, monkeypatch
+):
+    """Graph's mail field is mutable, so an unknown subject naming a known address is
+    refused rather than handed that account or given a second one."""
+    from sqlalchemy import func, select
+
+    from app.users.models import User
+    from app.workspaces.models import LEGACY_WORKSPACE_ID
+
+    monkeypatch.setenv("OPEN_SIGNUP_WORKSPACE_ID", str(LEGACY_WORKSPACE_ID))
+    await session.commit()
+    before = await session.scalar(select(func.count()).select_from(User))
+    response = await _call_back(
+        session, monkeypatch, "microsoft", {"mail": author.email, "id": "entra-stranger"}
+    )
+    assert "sign_in_error=no_account" in response.headers["location"]
+    assert await session.scalar(select(func.count()).select_from(User)) == before
+
+
+async def test_a_new_microsoft_subject_signs_up_keyed_on_its_object_id(session, monkeypatch):
+    from sqlalchemy import select
+
+    from app.users.models import User
+    from app.workspaces.models import LEGACY_WORKSPACE_ID
+
+    monkeypatch.setenv("OPEN_SIGNUP_WORKSPACE_ID", str(LEGACY_WORKSPACE_ID))
+    profile = {"mail": "new@contoso.test", "id": "entra-new", "displayName": "Nia New"}
+    await _call_back(session, monkeypatch, "microsoft", profile)
+    user = await session.scalar(select(User).where(User.microsoft_id == "entra-new"))
+    assert user is not None and user.email == "new@contoso.test"
+
+
+async def test_address_sign_in_signs_up_like_a_provider_when_open(session, monkeypatch):
+    from app.users.router import identify
+    from app.users.schemas import IdentifyRequest
+    from app.users.service import UserService
+    from app.workspaces.models import LEGACY_WORKSPACE_ID
+
+    monkeypatch.setenv("OPEN_SIGNUP_WORKSPACE_ID", str(LEGACY_WORKSPACE_ID))
+    get_settings.cache_clear()
+    made = await identify(IdentifyRequest(email="Walk@In.test"), session=session)
+    assert made.email == "walk@in.test"
+    (row,) = await UserService(session).recent_sign_ins()
+    assert (row.provider, row.created_account) == ("address", True)
+
+
+def test_anyone_signed_in_may_answer_a_survey_aimed_at_them():
+    from app.access import in_audience
+    from app.templates.enums import SurveyAudience
+    from app.users.models import User
+
+    stranger = User(email="s@x.test", display_name="S", function=None, band=None)
+    assert in_audience(stranger, SurveyAudience.signed_in)
+    assert not in_audience(stranger, SurveyAudience.everyone)

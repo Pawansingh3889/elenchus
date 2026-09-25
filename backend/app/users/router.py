@@ -20,6 +20,7 @@ from starlette.status import HTTP_201_CREATED
 
 from app.access import is_admin_by_config, may_author
 from app.auth.dependencies import get_current_user, require_admin, require_author
+from app.config import get_settings
 from app.db.session import get_session
 from app.errors import NotFoundError
 from app.templates.enums import SurveyAudience
@@ -34,6 +35,7 @@ from app.users.schemas import (
     IdentifyRequest,
     MeRead,
     PersonRead,
+    SignInRead,
     UserRead,
 )
 from app.users.service import UserService
@@ -107,16 +109,27 @@ async def identify(
     An unknown address answers 404 and says so. That does leak which addresses exist, and
     it is the right trade here: a correct guess already grants far more than the knowledge
     that a guess was correct, so withholding it buys nothing and costs whoever is typing
-    their own address a useful error.
+    their own address a useful error. With open sign-up on, an unknown address instead
+    becomes an account, exactly as a first Google or Microsoft sign-in would, so the
+    whole free path can be walked locally without a provider.
     """
     email = data.email.strip().casefold()
     from app.workspaces.repository import WorkspaceRepository
 
-    if not await WorkspaceRepository(session).resolve_identity(email=email):
-        raise NotFoundError(f"No account for {email}.")
-    user = await UserRepository(session).get_by_email(email)
+    service = UserService(session)
+    created = False
+    user = None
+    if await WorkspaceRepository(session).resolve_identity(email=email):
+        user = await UserRepository(session).get_by_email(email)
     if user is None:
-        raise NotFoundError(f"No account for {email}.")
+        open_workspace = get_settings().open_signup_workspace_id
+        if open_workspace is None:
+            raise NotFoundError(f"No account for {email}.")
+        user = await service.sign_up(
+            workspace_id=open_workspace, email=email, display_name=email, microsoft_id=None
+        )
+        created = True
+    await service.record_sign_in(user, "address", created=created)
     # Logged because this is the whole of signing in: a dev box being probed should leave
     # a trail, and "who acted as whom" is otherwise unanswerable after the fact.
     logger.info("dev identify: %s -> user=%s", email, user.id)
@@ -201,6 +214,16 @@ async def preview_account_change(
     move in or out of, which is the moment the live-reach decision needs a witness.
     """
     return await UserService(session).preview_change(user_id, data)
+
+
+@admin_router.get("/sign-ins", response_model=list[SignInRead])
+async def sign_ins(
+    _: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> list[SignInRead]:
+    """Everybody who signed in to this workspace, newest first, with how and whether it
+    created their account. The latest 500."""
+    return [SignInRead.model_validate(row) for row in await UserService(session).recent_sign_ins()]
 
 
 @admin_router.get("/{user_id}/history", response_model=list[AccountChangeRead])

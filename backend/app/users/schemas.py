@@ -11,6 +11,18 @@ from app.templates.enums import SurveyAudience
 from app.users.models import Band, Function, Hat, User, WorkspaceRole
 
 
+class SignInRead(BaseModel):
+    """One recorded sign-in, as the owner's list shows it."""
+
+    user_id: UUID
+    email: str
+    provider: str
+    created_account: bool
+    signed_in_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class UserRead(BaseModel):
     """One user as the development picker and `/dev/identify` return them.
 

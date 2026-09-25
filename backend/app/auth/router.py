@@ -15,9 +15,11 @@ from app.auth import oauth
 from app.auth.dependencies import get_current_user
 from app.config import get_settings
 from app.db.session import get_session
+from app.errors import ConflictError
 from app.users.models import User
 from app.users.repository import UserRepository
 from app.users.schemas import UserRead
+from app.users.service import UserService
 from app.workspaces.repository import WorkspaceRepository
 
 logger = logging.getLogger("app.auth")
@@ -36,6 +38,9 @@ class SignInOptions(BaseModel):
     providers: list[str]
     # Whether POST /dev/identify is mounted, so the browser never draws a box that 404s.
     address_sign_in: bool
+    # Whether a first sign-in creates an account, so the page can say so and say what
+    # is stored, rather than telling a stranger to ask an administrator.
+    open_sign_up: bool
 
 
 @router.get("/providers", response_model=SignInOptions)
@@ -46,8 +51,11 @@ async def sign_in_options() -> SignInOptions:
     the answer is which of two well-known products the deployment is wired to, and
     whether it is a development build.
     """
+    settings = get_settings()
     return SignInOptions(
-        providers=oauth.enabled(), address_sign_in=get_settings().app_env != "prod"
+        providers=oauth.enabled(),
+        address_sign_in=settings.app_env != "prod",
+        open_sign_up=settings.open_signup_workspace_id is not None,
     )
 
 
@@ -111,23 +119,39 @@ async def callback(
     email, subject = oauth.identity_of(p, profile)
     users = UserRepository(session)
     workspaces = WorkspaceRepository(session)
+    user: User | None = None
     if provider == "microsoft":
-        # Graph's stable object id must already be linked by an administrator.
-        # A mutable mail address alone cannot choose a company or claim its account.
-        if not subject or not await workspaces.resolve_identity(microsoft_id=subject):
+        # Matched on Graph's stable object id only. A mutable mail address alone cannot
+        # choose a company or claim an existing account.
+        if not subject:
             return refuse("no_account")
-        user = await users.get_by_microsoft_id(subject)
+        if await workspaces.resolve_identity(microsoft_id=subject):
+            user = await users.get_by_microsoft_id(subject)
     else:
         if not email:
             return refuse("no_email")
-        if not await workspaces.resolve_identity(email=email):
-            return refuse("no_account")
-        user = await users.get_by_email(email)
+        if await workspaces.resolve_identity(email=email):
+            user = await users.get_by_email(email)
+    created = False
     if user is None:
-        # The decision this system rests on: an account is made by an administrator, who
-        # gives it a job, and every right derives from that job. A sign-in cannot invent
-        # one.
-        return refuse("no_account")
+        # Unknown. Refused, unless this deployment lets anyone sign up, in which case the
+        # person gets a respondent account in the one open workspace.
+        open_workspace = settings.open_signup_workspace_id
+        if open_workspace is None:
+            return refuse("no_account")
+        if not email:
+            return refuse("no_email")
+        try:
+            user = await UserService(session).sign_up(
+                workspace_id=open_workspace,
+                email=email,
+                display_name=oauth.display_name_of(profile, email),
+                microsoft_id=subject if provider == "microsoft" else None,
+            )
+        except ConflictError:
+            return refuse("no_account")
+        created = True
+    await UserService(session).record_sign_in(user, provider, created=created)
 
     response = RedirectResponse(front, status_code=307)
     # Cross-origin (Vercel frontend → Railway backend) requires SameSite=None + Secure

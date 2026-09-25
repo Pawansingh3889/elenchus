@@ -275,3 +275,18 @@ Alembic migrations from the first table; no `create_all` in application code.
   anything about the hosted model before the label splits hold data. Do not start a paid
   batch from code or a test: runs start only when an administrator asks, under a cap of at
   most $25, and the suite fakes the model.
+- **Free with sign-in: anyone may sign themselves up, as a respondent.** Asked for directly
+  on 25 Sep 2026, reversing "an unknown identity is refused, never created" for
+  deployments that opt in. With `OPEN_SIGNUP_WORKSPACE_ID` set, a first Google (verified
+  address) or Microsoft sign-in that matches nobody creates a respondent account with no
+  job in that one workspace, and the `/dev/identify` shim does the same locally so the
+  path can be walked without a provider. Unset, nothing changes. An address that already
+  has an account is refused, never linked, because a Microsoft mail field is mutable.
+  Every sign-in, first or returning, is written to the append-only `sign_ins` table
+  (email, provider, time, whether it created the account) so the owner can see who came
+  in; `GET /api/v1/admin/users/sign-ins` lists the latest 500. A jobless person reaches no
+  job-based audience, so surveys for them use the new `signed_in` audience. The sign-in
+  page says the account is made on sign-in and what is stored. **What it costs:** the
+  hosted tier bills per turn, so a public free product is an open-ended spend, and on the
+  free Groq tier (8,000 tokens a minute, about two turns a minute for everyone together)
+  the conduct path is rate-limited under the lightest load; measured 25 Sep 2026.

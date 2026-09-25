@@ -46,8 +46,9 @@ The backend applies Alembic migrations on start, so the schema is ready once it'
 Development authentication accepts an `X-User-Id` header. Production rejects
 that shortcut and requires a signed session from a configured Google or Microsoft
 provider. Google requires an explicitly verified email matching an existing account;
-Microsoft requires a pre-linked Graph object ID, not an email match. Unknown accounts
-are refused. See [workspace deployment](docs/WORKSPACE_ISOLATION.md) for database-role
+Microsoft is matched on its Graph object ID, not an email. Unknown people are refused,
+unless `OPEN_SIGNUP_WORKSPACE_ID` is set: then their first sign-in creates a respondent
+account (free with sign-in), and every sign-in is recorded in the `sign_ins` table. See [workspace deployment](docs/WORKSPACE_ISOLATION.md) for database-role
 requirements and the remaining commercial identity work.
 
 In the browser you sign in by typing a seeded email address in the top bar, which calls

@@ -203,6 +203,9 @@ export const pl: Messages = {
     noProviders: "Logowanie nie jest jeszcze skonfigurowane w tym wdrożeniu. Poproś IT o skonfigurowanie dostawcy.",
     needsSignIn: "Ta strona musi wiedzieć, kim jesteś.",
     goToSignIn: "Przejdź do logowania",
+    openTitle: "Pierwszy raz tutaj?",
+    openBody:
+      "Zalogowanie tworzy Twoje bezpłatne konto. Zapisujemy Twój adres e-mail i czas każdego logowania, a osoby prowadzące ankietę mogą czytać Twoje odpowiedzi.",
     noAccountTitle: "Nie masz jeszcze konta?",
     noAccountBody:
       "Konta zakłada administrator, ponieważ Twoje uprawnienia wynikają ze stanowiska. Poproś przełożonego lub IT o dodanie Cię.",

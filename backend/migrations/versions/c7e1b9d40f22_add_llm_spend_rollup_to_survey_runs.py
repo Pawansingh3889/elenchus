@@ -11,8 +11,8 @@ from collections.abc import Sequence
 from alembic import op
 import sqlalchemy as sa
 
-revision: str = 'c7e1b9d40f22'
-down_revision: str | None = 'a1c4d2e7f930'
+revision: str = "c7e1b9d40f22"
+down_revision: str | None = "a1c4d2e7f930"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -45,15 +45,11 @@ def upgrade() -> None:
     # least" instead of quietly conflating unknown with zero.
     op.add_column(
         "survey_runs",
-        sa.Column(
-            "llm_unmetered_calls", sa.Integer(), nullable=False, server_default=sa.text("0")
-        ),
+        sa.Column("llm_unmetered_calls", sa.Integer(), nullable=False, server_default=sa.text("0")),
     )
     op.add_column(
         "survey_runs",
-        sa.Column(
-            "llm_cost_usd", sa.Numeric(18, 8), nullable=False, server_default=sa.text("0")
-        ),
+        sa.Column("llm_cost_usd", sa.Numeric(18, 8), nullable=False, server_default=sa.text("0")),
     )
 
 

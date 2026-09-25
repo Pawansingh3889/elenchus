@@ -211,6 +211,9 @@ export const en = {
     noProviders: "Sign-in is not set up on this deployment yet. Ask IT to configure a provider.",
     needsSignIn: "This page needs to know who you are.",
     goToSignIn: "Go to sign in",
+    openTitle: "First time here?",
+    openBody:
+      "Signing in creates your free account. We store your email address and the time of each sign-in, and the people who run a survey can read your answers to it.",
     noAccountTitle: "No account yet?",
     noAccountBody:
       "Accounts are created by an administrator, because what you can do here follows from your job. Ask your manager or IT to add you.",

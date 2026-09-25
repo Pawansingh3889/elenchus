@@ -221,6 +221,28 @@ class AccountChange(WorkspaceOwned, Base):
     change: Mapped[dict[str, Any]] = mapped_column(JSONB)
 
 
+class SignIn(WorkspaceOwned, Base):
+    """One successful sign-in: who, with what, and when. Append-only.
+
+    Kept so the owner can see everybody who has come in, which matters since anyone may
+    sign themselves up. No foreign key to the user, deliberately: the record of who
+    signed in outlives the account, like the workspace access log.
+    """
+
+    __tablename__ = "sign_ins"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    user_id: Mapped[UUID]
+    email: Mapped[str] = mapped_column(String(320))
+    # google | microsoft | address (the development shim)
+    provider: Mapped[str] = mapped_column(String(16))
+    # Whether this sign-in created the account, so first visits read apart from returns.
+    created_account: Mapped[bool]
+    signed_in_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class UserHat(WorkspaceOwned, Base):
     """One person carrying one cross-cutting responsibility.
 
