@@ -168,9 +168,6 @@ export const api = {
    *  server, which is where it is guarded. */
   identify: (email: string) =>
     request<User>("/dev/identify", { method: "POST", body: JSON.stringify({ email }) }),
-  /** Wipe all data and re-seed. Demo mode only. */
-  resetDemo: () =>
-    request<{ status: string; users: number; surveys: number }>("/dev/reset", { method: "POST" }),
   listPublished: () => request<TemplateSummary[]>("/templates/published"),
   startRun: (templateId: string) =>
     request<Run>("/runs", { method: "POST", body: JSON.stringify({ template_id: templateId }) }),

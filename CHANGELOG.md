@@ -5,6 +5,17 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-09-25. Demo mode removed, production provisioning
+
+- Removed demo mode: `APP_ENV` is now `dev` or `prod`. Gone with it are the startup seed,
+  the unauthenticated `POST /api/v1/dev/reset` wipe (which was also mounted in
+  development), the demo banner and its reset button, `demo_mode` on the health
+  responses, and `docker-compose.demo.yml`.
+- Added `python -m app.provision`, which creates a company's workspace and owner in a
+  production database, idempotently and with an audit row.
+- A provider error event streamed after a 200 (Groq's `tool_use_failed`) now fails the
+  attempt with the provider's reason instead of reading as "no tool call".
+
 ## 2026-09-21. Company-isolation foundation (working branch)
 
 - Added workspace ownership to customer data, forced PostgreSQL row policies, and

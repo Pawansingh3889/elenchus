@@ -250,8 +250,6 @@ export const pl: Messages = {
       "Administratorzy zarządzają kontami i przypisaniami stanowisk.",
     manualAdminJobs:
       "Jedno stanowisko na osobę: funkcja × poziom. Kapelusze dodają obowiązki krzyżowe.",
-    manualAdminReset:
-      "Tryb demo: Reset usuwa wszystko i wczytuje z fixture.",
     trustTitle: "Dlaczego Elenchus?",
     trustPrivacyTitle: "Prywatność wg projektu",
     trustPrivacyBody:

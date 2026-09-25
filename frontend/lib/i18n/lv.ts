@@ -250,8 +250,6 @@ export const lv: Messages = {
       "Administratori pārvalda kontus un amatu piešķīrumus.",
     manualAdminJobs:
       "Viens amats uz cilvēku: funkcija × līmenis. Cepures pievieno šķērsojošos pienākumus.",
-    manualAdminReset:
-      "Demo režīms: Reset izdzēš visu un atkārtoti aizpilda no fixture.",
     trustTitle: "Kāpēc Elenchus?",
     trustPrivacyTitle: "Privātums pēc dizaina",
     trustPrivacyBody:

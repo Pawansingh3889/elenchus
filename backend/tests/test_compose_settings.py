@@ -121,7 +121,7 @@ def test_that_check_rejects_a_local_tier_with_no_clock_to_bill() -> None:
     )
 
 
-PRICED_COMPOSE_FILES = (*COMPOSE_FILES, "docker-compose.demo.yml")
+PRICED_COMPOSE_FILES = COMPOSE_FILES
 
 
 def _prices_given_a_default(environment: dict[str, Any]) -> list[str]:

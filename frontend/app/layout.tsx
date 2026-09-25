@@ -3,7 +3,6 @@ import { Archivo_Black, Inter, JetBrains_Mono } from "next/font/google";
 
 import { TopBar } from "@/components/TopBar";
 import "./globals.css";
-import { DemoBanner } from "@/components/DemoBanner";
 import { Providers } from "./providers";
 
 /* The three faces the theme in globals.css names as --font, --font-display and
@@ -35,8 +34,6 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-const isDemo = process.env.NEXT_PUBLIC_APP_ENV === "demo";
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
@@ -46,7 +43,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <Providers>
           <TopBar />
-          {isDemo && <DemoBanner />}
           <main className="app-main">{children}</main>
         </Providers>
       </body>

@@ -250,8 +250,6 @@ export const lt: Messages = {
       "Administratoriai valdo paskyras ir pareigų paskirstymą.",
     manualAdminJobs:
       "Vienos pareigos asmeniui: funkcija × lygis. Kepurės prideda skersines pareigas.",
-    manualAdminReset:
-      "Demo režimas: Reset ištrina viską ir atkuria iš fixture.",
     trustTitle: "Kodėl Elenchus?",
     trustPrivacyTitle: "Privatumas pagal dizainą",
     trustPrivacyBody:

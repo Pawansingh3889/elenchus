@@ -249,8 +249,6 @@ export const fil: Messages = {
       "Ang mga admin ay nagpapatakbo ng mga account at job assignment.",
     manualAdminJobs:
       "Isang job bawat tao: function × band. Mga hat ay nagdadagdag ng mga tungkulin.",
-    manualAdminReset:
-      "Demo mode: Reset ay nagbubura at nagre-reseed mula sa mga fixture.",
     trustTitle: "Bakit Elenchus?",
     trustPrivacyTitle: "Privacy by design",
     trustPrivacyBody:

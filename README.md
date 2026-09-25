@@ -43,7 +43,7 @@ The backend applies Alembic migrations on start, so the schema is ready once it'
 
 ## Seed data and auth
 
-Development and demo authentication accept an `X-User-Id` header. Production rejects
+Development authentication accepts an `X-User-Id` header. Production rejects
 that shortcut and requires a signed session from a configured Google or Microsoft
 provider. Google requires an explicitly verified email matching an existing account;
 Microsoft requires a pre-linked Graph object ID, not an email match. Unknown accounts
@@ -55,8 +55,9 @@ In the browser you sign in by typing a seeded email address in the top bar, whic
 unauthenticated by necessity and is only mounted outside production (a test pins this).
 When trying endpoints from `/docs`, add the `X-User-Id` header yourself.
 
-Demo mode seeds automatically on backend startup. `python -m app.seed` is the explicit,
-idempotent seed command for local use. There is no stored workspace role yet: each person
+`python -m app.seed` is the idempotent seed command for local use; production is never
+seeded. A production database starts with `python -m app.provision`, which creates one
+company's workspace and its owner (see [workspace deployment](docs/WORKSPACE_ISOLATION.md)). There is no stored workspace role yet: each person
 holds one job, a function crossed with a band, and current rights derive from it within
 their workspace (authoring is manager band and up; see
 [`docs/ACCESS_AND_RESULTS.md`](docs/ACCESS_AND_RESULTS.md)). The cast covers what the

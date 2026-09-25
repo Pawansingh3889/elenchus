@@ -31,7 +31,7 @@ def test_a_signed_value_comes_back_unchanged():
     assert oauth.unsign(token) == "hello"
 
 
-@pytest.mark.parametrize("environment", ["production", "staging", ""])
+@pytest.mark.parametrize("environment", ["production", "staging", "demo", ""])
 def test_misspelled_environment_cannot_enable_development_auth(monkeypatch, environment):
     monkeypatch.setenv("APP_ENV", environment)
     with pytest.raises(ValidationError, match="app_env"):
@@ -133,9 +133,8 @@ async def test_production_refuses_a_known_user_id_without_a_session(session, aut
         await get_current_user(x_user_id=author.id, elenchus_session=None, session=session)
 
 
-@pytest.mark.parametrize("environment", ["dev", "demo"])
-async def test_development_and_demo_keep_the_header_shim(session, author, monkeypatch, environment):
-    monkeypatch.setenv("APP_ENV", environment)
+async def test_development_keeps_the_header_shim(session, author, monkeypatch):
+    monkeypatch.setenv("APP_ENV", "dev")
     get_settings.cache_clear()
     user = await get_current_user(x_user_id=author.id, elenchus_session=None, session=session)
     assert user.id == author.id

@@ -250,8 +250,6 @@ export const es: Messages = {
       "Los administradores gestionan cuentas y asignaciones de puesto.",
     manualAdminJobs:
       "Un puesto por persona: función × banda. Sombreros añaden deberes transversales.",
-    manualAdminReset:
-      "Modo demo: Reset borra todo y recarga desde fixtures.",
     trustTitle: "¿Por qué Elenchus?",
     trustPrivacyTitle: "Privacidad por diseño",
     trustPrivacyBody:

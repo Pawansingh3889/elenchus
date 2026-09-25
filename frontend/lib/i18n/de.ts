@@ -250,8 +250,6 @@ export const de: Messages = {
       "Administratorinnen verwalten Konten und Stellen-Zuweisungen.",
     manualAdminJobs:
       "Eine Stelle pro Person: Funktion × Stufe. Hüte fügen Querschnittspflichten hinzu.",
-    manualAdminReset:
-      "Demo-Modus: Reset löscht alles und setzt Fixtures zurück.",
     trustTitle: "Warum Elenchus?",
     trustPrivacyTitle: "Privacy by Design",
     trustPrivacyBody:

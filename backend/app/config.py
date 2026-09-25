@@ -414,7 +414,7 @@ class Settings(BaseSettings):
         "survey published here that does not carry its own. Never shown to respondents.",
     )
 
-    app_env: Literal["dev", "demo", "prod"] = Field("dev", description="dev | demo | prod")
+    app_env: Literal["dev", "prod"] = Field("dev", description="dev | prod")
     frontend_origin: str = Field(
         "http://localhost:3000", description="Allowed CORS origin for the browser app"
     )

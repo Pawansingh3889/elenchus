@@ -7,7 +7,7 @@ sign-in. This is the real one, and in production it is the only one.
 
 **The `X-User-Id` header**, which is the development shim: a caller is whoever they say
 they are. That was the entire authentication story here for a long time, and it is
-exactly as weak as it sounds, so it is refused in production. It survives in dev and demo
+exactly as weak as it sounds, so it is refused in production. It survives in development
 because the test suite and local work should not need a provider, a network round trip
 or a client secret, and because the seeded users have no provider accounts to sign in
 with.

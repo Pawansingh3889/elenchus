@@ -252,8 +252,6 @@ export const ro: Messages = {
       "Administratorii gestionează conturile și atribuirile de post.",
     manualAdminJobs:
       "Un post per persoană: funcție × nivel. Pălăriile adaugă responsabilități transversale.",
-    manualAdminReset:
-      "Mod demo: Reset șterge tot și reîncarcă din fixture.",
     trustTitle: "De ce Elenchus?",
     trustPrivacyTitle: "Confidențialitate prin proiectare",
     trustPrivacyBody:

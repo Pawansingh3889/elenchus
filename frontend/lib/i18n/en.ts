@@ -258,8 +258,6 @@ export const en = {
       "Admins manage accounts and job assignments.",
     manualAdminJobs:
       "One job per person: function crossed with band. Hats add cross-cutting duties.",
-    manualAdminReset:
-      "Demo mode: Reset wipes all data and re-seeds from fixtures.",
     trustTitle: "Why Elenchus?",
     trustPrivacyTitle: "Privacy by design",
     trustPrivacyBody:
