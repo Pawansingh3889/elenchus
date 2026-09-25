@@ -9,6 +9,7 @@ from app.conduct.engine import ConductEngine
 from app.errors import ForbiddenError, NotFoundError
 from app.llm import ledger
 from app.llm.client import LLMError, ToolTurn
+from app.trace.repository import SpanRepository
 from app.trace.service import LensService
 from app.users.models import Band, Function, User
 from tests.fakes import FakeLLM, move_on, record
@@ -91,6 +92,30 @@ async def test_a_retry_is_counted_on_its_run(session, respondent, published, adm
     (traced,) = await LensService(session).runs(admin)
     assert traced.retries == 1
     assert traced.decisions == 3
+
+
+@pytest.mark.parametrize("missing,cached", [(0, 600), (0, 0), (1, 600), (2, 600)])
+async def test_missing_cache_counts_do_not_become_measured_zeros(
+    session, respondent, published, admin, missing, cached
+):
+    run = await _one_good_turn(session, respondent, published)
+    spans = await SpanRepository(session).for_run(run.id)
+    attempts = [span for span in spans if span.kind.value == "attempt"]
+    for attempt in attempts:
+        attempt.cached_tokens = cached
+    for attempt in attempts[:missing]:
+        attempt.cached_tokens = None
+    await session.commit()
+
+    lens = LensService(session)
+    (traced,) = await lens.runs(admin)
+    (tier,) = (await lens.strip(admin)).tiers
+    for row in (traced, tier):
+        assert row.cached_tokens == ((2 - missing) * cached if missing < 2 else None)
+        assert row.unreported_cached_attempts == missing
+        assert row.reasoning_tokens is None
+        assert row.unreported_reasoning_attempts == 2
+        assert row.unmetered_attempts == 0
 
 
 async def test_the_strip_totals_each_tier_including_failed_attempts(

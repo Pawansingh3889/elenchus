@@ -43,7 +43,7 @@ export default function LensRun() {
           <Tile label="Attempts" value={`${run.attempts} (${run.failed_attempts} failed)`} />
           <Tile
             label="Tokens in"
-            value={`${tokenCount(run.prompt_tokens, run.unmetered_attempts)} (${tokenCount(run.cached_tokens, run.unmetered_attempts)} cached)`}
+            value={`${tokenCount(run.prompt_tokens, run.unmetered_attempts)} (${tokenCount(run.cached_tokens, run.unreported_cached_attempts)} cached)`}
           />
           <Tile label="Tokens out" value={tokenCount(run.completion_tokens, run.unmetered_attempts)} />
           <Tile label="Cost" value={dollars(run.cost_usd, run.unmetered_attempts)} />

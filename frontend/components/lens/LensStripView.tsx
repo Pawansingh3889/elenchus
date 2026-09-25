@@ -40,12 +40,12 @@ export function LensStripView({ strip }: { strip: LensStrip }) {
                 <td className="num">{numbersOf(tier.attempts)}</td>
                 <td className="num">{numbersOf(tier.failed_attempts)}</td>
                 <td className="num">{tokenCount(tier.prompt_tokens, tier.unmetered_attempts)}</td>
-                <td className="num">{tokenCount(tier.cached_tokens, tier.unmetered_attempts)}</td>
+                <td className="num">{tokenCount(tier.cached_tokens, tier.unreported_cached_attempts)}</td>
                 <td className="num">
                   {tokenCount(tier.completion_tokens, tier.unmetered_attempts)}
                 </td>
                 <td className="num">
-                  {tokenCount(tier.reasoning_tokens, tier.unmetered_attempts)}
+                  {tokenCount(tier.reasoning_tokens, tier.unreported_reasoning_attempts)}
                 </td>
                 <td className="num">{dollars(tier.cost_usd, tier.unmetered_attempts)}</td>
                 <td className="num">

@@ -37,12 +37,14 @@ export const tracedRunSchema = z.object({
   retries: count,
   attempts: count,
   failed_attempts: count,
-  /** Attempts that reported no tokens or no cost. Above zero, every sum is "at least". */
+  /** Attempts that reported no input/output tokens or no cost. */
   unmetered_attempts: count,
   prompt_tokens: count,
   completion_tokens: count,
-  cached_tokens: count,
-  reasoning_tokens: count,
+  cached_tokens: optionalCount,
+  reasoning_tokens: optionalCount,
+  unreported_cached_attempts: count,
+  unreported_reasoning_attempts: count,
   /** Null when no attempt under it was priced, which is not the same as free. */
   cost_usd: z.number().nonnegative().nullable(),
   /** Summed over turns: how long respondents waited, not the sum of attempts. */
@@ -85,8 +87,10 @@ export const tierStripSchema = z.object({
   unmetered_attempts: count,
   prompt_tokens: count,
   completion_tokens: count,
-  cached_tokens: count,
-  reasoning_tokens: count,
+  cached_tokens: optionalCount,
+  reasoning_tokens: optionalCount,
+  unreported_cached_attempts: count,
+  unreported_reasoning_attempts: count,
   cost_usd: z.number().nonnegative().nullable(),
   latency_ms_p50: z.number().nullable(),
   latency_ms_p95: z.number().nullable(),
