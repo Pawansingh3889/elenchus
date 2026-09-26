@@ -1,12 +1,12 @@
 /* ---------------------------------------------------------------------------
-   The portfolio palette: cream ink on near-black, terracotta for the one
-   accent that means "act on this."
+   The FloorMind palette: deep navy ink on white, electric blue for the one
+   accent that means "act on this", cyan as its gradient partner.
 
-   Pulled from pawankapkoti.dev (localhost:8787 while it's in dev) so the
-   survey service and the author's own site read as one hand. There is only
-   one theme in the source: no light variant exists to carry over, so the
-   three blocks below (base, prefers-color-scheme, data-theme) hold the same
-   values rather than drifting apart. A manual toggle that disagrees with the
+   Taken from floormind.pages.dev on 25 Sep 2026 so the author's products read
+   as one hand, with Space Grotesk for headings over Inter. The source is light
+   only: no dark variant exists to carry over, so the three blocks below (base,
+   prefers-color-scheme, data-theme) hold the same values rather than drifting
+   apart. A manual toggle that disagrees with the
    automatic one is worse than no toggle, per the decision this file already
    made once for the palette it's replacing.
 
@@ -15,59 +15,58 @@
    not estimates.
    --------------------------------------------------------------------------- */
 :root {
-  --ink: #f1ecdf;
-  --canvas: #0c0b0a;
-  --surface: #17140f;
-  --raised: #1e1a13;
-  --on-ink: #f1ecdf;
+  --ink: #0b1220;
+  --canvas: #f6f8fb;
+  --surface: #ffffff;
+  --raised: #ffffff;
+  --on-ink: #ffffff;
   /* Text greys are chosen by contrast, not by eye. --muted carries real sentences
      (.empty, .muted), so it has to clear 4.5:1 on all three backgrounds it can land
      on: card, field and page. --muted-light is deliberately untouched by that rule:
      it is never text, only borders and the typing dots, where text contrast does
      not apply. */
-  --muted: #a89d89;
-  --muted-light: #4a3d2c;
-  --secondary: #c9bfa8;
-  --accent: #c8492e;
-  /* Focus keeps its own token even though it sits in the same terracotta family as
+  --muted: #5b6478;
+  --muted-light: #c9d2e4;
+  --secondary: #475069;
+  --accent: #2f6bff;
+  /* Focus keeps its own token even though it sits in the same blue family as
      --accent-strong. --accent is the decorative, lower-contrast swatch (progress
      bars, field borders) and cannot reliably reach the 3:1 a focus ring needs; that
      these two are close today is a property of this palette, not a reason to merge
      them, because the next palette can move one without the other. */
-  --focus: #f0a57c;
-  --accent-strong: #e8714f;
-  --highlight: #d99a4e;
-  --highlight-soft: #241c10;
-  --border: rgba(241, 236, 223, 0.09);
-  --border-strong: rgba(241, 236, 223, 0.22);
-  --border-faint: rgba(241, 236, 223, 0.05);
-  --warn-fill: #2a1d0a;
-  --warn-text: #e8b567;
-  --warn-border: rgba(232, 181, 103, 0.28);
-  --green-soft: #12241a;
-  --green: #3ddc97;
-  --border-green: rgba(61, 220, 151, 0.28);
-  --err-fill: #2a1310;
-  --err-text: #ff8a75;
-  --err-border: rgba(255, 138, 117, 0.28);
-  --ai-fill: #241209;
-  --ai-border: rgba(200, 73, 46, 0.3);
+  --focus: #2f6bff;
+  --accent-strong: #1e56e8;
+  --highlight: #0e7c8c;
+  --highlight-soft: #e6f6f8;
+  --border: rgba(11, 18, 32, 0.09);
+  --border-strong: rgba(11, 18, 32, 0.2);
+  --border-faint: rgba(11, 18, 32, 0.05);
+  --warn-fill: #fff6e5;
+  --warn-text: #8a4b04;
+  --warn-border: rgba(245, 158, 11, 0.4);
+  --green-soft: #e9f7ef;
+  --green: #15803d;
+  --border-green: rgba(22, 163, 74, 0.3);
+  --err-fill: #fdeceb;
+  --err-text: #b42318;
+  --err-border: rgba(180, 35, 24, 0.25);
+  --ai-fill: #eef3ff;
+  --ai-border: rgba(47, 107, 255, 0.25);
   /* The home page's own surface, and the only gradient in the app.
      Two stops as separate opaque tokens rather than one gradient string, because that
      is what lets check_contrast.py measure the heading against each end: text over a
      gradient is only as readable as its worst point, and an average would pass a
      heading that disappears at one edge. Both ends are measured, so both are pairs.
-     Both stops sit inside the same near-black family as --canvas and --raised, so the
-     bar reads as depth rather than as a second, louder colour dropped into the page. */
-  --hero-from: #050504;
-  --hero-to: #1e1a13;
-  --on-hero: #f1ecdf;
+     Navy into deep teal, the source's call-to-action band: the one dark surface on a
+     light page, so it reads as the place to act. */
+  --hero-from: #0b1220;
+  --hero-to: #0e4f6e;
+  --on-hero: #ffffff;
   /* The quieter text on the hero: subtitles, the bar's nav links, the label over the
      user picker. An opaque colour rather than --on-hero at reduced opacity, because the
      first build used opacity 0.85 and that resolves to under the floor at one stop,
-     and invisible to the checker, which cannot see through alpha. This is --secondary,
-     already opaque and already clearing 4.5:1 on a card. */
-  --on-hero-muted: #c9bfa8;
+     and invisible to the checker, which cannot see through alpha. */
+  --on-hero-muted: #b4c3db;
   /* ---------------------------------------------------------------------------
      The band ramp, for the People page.
 
@@ -75,26 +74,26 @@
      across the reach map and the same tint follows a person into the table below
      it. A ramp rather than six hues because a band is ordered data and ordered data
      gets an ordered scale, and because lightness survives colour-vision deficiency
-     where hue does not. Neutral rather than terracotta, deliberately: on that page
+     where hue does not. Slate rather than the accent blue, deliberately: on that page
      the accent means exactly one thing, "reached by the selected audience", and a
-     director cell that was also terracotta would fight the lit cell beside it.
+     director cell that was also accent blue would fight the lit cell beside it.
 
      Each step carries its own text colour, because the ramp crosses over at step 5:
-     the light steps take the page's ink and the dark ones take cream, and every one
-     of the six pairs is measured by check_contrast.py. The lowest is 4.71:1.
+     the light steps take the page's ink and the dark ones take white, and every one
+     of the six pairs is measured by check_contrast.py. The lowest is 6.30:1.
      --------------------------------------------------------------------------- */
-  --band-1: #efe7d6;
-  --band-2: #d6c7a9;
-  --band-3: #b3a17c;
-  --band-4: #94845f;
-  --band-5: #5c4f38;
-  --band-6: #332a1c;
-  --on-band-1: #201a10;
-  --on-band-2: #201a10;
-  --on-band-3: #201a10;
-  --on-band-4: #201a10;
-  --on-band-5: #f1ecdf;
-  --on-band-6: #f1ecdf;
+  --band-1: #eef2f8;
+  --band-2: #d5deec;
+  --band-3: #aebfd9;
+  --band-4: #7f97bd;
+  --band-5: #2c4a7a;
+  --band-6: #111a2e;
+  --on-band-1: #0b1220;
+  --on-band-2: #0b1220;
+  --on-band-3: #0b1220;
+  --on-band-4: #0b1220;
+  --on-band-5: #ffffff;
+  --on-band-6: #ffffff;
   /* ---------------------------------------------------------------------------
      Chart series.
 
@@ -103,23 +102,22 @@
      groups on the same question, because a tally of options is one series and colouring
      each bar there would say the options differ in kind when they differ only in count.
 
-     Amber, red and green are absent from the first three on purpose: they are the
-     status colours, and a series that borrows one spends the meaning the status
-     colours are rationed to keep. --series-2 is the one exception, reused from
-     --green, because a fourth hue distinct from blue, terracotta and gold read as
-     grey at this lightness on both canvases.
+     Amber, red and green are absent on purpose: they are the status colours, and a
+     series that borrows one spends the meaning the status colours are rationed to keep.
+     Validated on 25 Sep 2026 against white: all four pass for adjacent marks, and only
+     the first three pass all-pairs (violet sits too near blue under protanopia).
      --------------------------------------------------------------------------- */
-  --series-1: #5470ff;
-  --series-2: #3ddc97;
-  --series-3: #e8714f;
-  --series-4: #d9b64f;
-  --series-other: #746a58;
+  --series-1: #2f6bff;
+  --series-2: #0e9aa8;
+  --series-3: #e8590c;
+  --series-4: #8b5cf6;
+  --series-other: #8a93a8;
 
   /* Diverging, for a correlation: a cool pole for positive, a warm pole for negative, and
      a neutral midpoint that reads as nothing. A cell mixes toward a pole by |rho|. */
-  --div-pos: #5470ff;
-  --div-neg: #c8492e;
-  --div-mid: #201a13;
+  --div-pos: #2f6bff;
+  --div-neg: #e8590c;
+  --div-mid: #eef1f6;
 
   --radius: 14px;
   /* The three families are self-hosted by next/font (see app/layout.tsx) and handed
@@ -127,11 +125,10 @@
      them, so the family name lives in exactly one spot. */
   --font: var(--font-inter), -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
     sans-serif;
-  /* The display face carries h1s and the brand mark alone: Archivo Black ships one
-     weight, so it is never asked to be anything but itself. The mono face marks the
+  /* The display face, Space Grotesk, carries headings and the brand mark. The mono face marks the
      small uppercase labels (nav, tile labels, pills, badges) that already read as
      data rather than prose, the way the source site uses it for its own chrome. */
-  --font-display: var(--font-archivo-black), var(--font);
+  --font-display: var(--font-space-grotesk), var(--font);
   --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Consolas,
     monospace;
 
@@ -174,23 +171,23 @@
 
   /* The slab: the primary button, and nothing else since the top bar turned white
      under a blue rule. Separate from --ink because --ink is body text; here the two
-     land in the same family on purpose (terracotta), but the slab is its own token
+     land in the same family on purpose (blue), but the slab is its own token
      because the next palette can move one without the other. Darker than --accent
-     itself: the decorative swatch reads at 4.0:1 under cream text, short of the 4.5:1
-     a button's label needs, so the slab is stepped down until it clears the floor. */
-  --slab: #a83a22;
-  --on-slab: #f1ecdf;
+     itself: the decorative swatch reads at 4.5:1 under white text, right on the floor
+     a button's label needs, so the slab is stepped down to clear it with room. */
+  --slab: #1f5bf0;
+  --on-slab: #ffffff;
 
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
+  --shadow-sm: 0 1px 3px rgba(11, 18, 32, 0.08);
+  --shadow-md: 0 10px 30px rgba(11, 18, 32, 0.07);
 
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 /* ---------------------------------------------------------------------------
    The same theme, mirrored rather than swapped.
 
-   The source design has exactly one look: there is no light variant of the portfolio
+   The source design has exactly one look: there is no dark variant of the FloorMind
    site to carry over. Rather than invent one, both the system-preference block and the
    manual-toggle block below repeat the values above verbatim, so a reader's OS setting
    or a future preference control cannot land them on a palette nobody designed. Values
@@ -202,62 +199,62 @@
    --------------------------------------------------------------------------- */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --canvas: #0c0b0a;
-    --surface: #17140f;
-    --raised: #1e1a13;
-    --ink: #f1ecdf;
-    --on-ink: #f1ecdf;
-    --slab: #a83a22;
-    --on-slab: #f1ecdf;
-    --muted: #a89d89;
-    --muted-light: #4a3d2c;
-    --secondary: #c9bfa8;
-    --accent: #c8492e;
-    --accent-strong: #e8714f;
-    --focus: #f0a57c;
-    --highlight: #d99a4e;
-    --highlight-soft: #241c10;
-    --border: rgba(241, 236, 223, 0.09);
-    --border-strong: rgba(241, 236, 223, 0.22);
-    --border-faint: rgba(241, 236, 223, 0.05);
-    --warn-fill: #2a1d0a;
-    --warn-text: #e8b567;
-    --warn-border: rgba(232, 181, 103, 0.28);
-    --green-soft: #12241a;
-    --green: #3ddc97;
-    --border-green: rgba(61, 220, 151, 0.28);
-    --err-fill: #2a1310;
-    --err-text: #ff8a75;
-    --err-border: rgba(255, 138, 117, 0.28);
-    --ai-fill: #241209;
-    --ai-border: rgba(200, 73, 46, 0.3);
-    --hero-from: #050504;
-    --hero-to: #1e1a13;
-    --on-hero: #f1ecdf;
-    --on-hero-muted: #c9bfa8;
-    --band-1: #efe7d6;
-    --band-2: #d6c7a9;
-    --band-3: #b3a17c;
-    --band-4: #94845f;
-    --band-5: #5c4f38;
-    --band-6: #332a1c;
-    --on-band-1: #201a10;
-    --on-band-2: #201a10;
-    --on-band-3: #201a10;
-    --on-band-4: #201a10;
-    --on-band-5: #f1ecdf;
-    --on-band-6: #f1ecdf;
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
-    --series-1: #5470ff;
-    --series-2: #3ddc97;
-    --series-3: #e8714f;
-    --series-4: #d9b64f;
-    --series-other: #746a58;
-    --div-pos: #5470ff;
-    --div-neg: #c8492e;
-    --div-mid: #201a13;
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
-    color-scheme: dark;
+    --canvas: #f6f8fb;
+    --surface: #ffffff;
+    --raised: #ffffff;
+    --ink: #0b1220;
+    --on-ink: #ffffff;
+    --slab: #1f5bf0;
+    --on-slab: #ffffff;
+    --muted: #5b6478;
+    --muted-light: #c9d2e4;
+    --secondary: #475069;
+    --accent: #2f6bff;
+    --accent-strong: #1e56e8;
+    --focus: #2f6bff;
+    --highlight: #0e7c8c;
+    --highlight-soft: #e6f6f8;
+    --border: rgba(11, 18, 32, 0.09);
+    --border-strong: rgba(11, 18, 32, 0.2);
+    --border-faint: rgba(11, 18, 32, 0.05);
+    --warn-fill: #fff6e5;
+    --warn-text: #8a4b04;
+    --warn-border: rgba(245, 158, 11, 0.4);
+    --green-soft: #e9f7ef;
+    --green: #15803d;
+    --border-green: rgba(22, 163, 74, 0.3);
+    --err-fill: #fdeceb;
+    --err-text: #b42318;
+    --err-border: rgba(180, 35, 24, 0.25);
+    --ai-fill: #eef3ff;
+    --ai-border: rgba(47, 107, 255, 0.25);
+    --hero-from: #0b1220;
+    --hero-to: #0e4f6e;
+    --on-hero: #ffffff;
+    --on-hero-muted: #b4c3db;
+    --band-1: #eef2f8;
+    --band-2: #d5deec;
+    --band-3: #aebfd9;
+    --band-4: #7f97bd;
+    --band-5: #2c4a7a;
+    --band-6: #111a2e;
+    --on-band-1: #0b1220;
+    --on-band-2: #0b1220;
+    --on-band-3: #0b1220;
+    --on-band-4: #0b1220;
+    --on-band-5: #ffffff;
+    --on-band-6: #ffffff;
+    --shadow-sm: 0 1px 3px rgba(11, 18, 32, 0.08);
+    --series-1: #2f6bff;
+    --series-2: #0e9aa8;
+    --series-3: #e8590c;
+    --series-4: #8b5cf6;
+    --series-other: #8a93a8;
+    --div-pos: #2f6bff;
+    --div-neg: #e8590c;
+    --div-mid: #eef1f6;
+    --shadow-md: 0 10px 30px rgba(11, 18, 32, 0.07);
+    color-scheme: light;
   }
 }
 
@@ -266,62 +263,62 @@
    one is worse than no toggle. Nothing sets this attribute yet; it is the hook a
    preference control will use. */
 :root[data-theme="dark"] {
-  --canvas: #0c0b0a;
-  --surface: #17140f;
-  --raised: #1e1a13;
-  --ink: #f1ecdf;
-  --on-ink: #f1ecdf;
-  --slab: #a83a22;
-  --on-slab: #f1ecdf;
-  --muted: #a89d89;
-  --muted-light: #4a3d2c;
-  --secondary: #c9bfa8;
-  --accent: #c8492e;
-  --accent-strong: #e8714f;
-  --focus: #f0a57c;
-  --highlight: #d99a4e;
-  --highlight-soft: #241c10;
-  --border: rgba(241, 236, 223, 0.09);
-  --border-strong: rgba(241, 236, 223, 0.22);
-  --border-faint: rgba(241, 236, 223, 0.05);
-  --warn-fill: #2a1d0a;
-  --warn-text: #e8b567;
-  --warn-border: rgba(232, 181, 103, 0.28);
-  --green-soft: #12241a;
-  --green: #3ddc97;
-  --border-green: rgba(61, 220, 151, 0.28);
-  --err-fill: #2a1310;
-  --err-text: #ff8a75;
-  --err-border: rgba(255, 138, 117, 0.28);
-  --ai-fill: #241209;
-  --ai-border: rgba(200, 73, 46, 0.3);
-  --hero-from: #050504;
-  --hero-to: #1e1a13;
-  --on-hero: #f1ecdf;
-  --on-hero-muted: #c9bfa8;
-  --band-1: #efe7d6;
-  --band-2: #d6c7a9;
-  --band-3: #b3a17c;
-  --band-4: #94845f;
-  --band-5: #5c4f38;
-  --band-6: #332a1c;
-  --on-band-1: #201a10;
-  --on-band-2: #201a10;
-  --on-band-3: #201a10;
-  --on-band-4: #201a10;
-  --on-band-5: #f1ecdf;
-  --on-band-6: #f1ecdf;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
-  --series-1: #5470ff;
-  --series-2: #3ddc97;
-  --series-3: #e8714f;
-  --series-4: #d9b64f;
-  --series-other: #746a58;
-  --div-pos: #5470ff;
-  --div-neg: #c8492e;
-  --div-mid: #201a13;
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
-  color-scheme: dark;
+  --canvas: #f6f8fb;
+  --surface: #ffffff;
+  --raised: #ffffff;
+  --ink: #0b1220;
+  --on-ink: #ffffff;
+  --slab: #1f5bf0;
+  --on-slab: #ffffff;
+  --muted: #5b6478;
+  --muted-light: #c9d2e4;
+  --secondary: #475069;
+  --accent: #2f6bff;
+  --accent-strong: #1e56e8;
+  --focus: #2f6bff;
+  --highlight: #0e7c8c;
+  --highlight-soft: #e6f6f8;
+  --border: rgba(11, 18, 32, 0.09);
+  --border-strong: rgba(11, 18, 32, 0.2);
+  --border-faint: rgba(11, 18, 32, 0.05);
+  --warn-fill: #fff6e5;
+  --warn-text: #8a4b04;
+  --warn-border: rgba(245, 158, 11, 0.4);
+  --green-soft: #e9f7ef;
+  --green: #15803d;
+  --border-green: rgba(22, 163, 74, 0.3);
+  --err-fill: #fdeceb;
+  --err-text: #b42318;
+  --err-border: rgba(180, 35, 24, 0.25);
+  --ai-fill: #eef3ff;
+  --ai-border: rgba(47, 107, 255, 0.25);
+  --hero-from: #0b1220;
+  --hero-to: #0e4f6e;
+  --on-hero: #ffffff;
+  --on-hero-muted: #b4c3db;
+  --band-1: #eef2f8;
+  --band-2: #d5deec;
+  --band-3: #aebfd9;
+  --band-4: #7f97bd;
+  --band-5: #2c4a7a;
+  --band-6: #111a2e;
+  --on-band-1: #0b1220;
+  --on-band-2: #0b1220;
+  --on-band-3: #0b1220;
+  --on-band-4: #0b1220;
+  --on-band-5: #ffffff;
+  --on-band-6: #ffffff;
+  --shadow-sm: 0 1px 3px rgba(11, 18, 32, 0.08);
+  --series-1: #2f6bff;
+  --series-2: #0e9aa8;
+  --series-3: #e8590c;
+  --series-4: #8b5cf6;
+  --series-other: #8a93a8;
+  --div-pos: #2f6bff;
+  --div-neg: #e8590c;
+  --div-mid: #eef1f6;
+  --shadow-md: 0 10px 30px rgba(11, 18, 32, 0.07);
+  color-scheme: light;
 }
 
 /* Element defaults. Unlayered now that nothing else competes in the cascade: these
@@ -353,23 +350,21 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* The two accent faces from the source theme. Headings take the display face; the
-   small uppercase labels that already read as data rather than prose (nav, tile
-   labels, pills, badges) take the mono face, the way the source site uses it for
-   its own chrome. Named here, once, rather than repeated on each selector below. */
+/* The two accent faces from the source theme. Headings take the display face, tight
+   and in ink, as FloorMind sets them; chrome stays in Inter. The mono face is kept for
+   the lens labels that read as data rather than prose. Named here, once, rather than
+   repeated on each selector below. */
 h1,
+h2,
+h3,
 .topbar-brand {
   font-family: var(--font-display);
+  letter-spacing: -0.02em;
 }
-.topbar-nav,
-.topbar-user-label,
-.pill,
 .lens-tile-label,
 .lens-kind,
 .lens-badge,
-.lens-tooltip-label,
-.chat-progress,
-.demo-banner-text {
+.lens-tooltip-label {
   font-family: var(--font-mono);
 }
 
@@ -434,35 +429,31 @@ select {
   }
 }
 
-/* A white bar under a blue rule, from the health app's navbar. It was a dark slab, and
-   the slab tokens now dress the primary button alone: a bar and a button are only the
-   same colour by coincidence, and this palette breaks that coincidence. Every control
-   in here therefore reads against a card surface rather than against a dark bar, which
-   is why the rules below name --ink and --border instead of --on-slab and the overlay
-   pair. Leaving one of them behind is a white-on-white control, so they move together. */
-/* The bar carries the home page's gradient, so every page shows a strip of it and the
-   product reads as one thing from the top of any screen. Every control on it keeps its
-   own opaque surface (the picker, the sign-in field, the button, the error pill), so
-   the only text painted straight onto the gradient is the brand, the nav and the small
-   label over the picker, and those three use the two hero text tokens the contrast
-   guard measures at both stops. The 3px accent rule under the bar went with the white
-   background: it existed to give a white bar an edge, and a gradient has one. */
+/* A white bar with a hairline under it, sticky, from the FloorMind header. Every text
+   token on it is a card token (--ink, --muted), which the contrast guard measures on
+   --raised; the dark hero gradient is kept for the one call-to-action band. */
 .topbar {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 20;
   height: 60px;
-  background: linear-gradient(90deg, var(--hero-from), var(--hero-to));
-  color: var(--on-hero);
+  background: var(--raised);
+  border-block-end: 1px solid var(--border);
+  color: var(--ink);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
 }
 .topbar-brand {
-  font-weight: 800;
-  font-size: var(--text-md);
+  font-weight: 700;
+  font-size: var(--text-lg);
+  letter-spacing: -0.02em;
+  color: var(--ink);
 }
 .topbar-brand span {
-  color: var(--on-hero-muted);
-  font-weight: 600;
+  color: var(--muted);
+  font-weight: 500;
 }
 .topbar-user {
   display: flex;
@@ -477,7 +468,7 @@ select {
   font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--on-hero-muted);
+  color: var(--muted);
 }
 .topbar-user select {
   min-inline-size: 0;
@@ -659,8 +650,9 @@ select {
   cursor: default;
 }
 .btn-primary {
-  background: var(--slab);
+  background: linear-gradient(90deg, var(--slab), var(--accent-strong));
   color: var(--on-slab);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 28%, transparent);
 }
 .btn-secondary {
   background: var(--raised);
@@ -759,11 +751,11 @@ select.field {
   font-weight: 600;
 }
 .topbar-nav a {
-  color: var(--on-hero-muted);
+  color: var(--muted);
   transition: color var(--dur-fast) var(--ease);
 }
 .topbar-nav a:hover {
-  color: var(--on-hero);
+  color: var(--ink);
 }
 
 .survey-list {
@@ -1140,36 +1132,6 @@ select.field {
 /* Asks before something that cannot be undone. Publishing freezes a version, and the
    author is usually mid-flow with the keyboard, so the dialog has to stop the page
    rather than sit on it. */
-
-/* ----------------------------------------------------------------- demo banner */
-/* Full-width bar below the top bar, visible only in demo mode. Amber palette to
-   signal caution without alarming. */
-.demo-banner {
-  background: var(--warn-fill);
-  color: var(--warn-text);
-  border-bottom: 1px solid var(--warn-border);
-  padding: 8px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  font-size: var(--text-sm);
-}
-.demo-banner-text {
-  font-weight: 600;
-}
-.demo-banner-btn {
-  font-size: var(--text-xs);
-  padding: 4px 10px;
-  min-height: auto;
-}
-.demo-banner .btn-secondary {
-  background: var(--raised);
-  border-color: var(--warn-border);
-  color: var(--warn-text);
-}
-
 
 /* ---------------------------------------------------------------------------
    The lens: administrator pages that show what each model call cost, and why.
@@ -1703,4 +1665,390 @@ select.field {
 .lens-table td.lens-wrap {
   white-space: normal;
   min-inline-size: 16rem;
+}
+
+/* ---------------------------------------------------------------------------
+   The commercial home page, after floormind.pages.dev: a soft blue hero over a faint
+   grid, numbered cards, a proof strip, plans, a security table and one dark band to
+   act from. Scoped under .landing so none of its short class names reach the app.
+   --------------------------------------------------------------------------- */
+.landing {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--secondary);
+}
+.landing h1,
+.landing h2,
+.landing h3 {
+  color: var(--ink);
+}
+.landing .eyebrow {
+  display: inline-block;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  padding: 0.3rem 0.85rem;
+  border-radius: 999px;
+  margin-block-end: var(--space-4);
+}
+.landing .grad {
+  background: linear-gradient(92deg, var(--accent), var(--highlight));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.landing-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 5rem 3rem 4rem;
+  border-radius: 22px;
+  border: 1px solid var(--border);
+  background:
+    radial-gradient(1100px 480px at 78% -10%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 60%),
+    radial-gradient(900px 420px at 8% 8%, color-mix(in srgb, var(--highlight) 12%, transparent), transparent 55%),
+    var(--raised);
+}
+.landing-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--border-faint) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border-faint) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 55%, transparent 100%);
+  pointer-events: none;
+}
+.landing-hero > * {
+  position: relative;
+}
+.landing-hero h1 {
+  font-size: 3.1rem;
+  font-weight: 700;
+  line-height: 1.08;
+  max-inline-size: 820px;
+  margin-block-end: 1.2rem;
+}
+.landing .lede {
+  font-size: 1.18rem;
+  color: var(--muted);
+  max-inline-size: 690px;
+  margin-block-end: 2.1rem;
+}
+.landing-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+}
+.landing-hero .landing-ctas {
+  margin-block-end: 2.4rem;
+}
+.btn-lg {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--tap);
+  padding: 0.72rem 1.5rem;
+  border-radius: 10px;
+  font-size: 0.95rem;
+}
+.landing-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+.landing .badge {
+  padding: 0.42rem 1rem;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+.landing .section-head {
+  max-inline-size: 700px;
+  margin-block-end: 2.4rem;
+}
+.landing-section h2,
+.landing-cta h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-block-end: 0.6rem;
+}
+.landing .subtitle {
+  color: var(--muted);
+  font-size: 1.02rem;
+}
+.landing-grid {
+  display: grid;
+  gap: 1.3rem;
+}
+.landing-grid.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.landing-grid.one {
+  max-inline-size: 520px;
+}
+.landing .plan-cta {
+  justify-content: center;
+  margin-block-start: 1.6rem;
+}
+.landing-grid.four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.landing-card {
+  padding: 1.6rem;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition:
+    box-shadow var(--dur-slow) var(--ease),
+    transform var(--dur-slow) var(--ease),
+    border-color var(--dur-slow) var(--ease);
+}
+.landing-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+.landing-card h3 {
+  font-size: 1.06rem;
+  font-weight: 700;
+  margin-block-end: 0.5rem;
+}
+.landing-card p {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.landing-card .num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 30px;
+  block-size: 30px;
+  border-radius: 8px;
+  margin-block-end: 0.9rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--highlight);
+  background: var(--highlight-soft);
+}
+.landing-proof {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin-block-start: 1.6rem;
+}
+.landing-proof .stat {
+  text-align: center;
+  padding: 1.4rem 1rem;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.landing-proof .stat b {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 2.1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.landing-proof .stat span {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.landing .plans {
+  align-items: stretch;
+}
+.landing .plan {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 2.1rem;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+}
+.landing .plan.popular {
+  border: 2px solid var(--accent);
+  box-shadow: 0 18px 44px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.landing .plan-flag {
+  position: absolute;
+  inset-block-start: -0.85rem;
+  inset-inline: 0;
+  margin-inline: auto;
+  inline-size: max-content;
+  padding: 0.32rem 1rem;
+  border-radius: 999px;
+  background: var(--slab);
+  color: var(--on-slab);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.landing .plan h3 {
+  font-size: 1.12rem;
+  font-weight: 700;
+  margin-block-end: 0.3rem;
+}
+.landing .plan .for {
+  font-size: 0.85rem;
+  color: var(--muted);
+  /* Two lines at this leading, so every plan's price starts on the same row. */
+  min-block-size: 3.4em;
+  margin-block-end: 1.3rem;
+}
+.landing .plan .price {
+  font-family: var(--font-display);
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+.landing .plan .cadence {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-block-end: 1.2rem;
+}
+.landing .plan ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.6rem 0 0;
+  flex: 1;
+}
+.landing .plan li {
+  position: relative;
+  font-size: 0.9rem;
+  color: var(--muted);
+  padding-block: 0.42rem;
+  padding-inline-start: 1.7rem;
+}
+.landing .plan li::before {
+  content: "\2713";
+  position: absolute;
+  inset-inline-start: 0;
+  color: var(--green);
+  font-weight: 700;
+}
+.landing-table {
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 1.2rem 1.6rem;
+  overflow-x: auto;
+}
+.landing-table table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.landing-table th,
+.landing-table td {
+  text-align: start;
+  vertical-align: top;
+  padding: 0.85rem 0.9rem;
+  border-block-end: 1px solid var(--border);
+}
+.landing-table tr:last-child td {
+  border-block-end: none;
+}
+.landing-table th {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.landing-table td {
+  color: var(--muted);
+}
+.landing-table td b {
+  font-family: var(--font-display);
+  color: var(--ink);
+  white-space: nowrap;
+}
+.landing-cta {
+  position: relative;
+  overflow: hidden;
+  padding: 4.2rem 3rem;
+  border-radius: 22px;
+  background: linear-gradient(120deg, var(--hero-from) 0%, var(--hero-to) 100%);
+}
+.landing-cta::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(600px 300px at 85% 10%, color-mix(in srgb, var(--accent) 35%, transparent), transparent 60%);
+  pointer-events: none;
+}
+.landing-cta > * {
+  position: relative;
+  z-index: 1;
+}
+.landing .landing-cta h2 {
+  color: var(--on-hero);
+}
+.landing-cta p {
+  color: var(--on-hero-muted);
+  max-inline-size: 580px;
+  margin-block-end: 2rem;
+}
+.btn-ghost {
+  background: color-mix(in srgb, var(--on-hero) 4%, transparent);
+  border-color: color-mix(in srgb, var(--on-hero) 30%, transparent);
+  color: var(--on-hero);
+}
+.landing-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 1.6rem 0;
+  border-block-start: 1px solid var(--border);
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+@media (max-width: 900px) {
+  .landing-grid.four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 800px) {
+  .landing-grid.three,
+  .landing-grid.four {
+    grid-template-columns: 1fr;
+  }
+  .landing-proof {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .landing-hero,
+  .landing-cta {
+    padding: 3rem 1.4rem;
+  }
+  .landing-hero h1 {
+    font-size: 2.1rem;
+  }
+  .landing-section h2,
+  .landing-cta h2 {
+    font-size: 1.6rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-card,
+  .landing-card:hover {
+    transition: none;
+    transform: none;
+  }
 }

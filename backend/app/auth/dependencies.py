@@ -7,7 +7,7 @@ sign-in. This is the real one, and in production it is the only one.
 
 **The `X-User-Id` header**, which is the development shim: a caller is whoever they say
 they are. That was the entire authentication story here for a long time, and it is
-exactly as weak as it sounds, so it is now refused outside development. It survives
+exactly as weak as it sounds, so it is refused in production. It survives in development
 because the test suite and local work should not need a provider, a network round trip
 or a client secret, and because the seeded users have no provider accounts to sign in
 with.
@@ -21,12 +21,14 @@ from uuid import UUID
 from fastapi import Cookie, Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.access import is_admin_by_config, may_author
+from app.access import is_workspace_admin, may_author
 from app.auth import oauth
+from app.config import get_settings
 from app.db.session import get_session
 from app.errors import ForbiddenError, UnauthorizedError
-from app.users.models import User
+from app.users.models import User, WorkspaceRole
 from app.users.repository import UserRepository
+from app.workspaces.repository import WorkspaceRepository
 
 
 async def get_current_user(
@@ -42,13 +44,15 @@ async def get_current_user(
             # Expired or tampered with. Said plainly, because the fix is to sign in
             # again and a bare 401 sends people to support instead.
             raise UnauthorizedError("Your session has expired. Please sign in again.")
+        if not await WorkspaceRepository(session).resolve_identity(user_id=UUID(signed)):
+            raise UnauthorizedError("That account no longer exists.")
         user = await users.get(UUID(signed))
         if user is None:
             # The account was deleted while its session was live.
             raise UnauthorizedError("That account no longer exists.")
         return user
 
-    if x_user_id is None:
+    if x_user_id is None or get_settings().app_env == "prod":
         # No cookie and no header is nobody, and nobody is a 401.
         #
         # This branch used to substitute a hardcoded seeded id so the deployed app could
@@ -63,6 +67,8 @@ async def get_current_user(
         # A caller with no credential is exactly the "missing required data" that this
         # project refuses to shrug at, so it fails loudly here instead.
         raise UnauthorizedError("Sign in to continue.")
+    if not await WorkspaceRepository(session).resolve_identity(user_id=x_user_id):
+        raise UnauthorizedError("Unknown user id.")
     user = await users.get(x_user_id)
     if user is None:
         raise UnauthorizedError("Unknown user id.")
@@ -91,6 +97,22 @@ async def require_admin(user: User = Depends(get_current_user)) -> User:
     an administrator whose own account happened to be a respondent could no longer reach
     the screen that would fix it.
     """
-    if not is_admin_by_config(user):
+    if not is_workspace_admin(user):
         raise ForbiddenError("This action requires an administrator account.")
+    return user
+
+
+async def require_results_reader(user: User = Depends(get_current_user)) -> User:
+    """Let explicit analysts reach result routes; the service checks survey grants."""
+    if user.workspace_role is not None:
+        if user.workspace_role not in {
+            WorkspaceRole.owner,
+            WorkspaceRole.admin,
+            WorkspaceRole.author,
+            WorkspaceRole.analyst,
+        }:
+            raise ForbiddenError("This account cannot read survey results.")
+        return user
+    if not may_author(user):
+        raise ForbiddenError("This account cannot read survey results.")
     return user

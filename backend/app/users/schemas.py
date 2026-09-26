@@ -8,7 +8,19 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.access import in_audience, may_author
 from app.templates.enums import SurveyAudience
-from app.users.models import Band, Function, Hat, User
+from app.users.models import Band, Function, Hat, User, WorkspaceRole
+
+
+class SignInRead(BaseModel):
+    """One recorded sign-in, as the owner's list shows it."""
+
+    user_id: UUID
+    email: str
+    provider: str
+    created_account: bool
+    signed_in_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 class UserRead(BaseModel):
@@ -25,6 +37,7 @@ class UserRead(BaseModel):
     function: Function | None
     band: Band | None
     may_author: bool
+    workspace_role: WorkspaceRole | None = None
 
     @classmethod
     def of(cls, user: User) -> "UserRead":
@@ -35,6 +48,7 @@ class UserRead(BaseModel):
             function=user.function,
             band=user.band,
             may_author=may_author(user),
+            workspace_role=user.workspace_role,
         )
 
 
@@ -71,6 +85,7 @@ class PersonRead(BaseModel):
     # a property of a survey rather than of a job, so listing it here would mean either
     # naming everybody or naming nobody.
     audiences: list[SurveyAudience]
+    workspace_role: WorkspaceRole | None = None
 
     @classmethod
     def of(cls, user: User) -> "PersonRead":
@@ -90,6 +105,7 @@ class PersonRead(BaseModel):
                 for audience in SurveyAudience
                 if audience is not SurveyAudience.person and in_audience(user, audience)
             ],
+            workspace_role=user.workspace_role,
         )
 
 
@@ -120,6 +136,7 @@ class MeRead(BaseModel):
     band: Band | None
     may_author: bool
     is_admin: bool
+    workspace_role: WorkspaceRole | None = None
 
 
 class AccountWrite(BaseModel):
@@ -148,6 +165,7 @@ class AccountWrite(BaseModel):
     band: Band
     microsoft_id: str | None = Field(default=None, max_length=64)
     hats: list[Hat] = Field(default_factory=list)
+    workspace_role: WorkspaceRole | None = None
 
     @field_validator("display_name")
     @classmethod
@@ -252,6 +270,7 @@ class AccountSnapshot(BaseModel):
     band: Band | None
     microsoft_id: str | None
     hats: list[Hat]
+    workspace_role: WorkspaceRole | None
 
     @classmethod
     def of(cls, user: User) -> "AccountSnapshot":
@@ -261,6 +280,7 @@ class AccountSnapshot(BaseModel):
             band=user.band,
             microsoft_id=user.microsoft_id,
             hats=sorted(user.hats, key=lambda h: h.value),
+            workspace_role=user.workspace_role,
             audiences=[
                 audience
                 for audience in SurveyAudience
@@ -350,6 +370,7 @@ class AccountRead(BaseModel):
     microsoft_id: str | None
     created_by: UUID | None
     hats: list[Hat]
+    workspace_role: WorkspaceRole | None
 
     @classmethod
     def of(cls, user: User) -> "AccountRead":
@@ -362,6 +383,7 @@ class AccountRead(BaseModel):
             microsoft_id=user.microsoft_id,
             created_by=user.created_by,
             hats=sorted(user.hats, key=lambda h: h.value),
+            workspace_role=user.workspace_role,
             audiences=[
                 audience
                 for audience in SurveyAudience

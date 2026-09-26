@@ -36,7 +36,7 @@ from app.templates.reading import questions_of
 from app.templates.repository import TemplateRepository
 from app.templates.visibility import remaining_possible
 from app.units import can_convert, convert
-from app.users.models import User
+from app.users.models import User, WorkspaceRole
 from app.users.repository import UserRepository
 from app.users.service import UserService
 
@@ -59,9 +59,10 @@ class ResultsService:
         dashboard is where they exercise it.
         """
         functions = await self.users.functions_by_id()
+        assigned = await self.templates.assigned_template_ids(author.id)
         creators = (
             set(functions)
-            if reads_all_surveys(author)
+            if reads_all_surveys(author) or author.workspace_role is WorkspaceRole.analyst
             else {author.id} | await self.users.ids_in_function(author.function)
         )
         rows = await self.repo.dashboard_rows(creators)
@@ -110,6 +111,7 @@ class ResultsService:
                 admin,
                 target=template.audience_user_id,
                 creator_function=functions.get(template.created_by),
+                assigned_analyst=template.id in assigned,
             )
         ]
 
@@ -297,6 +299,7 @@ class ResultsService:
             template.created_by,
             is_admin_by_config(author),
             creator_function=functions.get(template.created_by),
+            assigned_analyst=await self.templates.is_assigned_analyst(template.id, author.id),
         )
         if not decision:
             logger.info(

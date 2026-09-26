@@ -144,7 +144,10 @@ export const api = {
   listUsers: () => request<User[]>("/users"),
   /** Which real sign-in providers this deployment offers. Unauthenticated: the browser
    *  has to ask before anyone is signed in. */
-  providers: () => request<{ providers: string[] }>("/auth/providers"),
+  providers: () =>
+    request<{ providers: string[]; address_sign_in: boolean; open_sign_up: boolean }>(
+      "/auth/providers",
+    ),
   /** Who the session cookie says this is, or null when there is no live session.
    *
    *  A 401 here is an answer, not a failure: the browser cannot read an HttpOnly cookie,
@@ -168,9 +171,6 @@ export const api = {
    *  server, which is where it is guarded. */
   identify: (email: string) =>
     request<User>("/dev/identify", { method: "POST", body: JSON.stringify({ email }) }),
-  /** Wipe all data and re-seed. Demo mode only. */
-  resetDemo: () =>
-    request<{ status: string; users: number; surveys: number }>("/dev/reset", { method: "POST" }),
   listPublished: () => request<TemplateSummary[]>("/templates/published"),
   startRun: (templateId: string) =>
     request<Run>("/runs", { method: "POST", body: JSON.stringify({ template_id: templateId }) }),

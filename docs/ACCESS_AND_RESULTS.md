@@ -1,5 +1,10 @@
 # Who can see what, and what the answers are worth
 
+The historical factory-job access model in this document describes the current engine,
+not the commercial pilot contract. For the pilot, workspace roles control permissions,
+factory jobs describe audiences, responses are identified, and reader disclosure is
+required. The target contract is in [COMMERCIAL_READINESS.md](COMMERCIAL_READINESS.md).
+
 Two questions this service has real answers to: which people a survey is for, and how
 much you can trust a recorded answer. This is a record of what is built, not a plan, and
 it is updated when the model changes rather than appended to: a document that describes
@@ -228,10 +233,12 @@ engine enforces it whatever the model asks for, which is its own test.
 
 ## Decided, and deliberately not built yet
 
-- **Microsoft sign-in.** `POST /api/v1/dev/identify` and the `X-User-Id` shim are the
-  whole of authentication, so knowing an address is enough to act as somebody. The
-  Entra ids on seeded authors are stand-ins for the login the authoring bands will hold.
-- **Respondent identity for the floor**: QR badge tokens for people without logins.
+- **Identity update, 21 September 2026.** Google and Microsoft sign-in are implemented;
+  production requires signed sessions. Microsoft needs a trusted pre-linked object ID,
+  while Google needs an explicitly verified existing address. Seeded Entra IDs are not
+  real login credentials. Invitation and first-time account-linking workflows remain open.
+- **Pilot respondent identity**: a shared survey link followed by verified email sign-in
+  against an invitation or approved roster. This replaces the older QR-badge proposal.
 - **Free text is not retired.** New surveys are meant to use closed types only; the
   builder and the generator still offer `short_text` and `long_text`.
 - **Answer constraints**: `min_value`, `max_value`, `max_choices`.

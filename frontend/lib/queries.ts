@@ -151,16 +151,6 @@ export function useDeleteRun(id: string) {
   });
 }
 
-/** Reset the demo: wipe all data and re-seed. */
-export function useResetDemo() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: () => api.resetDemo(),
-    onSuccess: () => {
-      void qc.invalidateQueries();
-    },
-  });
-}
 
 /** The caller as the server sees them. Half of `is_admin` is an email allowlist in
  *  server settings, so the browser cannot work it out and has to ask. */

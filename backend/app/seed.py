@@ -16,10 +16,9 @@ reusing one is what the check in `seed()` refuses. Nothing tests the executive r
 through the seed, so what is lost is a demonstration rather than coverage; add a fresh
 c-block id if you want it back.
 
-Nobody here is in IT, and so nobody here is an administrator. That is deliberate: IT
-membership grants admin, and a committed seed that shipped an administrator would hand
-one to every checkout. Admin locally is still ADMIN_EMAILS, or moving one of these
-accounts into IT yourself.
+Nobody here is in IT, and so nobody here is an administrator by the legacy job rule.
+The demo owner is labelled explicitly so the commercial role matrix can be exercised;
+production provisioning must create the owner rather than rely on this seed.
 
 Display names still carry the retired author/respondent wording ("Rina Respondent").
 Ids are forever and names are cosmetic, so the names stay while the rights derive from
@@ -29,11 +28,10 @@ the band: Rina is a shift manager and may author, whatever her surname says.
 import asyncio
 from uuid import UUID
 
-from sqlalchemy import text
-
 from app.db.session import SessionFactory
 from app.sample_data.loader import load_sample_data
-from app.users.models import Band, Function, Hat, User, UserHat
+from app.users.models import Band, Function, Hat, User, UserHat, WorkspaceRole
+from app.workspaces.models import LEGACY_WORKSPACE_ID
 
 # (id, email, name, function, band, Entra object id). The id is a stand-in for the
 # Microsoft login the authoring bands will hold; it decides nothing, and Rina is the
@@ -215,8 +213,17 @@ SEED_HATS: list[tuple[UUID, tuple[Hat, ...]]] = [
 
 
 async def seed() -> None:
-    async with SessionFactory() as session:
+    async with SessionFactory(info={"workspace_id": LEGACY_WORKSPACE_ID}) as session:
         for uid, email, name, function, band, microsoft_id in SEED_USERS:
+            workspace_role = (
+                WorkspaceRole.owner
+                if email == "pawankapkoti3889@gmail.com"
+                else (
+                    WorkspaceRole.author
+                    if band in {Band.manager, Band.head, Band.director}
+                    else WorkspaceRole.respondent
+                )
+            )
             existing = await session.get(User, uid)
             if existing is None:
                 session.add(
@@ -227,6 +234,7 @@ async def seed() -> None:
                         function=function,
                         band=band,
                         microsoft_id=microsoft_id,
+                        workspace_role=workspace_role,
                     )
                 )
             elif existing.email != email:
@@ -240,6 +248,8 @@ async def seed() -> None:
                     "this id was used by an earlier seed generation, so give the new "
                     "user a fresh one"
                 )
+            elif existing.workspace_role is None:
+                existing.workspace_role = workspace_role
         await session.commit()
         hats = 0
         for uid, wanted in SEED_HATS:
@@ -255,37 +265,6 @@ async def seed() -> None:
         f"Seeded {len(SEED_USERS)} users and {hats} new hats; "
         f"loaded {surveys_added} sample surveys and {runs_added} runs (idempotent)."
     )
-
-
-# The tables a full reset wipes, leaf to root for readability. TRUNCATE CASCADE would
-# handle foreign keys in one statement; the order is for the reader, not the database.
-RESET_TABLES: tuple[str, ...] = (
-    "run_messages",
-    "answers",
-    "survey_runs",
-    "survey_questions",
-    "survey_templates",
-    "account_changes",
-    "user_hats",
-    "users",
-)
-
-
-async def reset_demo() -> None:
-    """Wipe every table and re-seed from scratch.
-
-    The demo's whole promise is that its data is disposable: anyone who reaches the
-    deployment can read, change or delete anything in it, and a visitor who answers a
-    survey is replacing whatever a stranger wrote earlier. That promise is kept by
-    starting every boot clean, because the only reset that ever ran was the one a human
-    pressed. `reset()` leaves the ids that survive in databases seeded before 10 Aug
-    alone, because they belong to the seed that planted them.
-    """
-    async with SessionFactory() as session:
-        for table in RESET_TABLES:
-            await session.execute(text(f"TRUNCATE TABLE {table} RESTART IDENTITY CASCADE"))
-        await session.commit()
-    await seed()
 
 
 if __name__ == "__main__":

@@ -9,11 +9,12 @@ import time
 from uuid import uuid4
 
 import pytest
+from pydantic import ValidationError
 
 from app.auth import oauth
 from app.auth.dependencies import get_current_user
 from app.auth.router import callback
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.errors import UnauthorizedError
 
 
@@ -28,6 +29,13 @@ def _secret(monkeypatch):
 def test_a_signed_value_comes_back_unchanged():
     token = oauth.sign("hello", 60)
     assert oauth.unsign(token) == "hello"
+
+
+@pytest.mark.parametrize("environment", ["production", "staging", "demo", ""])
+def test_misspelled_environment_cannot_enable_development_auth(monkeypatch, environment):
+    monkeypatch.setenv("APP_ENV", environment)
+    with pytest.raises(ValidationError, match="app_env"):
+        Settings(_env_file=None)
 
 
 def test_a_tampered_payload_is_refused():
@@ -108,16 +116,24 @@ def test_google_refuses_an_unverified_address():
         oauth.identity_of(provider, {"email": "someone@gmail.com", "email_verified": False})
 
 
-async def test_dev_header_works_for_public_access(session, author, monkeypatch):
-    """The dev header is now accepted in all environments to support public survey
-    access via seeded users."""
-    # In production
+@pytest.mark.parametrize(
+    "claim", [{}, {"email_verified": None}, {"email_verified": "false"}, {"email_verified": 1}]
+)
+def test_google_needs_explicit_email_verification(claim):
+    provider = oauth.providers()["google"]
+    with pytest.raises(oauth.SignInError):
+        oauth.identity_of(provider, {"email": "someone@example.com", **claim})
+
+
+async def test_production_refuses_a_known_user_id_without_a_session(session, author, monkeypatch):
+    """Knowing an account id must not let a stranger sign in as that account."""
     monkeypatch.setenv("APP_ENV", "prod")
     get_settings.cache_clear()
-    user = await get_current_user(x_user_id=author.id, elenchus_session=None, session=session)
-    assert user.id == author.id
+    with pytest.raises(UnauthorizedError):
+        await get_current_user(x_user_id=author.id, elenchus_session=None, session=session)
 
-    # In development
+
+async def test_development_keeps_the_header_shim(session, author, monkeypatch):
     monkeypatch.setenv("APP_ENV", "dev")
     get_settings.cache_clear()
     user = await get_current_user(x_user_id=author.id, elenchus_session=None, session=session)
@@ -206,12 +222,14 @@ async def test_the_callback_refuses_a_mismatched_state(session, monkeypatch):
     assert "sign_in_error=state_mismatch" in response.headers["location"]
 
 
-async def test_a_microsoft_sign_in_links_the_object_id(session, author, monkeypatch):
-    """Filled in on first use so a later address change does not orphan the account."""
+@pytest.mark.parametrize("stored_id", [None, "different-subject"])
+async def test_a_microsoft_mail_address_cannot_claim_an_account(
+    session, author, monkeypatch, stored_id
+):
     monkeypatch.setenv("OAUTH_MICROSOFT_CLIENT_ID", "id")
     monkeypatch.setenv("OAUTH_MICROSOFT_CLIENT_SECRET", "secret")
     get_settings.cache_clear()
-    author.microsoft_id = None
+    author.microsoft_id = stored_id
     await session.commit()
 
     async def fake_exchange(*_args, **_kwargs):
@@ -220,11 +238,33 @@ async def test_a_microsoft_sign_in_links_the_object_id(session, author, monkeypa
     monkeypatch.setattr(oauth, "exchange", fake_exchange)
     _url, state = oauth.authorize_url(oauth.get_provider("microsoft"), "http://x/cb")
     nonce = oauth.unsign(state).split(":", 2)[1]
-    await callback(
+    response = await callback(
         provider="microsoft", code="abc", state=nonce, session=session, elenchus_oauth=state
     )
     await session.refresh(author)
-    assert author.microsoft_id == "entra-oid-42"
+    assert author.microsoft_id == stored_id
+    assert "sign_in_error=no_account" in response.headers["location"]
+    assert "set-cookie" not in response.headers
+
+
+async def test_linked_microsoft_subject_survives_a_changed_email(session, author, monkeypatch):
+    monkeypatch.setenv("OAUTH_MICROSOFT_CLIENT_ID", "id")
+    monkeypatch.setenv("OAUTH_MICROSOFT_CLIENT_SECRET", "secret")
+    get_settings.cache_clear()
+    author.microsoft_id = "entra-linked-subject"
+    await session.commit()
+
+    async def fake_exchange(*_args, **_kwargs):
+        return {"mail": "changed@example.test", "id": "entra-linked-subject"}
+
+    monkeypatch.setattr(oauth, "exchange", fake_exchange)
+    _url, state = oauth.authorize_url(oauth.get_provider("microsoft"), "http://x/cb")
+    nonce = oauth.unsign(state).split(":", 2)[1]
+    response = await callback(
+        provider="microsoft", code="abc", state=nonce, session=session, elenchus_oauth=state
+    )
+    assert "sign_in_error" not in response.headers["location"]
+    assert oauth.SESSION_COOKIE in response.headers["set-cookie"]
 
 
 def test_the_sign_in_routes_are_mounted_where_the_browser_looks():
@@ -246,3 +286,119 @@ def test_the_sign_in_routes_are_mounted_where_the_browser_looks():
         "/api/v1/auth/logout",
         "/api/v1/auth/me",
     }
+
+
+@pytest.mark.parametrize("environment,offered", [("dev", True), ("prod", False)])
+async def test_address_sign_in_is_offered_only_where_it_is_mounted(
+    monkeypatch, environment, offered
+):
+    """Production has no /dev/identify, so its top bar must not draw the box that calls it."""
+    from app.auth.router import sign_in_options
+
+    monkeypatch.setenv("APP_ENV", environment)
+    get_settings.cache_clear()
+    assert (await sign_in_options()).address_sign_in is offered
+
+
+async def _call_back(session, monkeypatch, provider, profile):
+    """Drive one provider round trip with a faked token exchange."""
+    monkeypatch.setenv(f"OAUTH_{provider.upper()}_CLIENT_ID", "id")
+    monkeypatch.setenv(f"OAUTH_{provider.upper()}_CLIENT_SECRET", "secret")
+    get_settings.cache_clear()
+
+    async def fake_exchange(*_args, **_kwargs):
+        return profile
+
+    monkeypatch.setattr(oauth, "exchange", fake_exchange)
+    _url, state = oauth.authorize_url(oauth.get_provider(provider), "http://x/cb")
+    nonce = oauth.unsign(state).split(":", 2)[1]
+    return await callback(
+        provider=provider, code="abc", state=nonce, session=session, elenchus_oauth=state
+    )
+
+
+async def test_open_sign_up_makes_a_respondent_and_records_every_sign_in(session, monkeypatch):
+    """Free with sign-in: a stranger with a verified Google address gets a respondent
+    account in the open workspace, and each visit is written down for the owner."""
+    from sqlalchemy import select
+
+    from app.users.models import AccountChange, SignIn, User, WorkspaceRole
+    from app.workspaces.models import LEGACY_WORKSPACE_ID
+
+    monkeypatch.setenv("OPEN_SIGNUP_WORKSPACE_ID", str(LEGACY_WORKSPACE_ID))
+    profile = {"email": "Stranger@Example.com", "email_verified": True, "name": "Sam Stranger"}
+    first = await _call_back(session, monkeypatch, "google", profile)
+    again = await _call_back(session, monkeypatch, "google", profile)
+
+    assert "sign_in_error" not in first.headers["location"]
+    assert oauth.SESSION_COOKIE in again.headers["set-cookie"]
+    (user,) = (
+        await session.scalars(select(User).where(User.email == "stranger@example.com"))
+    ).all()
+    assert user.display_name == "Sam Stranger"
+    assert user.workspace_role is WorkspaceRole.respondent and user.function is None
+    assert user.workspace_id == LEGACY_WORKSPACE_ID
+    rows = (await session.scalars(select(SignIn).order_by(SignIn.signed_in_at))).all()
+    assert [(r.email, r.provider, r.created_account) for r in rows] == [
+        ("stranger@example.com", "google", True),
+        ("stranger@example.com", "google", False),
+    ]
+    (change,) = (await session.scalars(select(AccountChange))).all()
+    assert change.change["kind"] == "signed_up" and change.changed_by is None
+
+
+async def test_open_sign_up_never_links_an_existing_address_through_microsoft(
+    session, author, monkeypatch
+):
+    """Graph's mail field is mutable, so an unknown subject naming a known address is
+    refused rather than handed that account or given a second one."""
+    from sqlalchemy import func, select
+
+    from app.users.models import User
+    from app.workspaces.models import LEGACY_WORKSPACE_ID
+
+    monkeypatch.setenv("OPEN_SIGNUP_WORKSPACE_ID", str(LEGACY_WORKSPACE_ID))
+    await session.commit()
+    before = await session.scalar(select(func.count()).select_from(User))
+    response = await _call_back(
+        session, monkeypatch, "microsoft", {"mail": author.email, "id": "entra-stranger"}
+    )
+    assert "sign_in_error=no_account" in response.headers["location"]
+    assert await session.scalar(select(func.count()).select_from(User)) == before
+
+
+async def test_a_new_microsoft_subject_signs_up_keyed_on_its_object_id(session, monkeypatch):
+    from sqlalchemy import select
+
+    from app.users.models import User
+    from app.workspaces.models import LEGACY_WORKSPACE_ID
+
+    monkeypatch.setenv("OPEN_SIGNUP_WORKSPACE_ID", str(LEGACY_WORKSPACE_ID))
+    profile = {"mail": "new@contoso.test", "id": "entra-new", "displayName": "Nia New"}
+    await _call_back(session, monkeypatch, "microsoft", profile)
+    user = await session.scalar(select(User).where(User.microsoft_id == "entra-new"))
+    assert user is not None and user.email == "new@contoso.test"
+
+
+async def test_address_sign_in_signs_up_like_a_provider_when_open(session, monkeypatch):
+    from app.users.router import identify
+    from app.users.schemas import IdentifyRequest
+    from app.users.service import UserService
+    from app.workspaces.models import LEGACY_WORKSPACE_ID
+
+    monkeypatch.setenv("OPEN_SIGNUP_WORKSPACE_ID", str(LEGACY_WORKSPACE_ID))
+    get_settings.cache_clear()
+    made = await identify(IdentifyRequest(email="Walk@In.test"), session=session)
+    assert made.email == "walk@in.test"
+    (row,) = await UserService(session).recent_sign_ins()
+    assert (row.provider, row.created_account) == ("address", True)
+
+
+def test_anyone_signed_in_may_answer_a_survey_aimed_at_them():
+    from app.access import in_audience
+    from app.templates.enums import SurveyAudience
+    from app.users.models import User
+
+    stranger = User(email="s@x.test", display_name="S", function=None, band=None)
+    assert in_audience(stranger, SurveyAudience.signed_in)
+    assert not in_audience(stranger, SurveyAudience.everyone)

@@ -203,6 +203,9 @@ export const ro: Messages = {
     noProviders: "Conectarea nu este încă configurată pe această instalare. Cereți IT să configureze un furnizor.",
     needsSignIn: "Această pagină trebuie să știe cine sunteți.",
     goToSignIn: "Mergeți la conectare",
+    openTitle: "Prima dată aici?",
+    openBody:
+      "Autentificarea îți creează contul gratuit. Păstrăm adresa ta de e-mail și ora fiecărei autentificări, iar cei care derulează un sondaj îți pot citi răspunsurile.",
     noAccountTitle: "Încă nu aveți cont?",
     noAccountBody:
       "Conturile sunt create de un administrator, pentru că drepturile dumneavoastră aici decurg din post. Cereți managerului sau IT să vă adauge.",
@@ -252,8 +255,6 @@ export const ro: Messages = {
       "Administratorii gestionează conturile și atribuirile de post.",
     manualAdminJobs:
       "Un post per persoană: funcție × nivel. Pălăriile adaugă responsabilități transversale.",
-    manualAdminReset:
-      "Mod demo: Reset șterge tot și reîncarcă din fixture.",
     trustTitle: "De ce Elenchus?",
     trustPrivacyTitle: "Confidențialitate prin proiectare",
     trustPrivacyBody:

@@ -43,18 +43,24 @@ The backend applies Alembic migrations on start, so the schema is ready once it'
 
 ## Seed data and auth
 
-Dev auth is deliberately thin: every request identifies its caller with an `X-User-Id`
-header, resolved by a single dependency. A real deployment replaces that dependency with
-an identity provider without touching the routes. Requests without the header get a 401.
+Development authentication accepts an `X-User-Id` header. Production rejects
+that shortcut and requires a signed session from a configured Google or Microsoft
+provider. Google requires an explicitly verified email matching an existing account;
+Microsoft is matched on its Graph object ID, not an email. Unknown people are refused,
+unless `OPEN_SIGNUP_WORKSPACE_ID` is set: then their first sign-in creates a respondent
+account (free with sign-in), and every sign-in is recorded in the `sign_ins` table. See [workspace deployment](docs/WORKSPACE_ISOLATION.md) for database-role
+requirements and the remaining commercial identity work.
 
 In the browser you sign in by typing a seeded email address in the top bar, which calls
 `POST /api/v1/dev/identify` and stores the id the header needs. That endpoint is
 unauthenticated by necessity and is only mounted outside production (a test pins this).
 When trying endpoints from `/docs`, add the `X-User-Id` header yourself.
 
-`python -m app.seed` runs automatically on backend start and is idempotent. There is no
-stored role: each person holds one job, a function crossed with a band, and every right
-derives from it (authoring is manager band and up; see
+`python -m app.seed` is the idempotent seed command for local use; production is never
+seeded. A production database starts with `python -m app.provision`, which creates one
+company's workspace and its owner (see [workspace deployment](docs/WORKSPACE_ISOLATION.md)). There is no stored workspace role yet: each person
+holds one job, a function crossed with a band, and current rights derive from it within
+their workspace (authoring is manager band and up; see
 [`docs/ACCESS_AND_RESULTS.md`](docs/ACCESS_AND_RESULTS.md)). The cast covers what the
 access rules need to be visible; the "Author"/"Respondent" surnames are cosmetic
 leftovers from a retired vocabulary. The ones the walkthrough uses:

@@ -203,6 +203,9 @@ export const lt: Messages = {
     noProviders: "Prisijungimas šioje diegimo aplinkoje dar nesukonfigūruotas. Paprašykite IT sukonfigūruoti tiekėją.",
     needsSignIn: "Šiam puslapiui reikia žinoti, kas jūs esate.",
     goToSignIn: "Eiti prisijungti",
+    openTitle: "Pirmą kartą čia?",
+    openBody:
+      "Prisijungus sukuriama jūsų nemokama paskyra. Saugome jūsų el. pašto adresą ir kiekvieno prisijungimo laiką, o apklausą vykdantys žmonės gali skaityti jūsų atsakymus.",
     noAccountTitle: "Dar neturite paskyros?",
     noAccountBody:
       "Paskyras kuria administratorius, nes jūsų teisės čia kyla iš pareigų. Paprašykite vadovo arba IT jus pridėti.",
@@ -250,8 +253,6 @@ export const lt: Messages = {
       "Administratoriai valdo paskyras ir pareigų paskirstymą.",
     manualAdminJobs:
       "Vienos pareigos asmeniui: funkcija × lygis. Kepurės prideda skersines pareigas.",
-    manualAdminReset:
-      "Demo režimas: Reset ištrina viską ir atkuria iš fixture.",
     trustTitle: "Kodėl Elenchus?",
     trustPrivacyTitle: "Privatumas pagal dizainą",
     trustPrivacyBody:

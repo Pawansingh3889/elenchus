@@ -30,7 +30,11 @@ class InterpRepository:
         same reading of the same prompt, and the key would otherwise fail it.
         """
         values = {
-            column.key: getattr(row, column.key) for column in InterpAnalysis.__table__.columns
+            column.key: getattr(row, column.key)
+            for column in InterpAnalysis.__table__.columns
+            # The transaction assigns ownership. Passing an unsaved object's None
+            # would suppress the database default and fail the ownership policy.
+            if column.key != "workspace_id"
         }
         stmt = (
             insert(InterpAnalysis).values(values).on_conflict_do_nothing(index_elements=["span_id"])

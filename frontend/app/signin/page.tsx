@@ -91,9 +91,11 @@ export default function SignIn() {
         )}
       </div>
 
+      {/* On an open deployment the first sign-in is the sign-up, so the page says that and
+          says what is kept, instead of sending a stranger to an administrator. */}
       <div>
-        <h2>{signin.noAccountTitle}</h2>
-        <p className="muted">{signin.noAccountBody}</p>
+        <h2>{data?.open_sign_up ? signin.openTitle : signin.noAccountTitle}</h2>
+        <p className="muted">{data?.open_sign_up ? signin.openBody : signin.noAccountBody}</p>
       </div>
     </div>
   );

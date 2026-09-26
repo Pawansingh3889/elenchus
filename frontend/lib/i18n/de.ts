@@ -203,6 +203,9 @@ export const de: Messages = {
     noProviders: "Die Anmeldung ist auf dieser Installation noch nicht eingerichtet. Bitten Sie die IT, einen Anbieter zu konfigurieren.",
     needsSignIn: "Diese Seite muss wissen, wer Sie sind.",
     goToSignIn: "Zur Anmeldung",
+    openTitle: "Zum ersten Mal hier?",
+    openBody:
+      "Mit der Anmeldung wird Ihr kostenloses Konto erstellt. Wir speichern Ihre E-Mail-Adresse und den Zeitpunkt jeder Anmeldung, und wer eine Umfrage durchführt, kann Ihre Antworten darauf lesen.",
     noAccountTitle: "Noch kein Konto?",
     noAccountBody:
       "Konten werden von einer Administratorin angelegt, weil sich Ihre Rechte hier aus Ihrer Stelle ergeben. Bitten Sie Ihre Führungskraft oder die IT.",
@@ -250,8 +253,6 @@ export const de: Messages = {
       "Administratorinnen verwalten Konten und Stellen-Zuweisungen.",
     manualAdminJobs:
       "Eine Stelle pro Person: Funktion × Stufe. Hüte fügen Querschnittspflichten hinzu.",
-    manualAdminReset:
-      "Demo-Modus: Reset löscht alles und setzt Fixtures zurück.",
     trustTitle: "Warum Elenchus?",
     trustPrivacyTitle: "Privacy by Design",
     trustPrivacyBody:

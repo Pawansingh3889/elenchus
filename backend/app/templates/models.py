@@ -9,16 +9,27 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    PrimaryKeyConstraint,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.templates.enums import AnswerType, FollowUpPolicy, SurveyAudience, TemplateStatus
+from app.workspaces.models import WorkspaceOwned
 
 
-class SurveyTemplate(Base):
+class SurveyTemplate(WorkspaceOwned, Base):
     __tablename__ = "survey_templates"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -84,7 +95,7 @@ class SurveyTemplate(Base):
     )
 
 
-class SurveyQuestion(Base):
+class SurveyQuestion(WorkspaceOwned, Base):
     __tablename__ = "survey_questions"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -113,4 +124,36 @@ class SurveyQuestion(Base):
 
     __table_args__ = (
         UniqueConstraint("template_id", "position", name="question_template_position"),
+    )
+
+
+class SurveyAnalyst(WorkspaceOwned, Base):
+    """A survey-specific grant to read identified responses."""
+
+    __tablename__ = "survey_analysts"
+
+    template_id: Mapped[UUID] = mapped_column(ForeignKey("survey_templates.id", ondelete="CASCADE"))
+    analyst_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    assigned_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    assigned_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (PrimaryKeyConstraint("template_id", "analyst_id"),)
+
+
+class SurveyAccessChange(WorkspaceOwned, Base):
+    """Append-only audit trail for analyst grants and removals."""
+
+    __tablename__ = "survey_access_changes"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    template_id: Mapped[UUID] = mapped_column(ForeignKey("survey_templates.id"))
+    analyst_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    changed_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), default=None
+    )
+    action: Mapped[str] = mapped_column(String(16))
+    changed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )

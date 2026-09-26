@@ -7,14 +7,12 @@
 # outside the container. This is what makes one Railway service work for both halves
 # without a separate reverse proxy: Next.js already is one.
 #
-# Real migrations run here (`alembic upgrade head`), not the `stamp head` shortcut the
-# split backend-only Dockerfile still carries from the Railway migration-state fights —
-# see CLAUDE.md's history-cleanup entry. If the schema and migration history have
-# drifted apart on the target database, this fails loudly instead of pretending.
+# Apply migrations with deployment credentials before starting the restricted API.
 set -e
 
 cd /app/backend
-alembic upgrade head
+sh scripts/migrate.sh
+unset MIGRATION_DATABASE_URL
 uvicorn app.main:app --host 127.0.0.1 --port 8000 &
 backend_pid=$!
 
@@ -38,5 +36,3 @@ code=$?
 kill -TERM "$backend_pid" "$frontend_pid" 2>/dev/null
 wait
 exit "$code"
-
-

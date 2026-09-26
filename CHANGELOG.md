@@ -5,6 +5,72 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-09-25. Demo mode removed, production provisioning
+
+- Free with sign-in: with `OPEN_SIGNUP_WORKSPACE_ID` set, a first Google or Microsoft
+  sign-in creates a respondent account in that workspace. Every sign-in is stored in the
+  new `sign_ins` table and listed at `GET /api/v1/admin/users/sign-ins`. A `signed_in`
+  audience reaches everyone with an account. The home page is free, with no plans, and
+  the sign-in page says what is stored.
+
+- Retheme to the FloorMind palette and type: navy ink on white, electric blue with cyan,
+  Space Grotesk headings over Inter, a white sticky top bar. `/` is now a commercial page
+  in that style (how it works, the rails, a proof strip, pilot plans with no invented
+  prices, security, and a call to act), and the respondent's "Answer a survey" stays the
+  first button.
+
+- Removed demo mode: `APP_ENV` is now `dev` or `prod`. Gone with it are the startup seed,
+  the unauthenticated `POST /api/v1/dev/reset` wipe (which was also mounted in
+  development), the demo banner and its reset button, `demo_mode` on the health
+  responses, and `docker-compose.demo.yml`.
+- Added `python -m app.provision`, which creates a company's workspace and owner in a
+  production database, idempotently and with an audit row.
+- A provider error event streamed after a 200 (Groq's `tool_use_failed`) now fails the
+  attempt with the provider's reason instead of reading as "no tool call".
+
+## 2026-09-21. Company-isolation foundation (working branch)
+
+- Added workspace ownership to customer data, forced PostgreSQL row policies, and
+  tenant-consistent parent references. Existing rows migrate to one explicit legacy
+  workspace; multi-company downgrade is refused.
+- Scoped prompt and embedding reuse, evaluation accounts, background work, traces, and
+  file-ledger reads to the authenticated company. Unattributed legacy ledger entries
+  are excluded from customer reports.
+- Split migration and runtime credentials. Production refuses superuser, RLS-bypass,
+  or object-owner runtime roles and tables without forced row security.
+- Required a pre-linked Microsoft object ID, removing automatic account linking by
+  mutable email. Google still requires an explicitly verified existing address.
+- Added two-company regressions, migration/startup tests, and migration-only metadata
+  so generated revisions preserve composite tenant constraints without changing ORM joins.
+- Added explicit workspace roles, survey-scoped analyst grants, owner/admin-only assignment,
+  and append-only access-change auditing. Legacy unlabelled accounts retain the job-based
+  compatibility path until provisioning and backfill are complete.
+- Added owner-configured response retention with confirmation for shortening, protected
+  purge of response content and derived traces, deletion audits, and non-identifying
+  monthly usage totals.
+- Added workspace invitations and approved employee-roster records, one-time invitation
+  token storage, and append-only access-change history. Verified-email redemption and
+  account provisioning from those records remain open.
+- Documented deployment limitations and recorded owner-only spending, audited
+  owner/admin analyst assignment, and owner-configurable 90-day retention requirements.
+- Not deployed or commercial-ready. Role authorization, retention, invitations, billing,
+  disclosure, restore verification, and load testing remain release blockers.
+
+## 2026-09-19. Commercial readiness contract and telemetry corrections
+
+- Added `docs/COMMERCIAL_READINESS.md`, recording the pilot tenancy, verified-email
+  eligibility, workspace role matrix, identified-response disclosure, allowance behavior,
+  KPI definitions, spike detection contract, drilldown path, telemetry fields, and the
+  proposed live evaluation envelope.
+- Corrected production authentication so a known account id cannot substitute for a
+  session, and constrained `APP_ENV` to `dev`, `demo`, or `prod`.
+- Required Google sign-in profiles to report `email_verified` explicitly as true.
+- Kept missing cached and reasoning token counts distinct from measured zero in the lens
+  API and frontend, with regression tests for both cases.
+- This is not a commercial-ready release. Tenant isolation, workspace roles, billing,
+  allowance enforcement, invitations, disclosed transcript access, restore evidence, and
+  100-respondent load evidence remain open as documented blockers.
+
 
 
 

@@ -537,7 +537,15 @@ class EvaluationService:
         )
         self.repo.add_eval_runs(rows)
         await self.session.commit()
-        self._launch(runner.run_batch(self._sessions, batch_id, self._make_llm, self._catalogue))
+        self._launch(
+            runner.run_batch(
+                self._sessions,
+                batch_id,
+                self._make_llm,
+                self._catalogue,
+                workspace_id=viewer.workspace_id,
+            )
+        )
         return [self._eval_read(row) for row in rows]
 
     async def comparison(self, viewer: User) -> ComparisonReport:

@@ -28,6 +28,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from app.config import get_settings
+from app.workspaces.context import current_workspace
 
 logger = logging.getLogger("app.llm.ledger")
 
@@ -373,6 +374,7 @@ def record(
         {
             "ts": datetime.now(UTC).isoformat(),
             "run_id": _RUN_ID.get(),
+            "workspace_id": str(workspace) if (workspace := current_workspace.get()) else None,
             "op": op,
             # Which prompt version asked. ``op`` says what kind of call it was
             # ("tool_turn"), never which authored text drove it, and those are different

@@ -15,16 +15,14 @@ import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import HTTP_201_CREATED
 
 from app.access import is_admin_by_config, may_author
 from app.auth.dependencies import get_current_user, require_admin, require_author
+from app.config import get_settings
 from app.db.session import get_session
 from app.errors import NotFoundError
-from app.sample_data import SAMPLE_SURVEYS
-from app.seed import SEED_USERS, reset_demo
 from app.templates.enums import SurveyAudience
 from app.users.models import User
 from app.users.repository import UserRepository
@@ -37,6 +35,7 @@ from app.users.schemas import (
     IdentifyRequest,
     MeRead,
     PersonRead,
+    SignInRead,
     UserRead,
 )
 from app.users.service import UserService
@@ -110,12 +109,27 @@ async def identify(
     An unknown address answers 404 and says so. That does leak which addresses exist, and
     it is the right trade here: a correct guess already grants far more than the knowledge
     that a guess was correct, so withholding it buys nothing and costs whoever is typing
-    their own address a useful error.
+    their own address a useful error. With open sign-up on, an unknown address instead
+    becomes an account, exactly as a first Google or Microsoft sign-in would, so the
+    whole free path can be walked locally without a provider.
     """
     email = data.email.strip().casefold()
-    user = await UserRepository(session).get_by_email(email)
+    from app.workspaces.repository import WorkspaceRepository
+
+    service = UserService(session)
+    created = False
+    user = None
+    if await WorkspaceRepository(session).resolve_identity(email=email):
+        user = await UserRepository(session).get_by_email(email)
     if user is None:
-        raise NotFoundError(f"No account for {email}.")
+        open_workspace = get_settings().open_signup_workspace_id
+        if open_workspace is None:
+            raise NotFoundError(f"No account for {email}.")
+        user = await service.sign_up(
+            workspace_id=open_workspace, email=email, display_name=email, microsoft_id=None
+        )
+        created = True
+    await service.record_sign_in(user, "address", created=created)
     # Logged because this is the whole of signing in: a dev box being probed should leave
     # a trail, and "who acted as whom" is otherwise unanswerable after the fact.
     logger.info("dev identify: %s -> user=%s", email, user.id)
@@ -161,6 +175,7 @@ async def read_me(user: User = Depends(get_current_user)) -> MeRead:
         band=user.band,
         may_author=may_author(user),
         is_admin=is_admin_by_config(user),
+        workspace_role=user.workspace_role,
     )
 
 
@@ -201,6 +216,16 @@ async def preview_account_change(
     return await UserService(session).preview_change(user_id, data)
 
 
+@admin_router.get("/sign-ins", response_model=list[SignInRead])
+async def sign_ins(
+    _: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> list[SignInRead]:
+    """Everybody who signed in to this workspace, newest first, with how and whether it
+    created their account. The latest 500."""
+    return [SignInRead.model_validate(row) for row in await UserService(session).recent_sign_ins()]
+
+
 @admin_router.get("/{user_id}/history", response_model=list[AccountChangeRead])
 async def account_history(
     user_id: UUID,
@@ -209,24 +234,3 @@ async def account_history(
 ) -> list[AccountChangeRead]:
     """Who changed this account, when, and from what to what. Append-only underneath."""
     return await UserService(session).history(user_id)
-
-
-class ResetRead(BaseModel):
-    status: str
-    users: int
-    surveys: int
-
-
-@dev_router.post("/reset", response_model=ResetRead)
-async def reset_endpoint(
-    session: AsyncSession = Depends(get_session),
-) -> ResetRead:
-    """Wipe all data and re-seed. Demo mode only.
-
-    Unauthenticated by necessity, like /dev/identify: the endpoint exists so a demo
-    operator can restore a clean state without database access. Mounted only when
-    APP_ENV=demo, which is the whole of its protection.
-    """
-    await reset_demo()
-    logger.info("demo reset: all data wiped and re-seeded")
-    return ResetRead(status="ok", users=len(SEED_USERS), surveys=len(SAMPLE_SURVEYS))

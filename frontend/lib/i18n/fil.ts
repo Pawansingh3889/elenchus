@@ -202,6 +202,9 @@ export const fil: Messages = {
     noProviders: "Hindi pa naka-set up ang pag-sign in sa deployment na ito. Hilingin sa IT na mag-configure ng provider.",
     needsSignIn: "Kailangang malaman ng pahinang ito kung sino ka.",
     goToSignIn: "Pumunta sa pag-sign in",
+    openTitle: "Unang beses dito?",
+    openBody:
+      "Ang pag-sign in ay gumagawa ng iyong libreng account. Iniimbak namin ang iyong email address at ang oras ng bawat pag-sign in, at mababasa ng mga nagpapatakbo ng survey ang iyong mga sagot.",
     noAccountTitle: "Wala pang account?",
     noAccountBody:
       "Ang mga account ay ginagawa ng administrator, dahil ang magagawa mo rito ay nakabatay sa iyong trabaho. Hilingin sa iyong manager o sa IT na idagdag ka.",
@@ -249,8 +252,6 @@ export const fil: Messages = {
       "Ang mga admin ay nagpapatakbo ng mga account at job assignment.",
     manualAdminJobs:
       "Isang job bawat tao: function × band. Mga hat ay nagdadagdag ng mga tungkulin.",
-    manualAdminReset:
-      "Demo mode: Reset ay nagbubura at nagre-reseed mula sa mga fixture.",
     trustTitle: "Bakit Elenchus?",
     trustPrivacyTitle: "Privacy by design",
     trustPrivacyBody:

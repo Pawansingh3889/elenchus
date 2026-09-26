@@ -29,8 +29,10 @@ class TracedRun(BaseModel):
     unmetered_attempts: int
     prompt_tokens: int
     completion_tokens: int
-    cached_tokens: int
-    reasoning_tokens: int
+    cached_tokens: int | None
+    reasoning_tokens: int | None
+    unreported_cached_attempts: int
+    unreported_reasoning_attempts: int
     cost_usd: float | None
     # Summed over turn spans: the wall time respondents waited, not the sum of attempts.
     turn_ms: int
@@ -73,8 +75,10 @@ class TierStrip(BaseModel):
     unmetered_attempts: int
     prompt_tokens: int
     completion_tokens: int
-    cached_tokens: int
-    reasoning_tokens: int
+    cached_tokens: int | None
+    reasoning_tokens: int | None
+    unreported_cached_attempts: int
+    unreported_reasoning_attempts: int
     cost_usd: float | None
     latency_ms_p50: float | None
     latency_ms_p95: float | None

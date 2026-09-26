@@ -32,6 +32,7 @@ from app.templates.schemas import QuestionInput, TemplateCreate
 from app.templates.service import TemplateService
 from app.trace import models as _trace  # noqa: F401
 from app.users.models import Band, Function, User
+from app.workspaces.models import LEGACY_WORKSPACE_ID, Workspace
 
 ADMIN_URL = "postgresql+asyncpg://elenchus:elenchus@localhost:5432/elenchus"
 TEST_URL = "postgresql+asyncpg://elenchus:elenchus@localhost:5432/elenchus_test"
@@ -129,23 +130,61 @@ def _migrated_test_schema():
             f"run:\n{result.stdout}\n{result.stderr}"
         )
 
+    async def grant_runtime() -> None:
+        eng = create_async_engine(TEST_URL)
+        async with eng.begin() as conn:
+            await conn.execute(
+                text(
+                    "DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = "
+                    "'elenchus_test_runtime') THEN CREATE ROLE elenchus_test_runtime "
+                    "NOLOGIN NOSUPERUSER NOBYPASSRLS; END IF; END $$"
+                )
+            )
+            await conn.execute(text("GRANT USAGE ON SCHEMA public TO elenchus_test_runtime"))
+            await conn.execute(
+                text(
+                    "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public "
+                    "TO elenchus_test_runtime"
+                )
+            )
+        await eng.dispose()
+
+    asyncio.run(grant_runtime())
+
 
 @pytest_asyncio.fixture
 async def engine(_migrated_test_schema):
-    eng = create_async_engine(TEST_URL)
-    async with eng.begin() as conn:
+    setup = create_async_engine(TEST_URL)
+    async with setup.begin() as conn:
         # Isolation between tests is truncation, not re-creation: the schema itself came
         # from the migrations above and stays put for the whole session. One statement,
         # CASCADE for the foreign keys.
         tables = ", ".join(table.name for table in Base.metadata.sorted_tables)
         await conn.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
+        await conn.execute(
+            Workspace.__table__.insert().values(id=LEGACY_WORKSPACE_ID, name="Test company")
+        )
+    await setup.dispose()
+    # The historical suite uses one explicit company. Every application query runs as
+    # a non-superuser, so even tests without a workspace assertion exercise row policies.
+    eng = create_async_engine(
+        TEST_URL,
+        connect_args={
+            "server_settings": {
+                "role": "elenchus_test_runtime",
+                "app.workspace_id": str(LEGACY_WORKSPACE_ID),
+            }
+        },
+    )
     yield eng
     await eng.dispose()
 
 
 @pytest_asyncio.fixture
 async def session(engine):
-    async with AsyncSession(engine, expire_on_commit=False) as sess:
+    async with AsyncSession(
+        engine, expire_on_commit=False, info={"workspace_id": LEGACY_WORKSPACE_ID}
+    ) as sess:
         yield sess
 
 

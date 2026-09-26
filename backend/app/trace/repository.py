@@ -29,8 +29,14 @@ def _token_sums() -> list[Any]:
     return [
         func.coalesce(func.sum(LLMSpan.prompt_tokens), 0).label("prompt_tokens"),
         func.coalesce(func.sum(LLMSpan.completion_tokens), 0).label("completion_tokens"),
-        func.coalesce(func.sum(LLMSpan.cached_tokens), 0).label("cached_tokens"),
-        func.coalesce(func.sum(LLMSpan.reasoning_tokens), 0).label("reasoning_tokens"),
+        func.sum(LLMSpan.cached_tokens).label("cached_tokens"),
+        func.sum(LLMSpan.reasoning_tokens).label("reasoning_tokens"),
+        func.count()
+        .filter(LLMSpan.kind == SpanKind.attempt, LLMSpan.cached_tokens.is_(None))
+        .label("unreported_cached_attempts"),
+        func.count()
+        .filter(LLMSpan.kind == SpanKind.attempt, LLMSpan.reasoning_tokens.is_(None))
+        .label("unreported_reasoning_attempts"),
         func.sum(LLMSpan.cost_usd).label("cost_usd"),
     ]
 

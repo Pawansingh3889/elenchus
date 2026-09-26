@@ -157,6 +157,12 @@ async def _assemble_stream(
         if not isinstance(chunk, dict):
             fail(f"{type(chunk).__name__} event")
             raise LLMError(f"LLM tier streamed {type(chunk).__name__}, expected a JSON object.")
+        if chunk.get("error") is not None:
+            # Groq reports a failure after the 200 as an event with no choices, e.g. its
+            # own schema check refusing a tool call (tool_use_failed). Skipped, it used to
+            # surface as "no tool call" and hide the provider's actual reason.
+            fail("error event")
+            raise LLMError(f"LLM tier streamed an error: {json.dumps(chunk['error'])[:500]}")
         if chunk.get("usage") is not None:
             usage = chunk["usage"]
         choices = chunk.get("choices")

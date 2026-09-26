@@ -2,6 +2,7 @@ import json
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
+from uuid import UUID
 
 from app.config import get_settings
 from app.llm.schemas import (
@@ -48,7 +49,7 @@ class _RunBucket:
     ops: set[str] = field(default_factory=set)
 
 
-def get_llm_report() -> LlmReport:
+def get_llm_report(workspace_id: UUID) -> LlmReport:
     path = Path(get_settings().llm_ledger_path)
     if not path.exists():
         return LlmReport(
@@ -70,7 +71,9 @@ def get_llm_report() -> LlmReport:
             line = line.strip()
             if line:
                 try:
-                    entries.append(json.loads(line))
+                    entry = json.loads(line)
+                    if entry.get("workspace_id") == str(workspace_id):
+                        entries.append(entry)
                 except json.JSONDecodeError:
                     continue
 
@@ -218,7 +221,7 @@ def get_llm_report() -> LlmReport:
     )
 
 
-def get_llm_run_entries(run_id: str) -> list[LlmEntry]:
+def get_llm_run_entries(run_id: str, workspace_id: UUID) -> list[LlmEntry]:
     path = Path(get_settings().llm_ledger_path)
     if not path.exists():
         return []
@@ -233,7 +236,7 @@ def get_llm_run_entries(run_id: str) -> list[LlmEntry]:
                 e = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            if e.get("run_id") != run_id:
+            if e.get("workspace_id") != str(workspace_id) or e.get("run_id") != run_id:
                 continue
             results.append(
                 LlmEntry(
@@ -256,7 +259,7 @@ def get_llm_run_entries(run_id: str) -> list[LlmEntry]:
     return sorted(results, key=lambda x: x.ts)
 
 
-def get_llm_ledger() -> LlmLedger:
+def get_llm_ledger(workspace_id: UUID) -> LlmLedger:
     path = Path(get_settings().llm_ledger_path)
     if not path.exists():
         return LlmLedger(
@@ -282,6 +285,8 @@ def get_llm_ledger() -> LlmLedger:
             try:
                 e = json.loads(line)
             except json.JSONDecodeError:
+                continue
+            if e.get("workspace_id") != str(workspace_id):
                 continue
             prompt = e.get("prompt_tokens") or 0
             completion = e.get("completion_tokens") or 0

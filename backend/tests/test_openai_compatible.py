@@ -843,6 +843,20 @@ async def test_a_streamed_tool_call_is_reassembled_from_its_fragments():
     assert turn == ToolTurn(text="", tool_name="record_answer", tool_input={"value": "Line lead"})
 
 
+async def test_an_error_event_in_the_stream_fails_with_the_providers_reason():
+    """Groq on 25 Sep 2026: a 200, then one event carrying only an error, when its own
+    schema check refused the tool call. It was reported as "no tool call"."""
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return _sse(
+            {"error": {"message": "tool call validation failed", "code": "tool_use_failed"}}
+        )
+
+    with pytest.raises(LLMError, match="tool_use_failed") as caught:
+        await _client(handler).tool_turn(system="s", messages=[], tools=[])
+    assert not isinstance(caught.value, NoToolCallError)
+
+
 async def test_streamed_text_is_joined_and_kept_beside_the_tool_call():
     def handler(_: httpx.Request) -> httpx.Response:
         return _sse(

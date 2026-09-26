@@ -11,16 +11,22 @@ from alembic import context
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.config import get_settings
-from app.db.base import Base
+from app.embeddings import models as _embeddings_models  # noqa: F401
+from app.evaluation import models as _evaluation_models  # noqa: F401
+from app.interp import models as _interp_models  # noqa: F401
+from app.prompts import models as _prompts_models  # noqa: F401
 from app.runs import models as _runs_models  # noqa: F401
 from app.templates import models as _templates_models  # noqa: F401
+from app.trace import models as _trace_models  # noqa: F401
 from app.users import models as _users_models  # noqa: F401
+from app.workspaces import models as _workspace_models  # noqa: F401
+from migrations.metadata import migration_metadata
 
 config = context.config
 if config.config_file_name:
     fileConfig(config.config_file_name)
 
-target_metadata = Base.metadata
+target_metadata = migration_metadata()
 
 
 def run_migrations_offline() -> None:

@@ -22,7 +22,7 @@ from app.access import in_audience, is_admin_by_config, may_author
 from app.errors import ConflictError, NotFoundError
 from app.templates.enums import SurveyAudience, TemplateStatus
 from app.templates.repository import TemplateRepository
-from app.users.models import AccountChange, User, UserHat
+from app.users.models import AccountChange, SignIn, User, UserHat, WorkspaceRole
 from app.users.repository import UserRepository
 from app.users.schemas import (
     AccountChangeRead,
@@ -40,6 +40,61 @@ class UserService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
         self.repo = UserRepository(session)
+
+    async def sign_up(
+        self,
+        *,
+        workspace_id: UUID,
+        email: str,
+        display_name: str,
+        microsoft_id: str | None,
+    ) -> User:
+        """Create the account of somebody signing in for the first time, as a respondent.
+
+        Only reached when open sign-up is on and the identity matched nobody. An address
+        that already has an account anywhere is refused rather than linked: a Microsoft
+        mail field is mutable, and linking by it would let a stranger claim that account.
+        The audit row has no actor, because the person made the account themselves.
+        """
+        from app.workspaces.repository import WorkspaceRepository
+
+        workspaces = WorkspaceRepository(self.session)
+        if await workspaces.resolve_identity(email=email):
+            raise ConflictError(f"{email} already has an account.")
+        await workspaces.bind(workspace_id)
+        user = User(
+            email=email,
+            display_name=display_name,
+            microsoft_id=microsoft_id,
+            workspace_role=WorkspaceRole.respondent,
+            hat_rows=[],
+        )
+        self.repo.add(user)
+        await self.session.flush()
+        self.repo.add_change(
+            AccountChange(
+                user_id=user.id,
+                changed_by=None,
+                change={
+                    "kind": "signed_up",
+                    "before": None,
+                    "after": AccountSnapshot.of(user).model_dump(mode="json"),
+                },
+            )
+        )
+        await self._commit_or_conflict()
+        logger.info("account signed up: user=%s workspace=%s", user.id, workspace_id)
+        return user
+
+    async def record_sign_in(self, user: User, provider: str, *, created: bool) -> None:
+        """Write down who signed in, with what and when, in the account's workspace."""
+        self.repo.add_sign_in(
+            SignIn(user_id=user.id, email=user.email, provider=provider, created_account=created)
+        )
+        await self.session.commit()
+
+    async def recent_sign_ins(self) -> list[SignIn]:
+        return await self.repo.recent_sign_ins(limit=500)
 
     async def reach_by_audience(self) -> dict[SurveyAudience, int]:
         """How many people each audience is, right now.
@@ -87,6 +142,7 @@ class UserService:
             function=data.function,
             band=data.band,
             microsoft_id=data.microsoft_id,
+            workspace_role=data.workspace_role,
             created_by=admin.id,
             hat_rows=[UserHat(hat=h) for h in data.hats],
         )
@@ -126,6 +182,7 @@ class UserService:
         user.function = data.function
         user.band = data.band
         user.microsoft_id = data.microsoft_id
+        user.workspace_role = data.workspace_role
         user.hat_rows = [UserHat(hat=h) for h in data.hats]
 
         self._refuse_self_lockout(user, admin)

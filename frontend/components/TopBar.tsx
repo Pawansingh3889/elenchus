@@ -40,6 +40,8 @@ function SignIn() {
           ))}
         </span>
       ) : null}
+      {/* The development shim, drawn only where the server mounts it. */}
+      {data?.address_sign_in ? (
       <form
       className="topbar-signin"
       onSubmit={(e) => {
@@ -69,6 +71,7 @@ function SignIn() {
         <span className="topbar-signin-error">{identify.error.message}</span>
       ) : null}
       </form>
+      ) : null}
     </>
   );
 }

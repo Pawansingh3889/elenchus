@@ -8,7 +8,7 @@ from typing import Final
 from uuid import UUID
 
 from app.templates.enums import SurveyAudience
-from app.users.models import BAND_RANK, Band, Function, Hat, User
+from app.users.models import BAND_RANK, Band, Function, Hat, User, WorkspaceRole
 
 logger = logging.getLogger("app.access")
 
@@ -54,7 +54,24 @@ def may_author(user: User) -> bool:
     though line leaders hold ERP logins without being survey authors. The band answers
     the question the role column was guessing at.
     """
+    if user.workspace_role is not None:
+        return user.workspace_role in {
+            WorkspaceRole.owner,
+            WorkspaceRole.admin,
+            WorkspaceRole.author,
+        }
     return user.band is not None and BAND_RANK[user.band] >= _AUTHORING_RANK
+
+
+def is_workspace_owner(user: User) -> bool:
+    return user.workspace_role is WorkspaceRole.owner
+
+
+def is_workspace_admin(user: User) -> bool:
+    """Whether the explicit workspace role may administer workspace data."""
+    if user.workspace_role is not None:
+        return user.workspace_role in {WorkspaceRole.owner, WorkspaceRole.admin}
+    return is_admin_by_config(user)
 
 
 def is_admin(user: User, admin_emails: frozenset[str]) -> bool:
@@ -73,6 +90,8 @@ def is_admin(user: User, admin_emails: frozenset[str]) -> bool:
     Logged when it grants, and logged differently per route. Both are easy to change and
     hard to audit afterwards, so which one let a caller through lives in the log.
     """
+    if user.workspace_role is not None:
+        return user.workspace_role in {WorkspaceRole.owner, WorkspaceRole.admin}
     if user.function is Function.it:
         logger.info("admin granted by function: user=%s", user.id)
         return True
@@ -130,6 +149,8 @@ def reads_all_surveys(user: User) -> bool:
     pass `may_list`, and an executive's scope is all of them: the query widening has to
     ask the same predicate the rule does, or the two drift.
     """
+    if user.workspace_role is not None:
+        return user.workspace_role in {WorkspaceRole.owner, WorkspaceRole.admin}
     return user.function is Function.executive and may_author(user)
 
 
@@ -141,6 +162,7 @@ def may_list(
     *,
     target: UUID | None = None,
     creator_function: Function | None = None,
+    assigned_analyst: bool = False,
 ) -> AccessDecision:
     """Whether this survey appears in this user's lists at all.
 
@@ -155,6 +177,12 @@ def may_list(
     """
     if _owns(user, created_by):
         return AccessDecision(True, "author of this survey")
+    if user.workspace_role is not None:
+        if is_workspace_admin(user):
+            return AccessDecision(True, "workspace owner or admin")
+        if assigned_analyst:
+            return AccessDecision(True, "assigned analyst")
+        return AccessDecision(False, "this workspace role has no access to this survey")
     if admin:
         return AccessDecision(True, "admin")
     if reads_all_surveys(user):
@@ -246,6 +274,9 @@ def may_answer(
             return AccessDecision(True, "admin")
         return AccessDecision(False, "your account holds no job on the plant")
 
+    if audience is SurveyAudience.signed_in:
+        return AccessDecision(True, "signed in, and the survey is for anyone signed in")
+
     membership = _in_derived_audience(user, audience)
     if membership:
         return membership
@@ -298,6 +329,12 @@ def may_edit(user: User, created_by: UUID, admin: bool) -> AccessDecision:
     Not about the audience at all. Being asked a question, or being able to read what
     came back, has never implied being able to change what is being asked.
     """
+    if user.workspace_role is not None:
+        if is_workspace_admin(user):
+            return AccessDecision(True, "workspace owner or admin")
+        if user.workspace_role is WorkspaceRole.author and _owns(user, created_by):
+            return AccessDecision(True, "author of this survey")
+        return AccessDecision(False, "only the survey author, owner or admin can edit")
     if _owns(user, created_by):
         return AccessDecision(True, "author of this survey")
     if admin:
@@ -311,6 +348,7 @@ def may_read_rows(
     admin: bool,
     *,
     creator_function: Function | None = None,
+    assigned_analyst: bool = False,
 ) -> AccessDecision:
     """Whether this user may read individual runs and answers.
 
@@ -325,6 +363,18 @@ def may_read_rows(
     unreadable when one person is away. It widens who reads a respondent's words beyond
     the one author they might have pictured.
     """
+    if user.workspace_role is not None:
+        if _owns(user, created_by) and user.workspace_role in {
+            WorkspaceRole.owner,
+            WorkspaceRole.admin,
+            WorkspaceRole.author,
+        }:
+            return AccessDecision(True, "author of this survey")
+        if is_workspace_admin(user):
+            return AccessDecision(True, "workspace owner or admin")
+        if user.workspace_role is WorkspaceRole.analyst and assigned_analyst:
+            return AccessDecision(True, "assigned analyst")
+        return AccessDecision(False, "identified responses are not assigned to this account")
     if _owns(user, created_by):
         return AccessDecision(True, "author of this survey")
     if admin:
@@ -346,6 +396,7 @@ def may_read_totals(
     *,
     target: UUID | None = None,
     creator_function: Function | None = None,
+    assigned_analyst: bool = False,
 ) -> AccessDecision:
     """Whether this user may read counts and distributions, without the rows behind them.
 
@@ -356,4 +407,6 @@ def may_read_totals(
     """
     if may_read_rows(user, created_by, admin, creator_function=creator_function):
         return AccessDecision(True, "may read rows, so may read totals")
+    if user.workspace_role is not None and assigned_analyst:
+        return AccessDecision(True, "assigned analyst")
     return may_answer(user, audience, created_by, admin, target=target)

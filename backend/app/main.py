@@ -20,7 +20,7 @@ from app.auth.dependencies import require_admin
 from app.auth.router import router as auth_router
 from app.conduct.router import router as runs_router
 from app.config import get_settings
-from app.db.session import get_session
+from app.db.session import SessionFactory, get_session
 from app.embeddings.router import router as embeddings_router
 from app.errors import register_error_handlers
 from app.evaluation.router import router as evaluation_router
@@ -29,13 +29,14 @@ from app.llm.router import router as llm_admin_router
 from app.prompts.router import router as prompts_router
 from app.runs.router import dashboard_router
 from app.runs.router import router as results_router
-from app.seed import seed
 from app.templates.router import router as templates_router
 from app.trace.router import router as lens_router
 from app.users.models import User
 from app.users.router import admin_router, dev_router, me_router
 from app.users.router import directory_router as people_router
 from app.users.router import router as users_router
+from app.workspaces.repository import WorkspaceRepository
+from app.workspaces.router import router as workspace_router
 
 
 def _configure_logging() -> None:
@@ -71,16 +72,10 @@ logger = logging.getLogger("app.main")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Seed missing demo data on startup when APP_ENV=demo.
-
-    A seed, not a reset: the demo's data is meant to survive restarts so visitors keep
-    what they built or answered. The seed is idempotent, so an existing database is left
-    alone and only genuinely missing rows are added. The /dev/reset endpoint is the
-    explicit way to wipe back to the seed's clean state.
-    """
-    if get_settings().app_env == "demo":
-        logger.info("demo mode: seeding data on startup")
-        await seed()
+    """Refuse to serve production through a role that can bypass the tenant policies."""
+    if get_settings().app_env == "prod":
+        async with SessionFactory() as session:
+            await WorkspaceRepository(session).verify_runtime_role()
     yield
 
 
@@ -112,9 +107,7 @@ register_error_handlers(app)
 #
 # The branch was deleted on 23 Aug 2026 and replaced with an unconditional mount and the
 # line "we now mount the dev router in all environments for public survey access", while
-# every comment around it went on describing the guard. It is restored. Demo is on the
-# permissive side of it deliberately: a public demo wants visitors to sign in by address
-# and to press reset, and its data is seeded personas. Production is not.
+# every comment around it went on describing the guard. It is restored.
 if get_settings().app_env != "prod":
     app.include_router(users_router)
     # Same branch, same lifetime, and the branch is doing more work here. The picker is
@@ -151,12 +144,12 @@ app.include_router(templates_router)
 app.include_router(results_router)
 app.include_router(dashboard_router)
 app.include_router(runs_router)
+app.include_router(workspace_router)
 
 
 class HealthRead(BaseModel):
     status: str
     database: str
-    demo_mode: bool = False
 
 
 @app.get("/api/v1/health", response_model=HealthRead, tags=["meta"])
@@ -166,29 +159,23 @@ async def health(session: AsyncSession = Depends(get_session)) -> Response:
     This used to answer "ok" whenever the process was up, which is the least useful
     thing it could say: when Postgres stopped, health stayed green while every real
     endpoint failed, and the app looked broken for no visible reason. Both callers that
-    poll this — the demo reset and the live-conduct workflow — are waiting to find out
+    poll this (the deploy healthcheck and the live-conduct workflow) are waiting to find out
     whether the API can actually serve, so answer that question.
     """
-    is_demo = get_settings().app_env == "demo"
     try:
         await session.execute(text("SELECT 1"))
     except Exception as exc:  # noqa: BLE001 — any failure here means "not ready"
         logger.error("health check could not reach the database: %r", exc)
         return JSONResponse(
             status_code=503,
-            content=HealthRead(
-                status="degraded", database="unreachable", demo_mode=is_demo
-            ).model_dump(),
+            content=HealthRead(status="degraded", database="unreachable").model_dump(),
         )
-    return JSONResponse(
-        content=HealthRead(status="ok", database="ok", demo_mode=is_demo).model_dump()
-    )
+    return JSONResponse(content=HealthRead(status="ok", database="ok").model_dump())
 
 
 class AdminHealthRead(BaseModel):
     status: str
     database: str
-    demo_mode: bool = False
     tiers: dict[str, dict[str, Any]]
 
 
@@ -200,7 +187,6 @@ async def admin_health(
     """Readiness with per-tier config, admin-only."""
     from app.config import get_settings
 
-    is_demo = get_settings().app_env == "demo"
     db_status = "ok"
     try:
         await session.execute(text("SELECT 1"))
@@ -219,4 +205,4 @@ async def admin_health(
             "max_completion_tokens": getattr(env_settings, f"{prefix}_max_completion_tokens"),
         }
     status = "ok" if db_status == "ok" else "degraded"
-    return AdminHealthRead(status=status, database=db_status, demo_mode=is_demo, tiers=tiers)
+    return AdminHealthRead(status=status, database=db_status, tiers=tiers)

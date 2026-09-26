@@ -14,11 +14,12 @@ crypto dependency, a key cache and a rotation story. The code was exchanged for 
 token over TLS against the provider's own token endpoint moments earlier, so asking the
 same provider who it belongs to is the same trust with less machinery.
 
-**An unknown address is refused, never created.** Every right in this system derives
-from a job, and an account created by a first sign-in holds no job: it can be surveyed
-by nobody, appears in no audience, and quietly widens every denominator it touches. So
-sign-in matches an account an administrator already made, and says so plainly when it
-cannot.
+**An unknown identity is refused unless open sign-up is on.** Google must report an
+explicitly verified email; Microsoft is matched on its Graph object id, because its email
+fields are mutable and cannot establish ownership of an existing account. With
+`OPEN_SIGNUP_WORKSPACE_ID` set, an identity that matches nobody gets a new respondent
+account in that one workspace; an address that already has an account is never linked.
+No path chooses a company from an email domain.
 """
 
 from __future__ import annotations
@@ -252,15 +253,22 @@ def identity_of(provider: Provider, profile: dict[str, Any]) -> tuple[str, str |
 
     Microsoft Graph puts a work address in `mail` and leaves it null for accounts that
     have only a UPN, which is why the fallback exists rather than being defensive
-    padding. The subject is the Entra object id, and it is what gets written to
-    `users.microsoft_id` on a first sign-in so the link survives an address change.
+    padding. The subject is the Entra object id, which must already be linked in
+    `users.microsoft_id`. The callback never links an account from its email alone.
     """
     if provider.name == "microsoft":
         email = profile.get("mail") or profile.get("userPrincipalName") or ""
         return str(email).strip().casefold(), profile.get("id")
     email = profile.get("email") or ""
-    if not profile.get("email_verified", True):
+    if profile.get("email_verified") is not True:
         # An unverified address on a provider that reports it is somebody else's account
         # waiting to happen, since this system matches people by address.
         raise SignInError("That account's email address is not verified with the provider.")
     return str(email).strip().casefold(), profile.get("sub")
+
+
+def display_name_of(profile: dict[str, Any], email: str) -> str:
+    """What to call somebody signing up. Google says `name`, Graph says `displayName`;
+    a profile with neither is named by its address, which is what the person typed."""
+    name = profile.get("name") or profile.get("displayName")
+    return str(name).strip()[:200] if name else email

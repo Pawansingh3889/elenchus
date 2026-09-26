@@ -48,7 +48,7 @@ class EmbeddingRepository:
                     for row in rows
                 ]
             )
-            .on_conflict_do_nothing(index_elements=["digest", "model"])
+            .on_conflict_do_nothing(index_elements=["workspace_id", "digest", "model"])
         )
         await self.session.execute(stmt)
 
