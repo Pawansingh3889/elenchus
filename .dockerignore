@@ -3,6 +3,10 @@
 # context past 1GB. Neither belongs in the image: the frontend-builder stage installs
 # its own node_modules, and the final stage's `uv sync` builds its own .venv.
 .git
+**/.env*
+!**/.env.example
+**/var
+**/*.log
 **/.venv
 **/node_modules
 **/.next

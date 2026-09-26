@@ -12,6 +12,8 @@ The project is not yet versioned, so entries are grouped by date. Newest first.
   privileges. A separate runtime login must also have restricted privileges.
 - Documented creating a restricted Neon login through SQL, replacing the runtime
   connection secret, and using certificate-verified connections with asyncpg.
+- Container build contexts now exclude local environment files and request logs,
+  including the monolith build used for Cloud Run.
 
 ## 2026-09-26. Private commercial demo and product access
 
