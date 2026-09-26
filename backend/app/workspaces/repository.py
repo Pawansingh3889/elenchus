@@ -111,11 +111,17 @@ class WorkspaceRepository:
     async def verify_runtime_role(self) -> None:
         """Reject production roles that can bypass the tenant policies."""
         bypasses = await self.session.scalar(
-            text("SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname = current_user")
+            text(
+                "SELECT EXISTS (SELECT 1 FROM pg_roles "
+                "WHERE (rolsuper OR rolbypassrls OR rolcreaterole "
+                "OR rolcreatedb OR rolreplication) "
+                "AND pg_has_role(current_user, oid, 'MEMBER'))"
+            )
         )
         if bypasses is not False:
             raise RuntimeError(
-                "Production DATABASE_URL must use a non-superuser without BYPASSRLS."
+                "Production DATABASE_URL must use a non-superuser without administrative "
+                "attributes or membership in an administrative role (including BYPASSRLS)."
             )
         tables = tuple(Base.metadata.tables)
         safe_tables = await self.session.scalar(

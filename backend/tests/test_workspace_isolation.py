@@ -461,6 +461,22 @@ async def test_production_guard_refuses_superuser_credentials(engine):
         await admin.dispose()
 
 
+@pytest.mark.parametrize("attribute", ["BYPASSRLS", "CREATEROLE"])
+async def test_production_guard_refuses_inherited_administration(engine, attribute):
+    admin = create_async_engine(TEST_URL)
+    try:
+        # Connection exit rolls back the temporary role and membership as well as data.
+        async with admin.connect() as connection:
+            await connection.execute(text(f"CREATE ROLE elenchus_test_admin NOLOGIN {attribute}"))
+            await connection.execute(text("GRANT elenchus_test_admin TO elenchus_test_runtime"))
+            await connection.execute(text("SET LOCAL ROLE elenchus_test_runtime"))
+            async with AsyncSession(bind=connection) as session:
+                with pytest.raises(RuntimeError, match="administrative role"):
+                    await WorkspaceRepository(session).verify_runtime_role()
+    finally:
+        await admin.dispose()
+
+
 async def test_downgrade_refuses_to_merge_two_companies(strict_engine, companies):
     revision = import_module("migrations.versions.ab47d902e631_workspace_isolation")
     admin = create_async_engine(TEST_URL)

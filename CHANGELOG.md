@@ -5,6 +5,14 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-09-27. Restricted database roles on managed PostgreSQL
+
+- Production startup now refuses inherited administrative roles, including Neon's
+  `neon_superuser` membership, as well as direct role/database creation and replication
+  privileges. A separate runtime login must also have restricted privileges.
+- Documented creating a restricted Neon login through SQL, replacing the runtime
+  connection secret, and using certificate-verified connections with asyncpg.
+
 ## 2026-09-26. Private commercial demo and product access
 
 - Plum and ivory commercial page with an interactive sample survey journey, question
