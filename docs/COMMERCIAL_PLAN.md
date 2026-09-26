@@ -1,243 +1,150 @@
-# Elenchus commercial product plan
+# Elenchus commercial plan
 
-Consolidated on 18 September 2026 from the voice planning session on this device.
-This document separates the requested direction, proposed choices, and completed work.
-It is a product roadmap, not a claim that the commercial features are implemented.
+Agreed 26 September 2026. These decisions replace the earlier standalone subscription
+proposal and unrestricted free-signup positioning. Planned features are not shipped claims.
 
-Working update, 21 September 2026: the audit branch adds database-enforced company
-isolation and scoped cost-ledger reads. Deployment and remaining limitations are in
-[WORKSPACE_ISOLATION.md](WORKSPACE_ISOLATION.md). The current
-[commercial contract](COMMERCIAL_READINESS.md) records owner-only spending approval,
-owner/admin-only analyst assignment, and owner-configurable 90-day response retention.
-These policies still require implementation; the isolation foundation is not a launch.
+## Offer
 
-## 1. Goal and working approach
+Elenchus is an employee-feedback product in the KapkotiSolution family. There is no
+separate Elenchus subscription. Visitors get a complete survey journey in a private demo.
+Customers of any paid KapkotiSolution product, including future products, qualify for
+company-wide Elenchus access at no extra product charge.
 
-Turn Elenchus into a subscription survey product. Improve the customer-facing design
-first, then build a complete customer journey and continue improving the underlying
-survey intelligence.
+- An active subscription qualifies while active; a one-time purchase qualifies permanently.
+- The operator verifies the purchase and activates the workspace manually initially.
+- Full access includes all features and unlimited survey creation, with a monthly
+  response-session allowance explicitly agreed at activation. A session counts when
+  admitted, including unfinished and later withdrawn sessions. No default allowance is advertised.
+- A lapsed entitlement stops new activity; it does not silently delete results.
+- Existing data is preserved. Demo workspaces are separate from existing customer data.
 
-Work in small stages and explain the concepts and implementation decisions as we go.
-The product should help customers understand what to ask, conduct useful conversations,
-and trace findings back to what respondents actually said.
+## Demo rules
 
-Requested direction:
+| Decision | Agreed rule |
+| --- | --- |
+| Public entry | Interactive sample walkthrough without signing in |
+| Real entry | Personal pass or link issued manually by the operator |
+| Identity boundary | One private workspace per pass; no shared administrator credential |
+| Surveys | Three successfully created surveys total per workspace |
+| Counting | Draft creation and duplication count; editing and failed creation do not |
+| Deletion | Deleting a survey never restores a slot |
+| Questions | At most ten per survey |
+| Respondents | At most twenty respondent sessions per survey, including abandoned sessions |
+| Duration | Fourteen days from issue |
+| Invitations | Real respondents enter through a survey link without signing in |
+| Privacy | Identities hidden from authors; names and emails are not requested from respondents |
+| Remaining exposure | People can identify themselves in their own words; disclose this |
+| At the creation limit | Existing surveys and results remain usable within other limits |
+| After expiry | Preserve stored results; block new creation, sessions and paid AI work |
+| Global AI budget | US$10 per UTC calendar month across all demo workspaces |
+| Renewal | No reset by deleting a survey or clearing browser storage |
 
-- Make Elenchus commercially usable through subscriptions.
-- Provide design demos that can be compared before choosing a direction.
-- Support multiple survey categories with shared specialist capabilities.
-- Offer a short needs conversation before a visitor chooses a subscription.
-- Keep the roadmap and design references in the repository for continued improvement.
+Enforce allowances in shared backend operations, including direct API calls. Serialize
+concurrent reservations. Keep quota usage when content is withdrawn or purged. Reserve
+cost before each provider attempt, including retries, failover, generation, conversations
+and summaries. Refuse unpriced calls; unknown usage is not free. The application spending
+ceiling depends on correct configured rates; configure a provider spending limit too.
 
-Still proposals: tier details, pricing,
-allowances, and specialist implementation sequence. No launch date was agreed. The first
-customer segment is settled: employee feedback (§4). The design is settled too: on 25 Sep
-2026 the app took the FloorMind palette and type (floormind.pages.dev: navy ink, electric
-blue with cyan, Space Grotesk over Inter), and `/` became a commercial page in that style.
-The three concepts in `docs/design/` remain reference only.
+## Complete journey
 
-## 2. Customer journey
+1. **Discover:** product purpose, interactive sample, demo rules and customer eligibility.
+2. **Enter:** redeem a personal pass; see remaining allowance, expiry and data disclosure.
+3. **Describe:** state the decision, employee audience and survey goal.
+4. **Draft:** generate or write questions; review wording, answer types and follow-ups.
+5. **Publish:** freeze questions and create a respondent link; explain privacy and limits.
+6. **Respond:** a conversation without separate account setup; saved turns, progress,
+   resumption, withdrawal and clear provider errors.
+7. **Inspect:** participation and question-level results, including incomplete and
+   declined answers, with denominators stated.
+8. **Summarise:** request a recap, inspect its evidence and distinguish employee
+   suggestions from AI-proposed next steps.
+9. **Export:** CSV or print/save the report as PDF, preserving scope and privacy.
+10. **Continue:** operator verifies a qualifying purchase, records the response allowance
+    and activates company access. Preserve demo work when activating the same workspace.
 
-**Discover Elenchus → optional needs conversation → tailored survey preview → explained
-plan recommendation → signup and subscription → survey workspace → publish and share →
-collect answers → review results → manage plan and usage.**
+## Customer dashboard and KPIs
 
-Visitors can skip the conversation and browse templates or pricing directly. The
-conversation should demonstrate the product before asking someone to pay.
+Every metric names its scope, sample count and coverage. Unknown is not zero. Charts
+have readable values and accessible tables. Public sample charts are labelled illustrative.
 
-### Free needs conversation
+| Measure | Definition and boundary |
+| --- | --- |
+| Survey allowance | Lifetime successfully created demo surveys / three |
+| Sessions started | Admitted sessions; abandoned and withdrawn sessions still consume quota |
+| Responses completed | Sessions the engine marked complete |
+| Completion rate | Completed / started within the same reporting population |
+| Response rate | Completed eligible people / known invited people; unavailable for an open link with unknown reach |
+| Response time | Median elapsed time for completed responses; breaks may be included |
+| Question coverage | Usable and declined answers shown separately; branching can leave questions unasked |
+| Ratings | Distribution and sample count beside the average; preserve the actual scale |
+| Themes | Supported themes with source answers; overlapping themes are not exclusive percentages |
+| Recap freshness | Generation time and responses included; flag when results change |
 
-Ask one question at a time, skip information already supplied, and let the visitor
-correct the resulting summary. Learn:
+## Summarisation
 
-| Question | What it informs |
-|---|---|
-| What decision are you trying to make? | Survey goal and question design |
-| Who do you want to hear from? | Category, terminology, and audience |
-| Can you invite those people yourself? | Whether respondent recruitment is needed |
-| Roughly how many responses, and how often? | Usage requirements and recurring versus one-off fit |
-| Will other people help manage the surveys? | Workspace and collaboration requirements |
+Build on the existing run and survey summary services.
 
-The result should contain an editable goal summary, a suggested survey with sample
-questions and estimated respondent time, and a plan recommendation with clear reasons.
-Offer actions to edit the survey, compare plans, or try a limited demo.
+- Short executive recap, themes linked to the question and supporting answers.
+- Compute figures in code; never ask the model to invent a denominator.
+- Preserve minority views, conflicting evidence and sample limitations.
+- Keep respondent suggestions separate from labelled AI-proposed actions.
+- Proposed actions reference the findings that motivated them and require human judgement.
+- Verify quotes exactly; check factual claims against recorded responses.
+- Show provenance, generation time and response coverage, including in exports.
+- Neutralise spreadsheet formula injection in respondent-controlled export text.
 
-Start with text chat. Voice interaction can follow later; the voice planning session
-did not establish voice input as a launch requirement.
+Cross-survey comparisons and tracking completed actions are later phases. Compare only
+compatible questions and cohorts; a change of wording is not evidence of a trend.
 
-### Recommendation rules
+## Private operator dashboard
 
-The LLM interprets needs and drafts the survey. Application rules compare those needs
-with the actual plan catalog and recommend the lowest-cost suitable plan.
+Reuse the lens for provider detail. Operator business data stays behind operator access.
 
-- Never invent prices, allowances, or available features.
-- Explain when no plan fits.
-- Keep participant recruitment and its cost separate from the software subscription.
-- Do not automatically steer a one-off need into a recurring subscription.
+| Measure | Definition |
+| --- | --- |
+| Passes issued / activated | Unique issued passes and first successful redemption |
+| Activation rate | Activated demo workspaces / issued demo workspaces |
+| First value (later) | Workspace has a published survey and a completed response |
+| Customer unlocks | Workspaces activated after a verified qualifying purchase |
+| Conversion (later) | Activated demos later unlocked / activated demos, with cohort and time window |
+| AI expenditure | Known spend plus uncertain/outstanding reservations against the US$10 monthly ceiling |
+| Cost per completion (later) | Known operational spend / completed responses, with pricing coverage |
+| Reliability | Attempt totals, failures and uncertain reservations; detailed latency and retry analysis remains in the lens |
 
-## 3. Proposed subscription structure
+## Commercial page and visual direction
 
-| Offering | Proposed purpose | Status |
-|---|---|---|
-| Free entry experience | Needs conversation and a limited survey demo | Scope and limits undecided |
-| Starter | An individual running occasional surveys | Proposed paid tier; price and allowances undecided |
-| Team | Shared workspaces, collaboration, and higher usage | Proposed paid tier; price, seats, and allowances undecided |
-| Enterprise, later | Custom arrangements where customer demand justifies them | Deferred |
+Replace the homepage with deep plum, warm ivory, charcoal and restrained apricot accents.
+Use the existing fonts, plain CSS and chart tools. Preserve contrast, keyboard operation,
+mobile layouts and reduced-motion support.
 
-Survey categories should be available across both paid plans. Differentiate plans by
-usage and collaboration, rather than charging separately for each category or specialist.
-Set prices and limits after measuring operating costs and validating customer demand.
+Show the product proposition, interactive end-to-end journey, sample KPI dashboard with
+evidence drilldowns, summary example, demo allowances, customer eligibility, FAQ and
+phased roadmap. Clearly distinguish live features, illustrative data and planned work.
+Do not expose operator credentials, private metrics or an authentication bypass.
 
-Pollfish, Typeform, and SurveySparrow were discussed as comparison products. The research
-questions are how they explain audience selection, survey creation, conversational
-follow-ups, usage limits, and costs. Competitor prices are not recorded as current facts
-here and must be checked before a pricing decision.
+## Delivery sequence
 
-## 4. Survey categories
+| Stage | Deliverable | Acceptance |
+| --- | --- | --- |
+| 1 | Commercial page, interactive samples and agreed plan | Responsive page, working controls, accurate offer/status |
+| 2 | Private passes, isolation, quotas and budget | Expired/revoked passes fail; concurrent quotas and tenant boundaries hold |
+| 3 | Browser builder, respondent entry and results | Create, edit, publish, share, answer and read real saved results |
+| 4 | Summaries, evidence, CSV and PDF | Quotes exist, source links resolve, counts agree, exports preserve scope |
+| 5 | Manual activation and operator reporting | Explicit allowances, verified eligibility, audited activation, no self-upgrade |
+| 6, later | Chatbot issuing demo passes | Verified contact workflow, bounded issuance and recorded consent |
 
-| Category | Example uses | Proposed sequence |
-|---|---|---|
-| Employee feedback | Onboarding, engagement, workplace improvements | **Selected pilot category** |
-| Customer experience | Satisfaction, service feedback, churn reasons | Candidate expansion |
-| Product research | Concept testing, feature feedback, usability interviews | Candidate expansion |
-| Market research | Audience studies and purchase preferences | Later; recruitment remains a separate concern |
+Before live access: apply migrations with the deployment role, run required gates and
+browser checks, configure the authentication secret, provider rates and spending ceiling,
+confirm origins, and establish backup/restore evidence. Use mocked model calls in tests;
+the demo spending ceiling does not authorise unattended paid evaluation batches.
 
-Employee feedback is the selected pilot category: the existing project already has
-workplace concepts, and it is the starting point Stage 2 of the roadmap builds against.
-Complete its full journey (draft, review, publish, interview, results) before expanding
-to another category.
+## Later: chatbot issuing demo passes
 
-The pilot release contract is recorded in [COMMERCIAL_READINESS.md](COMMERCIAL_READINESS.md).
-It settles the initial tenancy shape: multiple customer companies, one private workspace
-per company, one company per account, and up to 100 simultaneous respondents overall.
-Respondents use a shared link followed by verified email sign-in, and the address must be
-invited or on an approved employee roster. Workspace roles are owner, admin, author,
-analyst, and respondent. Factory jobs describe audiences only.
+Collect email, name, company, role and survey goal. Explain limits and storage, and verify
+control of the email before issuing a pass. Optional marketing consent is separate from
+access. Application rules deduplicate requests, decide eligibility, create the workspace
+and issue the pass. The model helps ask questions; it cannot increase quotas, bypass
+limits or unlock customer entitlements. Reuse the manual pass-issuance operation.
 
-Publishing freezes the survey. A changed survey is duplicated, and a survey with any run
-cannot be deleted. Subscription usage is a monthly allowance of completed responses plus
-seats. Once the allowance is exhausted, new starts stop, active sessions finish, and an
-explicit owner-approved top-up is required.
-
-## 5. Shared specialist capabilities
-
-A category describes a customer's goal. A specialist performs a job that can serve
-several categories. There is no requirement for a separate autonomous agent or model
-for every field.
-
-| Specialist | Job | Required control |
-|---|---|---|
-| Survey designer | Turn a research goal into draft questions | Customer reviews before publishing |
-| Interviewer | Ask questions and useful follow-ups | Existing conduct engine controls sequence and accepted answers |
-| Analyst | Group themes and explain results | Findings link back to recorded responses |
-| Quality reviewer | Flag leading questions and unsupported conclusions | Model judgments stay advisory |
-
-Begin with bounded, testable model steps and category-specific guidance. Reuse existing
-generation, conducting, and analysis capabilities where they fit. Add independent agent
-behavior only when evaluation demonstrates a useful improvement.
-
-The LLM supplies language and reasoning. Application code owns permissions, budgets,
-validation, state changes, and database writes. Preserve the existing engine's authority.
-
-## 6. Design scope
-
-The first design milestone covers the entry conversation and recommendation, followed by:
-
-- **Workspace:** survey list, clear statuses, and an obvious create-survey action.
-- **Builder:** questions and settings beside a live respondent preview.
-- **Respondent experience:** readable mobile conversation with clear progress.
-- **Results:** findings supported by answers, clear counts, and exports.
-- **Plan and usage:** understandable allowances, plan comparison, and subscription management.
-
-Three interactive workspace concepts were created with sample data:
-
-| Direction | Character |
-|---|---|
-| A: Clear and focused | Minimal layout, precise spacing, blue accents |
-| B: Warm and conversational | Soft surfaces, editorial typography, natural tones |
-| C: Research studio | Compact layout, structured evidence, violet accents |
-
-The demo includes design switching, a build/preview screen, sample rating follow-ups,
-and illustrative results. It does not implement the needs conversation, checkout, or
-production survey authoring. No final direction is recorded in the recovered session.
-
-The existing browser is primarily the respondent path, with administrative lens pages;
-survey authoring is through the API. A commercial self-service builder is a planned
-scope change that will require the project guidance to be updated when implemented.
-
-## 7. Delivery roadmap
-
-| Stage | Deliverable | Evidence needed before moving on |
-|---|---|---|
-| 1. Product design | Choose a visual direction and create a clickable journey from needs conversation through preview, recommendation, workspace, and results | A potential customer can understand and complete the journey |
-| 2. One complete category | Draft, review, publish, interview, and results for the selected pilot category | Real pilot users obtain useful, evidence-backed results |
-| 3. Subscription pilot | Verified sign-in, isolated customer workspaces, billing, usage limits, cancellation, and operating-cost measurement | Customer data stays separated, access and billing rules work, and costs support the proposed plans |
-| 4. Shared specialists | Incrementally add or improve designer, analyst, and quality-review steps around the existing interviewer | Each addition improves quality or saves time at an acceptable measured cost |
-| 5. More categories | Reuse the core with tailored questions, terminology, and reporting | Demonstrated demand and evaluation examples for each new category |
-
-The subscription pilot is the first paid milestone. Design and category validation
-prepare that milestone; they do not require building every specialist or category first.
-
-## 8. Progress at consolidation
-
-| Item | Evidence and status |
-|---|---|
-| Core survey engine and respondent flow | Existing repository capabilities |
-| Tracing, cost views, embeddings, and evaluation | Merged work through [PR #75](https://github.com/Pawansingh3889/elenchus/pull/75); the local checkout does not yet contain merged PRs #73 to #75 |
-| IAM-style role grants | [PR #76](https://github.com/Pawansingh3889/elenchus/pull/76) is open; this is separate from customer workspace isolation and subscription enforcement |
-| Three design concepts | Preserved at [design/elenchus-directions.html](design/elenchus-directions.html); not integrated into the product |
-| Consolidated commercial plan | Captured in this document |
-| Editable demos saved in the repository | Done — see the design concepts row above |
-| Needs conversation and plan recommendation | Proposed; no implementation found in the recovered work |
-| Commercial self-service workspace and builder | Proposed; not delivered by the design demo |
-| Sign-in, customer isolation, billing, and subscription enforcement | Commercial launch requirements; not established as complete by this progress review |
-
-This is a dated progress snapshot, not a fresh test or deployment report. The current
-uncommitted Docker startup changes are separate from this product plan.
-
-## 9. Next actions and unresolved choices
-
-- [x] Recover the voice-session plan and consolidate it into a repository Markdown file.
-- [x] Preserve the existing HTML concept under `docs/design/`, with a standalone browser
-  preview and editing instructions.
-- [x] Choose or combine design directions A, B, and C: none of them. The app took the
-  FloorMind palette and type on 25 Sep 2026 (§1); A/B/C remain preserved as reference only.
-- [x] Choose the first customer segment: employee feedback (§4). Identifying actual
-  pilot users is still open.
-- [ ] Build a clickable needs-conversation and recommendation demo using clearly labeled
-  sample plans, without presenting undecided prices as real offers.
-- [ ] Confirm the first category's end-to-end scope before production implementation.
-- [ ] Measure costs and decide Starter and Team prices, response allowances, and seat limits.
-- [ ] Specify sign-in, customer workspace isolation, billing, cancellation, and usage enforcement.
-- [ ] Evaluate each specialist improvement before expanding to more categories.
-
-## 10. Source and related documents
-
-Recovered source: the local voice conversation on 18 September 2026, approximately
-07:59 to 08:15 IST. It records the commercial direction, design demos, roadmap, and
-request to add those references to the repository.
-
-Source session identifier: `01a0b24b-3760-7120-8602-2d97696b81a1`.
-
-Original design artifact, preserved as a standalone page at
-[design/elenchus-directions.html](design/elenchus-directions.html): open it directly in
-any browser, no build step or server. It was originally an embedded ChatGPT-widget
-fragment (the `window.openai` / `Tweak` hooks in its script are optional-chained no-ops
-outside that host), so the live-tweak side panel and state persistence between reloads
-do not apply here — the design switching, view tabs and rating buttons all work as
-before. Editing instructions are in a comment at the top of the file. It was previously
-only on this device, at
-`~/.codex/visualizations/2026/09/18/01a0b24b-3760-7120-8602-2d97696b81a1/elenchus-directions.html`.
-
-Related project references:
-
-- [Current product overview](OVERVIEW.md)
-- [Access and results](ACCESS_AND_RESULTS.md)
-- [Known defects](DEFECTS.md)
-- [Development and verification checks](CHECKS.md)
-- [Project guide](../CLAUDE.md)
-- [Original trial brief](../trial-brief/README.md)
-
-Keep proposed features here until implemented. Update the progress table when work is
-verified, record settled product choices explicitly, and leave technical release history
-in [CHANGELOG.md](../CHANGELOG.md).
+Shared sign-on, payment checkout, standalone Elenchus plans, cross-survey comparisons and
+action tracking are outside the initial demo. The chatbot is explicitly a later phase.

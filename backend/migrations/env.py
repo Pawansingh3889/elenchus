@@ -11,6 +11,7 @@ from alembic import context
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.config import get_settings
+from app.demo import models as _demo_models  # noqa: F401
 from app.embeddings import models as _embeddings_models  # noqa: F401
 from app.evaluation import models as _evaluation_models  # noqa: F401
 from app.interp import models as _interp_models  # noqa: F401

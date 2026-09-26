@@ -75,6 +75,9 @@ services:
       # Empty by default, so a deployment that says nothing has no administrators rather
       # than an accidental one. Granting it is a deliberate line in the environment.
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET for signed sessions and private survey links}
+      DEMO_ENABLED: ${DEMO_ENABLED:-false}
+      DEMO_MONTHLY_BUDGET_USD: ${DEMO_MONTHLY_BUDGET_USD:-10}
       # Sized for the break-time burst; see config.py. Forwarded so overrides land.
       DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
       DB_POOL_MAX_OVERFLOW: ${DB_POOL_MAX_OVERFLOW:-30}

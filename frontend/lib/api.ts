@@ -93,7 +93,7 @@ function errorDetail(body: unknown, fallback: string): string {
   return fallback;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const userId = useUserStore.getState().currentUserId;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (userId) headers["X-User-Id"] = userId;
@@ -132,7 +132,7 @@ function scoped(path: string, scope: LensScope): string {
   return text ? `${path}?${text}` : path;
 }
 
-async function parsed<S extends ZodType>(
+export async function parsed<S extends ZodType>(
   path: string,
   schema: S,
   init?: RequestInit,

@@ -41,6 +41,7 @@ model's own good idea dressed up as something a respondent said, the same failur
 the conduct engine's grounding gate exists to catch on individual answers, one layer up.
 """
 
+import hashlib
 import json
 import logging
 import re
@@ -53,6 +54,7 @@ from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.access import is_admin_by_config, may_edit
+from app.demo.policy import check_access
 from app.errors import ConflictError, ForbiddenError, NotFoundError
 from app.llm import ledger
 from app.llm.client import LLMError, LLMProtocol
@@ -69,8 +71,8 @@ logger = logging.getLogger("app.runs.survey_summary")
 
 MAX_FINDINGS = 3
 MAX_SUGGESTIONS = 3
-PROMPT_VERSION = "summarise_survey_v4"
-VERIFY_PROMPT_VERSION = "verify_survey_summary_v4"
+PROMPT_VERSION = "summarise_survey_v5"
+VERIFY_PROMPT_VERSION = "verify_survey_summary_v5"
 
 # The caps the terse shape runs on: a punchy headline and one-clause findings. A longer
 # candidate is refused at validation, on the rule that a recap past its size was already
@@ -112,6 +114,13 @@ class Finding(BaseModel):
         return statement
 
 
+class ProposedAction(BaseModel):
+    """AI advice for human review, never presented as respondent evidence."""
+
+    action: str = Field(min_length=1, max_length=240)
+    question_position: int | None = None
+
+
 class SurveySummaryContent(BaseModel):
     """What the model returns. Only the headline is required, for the same reason the
     run summary requires only its own: a survey answered twice by two people who ticked
@@ -129,6 +138,7 @@ class SurveySummaryContent(BaseModel):
     headline: str = Field(min_length=1, max_length=_HEADLINE_MAX)
     findings: list[Finding] = Field(default_factory=list, max_length=MAX_FINDINGS)
     suggestions: list[Finding] = Field(default_factory=list, max_length=MAX_SUGGESTIONS)
+    proposed_actions: list[ProposedAction] = Field(default_factory=list, max_length=3)
 
     @field_validator("headline")
     @classmethod
@@ -152,6 +162,7 @@ class SurveySummaryRead(BaseModel):
     headline: str
     findings: list[FindingRead]
     suggestions: list[FindingRead] = Field(default_factory=list)
+    proposed_actions: list[ProposedAction] = Field(default_factory=list)
     # The evidence line, computed from the report at generation time and stored with
     # the recap. Engine numbers only: the one line that qualifies everything above it
     # must not itself be a model's claim.
@@ -313,6 +324,7 @@ class SurveySummaryService:
         if stored is not None and not refresh:
             return stored
 
+        await check_access(self.session)
         with ledger.measuring(None) as spend:
             content = await self._generate(report, reviewer_notes=None)
             verdict = await self._verify(report, content)
@@ -407,6 +419,7 @@ class SurveySummaryService:
             # versions and is recorded in CLAUDE.md rather than hidden here.
             "caveat": _caveat(report),
             "runs_included": report.runs_completed,
+            "source_fingerprint": _fingerprint(report),
             "prompt_version": PROMPT_VERSION,
             "verify_prompt_version": VERIFY_PROMPT_VERSION,
             # The tier that wrote it, for the same reason the run summary records one: a
@@ -434,6 +447,8 @@ class SurveySummaryService:
         """
         stored = template.summary
         if not isinstance(stored, dict):
+            return None
+        if stored.get("source_fingerprint") != _fingerprint(report):
             return None
         if stored.get("runs_included") != report.runs_completed:
             return None
@@ -527,6 +542,12 @@ class SurveySummaryService:
 # ------------------------------------------------------------------------- helpers
 
 
+def _fingerprint(report: SurveyReport) -> str:
+    return hashlib.sha256(
+        json.dumps(report.model_dump(mode="json"), sort_keys=True).encode()
+    ).hexdigest()
+
+
 def _caveat(report: SurveyReport) -> str:
     """The evidence line, from the report and nowhere else.
 
@@ -548,7 +569,7 @@ def _decode_stringified_fields(raw: dict[str, Any]) -> dict[str, Any]:
     path already handles. A right answer wrapped in a string is a serialization
     artifact, not a content problem, and burning the retry on it helps nobody."""
     out = dict(raw)
-    for key in ("findings", "suggestions"):
+    for key in ("findings", "suggestions", "proposed_actions"):
         if key in out:
             out[key] = decode_stringified(out[key], list)
     return out
@@ -584,7 +605,7 @@ def _without_unknown_questions(raw: dict[str, Any], report: SurveyReport) -> dic
     """
     positions = {q.position for q in report.questions}
     out = dict(raw)
-    for key in ("findings", "suggestions"):
+    for key in ("findings", "suggestions", "proposed_actions"):
         items = out.get(key)
         if not isinstance(items, list) or not items:
             continue
@@ -632,6 +653,7 @@ def _with_numbers(
         headline=content.headline,
         findings=_attach_numbers(content.findings, by_position),
         suggestions=_attach_numbers(content.suggestions, by_position),
+        proposed_actions=content.proposed_actions,
         # Required, not defaulted: every document written under PROMPT_VERSION carries
         # one, and `_reusable` refuses older documents before they reach here.
         caveat=str(document["caveat"]),

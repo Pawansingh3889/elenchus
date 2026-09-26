@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { LOCALES, isLocale, type Locale } from "@/lib/i18n";
 import { useDocumentLanguage, useT } from "@/lib/i18n/useT";
-import { useIdentify, useMe, useProviders, useUsers } from "@/lib/queries";
+import { useIdentify, useMe, useProviders, useSession } from "@/lib/queries";
 import { useLocaleStore, useUserStore } from "@/lib/store";
 
 /**
@@ -77,71 +79,42 @@ function SignIn() {
 }
 
 export function TopBar() {
-  const { data: users } = useUsers();
-  const currentUserId = useUserStore((s) => s.currentUserId);
-  const setCurrentUserId = useUserStore((s) => s.setCurrentUserId);
+  const pathname = usePathname();
+  const { data: session } = useSession();
+  const { data: me } = useMe();
+  const qc = useQueryClient();
   const locale = useLocaleStore((s) => s.locale);
   const setLocale = useLocaleStore((s) => s.setLocale);
   const { topbar } = useT();
-  const { data: me } = useMe();
   useDocumentLanguage();
 
-  return (
-    <header className="topbar">
-      <div className="topbar-left">
-        {/* One brand target for every role now that `/` explains the product rather than
-            being the author's workspace. A respondent clicking it used to land on the
-            dashboard's redirect; now it lands somewhere that reads as an answer to
-            "what is this", which is what a first-time arrival is asking. */}
-        <Link href="/" className="topbar-brand">
-          {topbar.brandLead} <span>{topbar.brandTail}</span>
-        </Link>
-        <nav className="topbar-nav">
-          <Link href="/">{topbar.home}</Link>
-          <Link href="/respond">{topbar.respond}</Link>
-          {/* Administrators only, and the server says who that is: the lens reads are
-              refused to anyone else, so a link that led to a refusal would be a lie. */}
-          {me?.is_admin ? <Link href="/lens">Lens</Link> : null}
-        </nav>
-      </div>
-      <div className="topbar-user">
-        {/* Nobody selected means the picker below is not merely empty, it is unfillable:
-            listing users needs a caller, a caller is an id, and this dropdown was the
-            only place to get one. So the first thing shown is a way in, not a dropdown
-            with one disabled placeholder in it and every page telling you to use it. */}
-        {currentUserId ? (
-          <>
-            <span className="topbar-user-label">{topbar.actingAs}</span>
-            <select
-              value={currentUserId}
-              onChange={(e) => setCurrentUserId(e.target.value || null)}
-            >
-              <option value="">{topbar.selectUser}</option>
-              {users?.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.display_name} · {u.function ?? "-"}
-                </option>
-              ))}
-            </select>
-          </>
-        ) : (
-          <SignIn />
-        )}
-        <select
-          aria-label={topbar.language}
-          value={locale}
-          onChange={(e) => {
-            const next = e.target.value;
-            if (isLocale(next)) setLocale(next as Locale);
-          }}
-        >
-          {Object.entries(LOCALES).map(([code, { label }]) => (
-            <option key={code} value={code}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </div>
+  if (pathname === "/") return (
+    <header className="topbar commercial-nav">
+      <Link href="/" className="topbar-brand">elenchus<span>.</span></Link>
+      <nav className="topbar-nav" aria-label="Product">
+        <a href="#walkthrough">Experience</a><a href="#insights">Insights</a>
+        <a href="#access">Access</a><a href="#roadmap">Roadmap</a>
+        <Link className="btn btn-primary" href={me?.may_author ? "/workspace" : "/demo"}>{me?.may_author ? "Your workspace" : "Enter demo"}</Link>
+      </nav>
     </header>
   );
+
+  const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+  return <header className="topbar product-nav">
+    <div className="topbar-left">
+      <Link href="/" className="topbar-brand">elenchus<span>.</span></Link>
+      <nav className="topbar-nav" aria-label="Workspace">
+        {me?.may_author && <Link href="/workspace">Workspace</Link>}
+        {session && <Link href="/respond">{topbar.respond}</Link>}
+        {me?.is_operator && <Link href="/demo/operator">Demo operations</Link>}
+        {me?.is_admin && <Link href="/lens">Lens</Link>}
+      </nav>
+    </div>
+    <div className="topbar-user">
+      {session ? <><span>{session.display_name}</span><form method="post" action={`${base}/api/v1/auth/logout`} onSubmit={() => { useUserStore.getState().setCurrentUserId(null); qc.clear(); }}><button className="text-button">Sign out</button></form></> : pathname === "/signin" ? <SignIn /> : <Link href="/demo">Enter with a pass</Link>}
+      <select aria-label={topbar.language} value={locale} onChange={event => { const next = event.target.value; if (isLocale(next)) setLocale(next as Locale); }}>
+        {Object.entries(LOCALES).map(([code, { label }]) => <option key={code} value={code}>{label}</option>)}
+      </select>
+    </div>
+  </header>;
 }

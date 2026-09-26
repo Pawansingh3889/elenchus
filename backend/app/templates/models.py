@@ -34,6 +34,7 @@ class SurveyTemplate(WorkspaceOwned, Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     title: Mapped[str] = mapped_column(String(300))
+    sessions_started: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     description: Mapped[str | None] = mapped_column(Text, default=None)
     status: Mapped[TemplateStatus] = mapped_column(
         SAEnum(TemplateStatus, name="template_status"), default=TemplateStatus.draft

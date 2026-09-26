@@ -18,6 +18,7 @@ from app.access import (
     may_list,
     reads_all_surveys,
 )
+from app.demo.policy import check_draft, count_survey
 from app.errors import ConflictError, ForbiddenError, NotFoundError
 from app.templates.enums import TemplateStatus
 from app.templates.estimate import estimated_minutes
@@ -40,6 +41,7 @@ class TemplateService:
         self.users = UserRepository(session)
 
     async def create_draft(self, data: TemplateCreate, author: User) -> SurveyTemplate:
+        await check_draft(self.session, len(data.questions), create=True)
         template = SurveyTemplate(
             title=data.title,
             description=data.description,
@@ -53,6 +55,7 @@ class TemplateService:
         )
         template.questions = [_to_question(q, i) for i, q in enumerate(data.questions)]
         self.repo.add(template)
+        await count_survey(self.session)
         await self.session.commit()
         return await self._get_or_404(template.id, author)
 
@@ -112,6 +115,7 @@ class TemplateService:
         return [
             (template, len(questions), estimated_minutes(questions), template.id in answered)
             for template in templates
+            if user.demo_survey_id is None or template.id == user.demo_survey_id
             if may_answer(
                 user,
                 template.audience,
@@ -125,6 +129,7 @@ class TemplateService:
     async def update_draft(
         self, template_id: UUID, data: TemplateUpdate, author: User
     ) -> SurveyTemplate:
+        await check_draft(self.session, len(data.questions))
         template = await self._get_for_edit_or_404(template_id, author)
         # Frozen once published, wholly, not just its audience.
         #
@@ -196,6 +201,7 @@ class TemplateService:
         out.
         """
         template = await self._get_for_edit_or_404(template_id, author)
+        await check_draft(self.session, len(template.questions))
         if not template.questions:
             raise ConflictError("Cannot publish a template with no questions.")
         template.status = TemplateStatus.published

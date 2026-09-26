@@ -178,7 +178,7 @@ async def test_autogenerate_preserves_tenant_constraints_without_changing_orm(en
             or str(constraint.name).endswith("_workspace_id_id")
         )
     }
-    assert len(tenant_names) == 46
+    assert len(tenant_names) == 47
     removed = {
         difference[1].name
         for difference in differences

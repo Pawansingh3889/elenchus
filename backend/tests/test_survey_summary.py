@@ -159,6 +159,30 @@ async def test_a_stored_recap_is_reused_while_it_is_still_true(session, author, 
     assert recap.runs_included == 1
 
 
+async def test_an_unfinished_answer_change_invalidates_summary_evidence(
+    session, author, respondent, other_respondent
+):
+    template = await _surveyed(session, author, respondent)
+    run = await ConductEngine(session, llm=FakeLLM()).start_run(template.id, other_respondent)
+    service = SurveySummaryService(
+        session,
+        llm=FakeLLM(
+            _recap(
+                proposed_actions=[{"action": "Consider a handover review.", "question_position": 0}]
+            ),
+            _faithful(),
+        ),
+    )
+    written = await service.summarise(template.id, author)
+    assert written.proposed_actions[0].action == "Consider a handover review."
+    await ConductEngine(session, llm=FakeLLM(record("the press"), move_on())).handle_message(
+        run.id, "the press", other_respondent
+    )
+    stored = await service.stored(template.id, author)
+    assert stored.recap is None
+    assert stored.absence == "outdated"
+
+
 async def test_a_new_response_makes_the_stored_recap_wrong_not_stale(
     session, author, respondent, other_respondent
 ):
@@ -250,11 +274,11 @@ async def test_the_recap_carries_what_wrote_it(session, author, respondent):
     written = await SurveySummaryService(session, llm=llm).summarise(template.id, author)
     read_back = await SurveySummaryService(session, llm=FakeLLM()).stored(template.id, author)
 
-    assert written.prompt_version == "summarise_survey_v4"
-    assert written.verify_prompt_version == "verify_survey_summary_v4"
+    assert written.prompt_version == "summarise_survey_v5"
+    assert written.verify_prompt_version == "verify_survey_summary_v5"
     assert read_back.recap is not None
-    assert read_back.recap.prompt_version == "summarise_survey_v4"
-    assert read_back.recap.verify_prompt_version == "verify_survey_summary_v4"
+    assert read_back.recap.prompt_version == "summarise_survey_v5"
+    assert read_back.recap.verify_prompt_version == "verify_survey_summary_v5"
 
 
 async def test_reading_a_recap_of_someone_elses_survey_is_a_404(

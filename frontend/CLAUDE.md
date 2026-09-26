@@ -4,16 +4,13 @@ Loaded when working under `frontend/`. Each one only bites while editing fronten
 and the root file is in context for every session including the ones that never open
 this directory.
 
-- **The browser is the respondent path, and nothing else.** Cut on 13 Sep 2026, asked for
-  directly. Four pages remain: `/`, `/signin`, `/respond` and `/runs/[id]`. The dashboard,
-  builder, Results page, people admin and LLM admin screens are gone from the browser;
-  every endpoint behind them is still served and still covered by the backend suite, so
-  authoring is an API call. `/` is the commercial page (25 Sep 2026, after
-  floormind.pages.dev): every claim on it is something the code does today, and it names
-  no price, because prices wait for measured operating cost. The only planned additions are the lens pages, one per factor
-  (hidden layers, embeddings, attention, state, relationship, inference, tool selection,
-  evaluation, validation), each showing cost and latency beside what it explains. Do not
-  rebuild an authoring screen to get there.
+- **The browser includes the complete private demo journey.** Approved 26 Sep 2026.
+  `/` is the public commercial page with an explicitly illustrative interactive sample.
+  `/demo` redeems private passes; `/workspace` lists surveys; `/surveys/[id]` edits,
+  publishes and shares them; `/surveys/[id]/results` shows real results and exports.
+  `/s` accepts a survey-scoped invitation, then uses the existing `/runs/[id]` chat.
+  `/demo/operator` is restricted to configured KapkotiSolution operators. The server
+  owns access, quotas and product entitlements. The later chatbot is a roadmap item.
 - **Styling is `app/globals.css` and nothing else.** Tailwind, shadcn/ui, Radix, cva,
   clsx, tailwind-merge and lucide were removed with the pages that used them. Tokens sit
   at the top of the file, where `check_contrast.py` measures them; class rules sit below,
@@ -25,7 +22,7 @@ this directory.
 - **`recharts` is the one charting dependency, and chart colour is validated, not chosen.**
   Series colours are `--series-1` to `--series-4` in all three token blocks of
   `globals.css` (base, dark by media query, dark by `data-theme`, which all hold the same
-  light FloorMind values), checked with the dataviz palette script on 25 Sep 2026 against
+  light plum and ivory values), checked with the dataviz palette script on 25 Sep 2026 against
   white. All four pass for adjacent marks (bars, stacks, lines); only the first three pass
   all-pairs, so a scatter or small multiple uses one series and facets instead of seating
   more hues. Colour follows the entity, never its rank;

@@ -26,6 +26,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.demo.policy import check_access
 from app.errors import ConflictError, NotFoundError
 from app.i18n import language_note
 from app.llm import ledger
@@ -177,6 +178,7 @@ class RunSummaryService:
             except PydanticValidationError:
                 logger.warning("stored summary no longer validates, regenerating: run=%s", run.id)
 
+        await check_access(self.session)
         if run.status is not RunStatus.completed:
             raise ConflictError("Only a completed run can be summarised.")
         if not run.answers:
