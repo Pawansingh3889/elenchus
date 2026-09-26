@@ -72,8 +72,9 @@ Production requires both variables, supplied through the deployment's secret man
 
 The container startup script applies migrations first, refuses to start after a failed
 migration, removes `MIGRATION_DATABASE_URL` from the server environment, then starts the
-API. Production startup independently checks that the runtime role cannot bypass row
-security, that it is not a member of the object-owner role, and that every mapped table
+API. Production startup independently checks that the runtime role and its memberships have
+no administrative attributes (superuser, RLS bypass, role/database creation or replication),
+that it is not a member of the object-owner role, and that every mapped table
 has enabled and forced row security. It does not verify policy expressions or every
 grant; migration review and isolation tests are still required. The startup script is
 not a replacement for separating secrets in a dedicated migration job in a hardened
@@ -97,6 +98,50 @@ The deployment role must actually own existing tables and create future ones for
 default privileges to apply. Do not grant runtime membership in it, schema ownership,
 `TRUNCATE`, or migration privileges. Review inherited grants and privileges on functions
 as part of deployment. Do not paste passwords into SQL files or commit database URLs.
+
+### Neon role setup
+
+[Neon roles created through the Console, CLI or API](https://neon.com/docs/manage/roles)
+receive `neon_superuser` membership. A different login name alone does not restrict
+the app. Neon can refuse to revoke this membership, so create a fresh runtime login
+through SQL. As `neondb_owner`, on the intended branch and database (`neondb` here):
+
+```sql
+BEGIN;
+CREATE ROLE elenchus_app LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOREPLICATION;
+GRANT CONNECT ON DATABASE neondb TO elenchus_app;
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+GRANT USAGE ON SCHEMA public TO elenchus_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO elenchus_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE neondb_owner IN SCHEMA public
+    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO elenchus_app;
+COMMIT;
+```
+
+This login has no password yet. Set one privately using Neon's **Reset password**
+action for `elenchus_app`, then replace the deployment's `DATABASE_URL` secret with
+its pooled connection URL. Keep `MIGRATION_DATABASE_URL` on the direct owner connection.
+For the asyncpg driver use `postgresql+asyncpg://` and `?ssl=verify-full` instead of
+Neon's libpq query parameters (`sslmode` and `channel_binding`). In the supplied Linux
+container, also set `PGSSLROOTCERT=/etc/ssl/certs/ca-certificates.crt` so asyncpg can
+verify Neon's certificate against the system CA bundle.
+
+After the first migration, revoke runtime access to the migration table, which the
+default table grant also covers:
+
+```sql
+REVOKE ALL ON TABLE public.alembic_version FROM elenchus_app;
+```
+
+Verify without reading any credentials:
+
+```sql
+SELECT rolname, rolsuper, rolbypassrls, rolcreaterole, rolcreatedb, rolreplication,
+       pg_has_role(rolname, 'neon_superuser', 'MEMBER') AS neon_admin
+FROM pg_roles WHERE rolname = 'elenchus_app';
+```
+
+All six boolean columns must be false. Production startup repeats the privilege check.
 
 ## Migrating existing data
 

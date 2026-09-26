@@ -24,6 +24,8 @@ from app.conduct.validation import (
     validate_answer,
 )
 from app.config import get_settings
+from app.demo.policy import active, admit_session, check_access
+from app.demo.repository import DemoRepository
 from app.embeddings.math import cosine
 from app.embeddings.repository import EmbeddingRepository
 from app.embeddings.service import digest
@@ -179,6 +181,11 @@ class ConductEngine:
         # the same as pressing Continue. The builder already behaves this way (the
         # respond page turns Start into Continue), but it was only ever an affordance:
         # a direct POST opened a second run and stranded the first half-answered.
+        if respondent.demo_survey_id is not None and respondent.demo_survey_id != template_id:
+            raise ForbiddenError("This participant session is limited to its invited survey.")
+        access = await DemoRepository(self.session).access(lock=True)
+        if access is not None:
+            active(access)
         existing = await self.repo.answered_already(template_id, respondent.id)
         if existing is not None:
             if existing.status is RunStatus.completed:
@@ -198,6 +205,7 @@ class ConductEngine:
         if not questions:
             raise ConflictError("This survey has no questions.")
 
+        await admit_session(self.session, template_id, respondent)
         run = SurveyRun(template_id=template.id, respondent_id=respondent.id, language=language)
         run.messages.append(
             RunMessage(
@@ -329,6 +337,7 @@ class ConductEngine:
         # The lock is the same serialisation `_locked_open_run` provides: one turn at a
         # time per run, so a double-clicked send cannot read the same pending list twice
         # and then write two replies.
+        await check_access(self.session)
         if not await self.repo.try_lock(run_id):
             raise ConflictError("This run is already handling a message. Try again in a moment.")
         run = await self.load(run_id, respondent)

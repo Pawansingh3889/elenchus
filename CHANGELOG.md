@@ -5,6 +5,37 @@ All notable changes to the Elenchus Survey Service, from the first commit onward
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The project is not yet versioned, so entries are grouped by date. Newest first.
 
+## 2026-09-27. Restricted database roles on managed PostgreSQL
+
+- Production startup now refuses inherited administrative roles, including Neon's
+  `neon_superuser` membership, as well as direct role/database creation and replication
+  privileges. A separate runtime login must also have restricted privileges.
+- Documented creating a restricted Neon login through SQL, replacing the runtime
+  connection secret, and using certificate-verified connections with asyncpg.
+- Container build contexts now exclude local environment files and request logs,
+  including the monolith build used for Cloud Run.
+
+## 2026-09-26. Private commercial demo and product access
+
+- Plum and ivory commercial page with an interactive sample survey journey, question
+  editing, illustrative dashboards, evidence drilldowns and the product access roadmap.
+- Private operator-issued passes create separate workspaces. Trials allow three lifetime
+  survey drafts, ten questions each, twenty respondent sessions each and fourteen days.
+  Backend checks serialize concurrent admissions and preserve allowances after deletion.
+- Browser authoring, publishing, survey links, results, conversation inspection, CSV and
+  print-to-PDF export. Survey-scoped participants enter without giving names or emails.
+- Operator dashboard for passes, activation, durable survey counts and AI budget coverage.
+  Verified purchases of any KapkotiSolution product unlock survey creation with an agreed
+  monthly response-session allowance. Subscriptions expire; one-time purchases do not.
+- Pre-request demo AI reservations include transport retries and failover. Unknown costs
+  retain their reservation. The configured shared cap cannot exceed US$10 per UTC month.
+- Survey summary v5 separates respondent suggestions from AI-proposed actions and
+  invalidates saved recaps when their source report changes, including unfinished answers.
+- Fixed manager audience calculation for workspace owners without a job band. Authoring
+  permission no longer substitutes for a manager job when calculating survey reach.
+- Existing databases are preserved. Demo access stays off until explicitly configured.
+  Automatic chatbot pass issuance and cross-survey action tracking remain planned.
+
 ## 2026-09-25. Demo mode removed, production provisioning
 
 - Free with sign-in: with `OPEN_SIGNUP_WORKSPACE_ID` set, a first Google or Microsoft

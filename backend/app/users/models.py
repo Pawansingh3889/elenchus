@@ -122,6 +122,8 @@ class User(WorkspaceOwned, Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     email: Mapped[str] = mapped_column(String(320), unique=True)
+    # Guest credentials are restricted to the one survey they were issued for.
+    demo_survey_id: Mapped[UUID | None] = mapped_column(default=None)
     display_name: Mapped[str] = mapped_column(String(200))
     # The Entra object id, for the people who sign in with Microsoft. Sign-in method
     # only: it decides nothing about what the account may do, which is `band`'s job.

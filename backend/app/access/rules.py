@@ -220,8 +220,8 @@ def _in_derived_audience(user: User, audience: SurveyAudience) -> AccessDecision
         return AccessDecision(False, "this survey is for people with health and safety duties")
 
     if audience is SurveyAudience.managers:
-        if may_author(user):
-            return AccessDecision(True, f"{user.band.value} band")  # type: ignore[union-attr]
+        if user.band is not None and BAND_RANK[user.band] >= _AUTHORING_RANK:
+            return AccessDecision(True, f"{user.band.value} band")
         return AccessDecision(False, "this survey is for the manager bands and up")
 
     return AccessDecision(False, f"no membership rule for audience {audience.value}")

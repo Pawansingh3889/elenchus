@@ -15,7 +15,9 @@ from pydantic import Field
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.errors import ValidationError
+from app.access import is_admin_by_config, may_edit
+from app.demo.policy import check_access, check_draft
+from app.errors import ConflictError, ForbiddenError, ValidationError
 from app.llm import ledger
 from app.llm.client import LLMError, LLMProtocol
 from app.llm.decoding import decode_stringified
@@ -164,6 +166,10 @@ class GenerationService:
         which is the same failure the `TemplateUpdate` docstring records. Overriding after
         the draft returns keeps one answer to "who is this for", and it is the author's."""
         requested = _requested_question_count(prompt)
+        await check_draft(self.session, requested, create=True)
+        access = await check_access(self.session)
+        if access is not None and not access.customer_product and requested is None:
+            requested = 5
         if requested is not None and requested > MAX_GENERATED_QUESTIONS:
             # Refused before any model call: with the bound in the schema and the cap in
             # the validator, a brief past the cap could only ever fail after two paid
@@ -194,6 +200,14 @@ class GenerationService:
         the model's note on what changed. The whole survey is re-drafted and re-validated,
         so a follow-up can never leave the draft in an invalid shape."""
         current = await self.templates.get_draft(template_id, author)
+        decision = may_edit(author, current.created_by, is_admin_by_config(author))
+        if not decision:
+            raise ForbiddenError(decision.reason)
+        await check_draft(self.session)
+        if current.status.value != "draft":
+            raise ConflictError(
+                "A published survey cannot be edited. Close it and publish a new one instead."
+            )
         system = load_prompt(REFINE_PROMPT_VERSION)
         message = (
             f"{_describe(current)}\n{_policy()}\n\nRequested change: {instruction}\n\n"

@@ -85,7 +85,28 @@ curl -s http://localhost:8000/api/v1/templates \
 
 ## Walk through it
 
-1. Author a survey as Ava through the API; the browser has no authoring screens. Describe
+### Private commercial demo
+
+The current offer is in [the commercial plan](docs/COMMERCIAL_PLAN.md), with deployment
+inputs in [commercial readiness](docs/COMMERCIAL_READINESS.md).
+
+1. Explore the interactive example on `/`. Its data is illustrative and it makes no model calls.
+2. Configure `SESSION_SECRET`, the operator's `ADMIN_EMAILS`, hosted model prices and
+   `DEMO_ENABLED=true`. Keep `OPEN_SIGNUP_WORKSPACE_ID` unset for the pass-based offer.
+3. Sign in as the operator and open `/demo/operator`. Issue a private 14-day pass.
+4. Open its `/demo#...` link, create up to three surveys, review and publish.
+5. Share the survey's `/s#...` link. Participants enter without supplying names or emails.
+6. Inspect `/surveys/[id]/results`, generate a checked recap, export CSV or print/save PDF.
+7. After verifying a qualifying product purchase, activate the same workspace with an
+   explicit monthly respondent-session allowance. Demo work is preserved.
+
+The migration adds tenant-scoped access, usage and cost-reservation records. It does not
+wipe existing data. Trials stop new work at expiry while retained results stay readable.
+The later chatbot will collect contact details and request passes after email verification.
+
+### Existing API walkthrough
+
+1. Author a survey as Ava through the API. Describe
    it, then publish the draft that comes back (its id is `template.id` in the response):
 
    ```bash

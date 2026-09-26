@@ -23,6 +23,7 @@ export const meSchema = z.object({
   band: z.string().nullable(),
   may_author: z.boolean(),
   is_admin: z.boolean(),
+  is_operator: z.boolean(),
 });
 export type Me = z.infer<typeof meSchema>;
 

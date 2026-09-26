@@ -41,6 +41,8 @@ services:
       OAUTH_GOOGLE_CLIENT_ID: ${OAUTH_GOOGLE_CLIENT_ID:-}
       OAUTH_GOOGLE_CLIENT_SECRET: ${OAUTH_GOOGLE_CLIENT_SECRET:-}
       SESSION_SECRET: ${SESSION_SECRET:-}
+      DEMO_ENABLED: ${DEMO_ENABLED:-false}
+      DEMO_MONTHLY_BUDGET_USD: ${DEMO_MONTHLY_BUDGET_USD:-10}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8000}
       # The OpenAI-compatible LLM tiers, tried in order (see .env.example). Passed
       # through explicitly: without these the container never sees the settings and the

@@ -32,6 +32,7 @@ def migration_metadata() -> MetaData:
             )
         )
     for table, column, parent in (
+        ("demo_access", "owner_id", "users"),
         ("survey_analysts", "template_id", "survey_templates"),
         ("survey_analysts", "analyst_id", "users"),
         ("survey_analysts", "assigned_by", "users"),

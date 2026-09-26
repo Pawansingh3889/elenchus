@@ -389,6 +389,14 @@ class Settings(BaseSettings):
     # database edit and so an admin can still belong to a real department. The cost is
     # that it is easy to change and hard to audit, which is why app.access logs every time
     # this is what let a request through.
+    demo_enabled: bool = Field(False, description="Enable manually issued private demo passes.")
+    demo_monthly_budget_usd: float = Field(
+        10,
+        ge=0,
+        le=10,
+        description="Global demo AI ceiling per UTC month; never above the approved $10.",
+    )
+
     admin_emails: str = Field(
         "", description="Comma-separated admin emails, e.g. you@example.com,ops@example.com"
     )

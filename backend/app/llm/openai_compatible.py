@@ -282,6 +282,23 @@ class OpenAICompatibleLLMClient:
         stream: bool,
         produces_output: bool,
     ) -> dict[str, Any]:
+        from app.demo.budget import reserve_attempt
+
+        async with reserve_attempt(
+            payload, self._priced_as or ledger.economics_for(self._tier)
+        ) as recorded:
+            result = await self._send_attempt(payload, op, path, stream, produces_output)
+            recorded.update(result)
+            return result
+
+    async def _send_attempt(
+        self,
+        payload: dict[str, Any],
+        op: str,
+        path: str,
+        stream: bool,
+        produces_output: bool,
+    ) -> dict[str, Any]:
         headers = {"Content-Type": "application/json"}
         if self._api_key:
             headers["Authorization"] = f"Bearer {self._api_key}"

@@ -25,6 +25,7 @@ from app.access import is_workspace_admin, may_author
 from app.auth import oauth
 from app.config import get_settings
 from app.db.session import get_session
+from app.demo.repository import DemoRepository
 from app.errors import ForbiddenError, UnauthorizedError
 from app.users.models import User, WorkspaceRole
 from app.users.repository import UserRepository
@@ -44,13 +45,17 @@ async def get_current_user(
             # Expired or tampered with. Said plainly, because the fix is to sign in
             # again and a bare 401 sends people to support instead.
             raise UnauthorizedError("Your session has expired. Please sign in again.")
-        if not await WorkspaceRepository(session).resolve_identity(user_id=UUID(signed)):
+        try:
+            user_id = UUID(signed)
+        except ValueError as exc:
+            raise UnauthorizedError("Your session is invalid. Please sign in again.") from exc
+        if not await WorkspaceRepository(session).resolve_identity(user_id=user_id):
             raise UnauthorizedError("That account no longer exists.")
-        user = await users.get(UUID(signed))
+        user = await users.get(user_id)
         if user is None:
             # The account was deleted while its session was live.
             raise UnauthorizedError("That account no longer exists.")
-        return user
+        return await _not_revoked(user, session)
 
     if x_user_id is None or get_settings().app_env == "prod":
         # No cookie and no header is nobody, and nobody is a 401.
@@ -72,6 +77,13 @@ async def get_current_user(
     user = await users.get(x_user_id)
     if user is None:
         raise UnauthorizedError("Unknown user id.")
+    return await _not_revoked(user, session)
+
+
+async def _not_revoked(user: User, session: AsyncSession) -> User:
+    access = await DemoRepository(session).access()
+    if access is not None and access.revoked_at is not None:
+        raise ForbiddenError("This workspace's access has been revoked. Contact KapkotiSolution.")
     return user
 
 

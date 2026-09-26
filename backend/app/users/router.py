@@ -175,6 +175,7 @@ async def read_me(user: User = Depends(get_current_user)) -> MeRead:
         band=user.band,
         may_author=may_author(user),
         is_admin=is_admin_by_config(user),
+        is_operator=user.email.casefold() in get_settings().admin_email_set,
         workspace_role=user.workspace_role,
     )
 

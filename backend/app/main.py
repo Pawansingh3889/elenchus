@@ -21,6 +21,7 @@ from app.auth.router import router as auth_router
 from app.conduct.router import router as runs_router
 from app.config import get_settings
 from app.db.session import SessionFactory, get_session
+from app.demo.router import router as demo_router
 from app.embeddings.router import router as embeddings_router
 from app.errors import register_error_handlers
 from app.evaluation.router import router as evaluation_router
@@ -95,6 +96,7 @@ app.add_middleware(
     expose_headers=["Content-Disposition"],
 )
 register_error_handlers(app)
+app.include_router(demo_router)
 # The user list exists to populate the dev-auth picker, and under that shim a user's id
 # is their credential. Outside development the picker does not exist, nobody is seeded,
 # and the endpoint's only remaining use would be handing an attacker the ids. So it is

@@ -20,7 +20,7 @@ const jetBrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jet
 
 export const metadata: Metadata = {
   title: "Elenchus",
-  description: "Author and conduct surveys",
+  description: "Employee feedback through useful conversations. Try three surveys with a private demo pass. Included with qualifying KapkotiSolution products.",
 };
 
 /** Stated rather than left to the framework default, because two of these are choices.

@@ -138,6 +138,8 @@ class MeRead(BaseModel):
     is_admin: bool
     workspace_role: WorkspaceRole | None = None
 
+    is_operator: bool = False
+
 
 class AccountWrite(BaseModel):
     """What an administrator sets on an account, and the states that are refused.

@@ -178,7 +178,7 @@ async def test_autogenerate_preserves_tenant_constraints_without_changing_orm(en
             or str(constraint.name).endswith("_workspace_id_id")
         )
     }
-    assert len(tenant_names) == 46
+    assert len(tenant_names) == 47
     removed = {
         difference[1].name
         for difference in differences
@@ -457,6 +457,22 @@ async def test_production_guard_refuses_superuser_credentials(engine):
         async with AsyncSession(admin) as session:
             with pytest.raises(RuntimeError, match="non-superuser"):
                 await WorkspaceRepository(session).verify_runtime_role()
+    finally:
+        await admin.dispose()
+
+
+@pytest.mark.parametrize("attribute", ["BYPASSRLS", "CREATEROLE"])
+async def test_production_guard_refuses_inherited_administration(engine, attribute):
+    admin = create_async_engine(TEST_URL)
+    try:
+        # Connection exit rolls back the temporary role and membership as well as data.
+        async with admin.connect() as connection:
+            await connection.execute(text(f"CREATE ROLE elenchus_test_admin NOLOGIN {attribute}"))
+            await connection.execute(text("GRANT elenchus_test_admin TO elenchus_test_runtime"))
+            await connection.execute(text("SET LOCAL ROLE elenchus_test_runtime"))
+            async with AsyncSession(bind=connection) as session:
+                with pytest.raises(RuntimeError, match="administrative role"):
+                    await WorkspaceRepository(session).verify_runtime_role()
     finally:
         await admin.dispose()
 
